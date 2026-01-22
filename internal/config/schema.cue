@@ -29,10 +29,22 @@ package config
 	}
 }
 
-// Environment variable reference with required default
+// Environment variable reference with conditional configuration
 #EnvVar: {
 	name: string
 	default: string | bool | number
+
+	// Conditional configuration applied when env var is truthy (1, true, yes)
+	when_true?: {
+		// Defines to add to all targets
+		defines?: [...string]
+
+		// Flags to add to all targets
+		flags?: {
+			compiler?: [...string]
+			linker?: [...string]
+		}
+	}
 }
 
 // Top-level configuration
