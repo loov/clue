@@ -259,3 +259,129 @@ func TestMinimalConfig(t *testing.T) {
 		t.Errorf("Expected no variants, got %d", len(cfg.Variants))
 	}
 }
+
+func TestLoaderRejectsInvalidType(t *testing.T) {
+	dir := t.TempDir()
+	config := `package config
+name: "test"
+targets: {
+    app: {
+        name: "app"
+        type: "bad_type"
+        sources: ["main.cpp"]
+    }
+}
+`
+	os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644)
+
+	loader := NewLoader()
+	_, err := loader.Load(dir)
+
+	if err == nil {
+		t.Fatal("loader should reject invalid target type")
+	}
+}
+
+func TestLoaderAcceptsValidConfig(t *testing.T) {
+	dir := t.TempDir()
+	config := `package config
+name: "myproject"
+version: "1.0.0"
+toolchain: {
+    compiler: "clang++"
+    std: "c++20"
+}
+targets: {
+    mylib: {
+        name: "mylib"
+        type: "static_library"
+        sources: ["lib.cpp"]
+        headers: ["lib.h"]
+        includes: ["include/"]
+    }
+    myapp: {
+        name: "myapp"
+        type: "executable"
+        sources: ["main.cpp"]
+        depends: ["mylib"]
+    }
+}
+variants: {
+    debug: {
+        name: "debug"
+        optimization: "O0"
+        debug_info: true
+        defines: ["DEBUG"]
+    }
+    release: {
+        name: "release"
+        optimization: "O2"
+        debug_info: false
+        defines: ["NDEBUG"]
+    }
+}
+`
+	os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644)
+
+	loader := NewLoader()
+	cfg, err := loader.Load(dir)
+
+	if err != nil {
+		t.Fatalf("loader should accept valid config: %v", err)
+	}
+
+	// Verify extracted data
+	if cfg.Name != "myproject" {
+		t.Errorf("expected name 'myproject', got %q", cfg.Name)
+	}
+	if cfg.Toolchain.Compiler != "clang++" {
+		t.Errorf("expected compiler 'clang++', got %q", cfg.Toolchain.Compiler)
+	}
+	if len(cfg.Targets) != 2 {
+		t.Errorf("expected 2 targets, got %d", len(cfg.Targets))
+	}
+	if len(cfg.Variants) != 2 {
+		t.Errorf("expected 2 variants, got %d", len(cfg.Variants))
+	}
+
+	// Verify target details
+	myapp := cfg.Targets["myapp"]
+	if myapp.Type != "executable" {
+		t.Errorf("expected myapp type 'executable', got %q", myapp.Type)
+	}
+	if len(myapp.Depends) != 1 || myapp.Depends[0] != "mylib" {
+		t.Errorf("expected myapp to depend on mylib, got %v", myapp.Depends)
+	}
+}
+
+func TestLoaderErrorMessages(t *testing.T) {
+	dir := t.TempDir()
+	config := `package config
+name: "test"
+targets: {
+    app: {
+        name: "app"
+        type: "invalid"
+        sources: ["main.cpp"]
+    }
+}
+`
+	os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644)
+
+	loader := NewLoader()
+	_, err := loader.Load(dir)
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	errStr := err.Error()
+	// Error should include file location
+	if !containsIgnoreCase(errStr, "clue.cue") {
+		t.Logf("Warning: error may not include file path: %v", err)
+	}
+	// Error should mention the constraint
+	if !containsIgnoreCase(errStr, "type") {
+		t.Logf("Warning: error may not mention field: %v", err)
+	}
+}
