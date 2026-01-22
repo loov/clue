@@ -40,10 +40,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can specify environment-variable-based conditional configuration (e.g., USE_OPENSSL=1) that changes build behavior
   4. The dependency graph correctly represents file-to-command-to-file relationships for a multi-file project
 
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 01-01: TBD during phase planning
+- [ ] 01-01-PLAN.md — Initialize project structure, dependencies, and CUE schema definitions
+- [ ] 01-02-PLAN.md — Implement dependency graph infrastructure with cycle detection
+- [ ] 01-03-PLAN.md — Implement CUE config loading with rich error formatting
+- [ ] 01-04-PLAN.md — Implement build variants and environment variable injection
+- [ ] 01-05-PLAN.md — Integration: config-to-graph bridge and functional CLI
 
 ---
 
@@ -237,7 +241,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/5 | Planned | - |
 | 2. Core Compilation | 0/TBD | Not started | - |
 | 3. Incremental Builds | 0/TBD | Not started | - |
 | 4. Parallel Execution | 0/TBD | Not started | - |
