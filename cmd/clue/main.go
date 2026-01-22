@@ -104,6 +104,20 @@ func runValidate(dir, variant string, verbose bool) int {
 		printError(err)
 		return 1
 	}
+
+	// Apply environment-based conditionals to config
+	if len(env.Variables) > 0 {
+		cfg, err = config.ApplyEnvVars(cfg, env)
+		if err != nil {
+			printError(err)
+			return 1
+		}
+	}
+
+	// Print env var status in verbose mode
+	if verbose && len(env.Used) > 0 {
+		fmt.Printf("Environment variables from system: %s\n", strings.Join(env.Used, ", "))
+	}
 	if verbose && len(env.Variables) > 0 {
 		fmt.Printf("Environment variables: %d configured\n", len(env.Variables))
 		for name, value := range env.Variables {
