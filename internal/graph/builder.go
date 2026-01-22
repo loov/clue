@@ -47,10 +47,10 @@ func (b *Builder) AddDependency(from, to string) {
 
 // Build constructs the graph, detecting cycles
 func (b *Builder) Build() (*BuildGraph, error) {
-	// Create directed acyclic graph
+	// Create directed graph with cycle prevention
 	g := graph.New(NodeID,
 		graph.Directed(),
-		graph.Acyclic(), // Enforces DAG property
+		graph.PreventCycles(), // Rejects edges that would create cycles
 	)
 
 	// Add all vertices first
