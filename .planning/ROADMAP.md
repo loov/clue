@@ -40,14 +40,17 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can specify environment-variable-based conditional configuration (e.g., USE_OPENSSL=1) that changes build behavior
   4. The dependency graph correctly represents file-to-command-to-file relationships for a multi-file project
 
-**Plans**: 5 plans
+**Plans**: 8 plans (5 original + 3 gap closure)
 
 Plans:
-- [ ] 01-01-PLAN.md — Initialize project structure, dependencies, and CUE schema definitions
-- [ ] 01-02-PLAN.md — Implement dependency graph infrastructure with cycle detection
-- [ ] 01-03-PLAN.md — Implement CUE config loading with rich error formatting
-- [ ] 01-04-PLAN.md — Implement build variants and environment variable injection
-- [ ] 01-05-PLAN.md — Integration: config-to-graph bridge and functional CLI
+- [x] 01-01-PLAN.md — Initialize project structure, dependencies, and CUE schema definitions
+- [x] 01-02-PLAN.md — Implement dependency graph infrastructure with cycle detection
+- [x] 01-03-PLAN.md — Implement CUE config loading with rich error formatting
+- [x] 01-04-PLAN.md — Implement build variants and environment variable injection
+- [x] 01-05-PLAN.md — Integration: config-to-graph bridge and functional CLI
+- [ ] 01-06-PLAN.md — [GAP CLOSURE] Add Go-side schema validation for config constraints
+- [ ] 01-07-PLAN.md — [GAP CLOSURE] Make environment variables affect build configuration
+- [ ] 01-08-PLAN.md — [GAP CLOSURE] Implement file-level dependency graph
 
 ---
 
