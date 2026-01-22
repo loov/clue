@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/loov/clue/internal/cue/cue"
+	"cuelang.org/go/cue"
 )
 
 const (

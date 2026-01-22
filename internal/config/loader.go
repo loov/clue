@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/loov/clue/internal/cue/cue"
-	"github.com/loov/clue/internal/cue/cuecontext"
-	cueerrors "github.com/loov/clue/internal/cue/errors"
-	"github.com/loov/clue/internal/cue/load"
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+	cueerrors "cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/load"
 
 	clerrors "github.com/loov/clue/internal/errors"
 )
