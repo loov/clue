@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -168,6 +169,241 @@ func TestGetEnvValueNotFound(t *testing.T) {
 	if ok {
 		t.Errorf("Expected ok=false for nonexistent env var, got ok=true, val=%s", val)
 	}
+}
+
+func TestApplyEnvVars_WhenTrue(t *testing.T) {
+	// Create a config with env-conditional defines
+	dir := t.TempDir()
+	configContent := `package config
+
+name: "test"
+targets: {
+	myapp: {
+		name: "myapp"
+		type: "executable"
+		sources: ["main.cpp"]
+		defines: ["-DBASE"]
+	}
+}
+env: {
+	USE_OPENSSL: {
+		name: "USE_OPENSSL"
+		default: "0"
+		when_true: {
+			defines: ["-DUSE_OPENSSL", "-DSSL_ENABLED"]
+			flags: {
+				linker: ["-lssl", "-lcrypto"]
+			}
+		}
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader := NewLoader()
+	cfg, err := loader.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// Simulate USE_OPENSSL=1
+	env := &EnvConfig{
+		Variables: map[string]string{
+			"USE_OPENSSL": "1",
+		},
+		Used: []string{"USE_OPENSSL"},
+	}
+
+	result, err := ApplyEnvVars(cfg, env)
+	if err != nil {
+		t.Fatalf("ApplyEnvVars failed: %v", err)
+	}
+
+	// Check that defines were added
+	target := result.Targets["myapp"]
+	if !containsString(target.Defines, "-DUSE_OPENSSL") {
+		t.Errorf("expected -DUSE_OPENSSL define, got: %v", target.Defines)
+	}
+	if !containsString(target.Defines, "-DBASE") {
+		t.Errorf("original define -DBASE should be preserved, got: %v", target.Defines)
+	}
+	if !containsString(target.Flags.Linker, "-lssl") {
+		t.Errorf("expected -lssl linker flag, got: %v", target.Flags.Linker)
+	}
+}
+
+func TestApplyEnvVars_WhenFalse(t *testing.T) {
+	dir := t.TempDir()
+	configContent := `package config
+
+name: "test"
+targets: {
+	myapp: {
+		name: "myapp"
+		type: "executable"
+		sources: ["main.cpp"]
+		defines: ["-DBASE"]
+	}
+}
+env: {
+	USE_OPENSSL: {
+		name: "USE_OPENSSL"
+		default: "0"
+		when_true: {
+			defines: ["-DUSE_OPENSSL"]
+		}
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader := NewLoader()
+	cfg, err := loader.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// Simulate USE_OPENSSL=0 (falsy)
+	env := &EnvConfig{
+		Variables: map[string]string{
+			"USE_OPENSSL": "0",
+		},
+	}
+
+	result, err := ApplyEnvVars(cfg, env)
+	if err != nil {
+		t.Fatalf("ApplyEnvVars failed: %v", err)
+	}
+
+	target := result.Targets["myapp"]
+	if containsString(target.Defines, "-DUSE_OPENSSL") {
+		t.Errorf("should NOT have -DUSE_OPENSSL when env is falsy, got: %v", target.Defines)
+	}
+	// Original should still be there
+	if !containsString(target.Defines, "-DBASE") {
+		t.Errorf("-DBASE should be preserved, got: %v", target.Defines)
+	}
+}
+
+func TestIsTruthy(t *testing.T) {
+	truthy := []string{"1", "true", "TRUE", "yes", "YES", "on", "ON"}
+	for _, v := range truthy {
+		if !isTruthy(v) {
+			t.Errorf("%q should be truthy", v)
+		}
+	}
+
+	falsy := []string{"0", "false", "FALSE", "no", "NO", "off", "OFF", ""}
+	for _, v := range falsy {
+		if isTruthy(v) {
+			t.Errorf("%q should be falsy", v)
+		}
+	}
+}
+
+func TestApplyEnvVars_NoEnvSection(t *testing.T) {
+	dir := t.TempDir()
+	configContent := `package config
+
+name: "test"
+targets: {
+	myapp: {
+		name: "myapp"
+		type: "executable"
+		sources: ["main.cpp"]
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader := NewLoader()
+	cfg, err := loader.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	env := &EnvConfig{Variables: map[string]string{}}
+
+	result, err := ApplyEnvVars(cfg, env)
+	if err != nil {
+		t.Fatalf("ApplyEnvVars should succeed with no env section: %v", err)
+	}
+
+	if result == nil {
+		t.Error("result should not be nil")
+	}
+}
+
+func TestApplyEnvVars_MultipleTargets(t *testing.T) {
+	dir := t.TempDir()
+	configContent := `package config
+
+name: "test"
+targets: {
+	lib: {
+		name: "lib"
+		type: "static_library"
+		sources: ["lib.cpp"]
+	}
+	app: {
+		name: "app"
+		type: "executable"
+		sources: ["main.cpp"]
+		depends: ["lib"]
+	}
+}
+env: {
+	DEBUG: {
+		name: "DEBUG"
+		default: "0"
+		when_true: {
+			defines: ["-DDEBUG_MODE"]
+		}
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader := NewLoader()
+	cfg, err := loader.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	env := &EnvConfig{
+		Variables: map[string]string{"DEBUG": "1"},
+	}
+
+	result, err := ApplyEnvVars(cfg, env)
+	if err != nil {
+		t.Fatalf("ApplyEnvVars failed: %v", err)
+	}
+
+	// Both targets should get the define
+	if !containsString(result.Targets["lib"].Defines, "-DDEBUG_MODE") {
+		t.Error("lib should have -DDEBUG_MODE")
+	}
+	if !containsString(result.Targets["app"].Defines, "-DDEBUG_MODE") {
+		t.Error("app should have -DDEBUG_MODE")
+	}
+}
+
+// helper function for string slice contains
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
 }
 
 // helper function
