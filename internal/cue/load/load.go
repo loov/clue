@@ -33,6 +33,14 @@ type Instance struct {
 	data map[string]interface{}
 }
 
+// BuildData implements the cue.Buildable interface.
+func (inst *Instance) BuildData() (map[string]interface{}, error) {
+	if inst.Err != nil {
+		return nil, inst.Err
+	}
+	return inst.data, nil
+}
+
 // Instances loads CUE instances from the given patterns.
 func Instances(patterns []string, cfg *Config) []*Instance {
 	if cfg == nil || cfg.Dir == "" {
@@ -50,10 +58,4 @@ func Instances(patterns []string, cfg *Config) []*Instance {
 	}
 
 	return []*Instance{{data: data}}
-}
-
-// GetLoadedInstance returns the internal LoadedInstance for building.
-// This is used by the Context.BuildInstance method.
-func (inst *Instance) GetLoadedInstance() *cue.LoadedInstance {
-	return &cue.LoadedInstance{} // The data is accessed via the Instance wrapper
 }
