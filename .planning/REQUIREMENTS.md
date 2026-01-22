@@ -92,35 +92,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONF-01 | TBD | Pending |
-| CONF-02 | TBD | Pending |
-| CONF-03 | TBD | Pending |
-| COMP-01 | TBD | Pending |
-| COMP-02 | TBD | Pending |
-| COMP-03 | TBD | Pending |
-| COMP-04 | TBD | Pending |
-| COMP-05 | TBD | Pending |
-| DEPS-01 | TBD | Pending |
-| DEPS-02 | TBD | Pending |
-| DEPS-03 | TBD | Pending |
-| OUTP-01 | TBD | Pending |
-| OUTP-02 | TBD | Pending |
-| OUTP-03 | TBD | Pending |
-| OUTP-04 | TBD | Pending |
-| OUTP-05 | TBD | Pending |
-| OUTP-06 | TBD | Pending |
-| DEVX-01 | TBD | Pending |
-| DEVX-02 | TBD | Pending |
-| DEVX-03 | TBD | Pending |
-| PLAT-01 | TBD | Pending |
-| PLAT-02 | TBD | Pending |
-| PLAT-03 | TBD | Pending |
+| CONF-01 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Pending |
+| CONF-03 | Phase 1 | Pending |
+| COMP-01 | Phase 2 | Pending |
+| COMP-02 | Phase 3 | Pending |
+| COMP-03 | Phase 3 | Pending |
+| COMP-04 | Phase 8 | Pending |
+| COMP-05 | Phase 2 | Pending |
+| DEPS-01 | Phase 2 | Pending |
+| DEPS-02 | Phase 6 | Pending |
+| DEPS-03 | Phase 6 | Pending |
+| OUTP-01 | Phase 2 | Pending |
+| OUTP-02 | Phase 2 | Pending |
+| OUTP-03 | Phase 7 | Pending |
+| OUTP-04 | Phase 7 | Pending |
+| OUTP-05 | Phase 2 | Pending |
+| OUTP-06 | Phase 7 | Pending |
+| DEVX-01 | Phase 2 | Pending |
+| DEVX-02 | Phase 8 | Pending |
+| DEVX-03 | Phase 8 | Pending |
+| PLAT-01 | Phase 2 | Pending |
+| PLAT-02 | Phase 5 | Pending |
+| PLAT-03 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23 ⚠️
+- Mapped to phases: 23
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-22 after initial definition*
+*Last updated: 2026-01-22 after roadmap creation*
