@@ -1,4 +1,4 @@
-FROM node:24
+FROM node:25-trixie
 
 ARG TZ
 ENV TZ="$TZ"
@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   vim \
   wget \
   gnupg \
+  clang \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Go
