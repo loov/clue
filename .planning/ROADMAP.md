@@ -16,7 +16,7 @@ Clue is a Go-based build system for C/C++ that replaces CMake/Make complexity wi
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - CUE configuration parsing and dependency graph infrastructure
+- [x] **Phase 1: Foundation** - CUE configuration parsing and dependency graph infrastructure
 - [ ] **Phase 2: Core Compilation** - Single-threaded compilation to executables and static libraries
 - [ ] **Phase 3: Incremental Builds** - Content-hash based caching with header dependency tracking
 - [ ] **Phase 4: Parallel Execution** - Multi-core compilation with dependency-aware scheduling
@@ -48,9 +48,9 @@ Plans:
 - [x] 01-03-PLAN.md — Implement CUE config loading with rich error formatting
 - [x] 01-04-PLAN.md — Implement build variants and environment variable injection
 - [x] 01-05-PLAN.md — Integration: config-to-graph bridge and functional CLI
-- [ ] 01-06-PLAN.md — [GAP CLOSURE] Add Go-side schema validation for config constraints
-- [ ] 01-07-PLAN.md — [GAP CLOSURE] Make environment variables affect build configuration
-- [ ] 01-08-PLAN.md — [GAP CLOSURE] Implement file-level dependency graph
+- [x] 01-06-PLAN.md — [GAP CLOSURE] Add Go-side schema validation for config constraints
+- [x] 01-07-PLAN.md — [GAP CLOSURE] Make environment variables affect build configuration
+- [x] 01-08-PLAN.md — [GAP CLOSURE] Implement file-level dependency graph
 
 ---
 
@@ -244,7 +244,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/5 | Planned | - |
+| 1. Foundation | 8/8 | Complete ✓ | 2026-01-22 |
 | 2. Core Compilation | 0/TBD | Not started | - |
 | 3. Incremental Builds | 0/TBD | Not started | - |
 | 4. Parallel Execution | 0/TBD | Not started | - |

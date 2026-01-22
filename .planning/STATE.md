@@ -6,32 +6,32 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time — not during.
 
-**Current focus:** Phase 1 - Foundation (COMPLETE)
+**Current focus:** Phase 2 - Core Compilation (next up)
 
 ## Current Position
 
-Phase: 1 of 8 (Foundation)
-Plan: 7 of 8 in current phase (01-01 through 01-07 complete)
-Status: In progress - gap closure plans in progress
-Last activity: 2026-01-22 — Completed 01-07-PLAN.md (Environment Variable Conditionals)
+Phase: 1 of 8 (Foundation) — COMPLETE ✓
+Plan: 8 of 8 in current phase (all complete)
+Status: Phase verified
+Last activity: 2026-01-22 — Completed 01-08-PLAN.md (File-Level Dependency Graph) - Phase 1 verified
 
-Progress: [██████░░░░] ~17.5%
+Progress: [██████████] ~12.5% (Phase 1/8 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 5.7min
+- Total plans completed: 8
+- Average duration: 5.0min
 - Total execution time: 0.67 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 7 | 40min | 5.7min |
+| 01-foundation | 8 | 40min | 5.0min |
 
 **Recent Trend:**
-- Last 5 plans: 01-07 (5min), 01-06 (3min), 01-05 (4min), 01-04 (10min), 01-03 (10min)
+- Last 5 plans: 01-08 (2min), 01-07 (5min), 01-06 (3min), 01-05 (4min), 01-04 (10min)
 - Trend: Gap closure plans faster - focused scope with existing infrastructure
 
 *Updated after each plan completion*
@@ -61,6 +61,7 @@ Recent decisions affecting current work:
 - 01-04: Mandatory defaults for env vars — fails early with clear error message
 - 01-05: Target type to node type mapping — converts config target types to graph node types
 - 01-05: Flag-before-command convention — Go's flag package requires flags before positional arguments
+- 01-06: Real CUE library over shim — removed 561 lines of dead shim code
 - 01-07: Truthy values for conditionals — 1, true, yes, on (case-insensitive) matches standard conventions
 - 01-07: Global when_true application — conditionals apply to ALL targets, not per-target (rationale: env vars are typically global settings)
 - 01-07: Deep copy pattern in ApplyEnvVars — preserves immutability, enables caching
@@ -79,7 +80,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-22T21:40:00Z
-Stopped at: Completed 01-07-PLAN.md (Environment Variable Conditionals) - Gap 2 closed
+Last session: 2026-01-22T22:00:00Z
+Stopped at: Phase 1 verified and complete - All 4 success criteria verified
 Resume file: None
-Next step: Execute 01-08 (File-Level Dependency Graph) to close Gap 3, then Phase 1 complete
+Next step: Start Phase 2 (Core Compilation) - requires phase planning

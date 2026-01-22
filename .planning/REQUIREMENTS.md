@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Configuration
 
-- [ ] **CONF-01**: Parse CUE configuration files with schema validation
-- [ ] **CONF-02**: Support build variants (debug/release) via CUE inheritance
-- [ ] **CONF-03**: Support conditional configuration based on environment variables
+- [x] **CONF-01**: Parse CUE configuration files with schema validation
+- [x] **CONF-02**: Support build variants (debug/release) via CUE inheritance
+- [x] **CONF-03**: Support conditional configuration based on environment variables
 
 ### Compilation
 
@@ -92,9 +92,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONF-01 | Phase 1 | Pending |
-| CONF-02 | Phase 1 | Pending |
-| CONF-03 | Phase 1 | Pending |
+| CONF-01 | Phase 1 | Complete |
+| CONF-02 | Phase 1 | Complete |
+| CONF-03 | Phase 1 | Complete |
 | COMP-01 | Phase 2 | Pending |
 | COMP-02 | Phase 3 | Pending |
 | COMP-03 | Phase 3 | Pending |
