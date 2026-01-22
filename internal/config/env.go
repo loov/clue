@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/loov/clue/internal/cue/cue"
-	"github.com/loov/clue/internal/cue/cuecontext"
-	"github.com/loov/clue/internal/cue/load"
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/load"
 
 	clerrors "github.com/loov/clue/internal/errors"
 )
@@ -83,16 +83,77 @@ func ResolveEnvVars(cfg *Config) (*EnvConfig, error) {
 	return env, nil
 }
 
-// InjectEnv creates a new Config with environment variables injected.
-// This uses the resolved env vars to update relevant configuration fields.
-func InjectEnv(cfg *Config, envVars map[string]string) *Config {
-	// Create a copy of the config
+// ApplyEnvVars modifies configuration based on resolved environment variables.
+// For each env var with when_true conditional, applies defines/flags when value is truthy.
+func ApplyEnvVars(cfg *Config, env *EnvConfig) (*Config, error) {
+	// Create a deep copy of targets to modify
 	newCfg := *cfg
+	newCfg.Targets = make(map[string]Target, len(cfg.Targets))
+	for k, v := range cfg.Targets {
+		// Deep copy each target
+		newTarget := v
+		newTarget.Defines = append([]string{}, v.Defines...)
+		newTarget.Flags.Compiler = append([]string{}, v.Flags.Compiler...)
+		newTarget.Flags.Linker = append([]string{}, v.Flags.Linker...)
+		newCfg.Targets[k] = newTarget
+	}
 
-	// Store env vars for later access via GetEnvValue
-	// The env vars are accessible through the _env hidden field in Raw
+	// Read env definitions from CUE value
+	envDefs := cfg.Raw.LookupPath(cue.ParsePath("env"))
+	if !envDefs.Exists() {
+		return &newCfg, nil
+	}
 
-	return &newCfg
+	iter, _ := envDefs.Fields()
+	for iter.Next() {
+		name := iter.Selector().String()
+		def := iter.Value()
+
+		// Get resolved value from environment
+		value, exists := env.Variables[name]
+		if !exists {
+			continue
+		}
+
+		// Check when_true conditional
+		whenTrue := def.LookupPath(cue.ParsePath("when_true"))
+		if whenTrue.Exists() && isTruthy(value) {
+			if err := applyConditional(&newCfg, whenTrue); err != nil {
+				return nil, fmt.Errorf("applying env %s conditional: %w", name, err)
+			}
+		}
+	}
+
+	return &newCfg, nil
+}
+
+// isTruthy returns true if value represents a truthy condition
+func isTruthy(value string) bool {
+	lower := strings.ToLower(value)
+	return lower == "1" || lower == "true" || lower == "yes" || lower == "on"
+}
+
+// applyConditional applies conditional defines and flags to all targets
+func applyConditional(cfg *Config, cond cue.Value) error {
+	// Extract defines
+	defines := extractStringList(cond, "defines")
+
+	// Extract flags
+	var compilerFlags, linkerFlags []string
+	if flags := cond.LookupPath(cue.ParsePath("flags")); flags.Exists() {
+		compilerFlags = extractStringList(flags, "compiler")
+		linkerFlags = extractStringList(flags, "linker")
+	}
+
+	// Apply to all targets
+	for name, target := range cfg.Targets {
+		target.Defines = append(target.Defines, defines...)
+		target.Flags.Compiler = append(target.Flags.Compiler, compilerFlags...)
+		target.Flags.Linker = append(target.Flags.Linker, linkerFlags...)
+		cfg.Targets[name] = target
+	}
+
+	return nil
 }
 
 // LoaderWithEnv creates a loader that injects environment variables
