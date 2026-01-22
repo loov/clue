@@ -11,28 +11,28 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 1 of 8 (Foundation)
-Plan: 5 of 5 in current phase (01-01, 01-02, 01-03, 01-04, 01-05 complete)
-Status: Phase complete
-Last activity: 2026-01-22 — Completed 01-05-PLAN.md (CLI Integration)
+Plan: 8 of 8 in current phase (01-01, 01-02, 01-03, 01-04, 01-05, 01-06, 01-07, 01-08 complete)
+Status: Phase complete - all gap closure plans executed
+Last activity: 2026-01-22 — Completed 01-08-PLAN.md (File-Level Dependency Graph)
 
-Progress: [██████░░░░] ~12.5%
+Progress: [███████░░░] ~17.5%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 6.4min
-- Total execution time: 0.53 hours
+- Total plans completed: 8
+- Average duration: 4.5min
+- Total execution time: 0.60 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 5 | 32min | 6.4min |
+| 01-foundation | 8 | 36min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-05 (4min), 01-04 (10min), 01-03 (10min), 01-02 (3min), 01-01 (5min)
-- Trend: Integration plan faster due to infrastructure already in place
+- Last 5 plans: 01-08 (2min), 01-07 (2min), 01-06 (2min), 01-05 (4min), 01-04 (10min)
+- Trend: Gap closure plans faster - focused scope with existing infrastructure
 
 *Updated after each plan completion*
 
@@ -61,6 +61,9 @@ Recent decisions affecting current work:
 - 01-04: Mandatory defaults for env vars — fails early with clear error message
 - 01-05: Target type to node type mapping — converts config target types to graph node types
 - 01-05: Flag-before-command convention — Go's flag package requires flags before positional arguments
+- 01-08: Command nodes as explicit vertices — enables tracking compile and link operations with metadata
+- 01-08: Structured node IDs — src:target:path, obj:target:path, cmd:compile:target:source, cmd:link:target, out:target for predictable lookup
+- 01-08: Cross-target dependencies at link level — link command depends on dependency output artifact
 
 ### Pending Todos
 
@@ -72,7 +75,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-22T20:49:37Z
-Stopped at: Completed 01-05-PLAN.md (CLI Integration) - Phase 1 Complete
+Last session: 2026-01-22T21:37:53Z
+Stopped at: Completed 01-08-PLAN.md (File-Level Dependency Graph) - Phase 1 verification complete
 Resume file: None
-Next step: Start Phase 2 (Compiler Interface) - requires phase planning
+Next step: Phase 1 fully verified and complete - ready for Phase 2 (Compiler Interface)
