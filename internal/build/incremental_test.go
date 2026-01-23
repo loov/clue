@@ -117,7 +117,7 @@ func TestIncremental_FirstBuild(t *testing.T) {
 	buildDir, cfg := createTestProject(t, tmpDir)
 
 	// Create builder
-	builder := NewBuilder("clang", false)
+	builder := NewBuilder("clang", false, 1, false)
 
 	// Build for the first time
 	opts := BuildOptions{
@@ -167,7 +167,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder := NewBuilder("clang", false)
+	builder := NewBuilder("clang", false, 1, false)
 	opts := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -212,7 +212,7 @@ func TestIncremental_SourceChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder := NewBuilder("clang", false)
+	builder := NewBuilder("clang", false, 1, false)
 	opts := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -273,7 +273,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder := NewBuilder("clang", false)
+	builder := NewBuilder("clang", false, 1, false)
 	opts := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -329,7 +329,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder := NewBuilder("clang", false)
+	builder := NewBuilder("clang", false, 1, false)
 	opts := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -375,7 +375,7 @@ func TestIncremental_ContentRevert(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder := NewBuilder("clang", false)
+	builder := NewBuilder("clang", false, 1, false)
 	opts := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
