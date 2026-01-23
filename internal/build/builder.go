@@ -58,9 +58,9 @@ func NewBuilder(toolchain string, verbose bool) *Builder {
 	}
 }
 
-// ObjectDir returns the path for object files: build/variant/target/
+// ObjectDir returns the path for object files: build/variant/target/obj/
 func (b *Builder) ObjectDir(buildDir, variant, target string) string {
-	return filepath.Join(buildDir, variant, target)
+	return filepath.Join(buildDir, variant, target, "obj")
 }
 
 // OutputPath returns the final artifact path
