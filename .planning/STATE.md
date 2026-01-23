@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 4 of 8 (Parallel Execution)
-Plan: 3 of 3 in current phase
+Plan: 4 of 4 in current phase
 Status: Phase complete
-Last activity: 2026-01-23 — Completed 04-03-PLAN.md (CLI Integration)
+Last activity: 2026-01-23 — Completed 04-04-PLAN.md (Integration Tests)
 
-Progress: [████████████████] 100% (25/25 plans complete across all phases)
+Progress: [████████████████] 100% (26/26 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 5.0min
-- Total execution time: 2.10 hours
+- Total execution time: 2.20 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████████████████] 100% (25/25 plans c
 | 01-foundation | 8 | 40min | 5.0min |
 | 02-core-compilation | 9 | 39min | 4.3min |
 | 03-incremental-builds | 5 | 37min | 7.4min |
-| 04-parallel-execution | 3 | 10.7min | 3.6min |
+| 04-parallel-execution | 4 | 16.7min | 4.2min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (4min), 04-02 (3.2min), 04-01 (3.5min), 03-05 (4.8min), 03-04 (7.4min)
-- Trend: Phase 4 complete, parallel execution fully integrated
+- Last 5 plans: 04-04 (6min), 04-03 (4min), 04-02 (3.2min), 04-01 (3.5min), 03-05 (4.8min)
+- Trend: Phase 4 complete with integration tests validating all success criteria
 
 *Updated after each plan completion*
 
@@ -126,6 +126,9 @@ Recent decisions affecting current work:
 - 04-03: --keep-going follows make -k convention — continue building despite errors
 - 04-03: atomic.Int64 for Progress counters — lock-free incrementing for performance
 - 04-03: sync.Mutex for output serialization — prevents interleaved progress output
+- 04-04: Use target names without hyphens — avoids CUE selector quoting issues with iter.Selector().String()
+- 04-04: Absolute paths in test config — required since compiler runs from different working directory
+- 04-04: Keep-going mode creates partial output — successfully compiled files produce output even when some fail
 
 ### Pending Todos
 
@@ -148,6 +151,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 04-03-PLAN.md (CLI Integration)
+Stopped at: Completed 04-04-PLAN.md (Integration Tests)
 Resume file: None
 Next step: Phase 4 complete. Continue with Phase 5 (Module Support) or project milestone
