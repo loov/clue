@@ -98,10 +98,14 @@ Plans:
   4. User changes compiler flags in configuration and rebuilds — all affected files recompile with new flags
   5. User reverts a source file to previous content and rebuilds — cached result is reused (content-hash based)
 
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 03-01: TBD during phase planning
+- [ ] 03-01-PLAN.md — Cache key computation and dependency file parsing (TDD)
+- [ ] 03-02-PLAN.md — Compiler dependency generation (-MMD -MP flags)
+- [ ] 03-03-PLAN.md — Cache manager implementation
+- [ ] 03-04-PLAN.md — Builder integration with incremental builds
+- [ ] 03-05-PLAN.md — Integration tests for all success criteria
 
 ---
 
@@ -252,9 +256,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 8/8 | Complete ✓ | 2026-01-22 |
-| 2. Core Compilation | 9/9 | Complete ✓ | 2026-01-23 |
-| 3. Incremental Builds | 0/TBD | Not started | - |
+| 1. Foundation | 8/8 | Complete | 2026-01-22 |
+| 2. Core Compilation | 9/9 | Complete | 2026-01-23 |
+| 3. Incremental Builds | 0/5 | Planned | - |
 | 4. Parallel Execution | 0/TBD | Not started | - |
 | 5. Cross-Platform Support | 0/TBD | Not started | - |
 | 6. External Dependencies | 0/TBD | Not started | - |
