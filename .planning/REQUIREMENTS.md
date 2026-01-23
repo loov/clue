@@ -24,8 +24,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Dependencies
 
 - [x] **DEPS-01**: Link against system libraries via configuration
-- [ ] **DEPS-02**: Build vendored source dependencies in-project
-- [ ] **DEPS-03**: Clone and build git dependencies
+- [x] **DEPS-02**: Build vendored source dependencies in-project
+- [x] **DEPS-03**: Clone and build git dependencies
 
 ### Output
 
@@ -101,8 +101,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-04 | Phase 8 | Pending |
 | COMP-05 | Phase 2 | Complete |
 | DEPS-01 | Phase 2 | Complete |
-| DEPS-02 | Phase 6 | Pending |
-| DEPS-03 | Phase 6 | Pending |
+| DEPS-02 | Phase 6 | Complete |
+| DEPS-03 | Phase 6 | Complete |
 | OUTP-01 | Phase 2 | Complete |
 | OUTP-02 | Phase 2 | Complete |
 | OUTP-03 | Phase 7 | Pending |
@@ -123,4 +123,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-23 after Phase 5 completion*
+*Last updated: 2026-01-23 after Phase 6 completion*
