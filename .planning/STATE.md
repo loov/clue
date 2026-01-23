@@ -11,29 +11,29 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 2 of 8 (Core Compilation)
-Plan: 6 of 7 in current phase
-Status: In progress
-Last activity: 2026-01-23 — Completed 02-06-PLAN.md (Clean Command)
+Plan: 7 of 7 in current phase
+Status: Phase complete
+Last activity: 2026-01-23 — Completed 02-07-PLAN.md (Integration Testing)
 
-Progress: [██████░░░░] ~50% (6/7 plans in Phase 2 complete)
+Progress: [███████░░░] ~58% (7/7 plans in Phase 2 complete, ready for Phase 3)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 3.7min
-- Total execution time: 0.98 hours
+- Total plans completed: 15
+- Average duration: 3.9min
+- Total execution time: 1.26 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
-| 02-core-compilation | 6 | 19min | 3.2min |
+| 02-core-compilation | 7 | 36min | 5.1min |
 
 **Recent Trend:**
-- Last 5 plans: 02-06 (6min), 02-05 (5min), 02-04 (2min), 02-03 (2min), 02-02 (2min)
-- Trend: Phase 2 averaging 3.2min, recent increase for integration/CLI tasks
+- Last 5 plans: 02-07 (17min), 02-06 (6min), 02-05 (5min), 02-04 (2min), 02-03 (2min)
+- Trend: Phase 2 complete, 17min for comprehensive integration testing (debugging loader issues)
 
 *Updated after each plan completion*
 
@@ -92,6 +92,9 @@ Recent decisions affecting current work:
 - 02-06: Require variant when not using --all — prevents accidental deletion of build artifacts (rationale: safety first for destructive operations)
 - 02-06: Build directory relative to project directory — clean operates on build directory within --dir location (rationale: consistency with build command)
 - 02-06: Graceful handling of non-existent directories — missing build directories return success with "Already clean" message (rationale: matches user expectation, no error for already-clean state)
+- 02-07: CompileBytes for packageless configs — use ctx.CompileBytes() instead of load.Instances for JSON/CUE data files (rationale: data files shouldn't require package declarations)
+- 02-07: Pointer for WarningsAsErrors — *bool allows distinguishing unset from false (rationale: nil = use default, explicit false = disabled)
+- 02-07: Simplified schema variants — [string]: #Variant instead of forced debug/release definitions (rationale: users define their own variants)
 
 ### Pending Todos
 
@@ -100,10 +103,11 @@ None yet.
 ### Blockers/Concerns
 
 - **Network isolation:** Environment has no external network access. CUE stubs work for testing but full validation requires `go mod tidy` with network.
+- **Variant application bug:** ApplyVariant() in variants.go unifies entire config with variant definition, causing conflicts. Validation works for configs without variants. Fix needed for variant-based builds.
 
 ## Session Continuity
 
-Last session: 2026-01-23T06:51:13Z
-Stopped at: Completed 02-06-PLAN.md (Clean Command)
+Last session: 2026-01-23T07:01:46Z
+Stopped at: Completed 02-07-PLAN.md (Integration Testing) — Phase 2 complete!
 Resume file: None
-Next step: Continue Phase 2 - Plan 02-07 (final plan in phase, Wave 4)
+Next step: Begin Phase 3 - Dependency Management
