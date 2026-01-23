@@ -165,3 +165,109 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 
 	t.Logf("Successfully built platform-agnostic config on %s using %s", HostPlatform(), toolchainName)
 }
+
+// TestCrossCompilationTarget verifies cross-compilation toolchain discovery
+// This test verifies Success Criterion 2: Cross-compilation uses correct toolchain
+func TestCrossCompilationTarget(t *testing.T) {
+	// Test cross-compilation to linux-arm64 (if on amd64) or linux-amd64 (if on arm64)
+	host := HostPlatform()
+	var targetPlatform Platform
+
+	// Choose a cross-compilation target based on host
+	if host.OS == "linux" && host.Arch == "amd64" {
+		targetPlatform = Platform{OS: "linux", Arch: "arm64"}
+	} else if host.OS == "linux" && host.Arch == "arm64" {
+		targetPlatform = Platform{OS: "linux", Arch: "amd64"}
+	} else {
+		t.Skip("cross-compilation test requires linux host (amd64 or arm64)")
+	}
+
+	// Skip if cross-compiler not available
+	if !crossCompilerAvailable(targetPlatform) {
+		t.Skipf("cross-compiler not available for %s", targetPlatform)
+	}
+
+	// Parse target string
+	parsed, err := ParseTarget(targetPlatform.String())
+	if err != nil {
+		t.Fatalf("ParseTarget failed: %v", err)
+	}
+	if parsed.String() != targetPlatform.String() {
+		t.Errorf("ParseTarget returned %s, expected %s", parsed, targetPlatform)
+	}
+
+	// Discover toolchain for cross-compilation
+	toolchain, err := DiscoverToolchain("gcc", targetPlatform)
+	if err != nil {
+		t.Fatalf("DiscoverToolchain failed: %v", err)
+	}
+
+	// Verify toolchain has correct GNU triplet prefix
+	expectedPrefix := ""
+	if targetPlatform.Arch == "arm64" {
+		expectedPrefix = "aarch64-linux-gnu"
+	} else if targetPlatform.Arch == "amd64" {
+		expectedPrefix = "x86_64-linux-gnu"
+	}
+
+	if !strings.Contains(toolchain.CC, expectedPrefix) {
+		t.Errorf("CC compiler %s should contain %s for cross-compilation", toolchain.CC, expectedPrefix)
+	}
+	if !strings.Contains(toolchain.AR, expectedPrefix) {
+		t.Errorf("AR archiver %s should contain %s for cross-compilation", toolchain.AR, expectedPrefix)
+	}
+
+	t.Logf("Cross-compilation toolchain for %s: CC=%s, CXX=%s, AR=%s",
+		targetPlatform, toolchain.CC, toolchain.CXX, toolchain.AR)
+}
+
+// TestCrossCompilationValidation verifies upfront validation of cross-compiler availability
+func TestCrossCompilationValidation(t *testing.T) {
+	// Test with an unavailable cross-compiler (darwin from linux)
+	host := HostPlatform()
+	if host.OS != "linux" {
+		t.Skip("cross-compilation validation test requires linux host")
+	}
+
+	// Try to build for darwin-arm64 (cross-compiler unlikely to be installed)
+	targetPlatform := Platform{OS: "darwin", Arch: "arm64"}
+
+	// Create builder - should fail during toolchain validation
+	_, err := NewBuilder("clang", targetPlatform, false, 1, false)
+
+	// Should get an error about missing cross-compiler
+	if err == nil {
+		// If no error, the cross-compiler might actually be installed (unusual but possible)
+		t.Skip("darwin cross-compiler is installed, cannot test validation failure")
+	}
+
+	// Verify error message is clear
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "compiler not found") && !strings.Contains(errMsg, "toolchain") {
+		t.Errorf("expected clear error about missing compiler, got: %s", errMsg)
+	}
+
+	t.Logf("Cross-compilation validation correctly failed: %v", err)
+}
+
+// TestCrossCompilerNaming verifies GNU triplet prefix mapping
+func TestCrossCompilerNaming(t *testing.T) {
+	tests := []struct {
+		platform       Platform
+		expectedPrefix string
+	}{
+		{Platform{OS: "linux", Arch: "arm64"}, "aarch64-linux-gnu-"},
+		{Platform{OS: "linux", Arch: "amd64"}, "x86_64-linux-gnu-"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.platform.String(), func(t *testing.T) {
+			// Use the internal gnuTripletPrefix function to test mapping
+			prefix := gnuTripletPrefix(tt.platform)
+			if prefix != tt.expectedPrefix {
+				t.Errorf("gnuTripletPrefix(%s) = %s, want %s",
+					tt.platform, prefix, tt.expectedPrefix)
+			}
+		})
+	}
+}
