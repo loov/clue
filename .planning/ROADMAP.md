@@ -145,10 +145,15 @@ Plans:
   3. Semantic flags like "optimization: fast" map to correct platform-specific flags (-O2 on GCC/Clang, /O2 on MSVC)
   4. User sees appropriate file extensions for target platform (.so on Linux, .dylib on macOS)
 
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 05-01: TBD during phase planning
+- [ ] 05-01-PLAN.md — Platform detection and validation using Go runtime
+- [ ] 05-02-PLAN.md — Toolchain discovery with CC/CXX environment support
+- [ ] 05-03-PLAN.md — Extended semantic flag mapping (sanitizers, LTO, PIC, coverage)
+- [ ] 05-04-PLAN.md — Compiler/linker integration with platform-aware extensions
+- [ ] 05-05-PLAN.md — CLI --target flag for cross-compilation
+- [ ] 05-06-PLAN.md — Integration tests for all success criteria
 
 ---
 
