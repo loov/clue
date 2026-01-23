@@ -1,6 +1,7 @@
 package build
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/loov/clue/internal/config"
@@ -78,5 +79,16 @@ func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 
 	if cfg.WarningsAsErrors != false {
 		t.Errorf("expected WarningsAsErrors=false from target, got %v", cfg.WarningsAsErrors)
+	}
+}
+
+func TestObjectDir_IncludesObjSubdirectory(t *testing.T) {
+	b := NewBuilder("clang", false)
+
+	objDir := b.ObjectDir(".build", "debug", "myapp")
+
+	expected := filepath.Join(".build", "debug", "myapp", "obj")
+	if objDir != expected {
+		t.Errorf("ObjectDir() = %q, want %q", objDir, expected)
 	}
 }
