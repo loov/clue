@@ -60,7 +60,7 @@ package config
 	version?: string
 
 	// Build output directory
-	buildDir?: string | *"build"
+	buildDir?: string | *".build"
 
 	// Toolchain selection
 	toolchain?: {

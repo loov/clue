@@ -21,7 +21,7 @@ type Config struct {
 	// Version is the optional project version
 	Version string
 
-	// BuildDir is the build output directory (default: "build")
+	// BuildDir is the build output directory (default: ".build")
 	BuildDir string
 
 	// Toolchain specifies compiler settings
@@ -217,7 +217,7 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		cfg.BuildDir, _ = bd.String()
 	}
 	if cfg.BuildDir == "" {
-		cfg.BuildDir = "build"
+		cfg.BuildDir = ".build"
 	}
 
 	// Extract toolchain
