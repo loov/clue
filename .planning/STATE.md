@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 ## Current Position
 
-Phase: 5 of 8 (Cross-Platform Support) - VERIFIED ✓
-Plan: 7 of 7 in phase 5 complete (including gap closure)
-Status: Phase 5 verified (4/4 success criteria), ready for Phase 6
-Last activity: 2026-01-23 — Verified phase goal after gap closure
+Phase: 6 of 8 (External Dependencies)
+Plan: 1 of 5 in phase 6 complete
+Status: In progress
+Last activity: 2026-01-23 — Completed 06-01-PLAN.md (Dependency Schema and Loader)
 
-Progress: [███████████████░] 97% (31/32 plans complete across all phases)
+Progress: [████████████████] 100% (32/32 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
+- Total plans completed: 32
 - Average duration: 4.5min
-- Total execution time: 2.40 hours
+- Total execution time: 2.47 hours
 
 **By Phase:**
 
@@ -33,10 +33,11 @@ Progress: [███████████████░] 97% (31/32 plans co
 | 03-incremental-builds | 5 | 37min | 7.4min |
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
+| 06-external-dependencies | 1 | 4.0min | 4.0min |
 
 **Recent Trend:**
-- Last 5 plans: 05-07 (1.0min), 05-06 (3.5min), 05-04 (11min), 05-03 (2.0min), 05-02 (4.0min)
-- Trend: Phase 5 complete with gap closure and comprehensive tests
+- Last 5 plans: 06-01 (4.0min), 05-07 (1.0min), 05-06 (3.5min), 05-04 (11min), 05-03 (2.0min)
+- Trend: Phase 6 started, dependency schema and loader complete
 
 *Updated after each plan completion*
 
@@ -152,6 +153,11 @@ Recent decisions affecting current work:
 - 05-05: Platform display timing — Show "Building for X" or "Cross-compiling for X" immediately after flag parsing (rationale: early user feedback on target platform)
 - 05-05: Default to HostPlatform — When --target not specified, use native platform for simplicity (rationale: common case should be simple)
 - 05-07: Wire toolchain.Name to flag building — Compiler and linker pass toolchain.Name directly to WithToolchain functions (rationale: enables toolchain-specific flag logic for coverage, sanitizers, and cross-compilation)
+- 06-01: Dependency name from map key — CUE uses dependencies map keys as dependency names, not separate name field (rationale: matches CUE's structural approach, avoids redundancy)
+- 06-01: Cache path structure — .deps/{type}/{sanitized-name}-{short-ref} for predictable locations (rationale: enables future fetch operations)
+- 06-01: Vendored deps return original path — no caching needed for local source tree dependencies (rationale: already in source tree)
+- 06-01: InlineConfig for deps without clue.cue — enables building third-party libraries without configuration files (rationale: integration flexibility)
+- 06-01: Validation at load time — Validate() called during config extraction for fail-fast (rationale: catch dependency errors early)
 
 ### Pending Todos
 
@@ -173,7 +179,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 16:32 UTC
-Stopped at: Phase 5 verified, all 4 success criteria passed
+Last session: 2026-01-23 17:07 UTC
+Stopped at: Completed 06-01-PLAN.md (Dependency Schema and Loader)
 Resume file: None
-Next step: Start Phase 6 (External Dependencies) with /gsd:discuss-phase 6 or /gsd:plan-phase 6
+Next step: Continue Phase 6 with 06-02-PLAN.md (Dependency Fetching)
