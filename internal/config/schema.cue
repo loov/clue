@@ -71,20 +71,8 @@ package config
 	// Build targets
 	targets: [string]: #Target
 
-	// Variant definitions (debug/release are defaults)
-	variants?: {
-		debug: #Variant & {
-			name: "debug"
-			optimization: *"O0" | _
-			debug_info: *true | _
-		}
-		release: #Variant & {
-			name: "release"
-			optimization: *"O2" | _
-			debug_info: *false | _
-		}
-		[string]: #Variant
-	}
+	// Variant definitions (user can define any variants)
+	variants?: [string]: #Variant
 
 	// Environment-based conditionals
 	env?: [string]: #EnvVar

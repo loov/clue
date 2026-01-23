@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cueerrors "cuelang.org/go/cue/errors"
-	"cuelang.org/go/cue/load"
 
 	clerrors "github.com/loov/clue/internal/errors"
 )
@@ -20,6 +20,9 @@ type Config struct {
 
 	// Version is the optional project version
 	Version string
+
+	// BuildDir is the build output directory (default: "build")
+	BuildDir string
 
 	// Toolchain specifies compiler settings
 	Toolchain Toolchain
@@ -53,6 +56,12 @@ type Target struct {
 	Defines  []string
 	Depends  []string
 	Flags    Flags
+	// Semantic flags (new)
+	Optimize         string
+	Warnings         string
+	WarningsAsErrors *bool // Pointer to distinguish unset from false
+	Debug            string
+	SysLibs          []string
 }
 
 // Flags for compiler and linker
@@ -95,33 +104,30 @@ func (l *Loader) Load(dir string) (*Config, error) {
 		return nil, fmt.Errorf("internal error: invalid schema: %w", err)
 	}
 
-	// Load user configuration
-	cfg := &load.Config{
-		Dir: absDir,
-	}
-	instances := load.Instances([]string{"."}, cfg)
-	if len(instances) == 0 {
-		return nil, &clerrors.RichError{
-			File:       filepath.Join(absDir, "clue.cue"),
-			Message:    "no CUE configuration files found",
-			Suggestion: "create a clue.cue file in this directory",
+	// Load user configuration from clue.cue file
+	// We compile it directly to allow JSON/CUE data without package declarations
+	configPath := filepath.Join(absDir, "clue.cue")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, &clerrors.RichError{
+				File:       configPath,
+				Message:    "no CUE configuration files found",
+				Suggestion: "create a clue.cue file in this directory",
+			}
 		}
+		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	inst := instances[0]
-	if inst.Err != nil {
-		return nil, l.convertCUEError(inst.Err, absDir)
-	}
-
-	// Build the instance
-	val := l.ctx.BuildInstance(inst)
+	// Compile the bytes directly as data (no package declaration needed)
+	val := l.ctx.CompileBytes(data, cue.Filename(configPath))
 	if err := val.Err(); err != nil {
 		return nil, l.convertCUEError(err, absDir)
 	}
 
 	// Unify with schema's #Config definition
 	configSchema := schema.LookupPath(cue.ParsePath("#Config"))
-	unified := configSchema.Unify(val)
+	unified := val.Unify(configSchema)
 
 	// Validate for concreteness and constraints
 	if err := unified.Validate(cue.Concrete(true)); err != nil {
@@ -207,6 +213,12 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 	if version := val.LookupPath(cue.ParsePath("version")); version.Exists() {
 		cfg.Version, _ = version.String()
 	}
+	if bd := val.LookupPath(cue.ParsePath("buildDir")); bd.Exists() {
+		cfg.BuildDir, _ = bd.String()
+	}
+	if cfg.BuildDir == "" {
+		cfg.BuildDir = "build"
+	}
 
 	// Extract toolchain
 	if tc := val.LookupPath(cue.ParsePath("toolchain")); tc.Exists() {
@@ -264,6 +276,22 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 		t.Flags.Compiler = extractStringList(flags, "compiler")
 		t.Flags.Linker = extractStringList(flags, "linker")
 	}
+
+	// Extract semantic flags
+	if v := val.LookupPath(cue.ParsePath("optimize")); v.Exists() {
+		t.Optimize, _ = v.String()
+	}
+	if v := val.LookupPath(cue.ParsePath("warnings")); v.Exists() {
+		t.Warnings, _ = v.String()
+	}
+	if v := val.LookupPath(cue.ParsePath("warningsAsErrors")); v.Exists() {
+		b, _ := v.Bool()
+		t.WarningsAsErrors = &b
+	}
+	if v := val.LookupPath(cue.ParsePath("debug")); v.Exists() {
+		t.Debug, _ = v.String()
+	}
+	t.SysLibs = extractStringList(val, "sysLibs")
 
 	return t, nil
 }
