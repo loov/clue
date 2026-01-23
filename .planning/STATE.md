@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 8 of 8 (CLI Polish) - IN PROGRESS
-Plan: 2 of 5 in phase 8 complete
-Status: In progress - Run command implemented
-Last activity: 2026-01-23 — Completed 08-02-PLAN.md (Run Command)
+Plan: 3 of 5 in phase 8 complete
+Status: In progress - Verbosity control implemented
+Last activity: 2026-01-23 — Completed 08-01-PLAN.md (Verbosity Control)
 
-Progress: [████████████████████░] 91% (43/47 plans complete across all phases)
+Progress: [████████████████████░] 92% (44/47 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43
+- Total plans completed: 44
 - Average duration: 4.7min
-- Total execution time: 3.36 hours
+- Total execution time: 3.61 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████████░] 91% 
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
 | 06-external-dependencies | 7 | 27.7min | 4.0min |
 | 07-output-generators | 5 | 24.1min | 4.8min |
-| 08-cli-polish | 2 | 19.9min | 9.9min |
+| 08-cli-polish | 3 | 34.9min | 11.6min |
 
 **Recent Trend:**
-- Last 5 plans: 08-02 (9.9min), 07-05 (3min), 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min)
-- Trend: Phase 8 in progress - run command implemented with significant bug fixing
+- Last 5 plans: 08-01 (15min), 08-02 (9.9min), 08-03 (11min), 07-05 (3min), 07-04 (3.1min)
+- Trend: Phase 8 in progress - verbosity control complete, CLI polish ongoing
 
 *Updated after each plan completion*
 
@@ -179,6 +179,10 @@ Recent decisions affecting current work:
 - 07-04: Skip variant application for generate — generators handle variants internally via cfg.Variants map lookup (rationale: avoids CUE unification conflict with variant name field)
 - 07-05: Split tests across packages — build tests for SC1, generate tests for SC2-SC4 to avoid import cycles (rationale: generate imports build, so build cannot import generate)
 - 07-05: Verify behavior not binary identity — compare executables by running them, not comparing binaries (rationale: timestamps differ between builds)
+- 08-01: Verbosity enum over multiple bool flags — Verbosity type (Quiet=0, Normal=1, Verbose=2) instead of separate bool flags (rationale: three distinct levels clearer than boolean combinations, extensible for future levels)
+- 08-01: ValidateVerbosityFlags at CLI entry — mutual exclusion check after flag.Parse() (rationale: fail-fast with clear error message, prevents conflicting flags)
+- 08-01: FormatDuration human-readable rules — <1s milliseconds, 1-60s decimal seconds, ≥60s minutes+seconds (rationale: human-friendly at all scales)
+- 08-01: Error output never suppressed — Progress.Error() always outputs even in quiet mode (rationale: errors must be visible for debugging)
 - 08-03: Extension-based detection for .cppm/.ixx/.mpp — Standard module extensions don't need content scanning (rationale: performance optimization while covering all standard extensions)
 - 08-03: Content scan limited to first 100 lines — Module declarations must appear early in C++20 (rationale: balance between accuracy and performance for large files)
 - 08-03: Kahn's algorithm for topological sort — Standard algorithm with O(V+E) complexity and deterministic ordering (rationale: efficient, well-tested, detects cycles with clear error)
