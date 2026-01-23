@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -12,11 +13,12 @@ import (
 
 // BuildOptions holds options for a build operation
 type BuildOptions struct {
-	Config   *config.Config
-	Variant  string   // "debug" or "release"
-	BuildDir string   // Build output root (default: ".build")
-	Verbose  bool     // Show full compiler commands
-	Targets  []string // Specific targets to build (empty = all)
+	Config       *config.Config
+	Variant      string   // "debug" or "release"
+	BuildDir     string   // Build output root (default: ".build")
+	Verbose      bool     // Show full compiler commands
+	Targets      []string // Specific targets to build (empty = all)
+	ForceRebuild bool     // Force rebuild of all files
 }
 
 // TargetResult holds the result of building a single target
@@ -38,9 +40,10 @@ type BuildResult struct {
 
 // Builder orchestrates the build process
 type Builder struct {
-	executor *Executor
-	compiler *Compiler
-	linker   *Linker
+	executor     *Executor
+	compiler     *Compiler
+	linker       *Linker
+	cacheManager *CacheManager
 }
 
 // NewBuilder creates a new Builder with the specified toolchain
@@ -130,15 +133,45 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 	// Build configuration from target and variant
 	buildCfg := b.targetToBuildConfig(target, opts.Config.ActiveVariant)
 
+	// Get compiler path for cache key
+	compilerPath, err := exec.LookPath(opts.Config.Toolchain.Compiler)
+	if err != nil {
+		compilerPath = opts.Config.Toolchain.Compiler
+	}
+
 	// Compile all source files
 	var objectFiles []string
 	for _, source := range target.Sources {
-		// Report progress
-		progress.Compiling(target.Name, source)
-
 		// Determine object file path
 		objName := filepath.Base(source) + ".o"
 		objPath := filepath.Join(objDir, objName)
+
+		// Determine dependency file path
+		depPath := filepath.Join(objDir, filepath.Base(source)+".d")
+
+		// Check if rebuild is needed
+		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
+			source,
+			buildCfg,
+			target.Includes,
+			compilerPath,
+			opts.ForceRebuild,
+		)
+
+		if !needsRebuild {
+			// Skip cached file
+			progress.Skip(target.Name, source, reason)
+			objectFiles = append(objectFiles, objPath)
+			continue
+		}
+
+		// Report progress
+		progress.Compiling(target.Name, source)
+		if opts.Verbose && changedFile != "" {
+			fmt.Printf("  Reason: %s (%s)\n", reason, changedFile)
+		} else if opts.Verbose {
+			fmt.Printf("  Reason: %s\n", reason)
+		}
 
 		// Build compile options
 		compileOpts := CompileOptions{
@@ -161,6 +194,19 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 				Duration: time.Since(start),
 				Success:  false,
 			}, err
+		}
+
+		// Store result in cache
+		err = b.cacheManager.StoreResult(
+			source,
+			objPath,
+			depPath,
+			buildCfg,
+			target.Includes,
+			compilerPath,
+		)
+		if err != nil && opts.Verbose {
+			fmt.Printf("  Warning: failed to cache result: %v\n", err)
 		}
 
 		objectFiles = append(objectFiles, objPath)
@@ -251,6 +297,13 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, error) {
 	start := time.Now()
 
+	// Initialize cache manager
+	var err error
+	b.cacheManager, err = NewCacheManager(opts.BuildDir, opts.Verbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize cache manager: %w", err)
+	}
+
 	// Get build order from config
 	buildOrder, err := config.GetBuildOrder(opts.Config)
 	if err != nil {
@@ -314,6 +367,9 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 
 		results = append(results, *result)
 	}
+
+	// Print summary
+	progress.Summary()
 
 	return &BuildResult{
 		Targets:  results,
