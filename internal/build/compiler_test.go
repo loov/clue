@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -291,6 +292,93 @@ int main() { return HEADER_LOADED; }`
 	// Verify object file created
 	if _, err := os.Stat(objectFile); os.IsNotExist(err) {
 		t.Errorf("Object file %s was not created", objectFile)
+	}
+}
+
+func TestCompileSource_GeneratesDepFile(t *testing.T) {
+	// Skip if clang not available
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang not found in PATH")
+	}
+
+	// Create temp directory
+	tmpDir := t.TempDir()
+
+	// Create source file with an include
+	srcDir := filepath.Join(tmpDir, "src")
+	os.MkdirAll(srcDir, 0755)
+
+	// Create a header file
+	headerContent := `#ifndef CONFIG_H
+#define CONFIG_H
+#define VERSION 1
+#endif
+`
+	headerPath := filepath.Join(srcDir, "config.h")
+	os.WriteFile(headerPath, []byte(headerContent), 0644)
+
+	// Create source that includes the header
+	srcContent := `#include "config.h"
+int main() { return VERSION; }
+`
+	srcPath := filepath.Join(srcDir, "main.cpp")
+	os.WriteFile(srcPath, []byte(srcContent), 0644)
+
+	// Setup compiler
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
+	compiler := NewCompiler(executor, "clang")
+
+	// Compile
+	objDir := filepath.Join(tmpDir, "obj")
+	os.MkdirAll(objDir, 0755)
+
+	result, err := compiler.CompileSource(context.Background(), CompileOptions{
+		Source:   srcPath,
+		Output:   filepath.Join(objDir, "main.cpp.o"),
+		Includes: []string{srcDir},
+		Flags:    BuildConfig{},
+		Std:      "c++17",
+	})
+
+	// Verify compilation succeeded
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	// Verify .d file path is set
+	if result.DepFile == "" {
+		t.Fatal("DepFile not set in result")
+	}
+
+	// Verify .d file exists
+	if _, err := os.Stat(result.DepFile); err != nil {
+		t.Fatalf(".d file not created: %v", err)
+	}
+
+	// Verify .d file contains the header
+	depContent, err := os.ReadFile(result.DepFile)
+	if err != nil {
+		t.Fatalf("failed to read .d file: %v", err)
+	}
+
+	if !strings.Contains(string(depContent), "config.h") {
+		t.Errorf(".d file does not contain config.h dependency:\n%s", depContent)
+	}
+}
+
+func TestCompileSource_DepFilePath(t *testing.T) {
+	// Unit test - no actual compilation needed
+	// Just verify the path computation logic
+
+	objPath := "/build/debug/myapp/obj/main.cpp.o"
+	expectedDepPath := "/build/debug/myapp/obj/main.cpp.d"
+
+	// Compute dep path the same way compiler does
+	depPath := filepath.Base(objPath[:len(objPath)-len(filepath.Ext(objPath))]) + ".d"
+	depPath = filepath.Join(filepath.Dir(objPath), depPath)
+
+	if depPath != expectedDepPath {
+		t.Errorf("dep path = %s, want %s", depPath, expectedDepPath)
 	}
 }
 
