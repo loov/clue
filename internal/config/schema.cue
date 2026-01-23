@@ -67,6 +67,41 @@ package config
 	}
 }
 
+// Inline build configuration for dependencies without clue.cue
+#InlineBuildConfig: {
+	sources: [...string] & [_, ...]  // At least one source
+	includes?: [...string]
+	defines?: [...string]
+	targetType?: "static_library" | "shared_library" | *"static_library"
+}
+
+// Git repository dependency
+#GitDependency: {
+	type: "git"
+	repo: string & =~"^(https?://|git@)"  // Must be valid git URL
+	ref?: string | *"main"
+	build?: #InlineBuildConfig
+}
+
+// Tarball dependency
+#TarballDependency: {
+	type: "tarball"
+	url: string & =~"^https?://"
+	checksum?: string & =~"^[a-f0-9]{64}$"  // SHA256 hex
+	stripPrefix?: string
+	build?: #InlineBuildConfig
+}
+
+// Vendored dependency
+#VendoredDependency: {
+	type: "vendored"
+	path: string
+	build?: #InlineBuildConfig
+}
+
+// Union type for all dependency types
+#Dependency: #GitDependency | #TarballDependency | #VendoredDependency
+
 // Top-level configuration
 #Config: {
 	name: string
@@ -89,4 +124,7 @@ package config
 
 	// Environment-based conditionals
 	env?: [string]: #EnvVar
+
+	// External dependencies
+	dependencies?: [string]: #Dependency
 }
