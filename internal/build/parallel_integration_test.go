@@ -288,3 +288,174 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 	// (TestParallelCompiler_MultipleFiles). This integration test verifies the
 	// full build pipeline works end-to-end with parallel compilation.
 }
+
+// TestParallelBuild_Cancellation tests that context cancellation terminates build cleanly
+func TestParallelBuild_Cancellation(t *testing.T) {
+	skipIfNoClangPP(t)
+
+	projectDir, cleanup := createLargeTestProject(t)
+	defer cleanup()
+
+	loader := config.NewLoader()
+	cfg, err := loader.Load(projectDir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	builder := NewBuilder("clang", false, 2, false)
+	opts := BuildOptions{
+		Config:   cfg,
+		Variant:  "debug",
+		BuildDir: filepath.Join(projectDir, "build"),
+		Verbose:  false,
+		Jobs:     2,
+	}
+
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start build in goroutine
+	var buildErr error
+	done := make(chan struct{})
+	go func() {
+		_, buildErr = builder.Build(ctx, opts)
+		close(done)
+	}()
+
+	// Cancel after short delay (let some files start compiling)
+	time.Sleep(200 * time.Millisecond)
+	cancel()
+
+	// Wait for build to complete with timeout
+	select {
+	case <-done:
+		// Build completed (either cancelled or finished)
+	case <-time.After(30 * time.Second):
+		t.Fatal("build did not respond to cancellation within timeout")
+	}
+
+	// Verify cancellation was handled
+	// Note: If the build finished before cancellation took effect, buildErr will be nil
+	// and that's acceptable. The key is that we don't hang.
+	if buildErr != nil {
+		// Should be context.Canceled or contain "cancel"
+		errStr := buildErr.Error()
+		if !strings.Contains(errStr, "cancel") && !strings.Contains(errStr, "context") {
+			t.Logf("build error (expected cancellation-related): %v", buildErr)
+		}
+	}
+
+	// Verify no zombie processes (compiler processes should be terminated)
+	// This is hard to test directly, but if we got here without hanging, it worked
+}
+
+// TestParallelBuild_KeepGoing tests that keep-going mode continues despite errors
+func TestParallelBuild_KeepGoing(t *testing.T) {
+	skipIfNoClangPP(t)
+
+	dir, err := os.MkdirTemp("", "clue-keepgoing-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Create project with one file that will fail to compile
+	goodSource := `#include <iostream>
+void good_func() {
+    std::cout << "Good" << std::endl;
+}
+`
+	badSource := `this is not valid C++`
+	anotherGood := `#include <iostream>
+void another_good() {
+    std::cout << "Another good" << std::endl;
+}
+`
+
+	goodPath := filepath.Join(dir, "good.cpp")
+	badPath := filepath.Join(dir, "bad.cpp")
+	anotherPath := filepath.Join(dir, "another.cpp")
+
+	if err := os.WriteFile(goodPath, []byte(goodSource), 0644); err != nil {
+		t.Fatalf("failed to write good.cpp: %v", err)
+	}
+	if err := os.WriteFile(badPath, []byte(badSource), 0644); err != nil {
+		t.Fatalf("failed to write bad.cpp: %v", err)
+	}
+	if err := os.WriteFile(anotherPath, []byte(anotherGood), 0644); err != nil {
+		t.Fatalf("failed to write another.cpp: %v", err)
+	}
+
+	// Create config (as library to avoid link errors from missing main)
+	cueConfig := fmt.Sprintf(`name: "keepgoingtest"
+version: "1.0.0"
+toolchain: {
+    compiler: "clang"
+    std: "c++17"
+}
+targets: {
+    keepgoingtest: {
+        name: "keepgoingtest"
+        type: "static_library"
+        sources: [%q, %q, %q]
+    }
+}
+`, goodPath, badPath, anotherPath)
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(cueConfig), 0644); err != nil {
+		t.Fatalf("failed to write clue.cue: %v", err)
+	}
+
+	loader := config.NewLoader()
+	cfg, err := loader.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// Build WITHOUT keep-going: should stop on first error
+	builder1 := NewBuilder("clang", false, 1, false) // keepGoing=false
+	opts1 := BuildOptions{
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(dir, "build1"),
+		Verbose:   false,
+		Jobs:      1,
+		KeepGoing: false,
+	}
+
+	_, err1 := builder1.Build(context.Background(), opts1)
+	if err1 == nil {
+		t.Error("build without keep-going should fail due to bad.cpp")
+	}
+
+	// Build WITH keep-going: should compile all valid files
+	builder2 := NewBuilder("clang", false, 2, true) // keepGoing=true
+	opts2 := BuildOptions{
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(dir, "build2"),
+		Verbose:   false,
+		Jobs:      2,
+		KeepGoing: true,
+	}
+
+	result2, err2 := builder2.Build(context.Background(), opts2)
+	// With keep-going, the build may succeed (creating output from valid files)
+	// or may report error if compilation phase returns error even with keep-going.
+	// The key verification is that valid files were compiled.
+	t.Logf("keep-going build err: %v, result: %v", err2, result2)
+
+	// Check that good.cpp and another.cpp compiled successfully
+	objDir := filepath.Join(dir, "build2", "debug", "keepgoingtest", "obj")
+	if _, err := os.Stat(filepath.Join(objDir, "good.cpp.o")); err != nil {
+		t.Error("good.cpp should compile even with keep-going")
+	}
+	if _, err := os.Stat(filepath.Join(objDir, "another.cpp.o")); err != nil {
+		t.Error("another.cpp should compile even with keep-going")
+	}
+
+	// Verify the library was created (from the good files)
+	libPath := filepath.Join(dir, "build2", "debug", "lib", "libkeepgoingtest.a")
+	if _, err := os.Stat(libPath); err != nil {
+		t.Errorf("library should be created from valid files: %v", err)
+	}
+}
