@@ -2,7 +2,10 @@ module github.com/loov/clue
 
 go 1.24.0
 
-require github.com/dominikbraun/graph v0.23.0
+require (
+	github.com/dominikbraun/graph v0.23.0
+	github.com/zeebo/xxh3 v1.0.2
+)
 
 require (
 	cuelabs.dev/go/oci/ociregistry v0.0.0-20250722084951-074d06050084 // indirect
