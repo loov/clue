@@ -122,10 +122,13 @@ Plans:
   3. User can press Ctrl+C during a build and all compiler processes terminate cleanly
   4. Compiler output from parallel builds appears in organized chunks per file (not interleaved line-by-line)
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 04-01: TBD during phase planning
+- [ ] 04-01-PLAN.md — Parallel compiler infrastructure with errgroup and output buffering
+- [ ] 04-02-PLAN.md — Signal handling and graceful shutdown with double Ctrl+C
+- [ ] 04-03-PLAN.md — CLI flags (-j/--jobs, --keep-going) and builder integration
+- [ ] 04-04-PLAN.md — Integration tests for all success criteria
 
 ---
 
