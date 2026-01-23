@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 8 of 8 (CLI Polish) - IN PROGRESS
-Plan: 3 of 5 in phase 8 complete
-Status: In progress - C++20 module detection implemented
-Last activity: 2026-01-23 — Completed 08-03-PLAN.md (Module Detection)
+Plan: 2 of 5 in phase 8 complete
+Status: In progress - Run command implemented
+Last activity: 2026-01-23 — Completed 08-02-PLAN.md (Run Command)
 
-Progress: [████████████████████░] 93% (44/47 plans complete across all phases)
+Progress: [████████████████████░] 91% (43/47 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44
-- Average duration: 4.1min
-- Total execution time: 3.18 hours
+- Total plans completed: 43
+- Average duration: 4.7min
+- Total execution time: 3.36 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████████░] 93% 
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
 | 06-external-dependencies | 7 | 27.7min | 4.0min |
 | 07-output-generators | 5 | 24.1min | 4.8min |
-| 08-cli-polish | 3 | 6.0min | 2.0min |
+| 08-cli-polish | 2 | 19.9min | 9.9min |
 
 **Recent Trend:**
-- Last 5 plans: 08-03 (2min), 07-05 (3min), 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min)
-- Trend: Phase 8 started - module detection complete, fast execution
+- Last 5 plans: 08-02 (9.9min), 07-05 (3min), 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min)
+- Trend: Phase 8 in progress - run command implemented with significant bug fixing
 
 *Updated after each plan completion*
 
@@ -184,6 +184,10 @@ Recent decisions affecting current work:
 - 08-03: Kahn's algorithm for topological sort — Standard algorithm with O(V+E) complexity and deterministic ordering (rationale: efficient, well-tested, detects cycles with clear error)
 - 08-03: Skip std library imports in dependency graph — std modules are provided by the compiler, not user sources (rationale: simplifies graph, matches compiler behavior)
 - 08-03: clang-scan-deps as external tool — Compiler-accurate dependency detection without reimplementing C++ parsing (rationale: delegates to compiler expertise, handles all C++20 module syntax)
+- 08-02: Run command uses host platform only — Running cross-compiled binaries requires emulation which is out of scope (rationale: simplicity, most common use case)
+- 08-02: Run arguments passed directly — No preprocessing, matches cargo/npm run patterns (rationale: simplest UX)
+- 08-02: Execute in current working directory — Matches user expectation, relative paths in program work (rationale: predictable behavior)
+- 08-02: Propagate executable exit code — Enables scripting and CI integration (rationale: `clue run tests && deploy` works)
 
 ### Pending Todos
 
@@ -206,7 +210,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 22:29 UTC
-Stopped at: Completed 08-03-PLAN.md (Module Detection)
+Last session: 2026-01-23 22:37 UTC
+Stopped at: Completed 08-02-PLAN.md (Run Command)
 Resume file: None
-Next step: Continue Phase 8 with 08-04 (Module Build Integration)
+Next step: Continue Phase 8 with remaining plans (08-01, 08-04, 08-05)
