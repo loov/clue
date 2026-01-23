@@ -75,6 +75,10 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		return nil, fmt.Errorf("failed to create library directory: %w", err)
 	}
 
+	// Determine include path for compilation
+	includePath := db.determineIncludePath(dep, sourcePath, includes)
+	compilationIncludes := append(includes, includePath)
+
 	// Compile each source file to object file
 	var objectFiles []string
 	for _, src := range sources {
@@ -86,7 +90,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		compileOpts := CompileOptions{
 			Source:   absPath,
 			Output:   objPath,
-			Includes: includes,
+			Includes: compilationIncludes,
 			Defines:  []string{},
 			Flags: BuildConfig{
 				Optimize:         opts.Variant, // Use variant as optimization level
@@ -124,9 +128,6 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	if err != nil {
 		return nil, fmt.Errorf("failed to create static library: %w", err)
 	}
-
-	// Determine include path
-	includePath := db.determineIncludePath(dep, sourcePath, includes)
 
 	return &DepBuildResult{
 		Name:        dep.Name(),
