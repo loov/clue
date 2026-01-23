@@ -112,11 +112,13 @@ func (p *Progress) Complete(artifact string, fileCount int, duration time.Durati
 
 // Skip reports that a file was skipped due to cache hit
 func (p *Progress) Skip(target, filename string, reason RebuildReason) {
+	p.current.Add(1)
+	p.cached.Add(1)
+
 	if p.verbosity == VerbosityQuiet {
 		return
 	}
-	p.current.Add(1)
-	p.cached.Add(1)
+
 	basename := filepath.Base(filename)
 	p.mu.Lock()
 	fmt.Fprintf(p.out, "[skip] %s: %s (cached)\n", target, basename)
@@ -186,11 +188,12 @@ func (p *Progress) ActiveFiles() []string {
 
 // CompilingParallel reports progress for parallel compilation
 func (p *Progress) CompilingParallel(target string, activeFiles []string) {
+	current := p.current.Add(1)
+	p.built.Add(1)
+
 	if p.verbosity == VerbosityQuiet {
 		return
 	}
-	current := p.current.Add(1)
-	p.built.Add(1)
 
 	p.mu.Lock()
 	if len(activeFiles) > 3 {
