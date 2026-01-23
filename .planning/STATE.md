@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 3 of 8 (Incremental Builds) - IN PROGRESS
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-23 — Completed 03-01-PLAN.md (cache key & dependency parsing)
+Last activity: 2026-01-23 — Completed 03-02-PLAN.md (dependency generation flags)
 
-Progress: [████████████░░] 78% (18/23 plans complete across all phases)
+Progress: [████████████░░] 83% (19/23 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: 5.2min
-- Total execution time: 1.55 hours
+- Total plans completed: 19
+- Average duration: 5.0min
+- Total execution time: 1.58 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [████████████░░] 78% (18/23 plans complete
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
 | 02-core-compilation | 9 | 39min | 4.3min |
-| 03-incremental-builds | 1 | 14min | 14.0min |
+| 03-incremental-builds | 2 | 17min | 8.5min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (14.4min), 02-09 (2.6min), 02-08 (1min), 02-07 (17min), 02-06 (6min)
-- Trend: Phase 3 started with cache foundation, longer plan due to TDD implementation
+- Last 5 plans: 03-02 (3min), 03-01 (14.4min), 02-09 (2.6min), 02-08 (1min), 02-07 (17min)
+- Trend: Phase 3 progressing well, 03-02 was quick implementation task
 
 *Updated after each plan completion*
 
@@ -101,6 +101,8 @@ Recent decisions affecting current work:
 - 03-01: xxh3.Hash128 for content hashing — significantly faster than SHA256 while providing excellent distribution (rationale: performance critical for large codebases, cryptographic properties not needed)
 - 03-01: Compiler identity via file stat — use mtime + size instead of version parsing (rationale: fast, reliable, version parsing is fragile and compiler-specific)
 - 03-01: Absolute paths in cache keys — resolve relative -I paths to absolute in NormalizeFlags (rationale: cache keys work correctly regardless of working directory)
+- 03-02: Dependency generation via -MMD -MP -MF flags — compiler generates .d files automatically during compilation (rationale: standard approach for header dependency tracking)
+- 03-02: DepFile path computed from object path — replace .o extension with .d for consistency (rationale: keeps dependency files alongside object files with predictable naming)
 
 ### Pending Todos
 
@@ -122,6 +124,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 03-01-PLAN.md (cache key & dependency parsing)
+Stopped at: Completed 03-02-PLAN.md (dependency generation flags)
 Resume file: None
-Next step: Execute 03-02-PLAN.md (build state tracking)
+Next step: Execute 03-03-PLAN.md (cache manager for incremental builds)
