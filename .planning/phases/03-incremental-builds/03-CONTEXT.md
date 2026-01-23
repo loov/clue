@@ -32,9 +32,14 @@ Track header dependencies and cache compilation results to avoid unnecessary reb
 - Provide flag to enable shared user cache (~/.cache/clue/) across projects
 - No automatic cache cleanup — user runs `clue clean` manually
 
+### Hash function
+- Use xxHash (xxh3) via github.com/zeebo/xxh3 library — fastest option, compiles everywhere
+- Priority: speed for large codebases
+- No fallback needed — xxh3 is a pure Go library
+
 ### Claude's Discretion
 - Cache metadata format (JSON manifest vs SQLite vs per-file sidecar)
-- Hash algorithm choice (SHA-256, xxHash, etc.)
+- Hash key format (hex vs base64) — pick based on usability
 - Exact structure of content-addressable cache directories
 
 ### Build output feedback
