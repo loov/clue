@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 8 of 8 (CLI Polish) - IN PROGRESS
-Plan: 3 of 5 in phase 8 complete
-Status: In progress - Verbosity control implemented
-Last activity: 2026-01-23 — Completed 08-01-PLAN.md (Verbosity Control)
+Plan: 4 of 5 in phase 8 complete
+Status: In progress - Wave 2 complete (timing display & module ordering)
+Last activity: 2026-01-23 — Completed 08-04-PLAN.md (Timing Display & Module Ordering)
 
-Progress: [████████████████████░] 92% (44/47 plans complete across all phases)
+Progress: [████████████████████░] 94% (45/48 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44
-- Average duration: 4.7min
-- Total execution time: 3.61 hours
+- Total plans completed: 45
+- Average duration: 4.6min
+- Total execution time: 3.65 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████████░] 92% 
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
 | 06-external-dependencies | 7 | 27.7min | 4.0min |
 | 07-output-generators | 5 | 24.1min | 4.8min |
-| 08-cli-polish | 3 | 34.9min | 11.6min |
+| 08-cli-polish | 4 | 36.7min | 9.2min |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (15min), 08-02 (9.9min), 08-03 (11min), 07-05 (3min), 07-04 (3.1min)
-- Trend: Phase 8 in progress - verbosity control complete, CLI polish ongoing
+- Last 5 plans: 08-02 (9.9min), 08-03 (11min), 08-04 (1.8min), 08-01 (15min), 07-05 (3min)
+- Trend: Phase 8 nearing completion - timing and module ordering integrated
 
 *Updated after each plan completion*
 
@@ -192,6 +192,9 @@ Recent decisions affecting current work:
 - 08-02: Run arguments passed directly — No preprocessing, matches cargo/npm run patterns (rationale: simplest UX)
 - 08-02: Execute in current working directory — Matches user expectation, relative paths in program work (rationale: predictable behavior)
 - 08-02: Propagate executable exit code — Enables scripting and CI integration (rationale: `clue run tests && deploy` works)
+- 08-04: Per-file timing verbose only — Display per-file timing only in verbose mode (rationale: normal mode focuses on progress, verbose shows detailed performance)
+- 08-04: Cache benefit in Complete summary — Show cache statistics in Complete() target summary (rationale: users see value of incremental builds at target level)
+- 08-04: Foundational module ordering — Integrate module detection and ordering without full BMI compilation (rationale: establishes infrastructure while full module support remains complex)
 
 ### Pending Todos
 
@@ -214,7 +217,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 22:37 UTC
-Stopped at: Completed 08-02-PLAN.md (Run Command)
+Last session: 2026-01-23 22:46 UTC
+Stopped at: Completed 08-04-PLAN.md (Timing Display & Module Ordering)
 Resume file: None
-Next step: Continue Phase 8 with remaining plans (08-01, 08-04, 08-05)
+Next step: Continue Phase 8 with remaining plan (08-05)
