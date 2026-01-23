@@ -1,7 +1,10 @@
 package build
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 // Toolchain represents a C/C++ compiler toolchain
@@ -60,4 +63,41 @@ func crossPrefix(target Platform) string {
 	default:
 		return ""
 	}
+}
+
+// ValidateToolchain validates that all toolchain components exist in PATH
+func ValidateToolchain(tc *Toolchain) error {
+	// Validate C compiler
+	if _, err := exec.LookPath(tc.CC); err != nil {
+		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CC)
+	}
+
+	// Validate C++ compiler
+	if _, err := exec.LookPath(tc.CXX); err != nil {
+		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CXX)
+	}
+
+	// Validate archiver
+	if _, err := exec.LookPath(tc.AR); err != nil {
+		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.AR)
+	}
+
+	return nil
+}
+
+// IsCrossCompiler returns true if this toolchain is configured for cross-compilation
+func (tc *Toolchain) IsCrossCompiler() bool {
+	// Check if CC contains a GNU triplet prefix (contains hyphens before the compiler name)
+	// Examples: aarch64-linux-gnu-gcc, x86_64-linux-gnu-clang
+	return strings.Contains(tc.CC, "-linux-") || strings.Contains(tc.CC, "-darwin-")
+}
+
+// String returns a descriptive string for build output
+func (tc *Toolchain) String() string {
+	if tc.IsCrossCompiler() {
+		// Extract the prefix from CC (everything before the final component)
+		// e.g., "aarch64-linux-gnu-gcc" -> "aarch64-linux-gnu-gcc (cross)"
+		return fmt.Sprintf("%s (cross)", tc.CC)
+	}
+	return fmt.Sprintf("%s (native)", tc.Name)
 }
