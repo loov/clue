@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 7 of 8 (Output Generators)
-Plan: 4 of 4 in phase 7 complete
+Plan: 5 of 5 in phase 7 complete
 Status: Phase 7 complete
-Last activity: 2026-01-23 — Completed 07-04-PLAN.md (CLI generate command)
+Last activity: 2026-01-23 — Completed 07-05-PLAN.md (Integration tests for Phase 7)
 
-Progress: [████████████████████] 100% (42/42 plans complete across all phases)
+Progress: [████████████████████] 100% (43/43 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 42
+- Total plans completed: 43
 - Average duration: 4.2min
-- Total execution time: 3.1 hours
+- Total execution time: 3.15 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [████████████████████] 100% (4
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
 | 06-external-dependencies | 7 | 27.7min | 4.0min |
-| 07-output-generators | 4 | 21.1min | 5.3min |
+| 07-output-generators | 5 | 24.1min | 4.8min |
 
 **Recent Trend:**
-- Last 5 plans: 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min), 07-01 (~3min), 06-07 (8.0min)
-- Trend: Phase 7 complete - all output generators and CLI integration done
+- Last 5 plans: 07-05 (3min), 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min), 07-01 (~3min)
+- Trend: Phase 7 complete - all output generators, CLI, and integration tests done
 
 *Updated after each plan completion*
 
@@ -176,6 +176,8 @@ Recent decisions affecting current work:
 - 07-03: Shared functions in common.go — objectPath and targetToBuildConfig moved from compdb.go to common.go (rationale: both ninja.go and compdb.go need them)
 - 07-03: Structured AST generation — use ninja.File with typed nodes instead of string templates (rationale: prevents escaping bugs, compile-time validation)
 - 07-04: Skip variant application for generate — generators handle variants internally via cfg.Variants map lookup (rationale: avoids CUE unification conflict with variant name field)
+- 07-05: Split tests across packages — build tests for SC1, generate tests for SC2-SC4 to avoid import cycles (rationale: generate imports build, so build cannot import generate)
+- 07-05: Verify behavior not binary identity — compare executables by running them, not comparing binaries (rationale: timestamps differ between builds)
 
 ### Pending Todos
 
@@ -198,7 +200,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 19:19 UTC
-Stopped at: Completed 07-04-PLAN.md (CLI generate command)
+Last session: 2026-01-23 19:26 UTC
+Stopped at: Completed 07-05-PLAN.md (Integration tests for Phase 7)
 Resume file: None
-Next step: Phase 7 complete. Ready for Phase 8 (Polish) if defined.
+Next step: Phase 7 complete with all success criteria validated. Ready for Phase 8 (Polish) if defined.
