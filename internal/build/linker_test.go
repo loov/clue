@@ -484,3 +484,283 @@ func TestLinker_CrossCompiler_AR(t *testing.T) {
 		}
 	}
 }
+
+// TestLinkSharedLibrary_CommandConstruction tests that LinkSharedLibrary constructs correct command
+func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
+	// Skip if clang++ not available
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	// Create temp directory
+	tmpDir := t.TempDir()
+
+	// Create a simple shared library source
+	libCpp := filepath.Join(tmpDir, "lib.cpp")
+	libContent := `int lib_func() { return 42; }`
+	if err := os.WriteFile(libCpp, []byte(libContent), 0644); err != nil {
+		t.Fatalf("failed to write lib.cpp: %v", err)
+	}
+
+	// Compile with -fPIC (required for shared libraries)
+	libObj := filepath.Join(tmpDir, "lib.o")
+	cmd := exec.Command("clang++", "-fPIC", "-c", libCpp, "-o", libObj)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile lib.cpp: %v\nOutput: %s", err, output)
+	}
+
+	// Create linker
+	executor := NewExecutor(ExecutorConfig{
+		Verbose:      false,
+		StreamOutput: false,
+		WorkDir:      tmpDir,
+	})
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
+
+	// Determine expected extension
+	ext := SharedLibraryExtension(HostPlatform())
+	libPath := filepath.Join(tmpDir, "libtest"+ext)
+
+	// Link shared library
+	result, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
+		Objects:      []string{libObj},
+		Output:       libPath,
+		UseCPlusPlus: true,
+		Flags:        BuildConfig{},
+	})
+
+	if err != nil {
+		t.Fatalf("LinkSharedLibrary failed: %v", err)
+	}
+
+	if !result.Success {
+		t.Fatalf("LinkSharedLibrary reported failure")
+	}
+
+	// Verify shared library exists
+	if _, err := os.Stat(libPath); os.IsNotExist(err) {
+		t.Fatalf("shared library not created at %s", libPath)
+	}
+
+	// Verify it's actually a shared library by checking file type
+	fileCmd := exec.Command("file", libPath)
+	output, err := fileCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run file command: %v", err)
+	}
+
+	outputStr := string(output)
+	// Should be either "shared object" (Linux) or "dynamically linked" (macOS)
+	if !strings.Contains(outputStr, "shared object") && !strings.Contains(outputStr, "dynamically linked") {
+		t.Errorf("Output is not a shared library: %s", outputStr)
+	}
+}
+
+// TestLinkSharedLibrary_MacOSInstallName tests macOS install_name handling
+func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
+	// Skip if not on macOS
+	if HostPlatform().OS != "darwin" {
+		t.Skip("macOS-specific test")
+	}
+
+	// Skip if clang++ not available
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	// Create temp directory
+	tmpDir := t.TempDir()
+
+	// Create a simple shared library source
+	libCpp := filepath.Join(tmpDir, "lib.cpp")
+	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0644); err != nil {
+		t.Fatalf("failed to write lib.cpp: %v", err)
+	}
+
+	// Compile with -fPIC
+	libObj := filepath.Join(tmpDir, "lib.o")
+	cmd := exec.Command("clang++", "-fPIC", "-c", libCpp, "-o", libObj)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile: %v\nOutput: %s", err, output)
+	}
+
+	// Create linker
+	executor := NewExecutor(ExecutorConfig{})
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
+
+	// Link shared library
+	libPath := filepath.Join(tmpDir, "libtest.dylib")
+	_, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
+		Objects:      []string{libObj},
+		Output:       libPath,
+		UseCPlusPlus: true,
+		Flags:        BuildConfig{},
+	})
+
+	if err != nil {
+		t.Fatalf("LinkSharedLibrary failed: %v", err)
+	}
+
+	// Verify install_name is set correctly using otool
+	cmd = exec.Command("otool", "-L", libPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("otool failed: %v", err)
+	}
+
+	// Should contain @rpath/libtest.dylib
+	if !strings.Contains(string(output), "@rpath/libtest.dylib") {
+		t.Errorf("install_name not set correctly, expected @rpath/libtest.dylib in:\n%s", output)
+	}
+}
+
+// TestLinkSharedLibrary_LinuxSONAME tests Linux SONAME handling
+func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
+	// Skip if not on Linux
+	if HostPlatform().OS != "linux" {
+		t.Skip("Linux-specific test")
+	}
+
+	// Skip if clang++ not available
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	// Skip if readelf not available
+	if _, err := exec.LookPath("readelf"); err != nil {
+		t.Skip("readelf not available")
+	}
+
+	// Create temp directory
+	tmpDir := t.TempDir()
+
+	// Create a simple shared library source
+	libCpp := filepath.Join(tmpDir, "lib.cpp")
+	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0644); err != nil {
+		t.Fatalf("failed to write lib.cpp: %v", err)
+	}
+
+	// Compile with -fPIC
+	libObj := filepath.Join(tmpDir, "lib.o")
+	cmd := exec.Command("clang++", "-fPIC", "-c", libCpp, "-o", libObj)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile: %v\nOutput: %s", err, output)
+	}
+
+	// Create linker
+	executor := NewExecutor(ExecutorConfig{})
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
+
+	// Link shared library
+	libPath := filepath.Join(tmpDir, "libtest.so")
+	_, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
+		Objects:      []string{libObj},
+		Output:       libPath,
+		UseCPlusPlus: true,
+		Flags:        BuildConfig{},
+	})
+
+	if err != nil {
+		t.Fatalf("LinkSharedLibrary failed: %v", err)
+	}
+
+	// Verify SONAME is set correctly using readelf
+	cmd = exec.Command("readelf", "-d", libPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("readelf failed: %v", err)
+	}
+
+	// Should contain SONAME with libtest.so
+	if !strings.Contains(string(output), "libtest.so") || !strings.Contains(string(output), "SONAME") {
+		t.Errorf("SONAME not set correctly, expected SONAME with libtest.so in:\n%s", output)
+	}
+}
+
+// TestLinkSharedLibrary_WithExecutable tests linking executable against shared library
+func TestLinkSharedLibrary_WithExecutable(t *testing.T) {
+	// Skip if clang++ not available
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	// Create temp directory
+	tmpDir := t.TempDir()
+
+	// Create shared library source
+	libCpp := filepath.Join(tmpDir, "lib.cpp")
+	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0644); err != nil {
+		t.Fatalf("failed to write lib.cpp: %v", err)
+	}
+
+	// Create main program that uses the library
+	mainCpp := filepath.Join(tmpDir, "main.cpp")
+	mainContent := `extern int lib_func();
+int main() { return lib_func() - 42; }` // Returns 0 on success
+	if err := os.WriteFile(mainCpp, []byte(mainContent), 0644); err != nil {
+		t.Fatalf("failed to write main.cpp: %v", err)
+	}
+
+	// Compile library with -fPIC
+	libObj := filepath.Join(tmpDir, "lib.o")
+	cmd := exec.Command("clang++", "-fPIC", "-c", libCpp, "-o", libObj)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile lib.cpp: %v\nOutput: %s", err, output)
+	}
+
+	// Compile main
+	mainObj := filepath.Join(tmpDir, "main.o")
+	cmd = exec.Command("clang++", "-c", mainCpp, "-o", mainObj)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile main.cpp: %v\nOutput: %s", err, output)
+	}
+
+	// Create linker
+	executor := NewExecutor(ExecutorConfig{})
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
+
+	// Link shared library
+	ext := SharedLibraryExtension(HostPlatform())
+	libPath := filepath.Join(tmpDir, "libtest"+ext)
+	_, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
+		Objects:      []string{libObj},
+		Output:       libPath,
+		UseCPlusPlus: true,
+		Flags:        BuildConfig{},
+	})
+
+	if err != nil {
+		t.Fatalf("LinkSharedLibrary failed: %v", err)
+	}
+
+	// Link executable against shared library
+	exePath := filepath.Join(tmpDir, "main")
+	_, err = linker.LinkExecutable(context.Background(), LinkOptions{
+		Objects:      []string{mainObj},
+		Output:       exePath,
+		LibPaths:     []string{tmpDir},
+		Libs:         []string{"test"},
+		UseCPlusPlus: true,
+		Flags:        BuildConfig{},
+	})
+
+	if err != nil {
+		t.Fatalf("LinkExecutable failed: %v", err)
+	}
+
+	// Run executable with LD_LIBRARY_PATH/DYLD_LIBRARY_PATH set
+	cmd = exec.Command(exePath)
+	if HostPlatform().OS == "darwin" {
+		cmd.Env = append(os.Environ(), "DYLD_LIBRARY_PATH="+tmpDir)
+	} else {
+		cmd.Env = append(os.Environ(), "LD_LIBRARY_PATH="+tmpDir)
+	}
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("executable failed to run: %v", err)
+	}
+}

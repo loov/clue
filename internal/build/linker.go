@@ -32,6 +32,18 @@ type LinkOptions struct {
 	UseCPlusPlus bool        // Use clang++/g++ for linking (C++ std lib)
 }
 
+// SharedLibraryOptions holds options for linking a shared library
+type SharedLibraryOptions struct {
+	Objects          []string    // Object files to link
+	Output           string      // Output .so/.dylib path
+	SysLibs          []string    // System libraries (pthread, m, dl)
+	LibPaths         []string    // Library search paths (-L)
+	Libs             []string    // Additional libraries to link
+	Flags            BuildConfig // For raw linker flags and debug info
+	UseCPlusPlus     bool        // Use clang++/g++ for linking (C++ std lib)
+	SymbolVisibility string      // "default" or "hidden"
+}
+
 // ArchiveOptions holds options for creating a static library
 type ArchiveOptions struct {
 	Objects []string // Object files to archive
@@ -149,6 +161,88 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("archiver failed: %w", err)
+	}
+
+	return &LinkResult{
+		Output:   opts.Output,
+		Duration: result.Duration,
+		Success:  true,
+	}, nil
+}
+
+// LinkSharedLibrary links object files into a shared library (.so on Linux, .dylib on macOS)
+func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOptions) (*LinkResult, error) {
+	start := time.Now()
+
+	// Determine the linker command based on C++ requirement
+	linkerCmd := l.toolchain.CC
+	if opts.UseCPlusPlus {
+		linkerCmd = l.toolchain.CXX
+	}
+
+	// Build command arguments
+	var args []string
+
+	// Add -shared flag to create shared library
+	args = append(args, "-shared")
+
+	// Add all object files
+	args = append(args, opts.Objects...)
+
+	// Add output flag
+	args = append(args, "-o", opts.Output)
+
+	// Platform-specific shared library options
+	libName := filepath.Base(opts.Output)
+	switch l.target.OS {
+	case "darwin":
+		// macOS: Set install_name with @rpath for relocatable libraries
+		args = append(args, "-install_name", "@rpath/"+libName)
+	case "linux":
+		// Linux: Set SONAME for library versioning
+		args = append(args, "-Wl,-soname,"+libName)
+	}
+
+	// Add symbol visibility flag if hidden
+	if opts.SymbolVisibility == "hidden" {
+		args = append(args, "-fvisibility=hidden")
+	}
+
+	// Add library search paths
+	for _, path := range opts.LibPaths {
+		args = append(args, "-L"+path)
+	}
+
+	// Add additional libraries
+	for _, lib := range opts.Libs {
+		args = append(args, "-l"+lib)
+	}
+
+	// Add system libraries
+	for _, sysLib := range opts.SysLibs {
+		args = append(args, "-l"+sysLib)
+	}
+
+	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
+	linkerFlags := BuildLinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name)
+	args = append(args, linkerFlags...)
+
+	// Create output directory if needed
+	outputDir := filepath.Dir(opts.Output)
+	if outputDir != "" && outputDir != "." {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create output directory: %w", err)
+		}
+	}
+
+	// Execute the linker
+	result, err := l.executor.RunCommand(ctx, linkerCmd, args...)
+	if err != nil {
+		return &LinkResult{
+			Output:   opts.Output,
+			Duration: time.Since(start),
+			Success:  false,
+		}, fmt.Errorf("linker failed: %w", err)
 	}
 
 	return &LinkResult{
