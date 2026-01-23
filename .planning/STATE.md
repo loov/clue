@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 4 of 8 (Parallel Execution)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-01-23 — Completed 04-01-PLAN.md (Parallel Compilation Infrastructure)
+Last activity: 2026-01-23 — Completed 04-02-PLAN.md (Signal Handling)
 
-Progress: [███████████████] 100% (23/23 plans complete across all phases)
+Progress: [███████████████] 100% (24/24 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
-- Average duration: 5.2min
-- Total execution time: 2.0 hours
+- Total plans completed: 24
+- Average duration: 5.1min
+- Total execution time: 2.04 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [███████████████] 100% (23/23 plans comp
 | 01-foundation | 8 | 40min | 5.0min |
 | 02-core-compilation | 9 | 39min | 4.3min |
 | 03-incremental-builds | 5 | 37min | 7.4min |
-| 04-parallel-execution | 1 | 3.5min | 3.5min |
+| 04-parallel-execution | 2 | 6.7min | 3.35min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (3.5min), 03-05 (4.8min), 03-04 (7.4min), 03-03 (8.4min), 03-02 (3min)
-- Trend: Phase 4 started, parallel compilation infrastructure complete
+- Last 5 plans: 04-02 (3.2min), 04-01 (3.5min), 03-05 (4.8min), 03-04 (7.4min), 03-03 (8.4min)
+- Trend: Phase 4 progressing, signal handling complete
 
 *Updated after each plan completion*
 
@@ -117,6 +117,10 @@ Recent decisions affecting current work:
 - 04-01: errgroup.WithContext + SetLimit for parallel execution — standard Go pattern with automatic context cancellation and bounded concurrency
 - 04-01: Output buffering via bytes.Buffer per compilation — prevents interleaved output from concurrent compilations
 - 04-01: Return nil from g.Go when keepGoing is true — allows other goroutines to continue without context cancellation
+- 04-02: signal.NotifyContext for clean signal handling — Go 1.16+ pattern for signal-cancellable context (rationale: clean signal handling with automatic context cancellation)
+- 04-02: Double Ctrl+C pattern — first cancels gracefully, second forces os.Exit(130) (rationale: allows graceful shutdown with escape hatch)
+- 04-02: Process groups via Setpgid — all compiler processes in their own process group (rationale: clean termination of child processes on cancellation)
+- 04-02: 100ms SIGTERM to SIGKILL timeout — brief window for graceful exit before forced kill (rationale: balance between responsiveness and cleanliness)
 
 ### Pending Todos
 
@@ -139,6 +143,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 04-01-PLAN.md (Parallel Compilation Infrastructure)
+Stopped at: Completed 04-02-PLAN.md (Signal Handling)
 Resume file: None
-Next step: Execute 04-02-PLAN.md (Signal Handling)
+Next step: Continue with 04-03-PLAN.md (Worker Pool)
