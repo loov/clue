@@ -171,10 +171,16 @@ Plans:
   3. User runs build with no network access after initial dependency fetch — build succeeds using cached dependencies
   4. Build output shows dependency resolution steps (cloning, building dependencies before main project)
 
-**Plans**: TBD
+**Plans**: 7 plans in 6 waves
 
 Plans:
-- [ ] 06-01: TBD during phase planning
+- [ ] 06-01-PLAN.md — CUE schema and config loader for dependency definitions
+- [ ] 06-02-PLAN.md — Cache manager and git/vendored fetchers
+- [ ] 06-03-PLAN.md — Tarball fetcher with secure extraction
+- [ ] 06-04-PLAN.md — Dependency resolver and manager
+- [ ] 06-05-PLAN.md — Dependency builder integration with main builder
+- [ ] 06-06-PLAN.md — CLI deps command (list, fetch, clean)
+- [ ] 06-07-PLAN.md — Integration tests for all success criteria
 
 ---
 
