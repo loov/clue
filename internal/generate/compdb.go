@@ -290,51 +290,10 @@ func isCPlusPlusFile(source string) bool {
 	return false
 }
 
-// objectPath returns the object file path for a source
-func objectPath(buildDir, variant, target, source string) string {
-	objName := filepath.Base(source) + ".o"
-	return filepath.Join(buildDir, variant, target, "obj", objName)
-}
-
 // depObjectPath returns the object file path for a dependency source
 func depObjectPath(buildDir, variant, depName, source string) string {
 	objName := filepath.Base(source) + ".o"
 	return filepath.Join(buildDir, variant, "deps", depName, "obj", objName)
 }
 
-// targetToBuildConfig converts config.Target and config.Variant to build.BuildConfig
-func targetToBuildConfig(target config.Target, variant config.Variant) build.BuildConfig {
-	cfg := build.BuildConfig{
-		Optimize:         variant.Optimization,
-		Warnings:         "default", // Default if not specified
-		WarningsAsErrors: true,      // Default to true
-		Debug:            "none",    // Default if not specified
-		RawCompiler:      target.Flags.Compiler,
-		RawLinker:        target.Flags.Linker,
-	}
-
-	// Apply target-specific semantic flags (override defaults)
-	if target.Optimize != "" {
-		cfg.Optimize = target.Optimize
-	}
-	if target.Warnings != "" {
-		cfg.Warnings = target.Warnings
-	}
-	if target.Debug != "" {
-		cfg.Debug = target.Debug
-	}
-	if target.WarningsAsErrors != nil {
-		cfg.WarningsAsErrors = *target.WarningsAsErrors
-	}
-
-	// Apply variant debug info (overrides target)
-	if variant.DebugInfo {
-		cfg.Debug = "full"
-	}
-
-	// Merge variant raw flags
-	cfg.RawCompiler = append(cfg.RawCompiler, variant.Flags.Compiler...)
-	cfg.RawLinker = append(cfg.RawLinker, variant.Flags.Linker...)
-
-	return cfg
-}
+// Note: objectPath and targetToBuildConfig are defined in common.go
