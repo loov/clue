@@ -1,0 +1,286 @@
+package build
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+)
+
+// ModuleDependency represents a source file's module information
+type ModuleDependency struct {
+	Source   string   // Source file path
+	IsModule bool     // Whether this file is a module interface (exports)
+	Provides string   // Module name this file exports (empty if not exporting)
+	Requires []string // Module names this file imports
+	BMIPath  string   // Path to binary module interface (.pcm)
+}
+
+// modulePatterns for detecting module-related code
+var (
+	exportModulePattern = regexp.MustCompile(`^\s*export\s+module\s+([a-zA-Z_][a-zA-Z0-9_.:]*)\s*;`)
+	modulePattern       = regexp.MustCompile(`^\s*module\s+([a-zA-Z_][a-zA-Z0-9_.:]*)\s*;`)
+	importPattern       = regexp.MustCompile(`^\s*import\s+([a-zA-Z_][a-zA-Z0-9_.:]*|<[^>]+>)\s*;`)
+	importStdPattern    = regexp.MustCompile(`^\s*import\s+(std|std\.[a-zA-Z_][a-zA-Z0-9_.]*)\s*;`)
+)
+
+// DetectModuleSources identifies which source files contain module declarations
+// Returns list of sources that are module interfaces or use module imports
+func DetectModuleSources(sources []string) ([]string, error) {
+	var moduleSources []string
+
+	for _, source := range sources {
+		isModule, err := isModuleSource(source)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check %s: %w", source, err)
+		}
+		if isModule {
+			moduleSources = append(moduleSources, source)
+		}
+	}
+
+	return moduleSources, nil
+}
+
+// isModuleSource checks if a source file contains module declarations
+func isModuleSource(path string) (bool, error) {
+	// First check by extension - .cppm, .ixx, .mpp are always modules
+	ext := filepath.Ext(path)
+	if ext == ".cppm" || ext == ".ixx" || ext == ".mpp" {
+		return true, nil
+	}
+
+	// For .cpp/.cc files, scan for module keywords
+	file, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineCount := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineCount++
+
+		// Only scan first 100 lines - module declarations must be at top
+		if lineCount > 100 {
+			break
+		}
+
+		// Skip comments (simple check - doesn't handle all cases)
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") {
+			continue
+		}
+
+		// Check for module patterns
+		if exportModulePattern.MatchString(line) ||
+			modulePattern.MatchString(line) ||
+			importStdPattern.MatchString(line) {
+			return true, nil
+		}
+	}
+
+	return false, scanner.Err()
+}
+
+// IsModuleExtension returns true for standard module file extensions
+func IsModuleExtension(path string) bool {
+	ext := filepath.Ext(path)
+	return ext == ".cppm" || ext == ".ixx" || ext == ".mpp"
+}
+
+// P1689 JSON format structures (clang-scan-deps output)
+type p1689Output struct {
+	Rules []p1689Rule `json:"rules"`
+}
+
+type p1689Rule struct {
+	PrimaryOutput string         `json:"primary-output"`
+	Provides      []p1689Provide `json:"provides,omitempty"`
+	Requires      []p1689Require `json:"requires,omitempty"`
+}
+
+type p1689Provide struct {
+	LogicalName string `json:"logical-name"`
+	SourcePath  string `json:"source-path,omitempty"`
+}
+
+type p1689Require struct {
+	LogicalName string `json:"logical-name"`
+}
+
+// ScanModuleDeps scans a list of sources for module dependencies using clang-scan-deps
+// Returns dependency information for each module source, or error if scanning fails
+func ScanModuleDeps(sources []string, std string, includes []string) ([]ModuleDependency, error) {
+	// Check if clang-scan-deps is available
+	scanDepsPath, err := exec.LookPath("clang-scan-deps")
+	if err != nil {
+		return nil, fmt.Errorf("clang-scan-deps not found: install Clang 16+ for C++20 module support")
+	}
+
+	var deps []ModuleDependency
+
+	for _, source := range sources {
+		dep, err := scanSource(scanDepsPath, source, std, includes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan %s: %w", source, err)
+		}
+		deps = append(deps, *dep)
+	}
+
+	return deps, nil
+}
+
+// scanSource runs clang-scan-deps on a single source file
+func scanSource(scanDepsPath, source, std string, includes []string) (*ModuleDependency, error) {
+	// Build command: clang-scan-deps -format=p1689 -- clang++ -std=c++20 file.cpp -c
+	args := []string{"-format=p1689", "--"}
+	args = append(args, "clang++")
+
+	if std != "" {
+		args = append(args, "-std="+std)
+	} else {
+		args = append(args, "-std=c++20")
+	}
+
+	for _, inc := range includes {
+		args = append(args, "-I"+inc)
+	}
+
+	args = append(args, source, "-c")
+
+	cmd := exec.Command(scanDepsPath, args...)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("clang-scan-deps failed: %s", string(exitErr.Stderr))
+		}
+		return nil, err
+	}
+
+	// Parse P1689 JSON output
+	var result p1689Output
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse clang-scan-deps output: %w", err)
+	}
+
+	dep := &ModuleDependency{
+		Source: source,
+	}
+
+	// Extract provides and requires from rules
+	for _, rule := range result.Rules {
+		for _, prov := range rule.Provides {
+			dep.IsModule = true
+			dep.Provides = prov.LogicalName
+		}
+		for _, req := range rule.Requires {
+			dep.Requires = append(dep.Requires, req.LogicalName)
+		}
+	}
+
+	return dep, nil
+}
+
+// CheckScanDepsAvailable returns nil if clang-scan-deps is available, error otherwise
+func CheckScanDepsAvailable() error {
+	_, err := exec.LookPath("clang-scan-deps")
+	if err != nil {
+		return fmt.Errorf("clang-scan-deps not found: install Clang 16+ for C++20 module support")
+	}
+	return nil
+}
+
+// OrderModuleCompilation returns sources ordered so that modules are built before their dependents
+// Non-module sources are returned first, then module sources in dependency order
+func OrderModuleCompilation(deps []ModuleDependency) ([]string, error) {
+	// Build module name -> source mapping
+	moduleToSource := make(map[string]string)
+	for _, dep := range deps {
+		if dep.Provides != "" {
+			moduleToSource[dep.Provides] = dep.Source
+		}
+	}
+
+	// Build dependency graph
+	// Key: source file, Value: sources it depends on
+	graph := make(map[string][]string)
+	inDegree := make(map[string]int)
+	allSources := make(map[string]bool)
+
+	for _, dep := range deps {
+		allSources[dep.Source] = true
+		graph[dep.Source] = nil
+		inDegree[dep.Source] = 0
+	}
+
+	// Add edges for module dependencies
+	for _, dep := range deps {
+		for _, reqMod := range dep.Requires {
+			// Skip std library imports - they're provided by the compiler
+			if strings.HasPrefix(reqMod, "std") {
+				continue
+			}
+
+			if reqSource, ok := moduleToSource[reqMod]; ok {
+				graph[reqSource] = append(graph[reqSource], dep.Source)
+				inDegree[dep.Source]++
+			} else {
+				return nil, fmt.Errorf("module %q required by %s is not provided by any source file",
+					reqMod, dep.Source)
+			}
+		}
+	}
+
+	// Topological sort (Kahn's algorithm)
+	var queue []string
+	for source := range allSources {
+		if inDegree[source] == 0 {
+			queue = append(queue, source)
+		}
+	}
+
+	var result []string
+	for len(queue) > 0 {
+		// Sort for deterministic ordering
+		sort.Strings(queue)
+
+		source := queue[0]
+		queue = queue[1:]
+		result = append(result, source)
+
+		for _, dependent := range graph[source] {
+			inDegree[dependent]--
+			if inDegree[dependent] == 0 {
+				queue = append(queue, dependent)
+			}
+		}
+	}
+
+	// Check for cycles
+	if len(result) != len(allSources) {
+		return nil, fmt.Errorf("circular module dependency detected")
+	}
+
+	return result, nil
+}
+
+// ModuleError provides actionable error messages for module issues
+type ModuleError struct {
+	Type       string // "missing", "circular", "scan_failed"
+	Module     string // Module name involved
+	Source     string // Source file involved
+	Suggestion string // How to fix
+}
+
+func (e *ModuleError) Error() string {
+	return fmt.Sprintf("module error: %s\n  Module: %s\n  Source: %s\n  Fix: %s",
+		e.Type, e.Module, e.Source, e.Suggestion)
+}
