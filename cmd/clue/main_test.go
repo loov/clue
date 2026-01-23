@@ -396,3 +396,167 @@ func TestBuild_SysLibs(t *testing.T) {
 		t.Errorf("unexpected output: %s", runOutput)
 	}
 }
+
+func TestTargetFlag_Empty(t *testing.T) {
+	// Test that empty target uses HostPlatform
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	testdataDir := t.TempDir()
+	// Create minimal config without variants
+	configContent := `{
+		"name": "test",
+		"targets": {
+			"main": {
+				"name": "main",
+				"type": "executable",
+				"sources": ["main.cpp"]
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build without target flag (should use host platform)
+	cmd = exec.Command(binary, "build")
+	cmd.Dir = testdataDir
+	output, _ := cmd.CombinedOutput()
+
+	// May fail to compile if compilers not available, but should show platform message
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "Building for") {
+		t.Errorf("Expected 'Building for' in output, got:\n%s", outputStr)
+	}
+}
+
+func TestTargetFlag_Valid(t *testing.T) {
+	// Test that --target=linux-amd64 parses correctly (cross-compile from arm64)
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	testdataDir := t.TempDir()
+	// Create minimal config without variants
+	configContent := `{
+		"name": "test",
+		"targets": {
+			"main": {
+				"name": "main",
+				"type": "executable",
+				"sources": ["main.cpp"]
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build with target flag (use amd64 which should be cross-compile on arm64 host)
+	cmd = exec.Command(binary, "--target=linux-amd64", "build")
+	cmd.Dir = testdataDir
+	output, _ := cmd.CombinedOutput()
+
+	outputStr := string(output)
+	// Should show cross-compilation message (even if build fails due to missing cross-compiler)
+	if !strings.Contains(outputStr, "Cross-compiling for linux-amd64") &&
+	   !strings.Contains(outputStr, "compiler not found: x86_64-linux-gnu") {
+		t.Errorf("Expected cross-compilation message or toolchain error, got:\n%s", outputStr)
+	}
+}
+
+func TestTargetFlag_Invalid(t *testing.T) {
+	// Test that --target=invalid produces error
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	testdataDir := t.TempDir()
+	// Create minimal config
+	configContent := `{
+		"name": "test",
+		"targets": {
+			"main": {
+				"name": "main",
+				"type": "executable",
+				"sources": ["main.cpp"]
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build with invalid target
+	cmd = exec.Command(binary, "--target=invalid", "build")
+	cmd.Dir = testdataDir
+	output, err := cmd.CombinedOutput()
+
+	// Should fail
+	if err == nil {
+		t.Error("Expected error for invalid target, but command succeeded")
+	}
+
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "invalid target format") {
+		t.Errorf("Expected 'invalid target format' in error, got:\n%s", outputStr)
+	}
+}
+
+func TestTargetFlag_UnsupportedPlatform(t *testing.T) {
+	// Test that --target=freebsd-amd64 produces error with supported platforms list
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	testdataDir := t.TempDir()
+	// Create minimal config
+	configContent := `{
+		"name": "test",
+		"targets": {
+			"main": {
+				"name": "main",
+				"type": "executable",
+				"sources": ["main.cpp"]
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build with unsupported target
+	cmd = exec.Command(binary, "--target=freebsd-amd64", "build")
+	cmd.Dir = testdataDir
+	output, err := cmd.CombinedOutput()
+
+	// Should fail
+	if err == nil {
+		t.Error("Expected error for unsupported platform, but command succeeded")
+	}
+
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "unsupported target") {
+		t.Errorf("Expected 'unsupported target' in error, got:\n%s", outputStr)
+	}
+	if !strings.Contains(outputStr, "linux-amd64") || !strings.Contains(outputStr, "linux-arm64") {
+		t.Errorf("Expected supported platforms list in error, got:\n%s", outputStr)
+	}
+}
