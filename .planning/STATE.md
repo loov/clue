@@ -11,29 +11,29 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 2 of 8 (Core Compilation)
-Plan: 4 of 7 in current phase
+Plan: 5 of 7 in current phase
 Status: In progress
-Last activity: 2026-01-23 — Completed 02-04-PLAN.md (Linker & Archiver)
+Last activity: 2026-01-23 — Completed 02-05-PLAN.md (Build Orchestrator)
 
-Progress: [████░░░░░░] ~36% (4/7 plans in Phase 2 complete)
+Progress: [█████░░░░░] ~42% (5/7 plans in Phase 2 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 4.0min
-- Total execution time: 0.80 hours
+- Total plans completed: 13
+- Average duration: 3.8min
+- Total execution time: 0.88 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
-| 02-core-compilation | 4 | 8min | 2.0min |
+| 02-core-compilation | 5 | 13min | 2.6min |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (2min), 02-03 (2min), 02-02 (2min), 02-01 (2min), 01-08 (2min)
-- Trend: Sustained 2min velocity in Phase 2, foundation infrastructure enabling rapid execution
+- Last 5 plans: 02-05 (5min), 02-04 (2min), 02-03 (2min), 02-02 (2min), 02-01 (2min)
+- Trend: Phase 2 averaging 2.6min, slight increase for 02-05 due to integration testing
 
 *Updated after each plan completion*
 
@@ -85,6 +85,10 @@ Recent decisions affecting current work:
 - 02-04: C++ linker selection via UseCPlusPlus flag — explicit control over clang++/g++ vs clang/gcc for linking (rationale: C++ std lib requirement)
 - 02-04: System libraries handled separately — distinct from additional libraries for API clarity (rationale: common use case deserves clear semantics)
 - 02-04: Automatic output directory creation for linker — link operations create directories as needed (rationale: reliability without manual setup)
+- 02-05: Progress format [N/M] target: filename — clear compilation status during builds (rationale: user feedback for long builds)
+- 02-05: Artifact organization by variant and type — build/variant/bin for executables, build/variant/lib for libraries (rationale: clean separation, predictable paths)
+- 02-05: Dependency linking via -L and -l flags — static library dependencies automatically added to linker command (rationale: correct linking for multi-target projects)
+- 02-05: Extracted loadConfig helper — shared between runValidate and runBuild (rationale: eliminate code duplication)
 
 ### Pending Todos
 
@@ -96,7 +100,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23T06:33:33Z
-Stopped at: Completed 02-04-PLAN.md (Linker & Archiver)
+Last session: 2026-01-23T06:41:17Z
+Stopped at: Completed 02-05-PLAN.md (Build Orchestrator)
 Resume file: None
-Next step: Continue Phase 2 - Plan 02-05 (Build Orchestrator)
+Next step: Continue Phase 2 - Plan 02-06 or 02-07 (Wave 3 complete, ready for incremental/parallel)
