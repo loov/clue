@@ -388,7 +388,10 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 	}
 
 	duration := time.Since(start)
-	progress.Complete(outputPath, len(target.Sources), duration)
+
+	// Get cache stats from progress
+	_, cachedCount := progress.Stats()
+	progress.Complete(outputPath, len(target.Sources), cachedCount, duration)
 
 	return &TargetResult{
 		Name:     target.Name,
@@ -495,6 +498,12 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 
 	// Print summary
 	progress.Summary()
+
+	// Show total build time (not in quiet mode)
+	if opts.Verbosity >= VerbosityNormal {
+		totalDuration := time.Since(start)
+		fmt.Printf("\nTotal build time: %s\n", FormatDuration(totalDuration))
+	}
 
 	return &BuildResult{
 		Targets:  results,

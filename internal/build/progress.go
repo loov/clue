@@ -96,17 +96,23 @@ func (p *Progress) Archiving(target string) {
 	p.mu.Unlock()
 }
 
-// Complete reports successful build completion
-func (p *Progress) Complete(artifact string, fileCount int, duration time.Duration) {
+// Complete reports successful build completion with cache statistics
+func (p *Progress) Complete(artifact string, fileCount, cachedCount int, duration time.Duration) {
 	if p.verbosity == VerbosityQuiet {
 		return
 	}
+
+	durationStr := FormatDuration(duration)
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "%s %s (%d files, %s)\n",
-		errors.Help("Built:"),
-		artifact,
-		fileCount,
-		FormatDuration(duration))
+	if cachedCount > 0 {
+		fmt.Fprintf(p.out, "%s %s (%d files, %d cached, %s)\n",
+			errors.Help("Built:"),
+			artifact, fileCount, cachedCount, durationStr)
+	} else {
+		fmt.Fprintf(p.out, "%s %s (%d files, %s)\n",
+			errors.Help("Built:"),
+			artifact, fileCount, durationStr)
+	}
 	p.mu.Unlock()
 }
 
