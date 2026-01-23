@@ -149,13 +149,13 @@ func (cm *CacheManager) NeedsRebuild(
 
 	// Compare flags
 	normalizedFlags := NormalizeFlags(BuildCompilerFlags(flags))
-	if !slicesEqual(normalizedFlags, entry.Key.Flags) {
+	if !stringSlicesEqual(normalizedFlags, entry.Key.Flags) {
 		return true, ReasonFlagsChanged, ""
 	}
 
 	// Compare include paths
 	normalizedIncludes := normalizeIncludePaths(includes)
-	if !slicesEqual(normalizedIncludes, entry.Key.IncludePaths) {
+	if !stringSlicesEqual(normalizedIncludes, entry.Key.IncludePaths) {
 		return true, ReasonFlagsChanged, ""
 	}
 
@@ -167,8 +167,18 @@ func (cm *CacheManager) NeedsRebuild(
 
 	// Check each dependency (headers)
 	for _, dep := range depInfo.Sources {
+		// Convert both to absolute paths for comparison
+		absDep, err := filepath.Abs(dep)
+		if err != nil {
+			absDep = dep
+		}
+		absSource, err := filepath.Abs(source)
+		if err != nil {
+			absSource = source
+		}
+
 		// Skip the source file itself
-		if dep == source {
+		if absDep == absSource {
 			continue
 		}
 
@@ -193,8 +203,8 @@ func (cm *CacheManager) NeedsRebuild(
 	return false, "", ""
 }
 
-// slicesEqual compares two string slices for equality
-func slicesEqual(a, b []string) bool {
+// stringSlicesEqual compares two string slices for equality
+func stringSlicesEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -250,9 +260,21 @@ func (cm *CacheManager) StoreResult(
 	// Compute header hashes
 	headerHashes := make(map[string]string)
 	for _, dep := range depInfo.Sources {
-		if dep == source {
+		// Convert both to absolute paths for comparison
+		absDep, err := filepath.Abs(dep)
+		if err != nil {
+			absDep = dep
+		}
+		absSource, err := filepath.Abs(source)
+		if err != nil {
+			absSource = source
+		}
+
+		// Skip the source file itself
+		if absDep == absSource {
 			continue
 		}
+
 		hash, err := ComputeFileHash(dep)
 		if err != nil {
 			// Header might not exist (system header filtered by -MMD)
