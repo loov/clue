@@ -69,16 +69,18 @@ Plans:
   5. User can run `clue clean` to remove all build artifacts
   6. Build output shows which files are being compiled with full compiler commands in normal verbosity
 
-**Plans**: 7 plans in 4 waves
+**Plans**: 9 plans (7 original + 2 gap closure)
 
 Plans:
-- [ ] 02-01-PLAN.md — Semantic flag mapping and CUE schema updates
-- [ ] 02-02-PLAN.md — Executor infrastructure for subprocess management
-- [ ] 02-03-PLAN.md — Compiler implementation (source to object files)
-- [ ] 02-04-PLAN.md — Linker and archiver (executables and static libraries)
-- [ ] 02-05-PLAN.md — Build command with progress output
-- [ ] 02-06-PLAN.md — Clean command implementation
-- [ ] 02-07-PLAN.md — Integration tests and multi-target test project
+- [x] 02-01-PLAN.md — Semantic flag mapping and CUE schema updates
+- [x] 02-02-PLAN.md — Executor infrastructure for subprocess management
+- [x] 02-03-PLAN.md — Compiler implementation (source to object files)
+- [x] 02-04-PLAN.md — Linker and archiver (executables and static libraries)
+- [x] 02-05-PLAN.md — Build command with progress output
+- [x] 02-06-PLAN.md — Clean command implementation
+- [x] 02-07-PLAN.md — Integration tests and multi-target test project
+- [ ] 02-08-PLAN.md — [GAP CLOSURE] Wire target semantic flags to build config
+- [ ] 02-09-PLAN.md — [GAP CLOSURE] Pass system libraries to linker
 
 ---
 
