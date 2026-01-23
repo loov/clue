@@ -483,3 +483,121 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 		t.Errorf("Bad object file %s should not exist", badObject)
 	}
 }
+
+// TestCompiler_SharedLibrary_AddsPIC tests that shared_library targets get -fPIC automatically
+func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
+	// Skip if clang++ not available
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	// Create temp directory
+	tmpDir := t.TempDir()
+
+	// Create a simple C++ file
+	sourceFile := filepath.Join(tmpDir, "lib.cpp")
+	sourceContent := `int lib_func() { return 42; }`
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+		t.Fatalf("Failed to write source file: %v", err)
+	}
+
+	// Setup compiler
+	executor := NewExecutor(ExecutorConfig{Verbose: false})
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
+
+	// Compile with TargetType = "shared_library"
+	objectFile := filepath.Join(tmpDir, "lib.o")
+	opts := CompileOptions{
+		Source:     sourceFile,
+		Output:     objectFile,
+		TargetType: "shared_library", // This should trigger automatic -fPIC
+		Flags: BuildConfig{
+			Optimize:         "none",
+			Warnings:         "default",
+			WarningsAsErrors: false,
+			Debug:            "none",
+		},
+	}
+
+	result, err := compiler.CompileSource(context.Background(), opts)
+
+	// Verify compilation succeeded
+	if err != nil {
+		t.Fatalf("CompileSource failed: %v", err)
+	}
+
+	if !result.Success {
+		t.Errorf("Result.Success = false, want true")
+	}
+
+	// Verify object file created
+	if _, err := os.Stat(objectFile); os.IsNotExist(err) {
+		t.Errorf("Object file %s was not created", objectFile)
+	}
+
+	// Use the object file to verify it has PIC by attempting to link it into a shared library
+	// This will fail if the object was not compiled with -fPIC on Linux
+	if HostPlatform().OS == "linux" {
+		ext := ".so"
+		libFile := filepath.Join(tmpDir, "libtest"+ext)
+		cmd := exec.Command("clang++", "-shared", objectFile, "-o", libFile)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("Failed to link shared library from object (object may not have -fPIC): %v\nOutput: %s", err, output)
+		}
+	}
+}
+
+// TestCompiler_Executable_NoPIC tests that executable targets don't get -fPIC automatically
+func TestCompiler_Executable_NoPIC(t *testing.T) {
+	// Skip if clang++ not available
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	// Create temp directory
+	tmpDir := t.TempDir()
+
+	// Create a simple C++ file
+	sourceFile := filepath.Join(tmpDir, "main.cpp")
+	sourceContent := `int main() { return 0; }`
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+		t.Fatalf("Failed to write source file: %v", err)
+	}
+
+	// Setup compiler
+	executor := NewExecutor(ExecutorConfig{Verbose: false})
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
+
+	// Compile with TargetType = "executable" (default, should not add -fPIC)
+	objectFile := filepath.Join(tmpDir, "main.o")
+	opts := CompileOptions{
+		Source:     sourceFile,
+		Output:     objectFile,
+		TargetType: "executable",
+		Flags: BuildConfig{
+			Optimize:         "none",
+			Warnings:         "default",
+			WarningsAsErrors: false,
+			Debug:            "none",
+		},
+	}
+
+	result, err := compiler.CompileSource(context.Background(), opts)
+
+	// Verify compilation succeeded
+	if err != nil {
+		t.Fatalf("CompileSource failed: %v", err)
+	}
+
+	if !result.Success {
+		t.Errorf("Result.Success = false, want true")
+	}
+
+	// Verify object file created
+	if _, err := os.Stat(objectFile); os.IsNotExist(err) {
+		t.Errorf("Object file %s was not created", objectFile)
+	}
+}

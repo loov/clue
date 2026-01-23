@@ -10,12 +10,13 @@ import (
 
 // CompileOptions holds options for compiling a single source file
 type CompileOptions struct {
-	Source   string      // Source file path
-	Output   string      // Output object file path
-	Includes []string    // Include directories
-	Defines  []string    // Preprocessor defines
-	Flags    BuildConfig // Semantic flags
-	Std      string      // Language standard (e.g., "c++20", "c17")
+	Source     string      // Source file path
+	Output     string      // Output object file path
+	Includes   []string    // Include directories
+	Defines    []string    // Preprocessor defines
+	Flags      BuildConfig // Semantic flags
+	Std        string      // Language standard (e.g., "c++20", "c17")
+	TargetType string      // "executable", "static_library", "shared_library"
 }
 
 // CompileResult holds the result of a compilation
@@ -83,26 +84,31 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 	depFile = filepath.Join(filepath.Dir(opts.Output), depFile)
 	args = append(args, "-MMD", "-MP", "-MF", depFile)
 
-	// 5. Include paths
+	// 5. Position-independent code for shared libraries (automatic)
+	if opts.TargetType == "shared_library" {
+		args = append(args, "-fPIC")
+	}
+
+	// 6. Include paths
 	for _, include := range opts.Includes {
 		args = append(args, "-I"+include)
 	}
 
-	// 6. Defines
+	// 7. Defines
 	for _, define := range opts.Defines {
 		args = append(args, "-D"+define)
 	}
 
-	// 7. Language standard
+	// 8. Language standard
 	if opts.Std != "" {
 		args = append(args, "-std="+opts.Std)
 	}
 
-	// 8. Semantic flags
+	// 9. Semantic flags
 	semanticFlags := BuildCompilerFlagsWithToolchain(opts.Flags, c.toolchain.Name)
 	args = append(args, semanticFlags...)
 
-	// 9. Raw compiler flags (already included in semantic flags via BuildCompilerFlags)
+	// 10. Raw compiler flags (already included in semantic flags via BuildCompilerFlags)
 	// No need to add again
 
 	// Create output directory if it doesn't exist
