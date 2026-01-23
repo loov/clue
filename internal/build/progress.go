@@ -15,6 +15,8 @@ import (
 type Progress struct {
 	total     int
 	current   int
+	built     int // files actually compiled
+	cached    int // files skipped/cached
 	verbose   bool
 	startTime time.Time
 	out       io.Writer
@@ -34,6 +36,7 @@ func NewProgress(total int, verbose bool) *Progress {
 // Compiling reports compilation progress for a source file
 func (p *Progress) Compiling(target, filename string) {
 	p.current++
+	p.built++
 	basename := filepath.Base(filename)
 	fmt.Fprintf(p.out, "[%d/%d] %s: %s\n", p.current, p.total, target, basename)
 }
@@ -65,6 +68,30 @@ func (p *Progress) Complete(artifact string, fileCount int, duration time.Durati
 		artifact,
 		fileCount,
 		durationStr)
+}
+
+// Skip reports that a file was skipped due to cache hit
+func (p *Progress) Skip(target, filename string, reason RebuildReason) {
+	p.current++
+	p.cached++
+	basename := filepath.Base(filename)
+	fmt.Fprintf(p.out, "[skip] %s: %s (cached)\n", target, basename)
+}
+
+// Summary prints a build summary showing built and cached counts
+func (p *Progress) Summary() {
+	if p.built == 0 && p.cached > 0 {
+		fmt.Fprintf(p.out, "Up to date\n")
+	} else if p.cached > 0 {
+		fmt.Fprintf(p.out, "Built %d files, %d cached\n", p.built, p.cached)
+	} else if p.built > 0 {
+		fmt.Fprintf(p.out, "Built %d files\n", p.built)
+	}
+}
+
+// Stats returns the built and cached counts
+func (p *Progress) Stats() (built, cached int) {
+	return p.built, p.cached
 }
 
 // Error reports a build error with target context
