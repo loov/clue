@@ -8,12 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	clerrors "github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/generate"
 )
 
 var (
@@ -60,12 +62,14 @@ func main() {
 		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag))
 	case "deps":
 		os.Exit(runDeps(*dirFlag, *verboseFlag, flag.Args()[1:]))
+	case "generate":
+		os.Exit(runGenerate(*dirFlag, *variantFlag, *targetFlag, flag.Args()[1:]))
 	case "run":
 		fmt.Println("Run command not yet implemented (Phase 2)")
 		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
-		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, run")
+		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, run")
 		os.Exit(1)
 	}
 }
@@ -368,6 +372,55 @@ func runDeps(dir string, verbose bool, args []string) int {
 	return 0
 }
 
+func runGenerate(dir, variant, target string, args []string) int {
+	// Parse subcommand
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "Usage: clue generate <ninja|compile-commands|all> [options]")
+		fmt.Fprintln(os.Stderr, "\nSubcommands:")
+		fmt.Fprintln(os.Stderr, "  ninja              Generate build.ninja")
+		fmt.Fprintln(os.Stderr, "  compile-commands   Generate compile_commands.json")
+		fmt.Fprintln(os.Stderr, "  all                Generate both files")
+		return 1
+	}
+
+	subCmd := args[0]
+
+	// Load config
+	cfg, selectedVariant, err := loadConfig(dir, variant, false)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	// Determine target platform
+	var targetPlatform build.Platform
+	if target == "" {
+		targetPlatform = build.HostPlatform()
+	} else {
+		targetPlatform, err = build.ParseTarget(target)
+		if err != nil {
+			printError(err)
+			return 1
+		}
+	}
+
+	switch subCmd {
+	case "ninja":
+		return generateNinja(dir, cfg, targetPlatform)
+	case "compile-commands":
+		return generateCompileCommands(dir, cfg, selectedVariant, targetPlatform)
+	case "all":
+		if ret := generateNinja(dir, cfg, targetPlatform); ret != 0 {
+			return ret
+		}
+		return generateCompileCommands(dir, cfg, selectedVariant, targetPlatform)
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown generate subcommand: %s\n", subCmd)
+		fmt.Fprintln(os.Stderr, "Available subcommands: ninja, compile-commands, all")
+		return 1
+	}
+}
+
 func printError(err error) {
 	switch e := err.(type) {
 	case *clerrors.RichError:
@@ -377,4 +430,53 @@ func printError(err error) {
 	default:
 		fmt.Fprintf(os.Stderr, "%s %v\n", clerrors.Error("error:"), err)
 	}
+}
+
+func generateNinja(dir string, cfg *config.Config, platform build.Platform) int {
+	// Collect all variant names
+	variants := make([]string, 0, len(cfg.Variants))
+	for name := range cfg.Variants {
+		variants = append(variants, name)
+	}
+	// If no variants defined, use "debug" as default
+	if len(variants) == 0 {
+		variants = []string{"debug"}
+	}
+	// Sort for consistent output
+	sort.Strings(variants)
+
+	outputPath := filepath.Join(dir, "build.ninja")
+	err := generate.GenerateNinja(generate.NinjaOptions{
+		Config:     cfg,
+		Variants:   variants,
+		BuildDir:   cfg.BuildDir,
+		OutputPath: outputPath,
+		Toolchain:  cfg.Toolchain.Compiler,
+		Platform:   platform,
+	})
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	fmt.Printf("Generated: %s\n", outputPath)
+	return 0
+}
+
+func generateCompileCommands(dir string, cfg *config.Config, variant string, platform build.Platform) int {
+	outputPath := filepath.Join(dir, "compile_commands.json")
+	err := generate.GenerateCompileCommands(generate.CompDBOptions{
+		Config:     cfg,
+		Variant:    variant,
+		BuildDir:   cfg.BuildDir,
+		OutputPath: outputPath,
+		Toolchain:  cfg.Toolchain.Compiler,
+	})
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	fmt.Printf("Generated: %s\n", outputPath)
+	return 0
 }
