@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 6 of 8 (External Dependencies)
-Plan: 5 of 7 in phase 6 complete
+Plan: 6 of 7 in phase 6 complete
 Status: In progress
-Last activity: 2026-01-23 — Completed 06-05-PLAN.md (Dependency Building Integration)
+Last activity: 2026-01-23 — Completed 06-06-PLAN.md (CLI Commands)
 
-Progress: [████████████████] 100% (36/36 plans complete across all phases)
+Progress: [████████████████] 100% (37/37 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36
-- Average duration: 4.3min
-- Total execution time: 2.67 hours
+- Total plans completed: 37
+- Average duration: 4.2min
+- Total execution time: 2.73 hours
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [████████████████] 100% (36/36 plans c
 | 03-incremental-builds | 5 | 37min | 7.4min |
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
-| 06-external-dependencies | 5 | 16.2min | 3.2min |
+| 06-external-dependencies | 6 | 19.7min | 3.3min |
 
 **Recent Trend:**
-- Last 5 plans: 06-05 (6.2min), 06-04 (2.0min), 06-03 (2.0min), 06-02 (2.0min), 06-01 (4.0min)
-- Trend: Phase 6 dependency building complete, CLI commands next
+- Last 5 plans: 06-06 (3.5min), 06-05 (6.2min), 06-04 (2.0min), 06-03 (2.0min), 06-02 (2.0min)
+- Trend: Phase 6 CLI commands complete, one more plan remaining
 
 *Updated after each plan completion*
 
@@ -172,6 +172,7 @@ Recent decisions affecting current work:
 - 06-05: Include path auto-detection — inline config > include/ directory > source root (rationale: matches C++ library conventions)
 - 06-05: Dependencies inherit variant and platform — DepBuildOptions passes variant and platform from main build (rationale: ABI compatibility)
 - 06-05: Dependency artifacts in .build/variant/deps/ — Separate from main project artifacts (rationale: clear ownership, easy to clean)
+- 06-06: Command handlers accept dependency map — RunList/RunFetch/RunClean take map[string]Dependency instead of *config.Config (rationale: avoids import cycle, config imports deps)
 
 ### Pending Todos
 
@@ -193,7 +194,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 17:27 UTC
-Stopped at: Completed 06-05-PLAN.md (Dependency Building Integration)
+Last session: 2026-01-23 17:33 UTC
+Stopped at: Completed 06-06-PLAN.md (CLI Commands)
 Resume file: None
-Next step: Continue Phase 6 with 06-06-PLAN.md (CLI Commands)
+Next step: Continue Phase 6 with 06-07-PLAN.md (Integration Tests)
