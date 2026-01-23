@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 ## Current Position
 
-Phase: 2 of 8 (Core Compilation) - COMPLETE ✓
-Plan: 9 of 9 in current phase
-Status: Phase verified (6/6 success criteria met)
-Last activity: 2026-01-23 — Completed quick task 003: target object folder structure
+Phase: 3 of 8 (Incremental Builds) - IN PROGRESS
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-01-23 — Completed 03-01-PLAN.md (cache key & dependency parsing)
 
-Progress: [██████████] 100% (Phase 2 complete, ready for Phase 3)
+Progress: [████████████░░] 78% (18/23 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
-- Average duration: 3.5min
-- Total execution time: 1.31 hours
+- Total plans completed: 18
+- Average duration: 5.2min
+- Total execution time: 1.55 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [██████████] 100% (Phase 2 complete, ready for Pha
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
 | 02-core-compilation | 9 | 39min | 4.3min |
+| 03-incremental-builds | 1 | 14min | 14.0min |
 
 **Recent Trend:**
-- Last 5 plans: 02-09 (2.6min), 02-08 (1min), 02-07 (17min), 02-06 (6min), 02-05 (5min)
-- Trend: Phase 2 complete with all gap closures, 2.6min for system library wiring
+- Last 5 plans: 03-01 (14.4min), 02-09 (2.6min), 02-08 (1min), 02-07 (17min), 02-06 (6min)
+- Trend: Phase 3 started with cache foundation, longer plan due to TDD implementation
 
 *Updated after each plan completion*
 
@@ -97,6 +98,9 @@ Recent decisions affecting current work:
 - 02-07: Simplified schema variants — [string]: #Variant instead of forced debug/release definitions (rationale: users define their own variants)
 - 02-08: Target semantic flag priority — defaults < target flags < variant flags in targetToBuildConfig (rationale: target-specific overrides with variant final precedence)
 - 02-09: System libraries from target config — target.SysLibs passed to LinkOptions instead of empty array (rationale: enables linking against system libs like pthread, m, dl)
+- 03-01: xxh3.Hash128 for content hashing — significantly faster than SHA256 while providing excellent distribution (rationale: performance critical for large codebases, cryptographic properties not needed)
+- 03-01: Compiler identity via file stat — use mtime + size instead of version parsing (rationale: fast, reliable, version parsing is fragile and compiler-specific)
+- 03-01: Absolute paths in cache keys — resolve relative -I paths to absolute in NormalizeFlags (rationale: cache keys work correctly regardless of working directory)
 
 ### Pending Todos
 
@@ -104,7 +108,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- **Network isolation:** Environment has no external network access. CUE stubs work for testing but full validation requires `go mod tidy` with network.
+- **Network isolation:** Environment has no external network access. Used `go test -mod=mod` to work with locally cached modules in phase 3. CUE stubs work for testing but full validation requires `go mod tidy` with network.
 - **Variant application bug:** ApplyVariant() in variants.go unifies entire config with variant definition, causing conflicts. Validation works for configs without variants. Fix needed for variant-based builds.
 
 ### Quick Tasks Completed
@@ -118,6 +122,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 2 (Core Compilation) verified and complete — 6/6 success criteria met
+Stopped at: Completed 03-01-PLAN.md (cache key & dependency parsing)
 Resume file: None
-Next step: Plan Phase 3 - Incremental Builds
+Next step: Execute 03-02-PLAN.md (build state tracking)
