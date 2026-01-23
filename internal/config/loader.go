@@ -11,6 +11,7 @@ import (
 	cueerrors "cuelang.org/go/cue/errors"
 
 	clerrors "github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/deps"
 )
 
 // Config represents a parsed and validated build configuration
@@ -35,6 +36,9 @@ type Config struct {
 
 	// ActiveVariant is the currently selected build variant
 	ActiveVariant Variant
+
+	// Dependencies maps dependency names to their definitions
+	Dependencies map[string]deps.Dependency
 
 	// Raw is the underlying CUE value for advanced access
 	Raw cue.Value
@@ -201,9 +205,10 @@ func (l *Loader) suggestFix(msg string) string {
 // extractConfig pulls Config data from validated CUE value
 func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 	cfg := &Config{
-		Targets:  make(map[string]Target),
-		Variants: make(map[string]Variant),
-		Raw:      val,
+		Targets:      make(map[string]Target),
+		Variants:     make(map[string]Variant),
+		Dependencies: make(map[string]deps.Dependency),
+		Raw:          val,
 	}
 
 	// Extract top-level fields
@@ -254,6 +259,15 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 			}
 			cfg.Variants[name] = variant
 		}
+	}
+
+	// Extract dependencies
+	if depVal := val.LookupPath(cue.ParsePath("dependencies")); depVal.Exists() {
+		deps, err := l.extractDependencies(depVal)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Dependencies = deps
 	}
 
 	return cfg, nil
@@ -334,4 +348,157 @@ func extractStringList(val cue.Value, field string) []string {
 
 func containsIgnoreCase(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+// extractDependencies extracts dependency definitions from CUE value
+func (l *Loader) extractDependencies(val cue.Value) (map[string]deps.Dependency, error) {
+	result := make(map[string]deps.Dependency)
+
+	iter, err := val.Fields()
+	if err != nil {
+		return nil, fmt.Errorf("failed to iterate dependencies: %w", err)
+	}
+
+	for iter.Next() {
+		name := iter.Selector().String()
+		depVal := iter.Value()
+
+		// Get the type field to determine which dependency type to create
+		typeVal := depVal.LookupPath(cue.ParsePath("type"))
+		if !typeVal.Exists() {
+			return nil, fmt.Errorf("dependency %q: type field is required", name)
+		}
+
+		depType, err := typeVal.String()
+		if err != nil {
+			return nil, fmt.Errorf("dependency %q: type must be a string", name)
+		}
+
+		var dep deps.Dependency
+		switch depType {
+		case "git":
+			dep, err = l.extractGitDependency(name, depVal)
+		case "tarball":
+			dep, err = l.extractTarballDependency(name, depVal)
+		case "vendored":
+			dep, err = l.extractVendoredDependency(name, depVal)
+		default:
+			return nil, fmt.Errorf("dependency %q: unknown type %q", name, depType)
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		// Validate the dependency
+		if err := dep.Validate(); err != nil {
+			return nil, err
+		}
+
+		result[name] = dep
+	}
+
+	return result, nil
+}
+
+// extractGitDependency extracts a git dependency
+func (l *Loader) extractGitDependency(name string, val cue.Value) (*deps.GitDependency, error) {
+	repo, err := extractString(val, "repo")
+	if err != nil {
+		return nil, fmt.Errorf("git dependency %q: %w", name, err)
+	}
+
+	ref := "main"
+	if refVal := val.LookupPath(cue.ParsePath("ref")); refVal.Exists() {
+		ref, _ = refVal.String()
+	}
+
+	var buildConfig *deps.InlineConfig
+	if buildVal := val.LookupPath(cue.ParsePath("build")); buildVal.Exists() {
+		buildConfig, err = l.extractInlineConfig(buildVal)
+		if err != nil {
+			return nil, fmt.Errorf("git dependency %q: %w", name, err)
+		}
+	}
+
+	return deps.NewGitDependency(name, repo, ref, buildConfig), nil
+}
+
+// extractTarballDependency extracts a tarball dependency
+func (l *Loader) extractTarballDependency(name string, val cue.Value) (*deps.TarballDependency, error) {
+	url, err := extractString(val, "url")
+	if err != nil {
+		return nil, fmt.Errorf("tarball dependency %q: %w", name, err)
+	}
+
+	checksum := ""
+	if checksumVal := val.LookupPath(cue.ParsePath("checksum")); checksumVal.Exists() {
+		checksum, _ = checksumVal.String()
+	}
+
+	stripPrefix := ""
+	if stripVal := val.LookupPath(cue.ParsePath("stripPrefix")); stripVal.Exists() {
+		stripPrefix, _ = stripVal.String()
+	}
+
+	var buildConfig *deps.InlineConfig
+	if buildVal := val.LookupPath(cue.ParsePath("build")); buildVal.Exists() {
+		buildConfig, err = l.extractInlineConfig(buildVal)
+		if err != nil {
+			return nil, fmt.Errorf("tarball dependency %q: %w", name, err)
+		}
+	}
+
+	return deps.NewTarballDependency(name, url, checksum, stripPrefix, buildConfig), nil
+}
+
+// extractVendoredDependency extracts a vendored dependency
+func (l *Loader) extractVendoredDependency(name string, val cue.Value) (*deps.VendoredDependency, error) {
+	path, err := extractString(val, "path")
+	if err != nil {
+		return nil, fmt.Errorf("vendored dependency %q: %w", name, err)
+	}
+
+	var buildConfig *deps.InlineConfig
+	if buildVal := val.LookupPath(cue.ParsePath("build")); buildVal.Exists() {
+		buildConfig, err = l.extractInlineConfig(buildVal)
+		if err != nil {
+			return nil, fmt.Errorf("vendored dependency %q: %w", name, err)
+		}
+	}
+
+	return deps.NewVendoredDependency(name, path, buildConfig), nil
+}
+
+// extractInlineConfig extracts inline build configuration
+func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) {
+	config := &deps.InlineConfig{}
+
+	config.Sources = extractStringList(val, "sources")
+	if len(config.Sources) == 0 {
+		return nil, fmt.Errorf("inline build config: sources field is required")
+	}
+
+	config.Includes = extractStringList(val, "includes")
+	config.Defines = extractStringList(val, "defines")
+
+	config.Type = "static_library" // Default
+	if typeVal := val.LookupPath(cue.ParsePath("targetType")); typeVal.Exists() {
+		config.Type, _ = typeVal.String()
+	}
+
+	return config, nil
+}
+
+// extractString extracts a required string field
+func extractString(val cue.Value, field string) (string, error) {
+	v := val.LookupPath(cue.ParsePath(field))
+	if !v.Exists() {
+		return "", fmt.Errorf("field %q is required", field)
+	}
+	s, err := v.String()
+	if err != nil {
+		return "", fmt.Errorf("field %q must be a string", field)
+	}
+	return s, nil
 }
