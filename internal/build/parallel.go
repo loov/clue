@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -11,6 +12,11 @@ import (
 
 	"golang.org/x/sync/errgroup"
 )
+
+// createDir creates a directory if it doesn't exist
+func createDir(dir string) error {
+	return os.MkdirAll(dir, 0755)
+}
 
 // ParallelResult holds the result of a single compilation in parallel mode
 type ParallelResult struct {
@@ -110,7 +116,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 
 	// Create a capturing executor (doesn't stream to stdout)
 	captureExecutor := NewExecutor(ExecutorConfig{
-		Verbose:      false,
+		Verbose:      p.verbose,
 		StreamOutput: false, // Capture, don't stream
 		WorkDir:      "",
 	})
@@ -118,8 +124,8 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	// Create temporary compiler with capturing executor
 	tempCompiler := NewCompiler(captureExecutor, p.toolchain)
 
-	// Run compilation
-	result, err := tempCompiler.CompileSource(ctx, opts)
+	// Run compilation using our capturing compiler wrapper
+	result, compileResult, err := p.compileSourceWithCapture(ctx, tempCompiler, captureExecutor, opts)
 
 	// Get current count and increment
 	completed := p.completed.Add(1)
@@ -128,11 +134,14 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
 		completed, p.total, filepath.Base(opts.Source))
 
-	// If verbose and there was output, include it
-	if p.verbose && result != nil {
-		// Any compiler output would be in stderr/stdout of the executor
-		// Since we're not streaming, it's captured but not easily accessible
-		// The error message will contain details if compilation failed
+	// If there was captured output (errors, warnings), include it
+	if compileResult != nil {
+		if compileResult.Stdout != "" {
+			buf.WriteString(compileResult.Stdout)
+		}
+		if compileResult.Stderr != "" {
+			buf.WriteString(compileResult.Stderr)
+		}
 	}
 
 	// Build the result
@@ -149,6 +158,74 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 		Error:    err,
 		Duration: time.Since(start),
 	}
+}
+
+// compileSourceWithCapture compiles a source file and returns both the result and captured output
+func (p *ParallelCompiler) compileSourceWithCapture(ctx context.Context, compiler *Compiler, executor *Executor, opts CompileOptions) (*CompileResult, *CommandResult, error) {
+	start := time.Now()
+
+	// Build the command args manually (mirroring compiler.CompileSource logic)
+	var args []string
+	args = append(args, "-c")
+	args = append(args, opts.Source)
+	args = append(args, "-o", opts.Output)
+
+	// Dependency generation
+	depFile := filepath.Base(opts.Output[:len(opts.Output)-len(filepath.Ext(opts.Output))]) + ".d"
+	depFile = filepath.Join(filepath.Dir(opts.Output), depFile)
+	args = append(args, "-MMD", "-MP", "-MF", depFile)
+
+	// Include paths
+	for _, include := range opts.Includes {
+		args = append(args, "-I"+include)
+	}
+
+	// Defines
+	for _, define := range opts.Defines {
+		args = append(args, "-D"+define)
+	}
+
+	// Language standard
+	if opts.Std != "" {
+		args = append(args, "-std="+opts.Std)
+	}
+
+	// Semantic flags
+	semanticFlags := BuildCompilerFlags(opts.Flags)
+	args = append(args, semanticFlags...)
+
+	// Create output directory if needed
+	outputDir := filepath.Dir(opts.Output)
+	if err := createDir(outputDir); err != nil {
+		return &CompileResult{
+			Source:   opts.Source,
+			Object:   opts.Output,
+			DepFile:  depFile,
+			Duration: time.Since(start),
+			Success:  false,
+		}, nil, fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
+	}
+
+	// Get compiler command
+	compilerCmd := compiler.compilerCmd(opts.Source)
+
+	// Run command with capture (not streaming)
+	cmdResult, err := executor.RunCommand(ctx, compilerCmd, args...)
+
+	duration := time.Since(start)
+	result := &CompileResult{
+		Source:   opts.Source,
+		Object:   opts.Output,
+		DepFile:  depFile,
+		Duration: duration,
+		Success:  err == nil,
+	}
+
+	if err != nil {
+		return result, cmdResult, fmt.Errorf("failed to compile %s: %w", opts.Source, err)
+	}
+
+	return result, cmdResult, nil
 }
 
 // printResults prints all buffered outputs atomically
