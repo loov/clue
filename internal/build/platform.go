@@ -3,6 +3,7 @@ package build
 import (
 	"fmt"
 	"runtime"
+	"strings"
 )
 
 // Platform represents an OS-architecture combination for cross-platform builds.
@@ -41,4 +42,31 @@ var supportedPlatforms = map[string]bool{
 // IsSupportedTarget checks if a platform is supported for building.
 func IsSupportedTarget(p Platform) bool {
 	return supportedPlatforms[p.String()]
+}
+
+// SupportedTargetsList returns a list of supported target platforms for error messages.
+func SupportedTargetsList() []string {
+	return []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64"}
+}
+
+// ParseTarget parses a target flag in "os-arch" format into a Platform.
+// Returns an error if the format is invalid or the target is unsupported.
+func ParseTarget(flag string) (Platform, error) {
+	parts := strings.Split(flag, "-")
+	if len(parts) != 2 {
+		return Platform{}, fmt.Errorf("invalid target format: %s (expected: os-arch)", flag)
+	}
+
+	p := Platform{
+		OS:   parts[0],
+		Arch: parts[1],
+	}
+
+	if !IsSupportedTarget(p) {
+		return Platform{}, fmt.Errorf("unsupported target: %s\nSupported: %s",
+			p.String(),
+			strings.Join(SupportedTargetsList(), ", "))
+	}
+
+	return p, nil
 }
