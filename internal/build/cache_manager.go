@@ -35,11 +35,11 @@ type CacheManager struct {
 	cacheDir     string                // e.g., .build/cache
 	manifestPath string                // e.g., .build/cache/manifest.json
 	manifest     map[string]CacheEntry // sourceHash -> entry
-	verbose      bool
+	verbosity    Verbosity
 }
 
 // NewCacheManager creates a cache manager for the given build directory
-func NewCacheManager(buildDir string, verbose bool) (*CacheManager, error) {
+func NewCacheManager(buildDir string, verbosity Verbosity) (*CacheManager, error) {
 	cacheDir := filepath.Join(buildDir, "cache")
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
@@ -49,7 +49,7 @@ func NewCacheManager(buildDir string, verbose bool) (*CacheManager, error) {
 		cacheDir:     cacheDir,
 		manifestPath: filepath.Join(cacheDir, "manifest.json"),
 		manifest:     make(map[string]CacheEntry),
-		verbose:      verbose,
+		verbosity:    verbosity,
 	}
 
 	// Load existing manifest if present

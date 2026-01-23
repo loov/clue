@@ -117,7 +117,7 @@ func TestIncremental_FirstBuild(t *testing.T) {
 	buildDir, cfg := createTestProject(t, tmpDir)
 
 	// Create builder
-	builder, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestIncremental_FirstBuild(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 	}
 
 	result, err := builder.Build(context.Background(), opts)
@@ -170,7 +170,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 	}
 
 	// First build
@@ -218,7 +218,7 @@ func TestIncremental_SourceChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestIncremental_SourceChange(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 	}
 
 	// First build
@@ -282,7 +282,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -290,7 +290,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 	}
 
 	// First build
@@ -341,7 +341,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -349,7 +349,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 	}
 
 	// First build
@@ -390,7 +390,7 @@ func TestIncremental_ContentRevert(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := createTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -398,7 +398,7 @@ func TestIncremental_ContentRevert(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 	}
 
 	// First build with original content

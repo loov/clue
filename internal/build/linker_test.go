@@ -34,7 +34,7 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:      false,
+		Verbose:   false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -109,7 +109,7 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:      false,
+		Verbose:   false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -191,7 +191,7 @@ int main() { return add(20, 22); }`
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:      false,
+		Verbose:   false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -273,7 +273,7 @@ int main() {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:      false,
+		Verbose:   false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -332,7 +332,7 @@ func TestLinker_OutputNaming(t *testing.T) {
 	}
 
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:      false,
+		Verbose:   false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -511,7 +511,7 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:      false,
+		Verbose:   false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})

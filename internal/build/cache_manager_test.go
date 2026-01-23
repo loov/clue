@@ -11,7 +11,7 @@ func TestNewCacheManager(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestNeedsRebuild_NotCached(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestNeedsRebuild_Forced(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestStoreResult_and_GetCached(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestNeedsRebuild_SourceChanged(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestManifestPersistence(t *testing.T) {
 	buildDir := filepath.Join(tmpDir, "build")
 
 	// Create first cache manager
-	cm1, err := NewCacheManager(buildDir, false)
+	cm1, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestManifestPersistence(t *testing.T) {
 	}
 
 	// Create second cache manager (loads existing manifest)
-	cm2, err := NewCacheManager(buildDir, false)
+	cm2, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -408,7 +408,7 @@ func TestNeedsRebuild_ObjectMissing(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -456,7 +456,7 @@ func TestNeedsRebuild_DepFileMissing(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -504,7 +504,7 @@ func TestNeedsRebuild_FlagsChanged(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}
@@ -551,7 +551,7 @@ func TestGetCached_NotExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
-	cm, err := NewCacheManager(buildDir, false)
+	cm, err := NewCacheManager(buildDir, VerbosityNormal)
 	if err != nil {
 		t.Fatalf("NewCacheManager failed: %v", err)
 	}

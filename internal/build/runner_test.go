@@ -84,7 +84,7 @@ func TestRunTarget_NotExecutable_StaticLibrary(t *testing.T) {
 		BuildDir: "build",
 		Target:    "mylib",
 		Args:     []string{},
-		Verbosity: false,
+		Verbosity: VerbosityNormal,
 		Jobs:     1,
 	}
 
@@ -131,7 +131,7 @@ func TestRunTarget_NotExecutable_SharedLibrary(t *testing.T) {
 		BuildDir: "build",
 		Target:    "myshared",
 		Args:     []string{},
-		Verbosity: false,
+		Verbosity: VerbosityNormal,
 		Jobs:     1,
 	}
 

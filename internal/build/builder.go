@@ -404,10 +404,12 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, error) {
 	start := time.Now()
 
-	// Print platform and toolchain information
-	fmt.Printf("Building for %s\n", b.target)
-	if b.target.IsCrossCompile() {
-		fmt.Printf("Cross-compiling using %s\n", b.toolchain)
+	// Print platform and toolchain information (skip in quiet mode)
+	if opts.Verbosity >= VerbosityNormal {
+		fmt.Printf("Building for %s\n", b.target)
+		if b.target.IsCrossCompile() {
+			fmt.Printf("Cross-compiling using %s\n", b.toolchain)
+		}
 	}
 
 	// Initialize cache manager
@@ -508,7 +510,9 @@ func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map
 		return make(map[string]*DepBuildResult), nil
 	}
 
-	fmt.Println("Building dependencies...")
+	if opts.Verbosity >= VerbosityNormal {
+		fmt.Println("Building dependencies...")
+	}
 
 	// Create dependency manager
 	mgr, err := deps.NewManager(
@@ -571,7 +575,9 @@ func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map
 	}
 
 	depDuration := time.Since(depStart)
-	fmt.Printf("Dependencies built (%d files, %.1fs)\n\n", totalFiles, depDuration.Seconds())
+	if opts.Verbosity >= VerbosityNormal {
+		fmt.Printf("Dependencies built (%d files, %s)\n\n", totalFiles, FormatDuration(depDuration))
+	}
 
 	return results, nil
 }

@@ -134,7 +134,7 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 	}
 
 	// Build with native toolchain for current platform
-	builder, err := NewBuilder(toolchainName, HostPlatform(), false, 1, false)
+	builder, err := NewBuilder(toolchainName, HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(dir, "build"),
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 		Jobs:     1,
 	}
 
@@ -233,7 +233,7 @@ func TestCrossCompilationValidation(t *testing.T) {
 	targetPlatform := Platform{OS: "darwin", Arch: "arm64"}
 
 	// Create builder - should fail during toolchain validation
-	_, err := NewBuilder("clang", targetPlatform, false, 1, false)
+	_, err := NewBuilder("clang", targetPlatform, VerbosityNormal, 1, false)
 
 	// Should get an error about missing cross-compiler
 	if err == nil {
@@ -493,7 +493,7 @@ func TestOutputPathExtensions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create builder with target platform
-			builder, err := NewBuilder("clang", tt.platform, false, 1, false)
+			builder, err := NewBuilder("clang", tt.platform, VerbosityNormal, 1, false)
 			if err != nil {
 				// If toolchain discovery fails, skip (cross-compiler may not be available)
 				t.Skipf("toolchain not available for %s: %v", tt.platform, err)

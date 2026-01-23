@@ -78,7 +78,7 @@ targets: {
 	}
 
 	// Create builder
-	builder, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -88,7 +88,7 @@ targets: {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 		Jobs:     1,
 	}
 

@@ -128,7 +128,7 @@ func TestParallelBuild_20Files(t *testing.T) {
 	}
 
 	// Create builder with 4 parallel jobs
-	builder, err := NewBuilder("clang", HostPlatform(), false, 4, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 4, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestParallelBuild_20Files(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build"),
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 		Jobs:     4,
 	}
 
@@ -189,7 +189,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	}
 
 	// Clean build with 1 job (sequential)
-	builder1, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder1, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build1"),
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 		Jobs:     1,
 	}
 
@@ -212,7 +212,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	}
 
 	// Clean build with 4 jobs (parallel)
-	builder4, err := NewBuilder("clang", HostPlatform(), false, 4, false)
+	builder4, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 4, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build4"),
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 		Jobs:     4,
 	}
 
@@ -259,7 +259,7 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 	}
 
 	// Build with parallel execution
-	builder, err := NewBuilder("clang", HostPlatform(), false, 4, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 4, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build"),
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 		Jobs:     4,
 	}
 
@@ -314,7 +314,7 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	builder, err := NewBuilder("clang", HostPlatform(), false, 2, false)
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 2, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build"),
-		Verbose:  false,
+		Verbosity:    VerbosityNormal,
 		Jobs:     2,
 	}
 
@@ -427,7 +427,7 @@ targets: {
 	}
 
 	// Build WITHOUT keep-going: should stop on first error
-	builder1, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	builder1, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	} // keepGoing=false
@@ -435,7 +435,7 @@ targets: {
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  filepath.Join(dir, "build1"),
-		Verbose:   false,
+		Verbosity:    VerbosityNormal,
 		Jobs:      1,
 		KeepGoing: false,
 	}
@@ -446,7 +446,7 @@ targets: {
 	}
 
 	// Build WITH keep-going: should compile all valid files
-	builder2, err := NewBuilder("clang", HostPlatform(), false, 2, true)
+	builder2, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 2, true)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	} // keepGoing=true
@@ -454,7 +454,7 @@ targets: {
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  filepath.Join(dir, "build2"),
-		Verbose:   false,
+		Verbosity:    VerbosityNormal,
 		Jobs:      2,
 		KeepGoing: true,
 	}

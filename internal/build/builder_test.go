@@ -8,7 +8,7 @@ import (
 )
 
 func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -26,7 +26,7 @@ func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 }
 
 func TestObjectDir_IncludesObjSubdirectory(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
