@@ -88,7 +88,21 @@ func (b *Builder) targetToBuildConfig(target config.Target, variant config.Varia
 		RawLinker:        target.Flags.Linker,
 	}
 
-	// Apply variant debug info
+	// Apply target-specific semantic flags (override defaults)
+	if target.Optimize != "" {
+		cfg.Optimize = target.Optimize
+	}
+	if target.Warnings != "" {
+		cfg.Warnings = target.Warnings
+	}
+	if target.Debug != "" {
+		cfg.Debug = target.Debug
+	}
+	if target.WarningsAsErrors != nil {
+		cfg.WarningsAsErrors = *target.WarningsAsErrors
+	}
+
+	// Apply variant debug info (overrides target)
 	if variant.DebugInfo {
 		cfg.Debug = "full"
 	}
