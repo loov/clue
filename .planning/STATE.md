@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 6 of 8 (External Dependencies)
-Plan: 1 of 5 in phase 6 complete
+Plan: 3 of 7 in phase 6 complete
 Status: In progress
-Last activity: 2026-01-23 — Completed 06-01-PLAN.md (Dependency Schema and Loader)
+Last activity: 2026-01-23 — Completed 06-03-PLAN.md (Tarball Fetching)
 
-Progress: [████████████████] 100% (32/32 plans complete across all phases)
+Progress: [████████████████] 100% (34/34 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
-- Average duration: 4.5min
-- Total execution time: 2.47 hours
+- Total plans completed: 34
+- Average duration: 4.3min
+- Total execution time: 2.53 hours
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [████████████████] 100% (32/32 plans c
 | 03-incremental-builds | 5 | 37min | 7.4min |
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
-| 06-external-dependencies | 1 | 4.0min | 4.0min |
+| 06-external-dependencies | 3 | 8.0min | 2.7min |
 
 **Recent Trend:**
-- Last 5 plans: 06-01 (4.0min), 05-07 (1.0min), 05-06 (3.5min), 05-04 (11min), 05-03 (2.0min)
-- Trend: Phase 6 started, dependency schema and loader complete
+- Last 5 plans: 06-03 (2.0min), 06-02 (2.0min), 06-01 (4.0min), 05-07 (1.0min), 05-06 (3.5min)
+- Trend: Phase 6 progressing efficiently, tarball fetching complete
 
 *Updated after each plan completion*
 
@@ -158,6 +158,11 @@ Recent decisions affecting current work:
 - 06-01: Vendored deps return original path — no caching needed for local source tree dependencies (rationale: already in source tree)
 - 06-01: InlineConfig for deps without clue.cue — enables building third-party libraries without configuration files (rationale: integration flexibility)
 - 06-01: Validation at load time — Validate() called during config extraction for fail-fast (rationale: catch dependency errors early)
+- 06-03: filepath.IsLocal + absolute path checks for security — Double-layered path validation prevents traversal attacks (rationale: defense in depth)
+- 06-03: Silent symlink skipping — Skip symlinks/hardlinks without error for security (rationale: rare in source tarballs, security risk)
+- 06-03: CI mode vs non-CI checksum handling — CI errors on missing checksums, non-CI warns (rationale: reproducibility vs convenience)
+- 06-03: Streaming checksum computation — io.MultiWriter computes SHA256 during download (rationale: performance for large tarballs)
+- 06-03: Cleanup on extraction error — Remove target directory on any extraction failure (rationale: prevent partial/corrupted states)
 
 ### Pending Todos
 
@@ -179,7 +184,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 17:07 UTC
-Stopped at: Completed 06-01-PLAN.md (Dependency Schema and Loader)
+Last session: 2026-01-23 17:13 UTC
+Stopped at: Completed 06-03-PLAN.md (Tarball Fetching)
 Resume file: None
-Next step: Continue Phase 6 with 06-02-PLAN.md (Dependency Fetching)
+Next step: Continue Phase 6 with 06-04-PLAN.md (Git Fetching)
