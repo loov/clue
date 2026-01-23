@@ -19,7 +19,7 @@ type Progress struct {
 	current     atomic.Int64 // atomic for lock-free incrementing
 	built       atomic.Int64 // atomic for lock-free incrementing
 	cached      atomic.Int64 // atomic for lock-free incrementing
-	verbose     bool
+	verbosity   Verbosity
 	startTime   time.Time
 	out         io.Writer
 	mu          sync.Mutex   // for output serialization
@@ -27,10 +27,10 @@ type Progress struct {
 }
 
 // NewProgress creates a new Progress instance
-func NewProgress(total int, verbose bool) *Progress {
+func NewProgress(total int, verbosity Verbosity) *Progress {
 	return &Progress{
 		total:       total,
-		verbose:     verbose,
+		verbosity:   verbosity,
 		startTime:   time.Now(),
 		out:         os.Stdout,
 		activeFiles: make([]string, 0),
@@ -41,16 +41,34 @@ func NewProgress(total int, verbose bool) *Progress {
 func (p *Progress) Compiling(target, filename string) {
 	current := p.current.Add(1)
 	p.built.Add(1)
-	basename := filepath.Base(filename)
 
+	if p.verbosity == VerbosityQuiet {
+		return
+	}
+
+	basename := filepath.Base(filename)
 	p.mu.Lock()
 	fmt.Fprintf(p.out, "[%d/%d] %s: %s\n", current, p.total, target, basename)
 	p.mu.Unlock()
 }
 
+// CompilingTimed reports compilation progress with timing (verbose mode only)
+func (p *Progress) CompilingTimed(target, filename string, duration time.Duration) {
+	if p.verbosity != VerbosityVerbose {
+		return
+	}
+	current := p.current.Add(1)
+	p.built.Add(1)
+	basename := filepath.Base(filename)
+
+	p.mu.Lock()
+	fmt.Fprintf(p.out, "[%d/%d] %s: %s (%s)\n", current, p.total, target, basename, FormatDuration(duration))
+	p.mu.Unlock()
+}
+
 // Command logs the full command being executed (verbose mode only)
 func (p *Progress) Command(compiler string, args []string) {
-	if !p.verbose {
+	if p.verbosity != VerbosityVerbose {
 		return
 	}
 	p.mu.Lock()
@@ -60,6 +78,9 @@ func (p *Progress) Command(compiler string, args []string) {
 
 // Linking reports linking progress
 func (p *Progress) Linking(target string) {
+	if p.verbosity == VerbosityQuiet {
+		return
+	}
 	p.mu.Lock()
 	fmt.Fprintf(p.out, "Linking %s...\n", target)
 	p.mu.Unlock()
@@ -67,6 +88,9 @@ func (p *Progress) Linking(target string) {
 
 // Archiving reports static library creation progress
 func (p *Progress) Archiving(target string) {
+	if p.verbosity == VerbosityQuiet {
+		return
+	}
 	p.mu.Lock()
 	fmt.Fprintf(p.out, "Creating lib%s.a...\n", target)
 	p.mu.Unlock()
@@ -74,19 +98,23 @@ func (p *Progress) Archiving(target string) {
 
 // Complete reports successful build completion
 func (p *Progress) Complete(artifact string, fileCount int, duration time.Duration) {
-	// Format duration (e.g., "2.3s")
-	durationStr := fmt.Sprintf("%.1fs", duration.Seconds())
+	if p.verbosity == VerbosityQuiet {
+		return
+	}
 	p.mu.Lock()
 	fmt.Fprintf(p.out, "%s %s (%d files, %s)\n",
 		errors.Help("Built:"),
 		artifact,
 		fileCount,
-		durationStr)
+		FormatDuration(duration))
 	p.mu.Unlock()
 }
 
 // Skip reports that a file was skipped due to cache hit
 func (p *Progress) Skip(target, filename string, reason RebuildReason) {
+	if p.verbosity == VerbosityQuiet {
+		return
+	}
 	p.current.Add(1)
 	p.cached.Add(1)
 	basename := filepath.Base(filename)
@@ -97,6 +125,9 @@ func (p *Progress) Skip(target, filename string, reason RebuildReason) {
 
 // Summary prints a build summary showing built and cached counts
 func (p *Progress) Summary() {
+	if p.verbosity == VerbosityQuiet {
+		return
+	}
 	built := p.built.Load()
 	cached := p.cached.Load()
 	p.mu.Lock()
@@ -155,6 +186,9 @@ func (p *Progress) ActiveFiles() []string {
 
 // CompilingParallel reports progress for parallel compilation
 func (p *Progress) CompilingParallel(target string, activeFiles []string) {
+	if p.verbosity == VerbosityQuiet {
+		return
+	}
 	current := p.current.Add(1)
 	p.built.Add(1)
 

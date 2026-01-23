@@ -453,7 +453,11 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 	}
 
 	// Create progress tracker
-	progress := NewProgress(totalSources, opts.Verbose)
+	verbosity := VerbosityNormal
+	if opts.Verbose {
+		verbosity = VerbosityVerbose
+	}
+	progress := NewProgress(totalSources, verbosity)
 
 	// Build each target in order
 	var results []TargetResult
