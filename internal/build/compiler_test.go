@@ -11,7 +11,8 @@ import (
 
 func TestCompiler_isCPlusPlus(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
-	compiler := NewCompiler(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
 
 	tests := []struct {
 		source   string
@@ -37,31 +38,41 @@ func TestCompiler_isCPlusPlus(t *testing.T) {
 	}
 }
 
-func TestCompiler_compilerCmd(t *testing.T) {
+func TestCompiler_WithToolchain(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
+	platform := HostPlatform()
 
 	tests := []struct {
-		toolchain string
-		source    string
-		expected  string
+		toolchainName string
+		source        string
+		expectCC      bool // true if should use CC, false for CXX
 	}{
-		{"clang", "main.cpp", "clang++"},
-		{"clang", "main.c", "clang"},
-		{"gcc", "main.cpp", "g++"},
-		{"gcc", "main.c", "gcc"},
-		{"", "main.cpp", "clang++"}, // Default to clang
-		{"", "main.c", "clang"},
-		{"unknown", "main.cpp", "clang++"}, // Unknown defaults to clang
-		{"unknown", "main.c", "clang"},
+		{"clang", "main.cpp", false}, // C++ uses CXX
+		{"clang", "main.c", true},    // C uses CC
+		{"gcc", "main.cpp", false},
+		{"gcc", "main.c", true},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.toolchain+"_"+tt.source, func(t *testing.T) {
-			compiler := NewCompiler(executor, tt.toolchain)
+		t.Run(tt.toolchainName+"_"+tt.source, func(t *testing.T) {
+			tc, err := DiscoverToolchain(tt.toolchainName, platform)
+			if err != nil {
+				t.Fatalf("DiscoverToolchain failed: %v", err)
+			}
+
+			compiler := NewCompiler(executor, tc)
 			result := compiler.compilerCmd(tt.source)
-			if result != tt.expected {
-				t.Errorf("compilerCmd(%s) with toolchain %s = %s, want %s",
-					tt.source, tt.toolchain, result, tt.expected)
+
+			if tt.expectCC {
+				if result != tc.CC {
+					t.Errorf("compilerCmd(%s) = %s, want CC=%s",
+						tt.source, result, tc.CC)
+				}
+			} else {
+				if result != tc.CXX {
+					t.Errorf("compilerCmd(%s) = %s, want CXX=%s",
+						tt.source, result, tc.CXX)
+				}
 			}
 		})
 	}
@@ -85,7 +96,8 @@ func TestCompiler_CompileSource_Integration(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	compiler := NewCompiler(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
 
 	// Compile
 	objectFile := filepath.Join(tmpDir, "main.o")
@@ -146,7 +158,8 @@ func TestCompiler_CompileSource_Error(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	compiler := NewCompiler(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
 
 	// Attempt compilation
 	objectFile := filepath.Join(tmpDir, "bad.o")
@@ -195,7 +208,8 @@ func TestCompiler_CompileSource_WithFlags(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	compiler := NewCompiler(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
 
 	// Compile with semantic flags
 	objectFile := filepath.Join(tmpDir, "main.o")
@@ -262,7 +276,8 @@ int main() { return HEADER_LOADED; }`
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	compiler := NewCompiler(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
 
 	// Compile with include path
 	objectFile := filepath.Join(srcDir, "main.o")
@@ -326,7 +341,8 @@ int main() { return VERSION; }
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	compiler := NewCompiler(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
 
 	// Compile
 	objDir := filepath.Join(tmpDir, "obj")
@@ -407,7 +423,8 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	compiler := NewCompiler(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	compiler := NewCompiler(executor, tc)
 
 	// Compile sources
 	sources := []CompileOptions{

@@ -182,7 +182,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 	}
 
 	// First build
-	_, err := builder.Build(context.Background(), opts)
+	_, err = builder.Build(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestIncremental_SourceChange(t *testing.T) {
 	}
 
 	// First build
-	_, err := builder.Build(context.Background(), opts)
+	_, err = builder.Build(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -294,7 +294,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 	}
 
 	// First build
-	_, err := builder.Build(context.Background(), opts)
+	_, err = builder.Build(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 	}
 
 	// First build
-	_, err := builder.Build(context.Background(), opts)
+	_, err = builder.Build(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -402,7 +402,7 @@ func TestIncremental_ContentRevert(t *testing.T) {
 	}
 
 	// First build with original content
-	_, err := builder.Build(context.Background(), opts)
+	_, err = builder.Build(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}

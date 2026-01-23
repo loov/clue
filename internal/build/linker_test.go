@@ -38,7 +38,8 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	linker := NewLinker(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Link main.o to executable
 	exePath := filepath.Join(tmpDir, "main")
@@ -112,7 +113,8 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	linker := NewLinker(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Archive add.o to libadd.a
 	libPath := filepath.Join(tmpDir, "libadd.a")
@@ -193,7 +195,8 @@ int main() { return add(20, 22); }`
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	linker := NewLinker(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Archive add.o to libadd.a
 	libPath := filepath.Join(tmpDir, "libadd.a")
@@ -274,7 +277,8 @@ int main() {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	linker := NewLinker(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Link with pthread
 	exePath := filepath.Join(tmpDir, "main")
@@ -332,7 +336,8 @@ func TestLinker_OutputNaming(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	linker := NewLinker(executor, "clang")
+	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Test executable has no extension on Linux
 	exePath := filepath.Join(tmpDir, "myapp")
@@ -378,5 +383,104 @@ func TestLinker_OutputNaming(t *testing.T) {
 	// Verify library exists
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Fatalf("static library not created at %s", libPath)
+	}
+}
+
+// TestSharedLibraryExtension_Linux verifies .so extension for Linux
+func TestSharedLibraryExtension_Linux(t *testing.T) {
+	linuxAmd64 := Platform{OS: "linux", Arch: "amd64"}
+	ext := SharedLibraryExtension(linuxAmd64)
+	if ext != ".so" {
+		t.Errorf("SharedLibraryExtension(linux-amd64) = %s, want .so", ext)
+	}
+
+	linuxArm64 := Platform{OS: "linux", Arch: "arm64"}
+	ext = SharedLibraryExtension(linuxArm64)
+	if ext != ".so" {
+		t.Errorf("SharedLibraryExtension(linux-arm64) = %s, want .so", ext)
+	}
+}
+
+// TestSharedLibraryExtension_Darwin verifies .dylib extension for macOS
+func TestSharedLibraryExtension_Darwin(t *testing.T) {
+	darwinAmd64 := Platform{OS: "darwin", Arch: "amd64"}
+	ext := SharedLibraryExtension(darwinAmd64)
+	if ext != ".dylib" {
+		t.Errorf("SharedLibraryExtension(darwin-amd64) = %s, want .dylib", ext)
+	}
+
+	darwinArm64 := Platform{OS: "darwin", Arch: "arm64"}
+	ext = SharedLibraryExtension(darwinArm64)
+	if ext != ".dylib" {
+		t.Errorf("SharedLibraryExtension(darwin-arm64) = %s, want .dylib", ext)
+	}
+}
+
+// TestLinker_WithToolchain verifies Linker uses Toolchain paths
+func TestLinker_WithToolchain(t *testing.T) {
+	executor := NewExecutor(ExecutorConfig{})
+	platform := HostPlatform()
+
+	// Test with clang toolchain
+	clangTC, err := DiscoverToolchain("clang", platform)
+	if err != nil {
+		t.Fatalf("DiscoverToolchain(clang) failed: %v", err)
+	}
+
+	linker := NewLinker(executor, clangTC, platform)
+	if linker.toolchain.CC != clangTC.CC {
+		t.Errorf("Linker.toolchain.CC = %s, want %s", linker.toolchain.CC, clangTC.CC)
+	}
+	if linker.toolchain.CXX != clangTC.CXX {
+		t.Errorf("Linker.toolchain.CXX = %s, want %s", linker.toolchain.CXX, clangTC.CXX)
+	}
+
+	// Test with gcc toolchain
+	gccTC, err := DiscoverToolchain("gcc", platform)
+	if err != nil {
+		t.Fatalf("DiscoverToolchain(gcc) failed: %v", err)
+	}
+
+	linker = NewLinker(executor, gccTC, platform)
+	if linker.toolchain.CC != gccTC.CC {
+		t.Errorf("Linker.toolchain.CC = %s, want %s", linker.toolchain.CC, gccTC.CC)
+	}
+	if linker.toolchain.CXX != gccTC.CXX {
+		t.Errorf("Linker.toolchain.CXX = %s, want %s", linker.toolchain.CXX, gccTC.CXX)
+	}
+}
+
+// TestLinker_CrossCompiler_AR verifies cross-compiler uses prefixed AR
+func TestLinker_CrossCompiler_AR(t *testing.T) {
+	// This test verifies the toolchain discovery logic for cross-compilation
+	// Note: Actual cross-compilers may not be installed, so we test the prefix logic
+
+	host := HostPlatform()
+
+	// Find a different target platform (to trigger cross-compilation)
+	var crossTarget Platform
+	if host.String() == "linux-amd64" {
+		crossTarget = Platform{OS: "linux", Arch: "arm64"}
+	} else {
+		crossTarget = Platform{OS: "linux", Arch: "amd64"}
+	}
+
+	tc, err := DiscoverToolchain("gcc", crossTarget)
+	if err != nil {
+		t.Fatalf("DiscoverToolchain failed: %v", err)
+	}
+
+	// For cross-compilation, AR should have GNU triplet prefix
+	if crossTarget.String() != host.String() {
+		expectedPrefix := ""
+		if crossTarget.String() == "linux-arm64" {
+			expectedPrefix = "aarch64-linux-gnu-ar"
+		} else if crossTarget.String() == "linux-amd64" {
+			expectedPrefix = "x86_64-linux-gnu-ar"
+		}
+
+		if expectedPrefix != "" && tc.AR != expectedPrefix {
+			t.Errorf("Cross-compiler AR = %s, want %s", tc.AR, expectedPrefix)
+		}
 	}
 }
