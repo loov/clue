@@ -10,29 +10,30 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 ## Current Position
 
-Phase: 1 of 8 (Foundation) — COMPLETE ✓
-Plan: 8 of 8 in current phase (all complete)
-Status: Phase verified
-Last activity: 2026-01-22 — Completed 01-08-PLAN.md (File-Level Dependency Graph) - Phase 1 verified
+Phase: 2 of 8 (Core Compilation)
+Plan: 1 of 6 in current phase
+Status: In progress
+Last activity: 2026-01-23 — Completed 02-01-PLAN.md (Semantic Flag Mapping)
 
-Progress: [██████████] ~12.5% (Phase 1/8 complete)
+Progress: [███░░░░░░░] ~14% (1/6 plans in Phase 2 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 5.0min
-- Total execution time: 0.67 hours
+- Total plans completed: 9
+- Average duration: 4.7min
+- Total execution time: 0.78 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
+| 02-core-compilation | 1 | 2min | 2.0min |
 
 **Recent Trend:**
-- Last 5 plans: 01-08 (2min), 01-07 (5min), 01-06 (3min), 01-05 (4min), 01-04 (10min)
-- Trend: Gap closure plans faster - focused scope with existing infrastructure
+- Last 5 plans: 02-01 (2min), 01-08 (2min), 01-07 (5min), 01-06 (3min), 01-05 (4min)
+- Trend: Foundation infrastructure enables fast Phase 2 execution
 
 *Updated after each plan completion*
 
@@ -69,6 +70,10 @@ Recent decisions affecting current work:
 - 01-08: Command nodes as explicit vertices — enables tracking compile and link operations with metadata
 - 01-08: Structured node IDs — src:target:path, obj:target:path, cmd:compile:target:source, cmd:link:target, out:target for predictable lookup
 - 01-08: Cross-target dependencies at link level — link command depends on dependency output artifact
+- 02-01: Semantic flags map to GCC/Clang options — none→-O0, size→-Os, fast→-O2, aggressive→-O3 (rationale: user-friendly configuration with compiler compatibility)
+- 02-01: Warnings as errors by default — warningsAsErrors: true (rationale: fail-fast principle, early error detection)
+- 02-01: Debug flag levels — none (no debug), minimal (-g1 line tables), full (-g complete) (rationale: fine-grained control over debug info size)
+- 02-01: Raw flags as escape hatch — RawCompiler/RawLinker alongside semantic flags (rationale: unblock edge cases without losing semantic benefits)
 
 ### Pending Todos
 
@@ -80,7 +85,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-22T22:00:00Z
-Stopped at: Phase 1 verified and complete - All 4 success criteria verified
+Last session: 2026-01-23T06:28:30Z
+Stopped at: Completed 02-01-PLAN.md (Semantic Flag Mapping)
 Resume file: None
-Next step: Start Phase 2 (Core Compilation) - requires phase planning
+Next step: Continue Phase 2 - Plan 02-02 (Compiler Invocation)
