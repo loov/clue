@@ -6,23 +6,23 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time — not during.
 
-**Current focus:** Phase 7 - Output Generators (next up)
+**Current focus:** Phase 7 - Output Generators (in progress)
 
 ## Current Position
 
 Phase: 7 of 8 (Output Generators)
-Plan: 2 of 4 in phase 7 complete
+Plan: 3 of 4 in phase 7 complete
 Status: In progress
-Last activity: 2026-01-23 — Completed 07-02-PLAN.md (compile_commands.json generation)
+Last activity: 2026-01-23 — Completed 07-03-PLAN.md (Ninja build file generation)
 
-Progress: [████████████████████] 95% (40/42 plans complete across all phases)
+Progress: [████████████████████] 98% (41/42 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 38
+- Total plans completed: 41
 - Average duration: 4.3min
-- Total execution time: 2.86 hours
+- Total execution time: 3.0 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [████████████████████] 95% (40
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
 | 06-external-dependencies | 7 | 27.7min | 4.0min |
-| 07-output-generators | 2 | ~10min | ~5min |
+| 07-output-generators | 3 | ~18min | ~6min |
 
 **Recent Trend:**
-- Last 5 plans: 07-02 (7.3min), 07-01+07-03 (~concurrent), 06-07 (8.0min), 06-06 (3.5min), 06-05 (6.2min)
-- Trend: Phase 7 in progress - output generators being implemented
+- Last 5 plans: 07-03 (8min), 07-02 (7.3min), 07-01 (~3min), 06-07 (8.0min), 06-06 (3.5min)
+- Trend: Phase 7 nearing completion - only CLI integration remaining
 
 *Updated after each plan completion*
 
@@ -135,9 +135,6 @@ Recent decisions affecting current work:
 - 05-01: Go-style "os-arch" format — Use "linux-amd64" format for target platforms (rationale: familiar to Go developers, simpler than LLVM triples)
 - 05-01: Runtime constants for detection — Use runtime.GOOS/GOARCH for platform detection (rationale: compile-time constants, no external dependencies, reliable)
 - 05-01: Map-based platform validation — supportedPlatforms map for O(1) lookup (rationale: fast validation, easy to extend)
-- 05-01: Go-style "os-arch" format — Use "linux-amd64" format for target platforms (rationale: familiar to Go developers, simpler than LLVM triples)
-- 05-01: Runtime constants for detection — Use runtime.GOOS/GOARCH for platform detection (rationale: compile-time constants, no external dependencies, reliable)
-- 05-01: Map-based platform validation — supportedPlatforms map for O(1) lookup (rationale: fast validation, easy to extend)
 - 05-02: CC/CXX environment variables override configured toolchain — Standard Unix convention matching CMake/Make behavior (rationale: follows established build tool patterns)
 - 05-02: crossPrefix checks host platform — Returns empty prefix for native compilation, GNU triplet for cross-compilation (rationale: same platform should use native compilers)
 - 05-02: GNU triplet convention — aarch64-linux-gnu- for ARM64, x86_64-linux-gnu- for AMD64 (rationale: standard cross-compiler naming)
@@ -175,6 +172,9 @@ Recent decisions affecting current work:
 - 06-05: Dependency artifacts in .build/variant/deps/ — Separate from main project artifacts (rationale: clear ownership, easy to clean)
 - 06-06: Command handlers accept dependency map — RunList/RunFetch/RunClean take map[string]Dependency instead of *config.Config (rationale: avoids import cycle, config imports deps)
 - 06-07: Graph builder distinguishes target vs external dependencies — BuildGraphFromConfig checks both cfg.Targets and cfg.Dependencies, only adds target-to-target edges to build graph (rationale: external dependencies handled separately by builder, allows depends field to reference both types)
+- 07-03: Custom defaultTarget node type — go-ninja lacks Default type, created custom Node for 'default' statement (rationale: work around library limitation)
+- 07-03: Shared functions in common.go — objectPath and targetToBuildConfig moved from compdb.go to common.go (rationale: both ninja.go and compdb.go need them)
+- 07-03: Structured AST generation — use ninja.File with typed nodes instead of string templates (rationale: prevents escaping bugs, compile-time validation)
 
 ### Pending Todos
 
@@ -197,6 +197,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23 19:11 UTC
-Stopped at: Completed 07-02-PLAN.md (compile_commands.json generation)
+Stopped at: Completed 07-03-PLAN.md (Ninja build file generation)
 Resume file: None
-Next step: Continue Phase 7 with 07-04-PLAN.md (CLI integration)
+Next step: Continue Phase 7 with 07-04-PLAN.md (CLI integration) or 07-05-PLAN.md (generate command)
