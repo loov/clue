@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 5 of 8 (Cross-Platform Support) - IN PROGRESS
-Plan: 3 of 6 in current phase (05-01, 05-02, 05-03 complete)
+Plan: 4 of 6 in current phase (05-01, 05-02, 05-03, 05-04 complete)
 Status: Executing phase plans
-Last activity: 2026-01-23 — Completed 05-02-PLAN.md
+Last activity: 2026-01-23 — Completed 05-04-PLAN.md
 
-Progress: [███████████████░] 90% (29/32 plans complete across all phases)
+Progress: [███████████████░] 91% (29/32 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
-- Average duration: 4.7min
-- Total execution time: 2.33 hours
+- Total plans completed: 30
+- Average duration: 4.6min
+- Total execution time: 2.50 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [███████████████░] 90% (29/32 plans co
 | 02-core-compilation | 9 | 39min | 4.3min |
 | 03-incremental-builds | 5 | 37min | 7.4min |
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
-| 05-cross-platform-support | 3 | 8.5min | 2.8min |
+| 05-cross-platform-support | 4 | 18.9min | 4.7min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (4.0min), 05-03 (2.0min), 05-01 (2.5min), 04-04 (6min), 04-03 (4min)
-- Trend: Phase 5 toolchain discovery complete with environment variable support
+- Last 5 plans: 05-05 (10.4min), 05-02 (4.0min), 05-03 (2.0min), 05-01 (2.5min), 04-04 (6min)
+- Trend: CLI target flag with validation complete, one plan remaining in Phase 5
 
 *Updated after each plan completion*
 
@@ -144,6 +144,9 @@ Recent decisions affecting current work:
 - 05-03: Sanitizer GCC warning — Warn and skip MemorySanitizer on GCC (Clang-only feature) with user feedback (rationale: prevents build failure while informing user)
 - 05-03: Coverage toolchain-specific flags — Clang uses source-based coverage (-fprofile-instr-generate), GCC uses gcov (-fprofile-arcs) (rationale: matches toolchain capabilities)
 - 05-03: LTO in both phases — -flto added to both compiler and linker for correct whole-program optimization (rationale: LTO requires matching flags in both compilation and linking)
+- 05-05: Flag-before-command convention for --target — Flags must precede commands per Go flag package (e.g., --target=linux-arm64 build) (rationale: matches Go conventions, consistent with existing flags)
+- 05-05: Platform display timing — Show "Building for X" or "Cross-compiling for X" immediately after flag parsing (rationale: early user feedback on target platform)
+- 05-05: Default to HostPlatform — When --target not specified, use native platform for simplicity (rationale: common case should be simple)
 
 ### Pending Todos
 
@@ -165,7 +168,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 13:10 UTC
-Stopped at: Completed 05-02-PLAN.md (Toolchain Discovery)
+Last session: 2026-01-23 13:24 UTC
+Stopped at: Completed 05-05-PLAN.md (CLI Target Flag)
 Resume file: None
-Next step: Execute remaining Phase 5 plans (05-04, 05-05, 05-06)
+Next step: Execute final Phase 5 plan (05-06)
