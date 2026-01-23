@@ -69,10 +69,16 @@ Plans:
   5. User can run `clue clean` to remove all build artifacts
   6. Build output shows which files are being compiled with full compiler commands in normal verbosity
 
-**Plans**: TBD
+**Plans**: 7 plans in 4 waves
 
 Plans:
-- [ ] 02-01: TBD during phase planning
+- [ ] 02-01-PLAN.md — Semantic flag mapping and CUE schema updates
+- [ ] 02-02-PLAN.md — Executor infrastructure for subprocess management
+- [ ] 02-03-PLAN.md — Compiler implementation (source to object files)
+- [ ] 02-04-PLAN.md — Linker and archiver (executables and static libraries)
+- [ ] 02-05-PLAN.md — Build command with progress output
+- [ ] 02-06-PLAN.md — Clean command implementation
+- [ ] 02-07-PLAN.md — Integration tests and multi-target test project
 
 ---
 
@@ -245,7 +251,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 8/8 | Complete ✓ | 2026-01-22 |
-| 2. Core Compilation | 0/TBD | Not started | - |
+| 2. Core Compilation | 0/7 | Planned | - |
 | 3. Incremental Builds | 0/TBD | Not started | - |
 | 4. Parallel Execution | 0/TBD | Not started | - |
 | 5. Cross-Platform Support | 0/TBD | Not started | - |
