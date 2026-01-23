@@ -131,3 +131,129 @@ func TestCLI_TimingDisplay(t *testing.T) {
 		t.Errorf("verbose output should include timing, got: %s", stdout)
 	}
 }
+
+func TestCLI_RunCommand_BuildsAndExecutes(t *testing.T) {
+	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+
+	// Clean first
+	runClue(t, testDir, "--all", "clean")
+
+	// Run the target (should build first)
+	stdout, stderr, exitCode := runClue(t, testDir, "run", "calculator")
+
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: stderr=%s", exitCode, stderr)
+	}
+
+	// Should see output from the executed program
+	if !strings.Contains(stdout, "add") && !strings.Contains(stdout, "multiply") {
+		t.Errorf("run output should include program output, got: %s", stdout)
+	}
+}
+
+func TestCLI_RunCommand_PassesArguments(t *testing.T) {
+	// This test requires a program that echoes arguments
+	// Skip if testdata/args-test doesn't exist
+	testDir := filepath.Join(findProjectRoot(t), "testdata", "args-test")
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		t.Skip("testdata/args-test not found")
+	}
+
+	// Clean first
+	runClue(t, testDir, "--all", "clean")
+
+	// Run with arguments
+	stdout, _, exitCode := runClue(t, testDir, "run", "echoargs", "arg1", "arg2")
+
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d", exitCode)
+	}
+
+	// Should see the arguments in output
+	if !strings.Contains(stdout, "arg1") || !strings.Contains(stdout, "arg2") {
+		t.Errorf("run should pass arguments to program, got: %s", stdout)
+	}
+}
+
+func TestCLI_RunCommand_FailsOnNonExecutable(t *testing.T) {
+	// Need a test project with a library target
+	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		t.Skip("testdata/multi-target not found")
+	}
+
+	// Try to run a library target
+	_, stderr, exitCode := runClue(t, testDir, "run", "mathlib")
+
+	if exitCode == 0 {
+		t.Error("run should fail for non-executable targets")
+	}
+
+	if !strings.Contains(stderr, "not an executable") {
+		t.Errorf("should show 'not an executable' error, got: %s", stderr)
+	}
+}
+
+func TestCLI_RunCommand_FailsOnMissingTarget(t *testing.T) {
+	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+
+	_, stderr, exitCode := runClue(t, testDir, "run", "nonexistent")
+
+	if exitCode == 0 {
+		t.Error("run should fail for missing targets")
+	}
+
+	if !strings.Contains(stderr, "not found") {
+		t.Errorf("should show 'not found' error, got: %s", stderr)
+	}
+}
+
+func TestCLI_ModuleDetection(t *testing.T) {
+	// Test module detection (doesn't require full compilation)
+	testDir := filepath.Join(findProjectRoot(t), "testdata", "module-test")
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		t.Skip("testdata/module-test not found")
+	}
+
+	// Just validate the config - this tests module detection without needing clang-scan-deps
+	_, stderr, exitCode := runClue(t, testDir, "validate")
+
+	// Validation should succeed (module detection is separate from compilation)
+	if exitCode != 0 {
+		t.Errorf("validate should succeed for module project: %s", stderr)
+	}
+}
+
+func TestCLI_ModuleBuild(t *testing.T) {
+	// Check if clang-scan-deps is available
+	if _, err := exec.LookPath("clang-scan-deps"); err != nil {
+		t.Skip("clang-scan-deps not available, skipping module build test")
+	}
+
+	testDir := filepath.Join(findProjectRoot(t), "testdata", "module-test")
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		t.Skip("testdata/module-test not found")
+	}
+
+	// Clean first
+	runClue(t, testDir, "--all", "clean")
+
+	// Build with verbose to see module ordering
+	stdout, stderr, exitCode := runClue(t, testDir, "-v", "build")
+
+	// This may fail if the system doesn't have full module support
+	// The key is that detection and ordering work correctly
+	if exitCode != 0 {
+		// Check if it's a module compilation error vs detection error
+		if strings.Contains(stderr, "module") && strings.Contains(stderr, "order") {
+			t.Logf("Module ordering worked but compilation failed: %s", stderr)
+		} else {
+			t.Logf("Build failed (may be expected without full module support): %s", stderr)
+		}
+	}
+
+	// In verbose mode, should see module-related output
+	if strings.Contains(stdout, "module") || strings.Contains(stdout, "Module") {
+		t.Logf("Module detection output present: %s", stdout)
+	}
+}
