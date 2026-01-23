@@ -13,18 +13,19 @@ import (
 
 // CacheKey contains all inputs that affect compilation output
 type CacheKey struct {
-	SourceHash   string            // xxHash of source file content
-	DepsHash     string            // Combined hash of all header dependencies
-	CompilerID   CompilerIdentity  // Compiler identity (path + mtime + size)
-	Flags        []string          // Normalized compiler flags
-	IncludePaths []string          // Include directories (order preserved)
+	SourceHash   string            `json:"source_hash"`    // xxHash of source file content
+	DepsHash     string            `json:"deps_hash"`      // Combined hash of all header dependencies
+	HeaderHashes map[string]string `json:"header_hashes"`  // path -> hash for all headers
+	CompilerID   CompilerIdentity  `json:"compiler_id"`    // Compiler identity (path + mtime + size)
+	Flags        []string          `json:"flags"`          // Normalized compiler flags
+	IncludePaths []string          `json:"include_paths"`  // Include directories (order preserved)
 }
 
 // CompilerIdentity uniquely identifies a compiler binary
 type CompilerIdentity struct {
-	Path  string // Absolute path to compiler
-	Mtime int64  // File modification time as unix timestamp
-	Size  int64  // File size in bytes
+	Path  string `json:"path"`  // Absolute path to compiler
+	Mtime int64  `json:"mtime"` // File modification time as unix timestamp
+	Size  int64  `json:"size"`  // File size in bytes
 }
 
 // ComputeFileHash reads a file and returns its xxh3 hash as a hex string
