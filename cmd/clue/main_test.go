@@ -343,3 +343,56 @@ func TestClean_AfterBuild(t *testing.T) {
 		t.Errorf("Expected build dir to be empty after clean --all, but found %d entries", len(entries))
 	}
 }
+
+func TestBuild_SysLibs(t *testing.T) {
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "syslibs-test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean first
+	exec.Command(binary, "clean", "--all").Run()
+
+	// Build with verbose flag to see linker command
+	cmd = exec.Command(binary, "-v", "build")
+	cmd.Dir = testdataDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\nOutput:\n%s", err, output)
+	}
+
+	// Verify -lm appears in linker command
+	if !strings.Contains(string(output), "-lm") {
+		t.Errorf("expected linker command to contain -lm, got:\n%s", output)
+	}
+
+	// Verify executable was created and runs
+	exePath := filepath.Join(testdataDir, "build", "debug", "bin", "mathtest")
+	if _, err := os.Stat(exePath); os.IsNotExist(err) {
+		t.Fatalf("executable not found at %s", exePath)
+	}
+
+	// Run the executable
+	runCmd := exec.Command(exePath)
+	runOutput, err := runCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("executable failed: %v\nOutput:\n%s", err, runOutput)
+	}
+
+	// Verify output contains expected result
+	if !strings.Contains(string(runOutput), "sqrt(2.0) = 1.41") {
+		t.Errorf("unexpected output: %s", runOutput)
+	}
+}
