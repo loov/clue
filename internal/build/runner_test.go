@@ -32,13 +32,13 @@ func TestRunTarget_TargetNotFound(t *testing.T) {
 	}
 
 	opts := RunOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: "build",
-		Target:   "nonexistent",
-		Args:     []string{},
-		Verbose:  false,
-		Jobs:     1,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  "build",
+		Target:    "nonexistent",
+		Args:      []string{},
+		Verbosity: VerbosityNormal,
+		Jobs:      1,
 	}
 
 	ctx := context.Background()
@@ -82,9 +82,9 @@ func TestRunTarget_NotExecutable_StaticLibrary(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: "build",
-		Target:   "mylib",
+		Target:    "mylib",
 		Args:     []string{},
-		Verbose:  false,
+		Verbosity: false,
 		Jobs:     1,
 	}
 
@@ -129,9 +129,9 @@ func TestRunTarget_NotExecutable_SharedLibrary(t *testing.T) {
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: "build",
-		Target:   "myshared",
+		Target:    "myshared",
 		Args:     []string{},
-		Verbose:  false,
+		Verbosity: false,
 		Jobs:     1,
 	}
 

@@ -11,13 +11,13 @@ import (
 
 // RunOptions configures the run operation
 type RunOptions struct {
-	Config   *config.Config
-	Variant  string
-	BuildDir string
-	Target   string   // Target name to run
-	Args     []string // Arguments to pass to executable
-	Verbose  bool     // For build output
-	Jobs     int      // Parallel jobs for build
+	Config    *config.Config
+	Variant   string
+	BuildDir  string
+	Target    string      // Target name to run
+	Args      []string    // Arguments to pass to executable
+	Verbosity Verbosity   // For build output
+	Jobs      int         // Parallel jobs for build
 }
 
 // RunResult contains the result of running an executable
@@ -40,18 +40,18 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 
 	// 2. Build the target first
 	platform := HostPlatform() // Run always uses host platform
-	builder, err := NewBuilder(opts.Config.Toolchain.Compiler, platform, opts.Verbose, opts.Jobs, false)
+	builder, err := NewBuilder(opts.Config.Toolchain.Compiler, platform, opts.Verbosity, opts.Jobs, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create builder: %w", err)
 	}
 
 	buildOpts := BuildOptions{
-		Config:   opts.Config,
-		Variant:  opts.Variant,
-		BuildDir: opts.BuildDir,
-		Verbose:  opts.Verbose,
-		Targets:  []string{opts.Target},
-		Jobs:     opts.Jobs,
+		Config:    opts.Config,
+		Variant:   opts.Variant,
+		BuildDir:  opts.BuildDir,
+		Verbosity: opts.Verbosity,
+		Targets:   []string{opts.Target},
+		Jobs:      opts.Jobs,
 	}
 
 	result, err := builder.Build(ctx, buildOpts)

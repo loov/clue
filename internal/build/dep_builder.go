@@ -16,10 +16,10 @@ import (
 
 // DepBuildOptions holds options for building a dependency
 type DepBuildOptions struct {
-	Variant  string   // Build variant (e.g., "debug", "release")
-	Platform Platform // Target platform
-	BuildDir string   // Build output root (default: ".build")
-	Verbose  bool     // Show full compiler output
+	Variant   string    // Build variant (e.g., "debug", "release")
+	Platform  Platform  // Target platform
+	BuildDir  string    // Build output root (default: ".build")
+	Verbosity Verbosity // Verbosity level (quiet/normal/verbose)
 }
 
 // DepBuildResult holds the result of building a dependency
@@ -36,16 +36,16 @@ type DepBuilder struct {
 	compiler  *Compiler
 	linker    *Linker
 	toolchain *Toolchain
-	verbose   bool
+	verbosity Verbosity
 }
 
 // NewDepBuilder creates a new dependency builder
-func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain *Toolchain, verbose bool) *DepBuilder {
+func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain *Toolchain, verbosity Verbosity) *DepBuilder {
 	return &DepBuilder{
 		compiler:  compiler,
 		linker:    linker,
 		toolchain: toolchain,
-		verbose:   verbose,
+		verbosity: verbosity,
 	}
 }
 
@@ -60,7 +60,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}
 
 	// Print progress (collapsed output)
-	if !opts.Verbose {
+	if opts.Verbosity != VerbosityVerbose {
 		fmt.Printf("  Building %s [%d files]\n", dep.Name(), len(sources))
 	}
 
@@ -102,7 +102,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Std: "c++20", // Default to C++20 for dependencies
 		}
 
-		if opts.Verbose {
+		if opts.Verbosity == VerbosityVerbose {
 			fmt.Printf("    Compiling %s\n", src)
 		}
 

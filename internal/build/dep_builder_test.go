@@ -49,7 +49,7 @@ int add(int a, int b) {
 	compiler := NewCompiler(executor, toolchain)
 	linker := NewLinker(executor, toolchain, HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, false)
+	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -57,7 +57,7 @@ int add(int a, int b) {
 		Variant:  "debug",
 		Platform: HostPlatform(),
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity: VerbosityNormal,
 	}
 
 	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
@@ -133,7 +133,7 @@ targets: {
 	compiler := NewCompiler(executor, toolchain)
 	linker := NewLinker(executor, toolchain, HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, false)
+	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -141,7 +141,7 @@ targets: {
 		Variant:  "release",
 		Platform: HostPlatform(),
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity: VerbosityNormal,
 	}
 
 	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
@@ -193,7 +193,7 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 	compiler := NewCompiler(executor, toolchain)
 	linker := NewLinker(executor, toolchain, HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, false)
+	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -201,7 +201,7 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 		Variant:  "debug",
 		Platform: HostPlatform(),
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity: VerbosityNormal,
 	}
 
 	// Should fail with error about missing configuration
@@ -255,7 +255,7 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 	compiler := NewCompiler(executor, toolchain)
 	linker := NewLinker(executor, toolchain, HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, false)
+	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -263,7 +263,7 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 		Variant:  "debug",
 		Platform: HostPlatform(),
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity: VerbosityNormal,
 	}
 
 	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
@@ -323,7 +323,7 @@ int test() { return 42; }
 	compiler := NewCompiler(executor, toolchain)
 	linker := NewLinker(executor, toolchain, HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, false)
+	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -331,7 +331,7 @@ int test() { return 42; }
 		Variant:  "debug",
 		Platform: HostPlatform(),
 		BuildDir: buildDir,
-		Verbose:  false,
+		Verbosity: VerbosityNormal,
 	}
 
 	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)

@@ -16,14 +16,14 @@ import (
 // BuildOptions holds options for a build operation
 type BuildOptions struct {
 	Config       *config.Config
-	Variant      string   // "debug" or "release"
-	BuildDir     string   // Build output root (default: ".build")
-	Verbose      bool     // Show full compiler commands
-	Targets      []string // Specific targets to build (empty = all)
-	ForceRebuild bool     // Force rebuild of all files
-	Jobs         int      // Number of parallel jobs
-	KeepGoing    bool     // Continue building despite errors
-	SkipDeps     bool     // Skip dependency building (for `clue deps build`)
+	Variant      string    // "debug" or "release"
+	BuildDir     string    // Build output root (default: ".build")
+	Verbosity    Verbosity // Verbosity level (quiet/normal/verbose)
+	Targets      []string  // Specific targets to build (empty = all)
+	ForceRebuild bool      // Force rebuild of all files
+	Jobs         int       // Number of parallel jobs
+	KeepGoing    bool      // Continue building despite errors
+	SkipDeps     bool      // Skip dependency building (for `clue deps build`)
 }
 
 // TargetResult holds the result of building a single target
@@ -56,7 +56,7 @@ type Builder struct {
 }
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
-func NewBuilder(toolchainName string, target Platform, verbose bool, jobs int, keepGoing bool) (*Builder, error) {
+func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
 	// Discover toolchain for the target platform
 	toolchain, err := DiscoverToolchain(toolchainName, target)
 	if err != nil {
@@ -67,6 +67,8 @@ func NewBuilder(toolchainName string, target Platform, verbose bool, jobs int, k
 	if err := ValidateToolchain(toolchain); err != nil {
 		return nil, err
 	}
+
+	verbose := verbosity == VerbosityVerbose
 
 	executor := NewExecutor(ExecutorConfig{
 		Verbose:      verbose,
@@ -194,7 +196,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 			continue
 		}
 
-		if opts.Verbose && changedFile != "" {
+		if opts.Verbosity == VerbosityVerbose && changedFile != "" {
 			fmt.Printf("  Will compile: %s (reason: %s, changed: %s)\n", source, reason, changedFile)
 		}
 
@@ -227,7 +229,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 				// Store in cache
 				depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
 				err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, buildCfg, includes, compilerPath)
-				if err != nil && opts.Verbose {
+				if err != nil && opts.Verbosity == VerbosityVerbose {
 					fmt.Printf("  Warning: failed to cache result: %v\n", err)
 				}
 			}
@@ -410,7 +412,7 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 
 	// Initialize cache manager
 	var err error
-	b.cacheManager, err = NewCacheManager(opts.BuildDir, opts.Verbose)
+	b.cacheManager, err = NewCacheManager(opts.BuildDir, opts.Verbosity)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize cache manager: %w", err)
 	}
@@ -453,11 +455,7 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 	}
 
 	// Create progress tracker
-	verbosity := VerbosityNormal
-	if opts.Verbose {
-		verbosity = VerbosityVerbose
-	}
-	progress := NewProgress(totalSources, verbosity)
+	progress := NewProgress(totalSources, opts.Verbosity)
 
 	// Build each target in order
 	var results []TargetResult
@@ -517,7 +515,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map
 		".", // Current directory as project root
 		opts.Config.Dependencies,
 		deps.ManagerOptions{
-			Verbose: opts.Verbose,
+			Verbose: opts.Verbosity == VerbosityVerbose,
 			CIMode:  false,
 		},
 	)
@@ -539,7 +537,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map
 	sort.Strings(buildOrder)
 
 	// Create dependency builder
-	depBuilder := NewDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbose)
+	depBuilder := NewDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbosity)
 
 	// Build each dependency
 	results := make(map[string]*DepBuildResult)
@@ -557,10 +555,10 @@ func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map
 
 		// Build dependency
 		buildOpts := DepBuildOptions{
-			Variant:  opts.Variant,
-			Platform: b.target,
-			BuildDir: opts.BuildDir,
-			Verbose:  opts.Verbose,
+			Variant:   opts.Variant,
+			Platform:  b.target,
+			BuildDir:  opts.BuildDir,
+			Verbosity: opts.Verbosity,
 		}
 
 		result, err := depBuilder.BuildDep(ctx, dep, sourcePath, buildOpts)

@@ -27,6 +27,7 @@ func main() {
 	variantFlag := flag.String("variant", "", "Build variant (debug, release, or custom)")
 	dirFlag := flag.String("dir", ".", "Directory containing clue.cue")
 	noColorFlag := flag.Bool("no-color", false, "Disable colored output")
+	quietFlag := flag.Bool("quiet", false, "Suppress all non-error output")
 	verboseFlag := flag.Bool("v", false, "Verbose output")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 	allFlag := flag.Bool("all", false, "Clean all build variants (for clean command)")
@@ -41,6 +42,12 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Validate verbosity flags
+	if err := build.ValidateVerbosityFlags(*quietFlag, *verboseFlag); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	// Configure colors
 	if *noColorFlag {
 		clerrors.SetNoColor(true)
@@ -53,20 +60,27 @@ func main() {
 		command = args[0]
 	}
 
+	// Determine verbosity level
+	verbosity := build.VerbosityNormal
+	if *quietFlag {
+		verbosity = build.VerbosityQuiet
+	} else if *verboseFlag {
+		verbosity = build.VerbosityVerbose
+	}
+
 	switch command {
 	case "validate":
-		os.Exit(runValidate(*dirFlag, *variantFlag, *verboseFlag))
+		os.Exit(runValidate(*dirFlag, *variantFlag, verbosity))
 	case "build":
-		os.Exit(runBuild(*dirFlag, *variantFlag, *targetFlag, *verboseFlag, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, flag.Args()[1:]))
+		os.Exit(runBuild(*dirFlag, *variantFlag, *targetFlag, verbosity, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, flag.Args()[1:]))
 	case "clean":
-		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag))
+		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag, verbosity))
 	case "deps":
 		os.Exit(runDeps(*dirFlag, *verboseFlag, flag.Args()[1:]))
 	case "generate":
 		os.Exit(runGenerate(*dirFlag, *variantFlag, *targetFlag, flag.Args()[1:]))
 	case "run":
-		fmt.Println("Run command not yet implemented (Phase 2)")
-		os.Exit(0)
+		os.Exit(runRun(*dirFlag, *variantFlag, verbosity, *jobsFlag, flag.Args()[1:]))
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, run")
@@ -75,7 +89,7 @@ func main() {
 }
 
 // loadConfig loads and prepares configuration with variant and environment variables
-func loadConfig(dir, variant string, verbose bool) (*config.Config, string, error) {
+func loadConfig(dir, variant string, verbosity build.Verbosity) (*config.Config, string, error) {
 	// Load configuration
 	loader := config.NewLoader()
 	cfg, err := loader.Load(dir)
@@ -83,7 +97,7 @@ func loadConfig(dir, variant string, verbose bool) (*config.Config, string, erro
 		return nil, "", err
 	}
 
-	if verbose {
+	if verbosity >= build.VerbosityNormal {
 		fmt.Printf("Loaded configuration: %s\n", cfg.Name)
 		fmt.Printf("  Version: %s\n", cfg.Version)
 		fmt.Printf("  Toolchain: %s (std: %s)\n", cfg.Toolchain.Compiler, cfg.Toolchain.Std)
@@ -104,7 +118,7 @@ func loadConfig(dir, variant string, verbose bool) (*config.Config, string, erro
 		if err != nil {
 			return nil, "", err
 		}
-		if verbose {
+		if verbosity >= build.VerbosityNormal {
 			fmt.Printf("Applied variant: %s\n", selectedVariant)
 			fmt.Printf("  Optimization: %s\n", cfg.ActiveVariant.Optimization)
 			fmt.Printf("  Debug info: %t\n", cfg.ActiveVariant.DebugInfo)
@@ -126,10 +140,10 @@ func loadConfig(dir, variant string, verbose bool) (*config.Config, string, erro
 	}
 
 	// Print env var status in verbose mode
-	if verbose && len(env.Used) > 0 {
+	if verbosity >= build.VerbosityNormal && len(env.Used) > 0 {
 		fmt.Printf("Environment variables from system: %s\n", strings.Join(env.Used, ", "))
 	}
-	if verbose && len(env.Variables) > 0 {
+	if verbosity >= build.VerbosityNormal && len(env.Variables) > 0 {
 		fmt.Printf("Environment variables: %d configured\n", len(env.Variables))
 		for name, value := range env.Variables {
 			fmt.Printf("  %s = %s\n", name, value)
@@ -139,8 +153,8 @@ func loadConfig(dir, variant string, verbose bool) (*config.Config, string, erro
 	return cfg, selectedVariant, nil
 }
 
-func runValidate(dir, variant string, verbose bool) int {
-	cfg, selectedVariant, err := loadConfig(dir, variant, verbose)
+func runValidate(dir, variant string, verbosity build.Verbosity) int {
+	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -155,11 +169,15 @@ func runValidate(dir, variant string, verbose bool) int {
 		return 1
 	}
 
-	if verbose {
+	if verbosity >= build.VerbosityNormal {
 		fmt.Printf("Build order: %s\n", strings.Join(order, " -> "))
 	}
 
-	// Print summary
+	// Print summary (skip in quiet mode)
+	if verbosity == build.VerbosityQuiet {
+		return 0
+	}
+
 	fmt.Printf("%s Configuration valid: %s\n",
 		clerrors.Help("[OK]"),
 		cfg.Name)
@@ -173,8 +191,8 @@ func runValidate(dir, variant string, verbose bool) int {
 	return 0
 }
 
-func runBuild(dir, variant, target string, verbose bool, rebuildAll bool, jobs int, keepGoing bool, targets []string) int {
-	cfg, selectedVariant, err := loadConfig(dir, variant, verbose)
+func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll bool, jobs int, keepGoing bool, targets []string) int {
+	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -209,15 +227,17 @@ func runBuild(dir, variant, target string, verbose bool, rebuildAll bool, jobs i
 		}
 	}
 
-	// Show platform info before build
-	if target == "" || targetPlatform == build.HostPlatform() {
-		fmt.Printf("Building for %s\n", targetPlatform)
-	} else {
-		fmt.Printf("Cross-compiling for %s\n", targetPlatform)
+	// Show platform info before build (skip in quiet mode)
+	if verbosity >= build.VerbosityNormal {
+		if target == "" || targetPlatform == build.HostPlatform() {
+			fmt.Printf("Building for %s\n", targetPlatform)
+		} else {
+			fmt.Printf("Cross-compiling for %s\n", targetPlatform)
+		}
 	}
 
 	// Create builder with toolchain and target platform
-	builder, err := build.NewBuilder(cfg.Toolchain.Compiler, targetPlatform, verbose, actualJobs, keepGoing)
+	builder, err := build.NewBuilder(cfg.Toolchain.Compiler, targetPlatform, verbosity, actualJobs, keepGoing)
 	if err != nil {
 		printError(err)
 		return 1
@@ -228,7 +248,7 @@ func runBuild(dir, variant, target string, verbose bool, rebuildAll bool, jobs i
 		Config:       cfg,
 		Variant:      selectedVariant,
 		BuildDir:     buildDir,
-		Verbose:      verbose,
+		Verbosity:    verbosity,
 		Targets:      targets,
 		ForceRebuild: rebuildAll,
 		Jobs:         actualJobs,
@@ -260,7 +280,7 @@ func runBuild(dir, variant, target string, verbose bool, rebuildAll bool, jobs i
 	return 0
 }
 
-func runClean(dir, variant string, all bool) int {
+func runClean(dir, variant string, all bool, verbosity build.Verbosity) int {
 	// Determine build directory relative to project directory
 	buildDir := filepath.Join(dir, "build")
 
@@ -292,8 +312,10 @@ func runClean(dir, variant string, all bool) int {
 		return 1
 	}
 
-	// Print result
-	fmt.Println(result.String())
+	// Print result (skip in quiet mode)
+	if verbosity >= build.VerbosityNormal {
+		fmt.Println(result.String())
+	}
 
 	return 0
 }
@@ -313,7 +335,11 @@ func runDeps(dir string, verbose bool, args []string) int {
 	subCmd := args[0]
 
 	// Load config
-	cfg, _, err := loadConfig(dir, "", verbose)
+	verbosity := build.VerbosityNormal
+	if verbose {
+		verbosity = build.VerbosityVerbose
+	}
+	cfg, _, err := loadConfig(dir, "", verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -501,4 +527,60 @@ func generateCompileCommands(dir string, cfg *config.Config, variant string, pla
 
 	fmt.Printf("Generated: %s\n", outputPath)
 	return 0
+}
+
+func runRun(dir, variant string, verbosity build.Verbosity, jobs int, args []string) int {
+	// Parse target name (first arg) and remaining args
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "Usage: clue run <target> [args...]")
+		fmt.Fprintln(os.Stderr, "\nRuns an executable target, building it first if necessary.")
+		return 1
+	}
+
+	targetName := args[0]
+	execArgs := args[1:]
+
+	// Load configuration
+	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	// Compute actual job count (same as runBuild)
+	actualJobs := jobs
+	if actualJobs == 0 {
+		actualJobs = runtime.NumCPU() / 2
+		if actualJobs < 1 {
+			actualJobs = 1
+		}
+	} else if actualJobs < 0 {
+		actualJobs = runtime.NumCPU()
+	}
+
+	// Setup signal handling for build phase
+	buildCtx := build.SetupSignalHandling()
+
+	// Run target
+	result, err := build.RunTarget(buildCtx.Ctx, build.RunOptions{
+		Config:    cfg,
+		Variant:   selectedVariant,
+		BuildDir:  "build",
+		Target:    targetName,
+		Args:      execArgs,
+		Verbosity: verbosity,
+		Jobs:      actualJobs,
+	})
+
+	if buildCtx.IsCancelled() {
+		fmt.Println("\nCancelled.")
+		return 130
+	}
+
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	return result.ExitCode
 }
