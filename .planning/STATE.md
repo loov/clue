@@ -6,23 +6,23 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time — not during.
 
-**Current focus:** Phase 7 - Output Generators (in progress)
+**Current focus:** Phase 7 - Output Generators (COMPLETE)
 
 ## Current Position
 
 Phase: 7 of 8 (Output Generators)
-Plan: 3 of 4 in phase 7 complete
-Status: In progress
-Last activity: 2026-01-23 — Completed 07-03-PLAN.md (Ninja build file generation)
+Plan: 4 of 4 in phase 7 complete
+Status: Phase 7 complete
+Last activity: 2026-01-23 — Completed 07-04-PLAN.md (CLI generate command)
 
-Progress: [████████████████████] 98% (41/42 plans complete across all phases)
+Progress: [████████████████████] 100% (42/42 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 41
-- Average duration: 4.3min
-- Total execution time: 3.0 hours
+- Total plans completed: 42
+- Average duration: 4.2min
+- Total execution time: 3.1 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [████████████████████] 98% (41
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
 | 06-external-dependencies | 7 | 27.7min | 4.0min |
-| 07-output-generators | 3 | ~18min | ~6min |
+| 07-output-generators | 4 | 21.1min | 5.3min |
 
 **Recent Trend:**
-- Last 5 plans: 07-03 (8min), 07-02 (7.3min), 07-01 (~3min), 06-07 (8.0min), 06-06 (3.5min)
-- Trend: Phase 7 nearing completion - only CLI integration remaining
+- Last 5 plans: 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min), 07-01 (~3min), 06-07 (8.0min)
+- Trend: Phase 7 complete - all output generators and CLI integration done
 
 *Updated after each plan completion*
 
@@ -175,6 +175,7 @@ Recent decisions affecting current work:
 - 07-03: Custom defaultTarget node type — go-ninja lacks Default type, created custom Node for 'default' statement (rationale: work around library limitation)
 - 07-03: Shared functions in common.go — objectPath and targetToBuildConfig moved from compdb.go to common.go (rationale: both ninja.go and compdb.go need them)
 - 07-03: Structured AST generation — use ninja.File with typed nodes instead of string templates (rationale: prevents escaping bugs, compile-time validation)
+- 07-04: Skip variant application for generate — generators handle variants internally via cfg.Variants map lookup (rationale: avoids CUE unification conflict with variant name field)
 
 ### Pending Todos
 
@@ -185,6 +186,7 @@ None yet.
 - **Network isolation:** Environment has no external network access. Used `go test -mod=mod` to work with locally cached modules in phase 3. CUE stubs work for testing but full validation requires `go mod tidy` with network.
 - **Variant application bug:** ApplyVariant() in variants.go unifies entire config with variant definition, causing conflicts. Validation works for configs without variants. Fix needed for variant-based builds.
 - **--rebuild-all output issue:** The --rebuild-all flag completes successfully but produces no output and may not actually force recompilation. Needs investigation in future plan.
+- **Optimization flag mapping:** Schema uses "O0/O1/O2/O3" but build.BuildCompilerFlags expects "none/size/fast/aggressive" - mismatch means variant optimization settings don't translate to compiler flags.
 
 ### Quick Tasks Completed
 
@@ -196,7 +198,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 19:11 UTC
-Stopped at: Completed 07-03-PLAN.md (Ninja build file generation)
+Last session: 2026-01-23 19:19 UTC
+Stopped at: Completed 07-04-PLAN.md (CLI generate command)
 Resume file: None
-Next step: Continue Phase 7 with 07-04-PLAN.md (CLI integration) or 07-05-PLAN.md (generate command)
+Next step: Phase 7 complete. Ready for Phase 8 (Polish) if defined.
