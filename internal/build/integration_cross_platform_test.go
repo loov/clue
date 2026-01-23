@@ -271,3 +271,150 @@ func TestCrossCompilerNaming(t *testing.T) {
 		})
 	}
 }
+
+// TestSemanticFlagMapping verifies semantic flag translation to compiler-specific flags
+// This test verifies Success Criterion 3: Semantic flags map correctly
+func TestSemanticFlagMapping(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    BuildConfig
+		toolchain string
+		expected  []string
+	}{
+		{
+			name:      "optimization fast",
+			config:    BuildConfig{Optimize: "fast"},
+			toolchain: "gcc",
+			expected:  []string{"-O2"},
+		},
+		{
+			name:      "optimization size",
+			config:    BuildConfig{Optimize: "size"},
+			toolchain: "clang",
+			expected:  []string{"-Os"},
+		},
+		{
+			name:      "warnings strict",
+			config:    BuildConfig{Warnings: "strict"},
+			toolchain: "gcc",
+			expected:  []string{"-Wall", "-Wextra"},
+		},
+		{
+			name:      "debug full",
+			config:    BuildConfig{Debug: "full"},
+			toolchain: "clang",
+			expected:  []string{"-g"},
+		},
+		{
+			name:      "sanitizer address",
+			config:    BuildConfig{Sanitizers: []string{"address"}},
+			toolchain: "clang",
+			expected:  []string{"-fsanitize=address"},
+		},
+		{
+			name:      "sanitizer undefined",
+			config:    BuildConfig{Sanitizers: []string{"undefined"}},
+			toolchain: "gcc",
+			expected:  []string{"-fsanitize=undefined"},
+		},
+		{
+			name:      "lto enabled",
+			config:    BuildConfig{LTO: true},
+			toolchain: "clang",
+			expected:  []string{"-flto"},
+		},
+		{
+			name:      "pic enabled",
+			config:    BuildConfig{PIC: true},
+			toolchain: "gcc",
+			expected:  []string{"-fPIC"},
+		},
+		{
+			name:      "coverage clang",
+			config:    BuildConfig{Coverage: true},
+			toolchain: "clang",
+			expected:  []string{"-fprofile-instr-generate", "-fcoverage-mapping"},
+		},
+		{
+			name:      "coverage gcc",
+			config:    BuildConfig{Coverage: true},
+			toolchain: "gcc",
+			expected:  []string{"-fprofile-arcs", "-ftest-coverage"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			flags := BuildCompilerFlagsWithToolchain(tt.config, tt.toolchain)
+
+			// Verify all expected flags are present
+			for _, expectedFlag := range tt.expected {
+				found := false
+				for _, flag := range flags {
+					if flag == expectedFlag {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected flag %s not found in %v", expectedFlag, flags)
+				}
+			}
+		})
+	}
+}
+
+// TestSemanticFlagMapping_Linker verifies semantic flag translation for linker
+func TestSemanticFlagMapping_Linker(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    BuildConfig
+		toolchain string
+		expected  []string
+	}{
+		{
+			name:      "debug full in linker",
+			config:    BuildConfig{Debug: "full"},
+			toolchain: "gcc",
+			expected:  []string{"-g"},
+		},
+		{
+			name:      "sanitizer address in linker",
+			config:    BuildConfig{Sanitizers: []string{"address"}},
+			toolchain: "clang",
+			expected:  []string{"-fsanitize=address"},
+		},
+		{
+			name:      "lto in linker",
+			config:    BuildConfig{LTO: true},
+			toolchain: "gcc",
+			expected:  []string{"-flto"},
+		},
+		{
+			name:      "coverage clang in linker",
+			config:    BuildConfig{Coverage: true},
+			toolchain: "clang",
+			expected:  []string{"-fprofile-instr-generate"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			flags := BuildLinkerFlagsWithToolchain(tt.config, []string{}, tt.toolchain)
+
+			// Verify all expected flags are present
+			for _, expectedFlag := range tt.expected {
+				found := false
+				for _, flag := range flags {
+					if flag == expectedFlag {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected linker flag %s not found in %v", expectedFlag, flags)
+				}
+			}
+		})
+	}
+}
