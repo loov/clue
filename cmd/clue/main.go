@@ -29,6 +29,7 @@ func main() {
 	rebuildAllFlag := flag.Bool("rebuild-all", false, "Force rebuild of all files")
 	jobsFlag := flag.Int("j", 0, "Number of parallel jobs (0 = half of CPU cores, -1 = unlimited)")
 	keepGoingFlag := flag.Bool("keep-going", false, "Continue building despite errors")
+	targetFlag := flag.String("target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64)")
 	flag.Parse()
 
 	if *versionFlag {
@@ -52,7 +53,7 @@ func main() {
 	case "validate":
 		os.Exit(runValidate(*dirFlag, *variantFlag, *verboseFlag))
 	case "build":
-		os.Exit(runBuild(*dirFlag, *variantFlag, *verboseFlag, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, flag.Args()[1:]))
+		os.Exit(runBuild(*dirFlag, *variantFlag, *targetFlag, *verboseFlag, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, flag.Args()[1:]))
 	case "clean":
 		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag))
 	case "run":
@@ -164,7 +165,7 @@ func runValidate(dir, variant string, verbose bool) int {
 	return 0
 }
 
-func runBuild(dir, variant string, verbose bool, rebuildAll bool, jobs int, keepGoing bool, targets []string) int {
+func runBuild(dir, variant, target string, verbose bool, rebuildAll bool, jobs int, keepGoing bool, targets []string) int {
 	cfg, selectedVariant, err := loadConfig(dir, variant, verbose)
 	if err != nil {
 		printError(err)
@@ -187,8 +188,32 @@ func runBuild(dir, variant string, verbose bool, rebuildAll bool, jobs int, keep
 		actualJobs = runtime.NumCPU()
 	}
 
-	// Create builder with toolchain and parallelism settings
-	builder := build.NewBuilder(cfg.Toolchain.Compiler, verbose, actualJobs, keepGoing)
+	// Determine target platform
+	var targetPlatform build.Platform
+	if target == "" {
+		targetPlatform = build.HostPlatform()
+	} else {
+		var err error
+		targetPlatform, err = build.ParseTarget(target)
+		if err != nil {
+			printError(err)
+			return 1
+		}
+	}
+
+	// Show platform info before build
+	if target == "" || targetPlatform == build.HostPlatform() {
+		fmt.Printf("Building for %s\n", targetPlatform)
+	} else {
+		fmt.Printf("Cross-compiling for %s\n", targetPlatform)
+	}
+
+	// Create builder with toolchain and target platform
+	builder, err := build.NewBuilder(cfg.Toolchain.Compiler, targetPlatform, verbose, actualJobs, keepGoing)
+	if err != nil {
+		printError(err)
+		return 1
+	}
 
 	// Build options
 	opts := build.BuildOptions{
