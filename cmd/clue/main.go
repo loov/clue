@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/loov/clue/internal/build"
@@ -24,6 +25,7 @@ func main() {
 	noColorFlag := flag.Bool("no-color", false, "Disable colored output")
 	verboseFlag := flag.Bool("v", false, "Verbose output")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
+	allFlag := flag.Bool("all", false, "Clean all build variants (for clean command)")
 	flag.Parse()
 
 	if *versionFlag {
@@ -49,8 +51,7 @@ func main() {
 	case "build":
 		os.Exit(runBuild(*dirFlag, *variantFlag, *verboseFlag, flag.Args()[1:]))
 	case "clean":
-		fmt.Println("Clean command not yet implemented (Phase 2)")
-		os.Exit(0)
+		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag))
 	case "run":
 		fmt.Println("Run command not yet implemented (Phase 2)")
 		os.Exit(0)
@@ -192,6 +193,44 @@ func runBuild(dir, variant string, verbose bool, targets []string) int {
 	if !result.Success {
 		return 1
 	}
+
+	return 0
+}
+
+func runClean(dir, variant string, all bool) int {
+	// Determine build directory relative to project directory
+	buildDir := filepath.Join(dir, "build")
+
+	// If not cleaning all, need to determine variant
+	if !all {
+		// If variant not specified, use default from selector
+		if variant == "" {
+			// Load config to get default variant behavior
+			_, err := config.NewLoader().Load(dir)
+			if err != nil {
+				// If can't load config, default to "debug"
+				variant = "debug"
+			} else {
+				selector := config.NewVariantSelector()
+				variant = selector.Select()
+			}
+		}
+	}
+
+	// Execute clean
+	result, err := build.Clean(build.CleanOptions{
+		BuildDir: buildDir,
+		Variant:  variant,
+		All:      all,
+	})
+
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	// Print result
+	fmt.Println(result.String())
 
 	return 0
 }
