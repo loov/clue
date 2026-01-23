@@ -96,7 +96,7 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 	}
 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
-	linkerFlags := BuildLinkerFlags(opts.Flags, []string{}) // Pass empty sysLibs since we handle them above
+	linkerFlags := BuildLinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name) // Pass empty sysLibs since we handle them above
 	args = append(args, linkerFlags...)
 
 	// Create output directory if needed
