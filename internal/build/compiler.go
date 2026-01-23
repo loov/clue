@@ -22,6 +22,7 @@ type CompileOptions struct {
 type CompileResult struct {
 	Source   string
 	Object   string
+	DepFile  string        // Path to generated .d file
 	Duration time.Duration
 	Success  bool
 }
@@ -92,26 +93,31 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 	// 3. Output file
 	args = append(args, "-o", opts.Output)
 
-	// 4. Include paths
+	// 4. Dependency generation flags
+	depFile := filepath.Base(opts.Output[:len(opts.Output)-len(filepath.Ext(opts.Output))]) + ".d"
+	depFile = filepath.Join(filepath.Dir(opts.Output), depFile)
+	args = append(args, "-MMD", "-MP", "-MF", depFile)
+
+	// 5. Include paths
 	for _, include := range opts.Includes {
 		args = append(args, "-I"+include)
 	}
 
-	// 5. Defines
+	// 6. Defines
 	for _, define := range opts.Defines {
 		args = append(args, "-D"+define)
 	}
 
-	// 6. Language standard
+	// 7. Language standard
 	if opts.Std != "" {
 		args = append(args, "-std="+opts.Std)
 	}
 
-	// 7. Semantic flags
+	// 8. Semantic flags
 	semanticFlags := BuildCompilerFlags(opts.Flags)
 	args = append(args, semanticFlags...)
 
-	// 8. Raw compiler flags (already included in semantic flags via BuildCompilerFlags)
+	// 9. Raw compiler flags (already included in semantic flags via BuildCompilerFlags)
 	// No need to add again
 
 	// Create output directory if it doesn't exist
@@ -120,6 +126,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 		return &CompileResult{
 			Source:   opts.Source,
 			Object:   opts.Output,
+			DepFile:  depFile,
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
@@ -135,6 +142,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 	result := &CompileResult{
 		Source:   opts.Source,
 		Object:   opts.Output,
+		DepFile:  depFile,
 		Duration: duration,
 		Success:  err == nil,
 	}
