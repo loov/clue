@@ -17,6 +17,12 @@ package config
 	debug?: "none" | "minimal" | "full"
 	sysLibs?: [...string]  // System libraries to link (e.g., ["pthread", "m"])
 
+	// Extended semantic flags (Phase 5)
+	sanitizers?: [...("address" | "thread" | "undefined" | "memory")]
+	lto?: bool
+	pic?: bool
+	coverage?: bool
+
 	// Compiler/linker flags (raw flags for escape hatch)
 	flags?: {
 		compiler?: [...string]
@@ -30,6 +36,13 @@ package config
 	optimization?: "O0" | "O1" | "O2" | "O3" | "Os" | "Oz"
 	debug_info?: bool
 	defines?: [...string]
+
+	// Extended semantic flags (Phase 5)
+	sanitizers?: [...("address" | "thread" | "undefined" | "memory")]
+	lto?: bool
+	pic?: bool
+	coverage?: bool
+
 	flags?: {
 		compiler?: [...string]
 		linker?: [...string]

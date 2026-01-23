@@ -281,3 +281,138 @@ func contains(slice []string, str string) bool {
 func slicesEqual(a, b []string) bool {
 	return reflect.DeepEqual(a, b)
 }
+
+// Phase 5 extended flag tests
+
+func TestBuildCompilerFlags_Sanitizers(t *testing.T) {
+	tests := []struct {
+		name       string
+		sanitizers []string
+		toolchain  string
+		want       []string
+	}{
+		{"address", []string{"address"}, "gcc", []string{"-fsanitize=address"}},
+		{"thread", []string{"thread"}, "clang", []string{"-fsanitize=thread"}},
+		{"undefined", []string{"undefined"}, "gcc", []string{"-fsanitize=undefined"}},
+		{"multiple", []string{"address", "undefined"}, "gcc", []string{"-fsanitize=address", "-fsanitize=undefined"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := BuildConfig{Sanitizers: tt.sanitizers}
+			flags := BuildCompilerFlagsWithToolchain(config, tt.toolchain)
+
+			for _, wantFlag := range tt.want {
+				if !contains(flags, wantFlag) {
+					t.Errorf("BuildCompilerFlagsWithToolchain() = %v, want to contain %v", flags, wantFlag)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildCompilerFlags_MemorySanitizerGCC(t *testing.T) {
+	config := BuildConfig{Sanitizers: []string{"memory"}}
+	flags := BuildCompilerFlagsWithToolchain(config, "gcc")
+
+	// Should not contain -fsanitize=memory on GCC
+	if contains(flags, "-fsanitize=memory") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with gcc should not contain -fsanitize=memory, got %v", flags)
+	}
+}
+
+func TestBuildCompilerFlags_MemorySanitizerClang(t *testing.T) {
+	config := BuildConfig{Sanitizers: []string{"memory"}}
+	flags := BuildCompilerFlagsWithToolchain(config, "clang")
+
+	// Should contain -fsanitize=memory on Clang
+	if !contains(flags, "-fsanitize=memory") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with clang should contain -fsanitize=memory, got %v", flags)
+	}
+}
+
+func TestBuildCompilerFlags_LTO(t *testing.T) {
+	config := BuildConfig{LTO: true}
+	flags := BuildCompilerFlagsWithToolchain(config, "gcc")
+
+	if !contains(flags, "-flto") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with LTO=true should contain -flto, got %v", flags)
+	}
+}
+
+func TestBuildCompilerFlags_PIC(t *testing.T) {
+	config := BuildConfig{PIC: true}
+	flags := BuildCompilerFlagsWithToolchain(config, "gcc")
+
+	if !contains(flags, "-fPIC") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with PIC=true should contain -fPIC, got %v", flags)
+	}
+}
+
+func TestBuildCompilerFlags_CoverageClang(t *testing.T) {
+	config := BuildConfig{Coverage: true}
+	flags := BuildCompilerFlagsWithToolchain(config, "clang")
+
+	if !contains(flags, "-fprofile-instr-generate") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with Coverage=true on clang should contain -fprofile-instr-generate, got %v", flags)
+	}
+	if !contains(flags, "-fcoverage-mapping") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with Coverage=true on clang should contain -fcoverage-mapping, got %v", flags)
+	}
+}
+
+func TestBuildCompilerFlags_CoverageGCC(t *testing.T) {
+	config := BuildConfig{Coverage: true}
+	flags := BuildCompilerFlagsWithToolchain(config, "gcc")
+
+	if !contains(flags, "-fprofile-arcs") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with Coverage=true on gcc should contain -fprofile-arcs, got %v", flags)
+	}
+	if !contains(flags, "-ftest-coverage") {
+		t.Errorf("BuildCompilerFlagsWithToolchain() with Coverage=true on gcc should contain -ftest-coverage, got %v", flags)
+	}
+}
+
+func TestBuildLinkerFlags_Sanitizers(t *testing.T) {
+	tests := []struct {
+		name       string
+		sanitizers []string
+		toolchain  string
+		want       []string
+	}{
+		{"address", []string{"address"}, "gcc", []string{"-fsanitize=address"}},
+		{"thread", []string{"thread"}, "clang", []string{"-fsanitize=thread"}},
+		{"multiple", []string{"address", "undefined"}, "gcc", []string{"-fsanitize=address", "-fsanitize=undefined"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := BuildConfig{Sanitizers: tt.sanitizers}
+			flags := BuildLinkerFlagsWithToolchain(config, nil, tt.toolchain)
+
+			for _, wantFlag := range tt.want {
+				if !contains(flags, wantFlag) {
+					t.Errorf("BuildLinkerFlagsWithToolchain() = %v, want to contain %v", flags, wantFlag)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildLinkerFlags_LTO(t *testing.T) {
+	config := BuildConfig{LTO: true}
+	flags := BuildLinkerFlagsWithToolchain(config, nil, "gcc")
+
+	if !contains(flags, "-flto") {
+		t.Errorf("BuildLinkerFlagsWithToolchain() with LTO=true should contain -flto, got %v", flags)
+	}
+}
+
+func TestBuildLinkerFlags_CoverageClang(t *testing.T) {
+	config := BuildConfig{Coverage: true}
+	flags := BuildLinkerFlagsWithToolchain(config, nil, "clang")
+
+	if !contains(flags, "-fprofile-instr-generate") {
+		t.Errorf("BuildLinkerFlagsWithToolchain() with Coverage=true on clang should contain -fprofile-instr-generate, got %v", flags)
+	}
+}
