@@ -99,7 +99,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 	}
 
 	// 8. Semantic flags
-	semanticFlags := BuildCompilerFlags(opts.Flags)
+	semanticFlags := BuildCompilerFlagsWithToolchain(opts.Flags, c.toolchain.Name)
 	args = append(args, semanticFlags...)
 
 	// 9. Raw compiler flags (already included in semantic flags via BuildCompilerFlags)
