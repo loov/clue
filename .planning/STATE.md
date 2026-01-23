@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 ## Current Position
 
-Phase: 7 of 8 (Output Generators) - VERIFIED ✓
-Plan: 5 of 5 in phase 7 complete
-Status: Phase 7 verified (4/4 success criteria), ready for Phase 8
-Last activity: 2026-01-23 — Verified phase goal after all plans complete
+Phase: 8 of 8 (CLI Polish) - IN PROGRESS
+Plan: 3 of 5 in phase 8 complete
+Status: In progress - C++20 module detection implemented
+Last activity: 2026-01-23 — Completed 08-03-PLAN.md (Module Detection)
 
-Progress: [████████████████████] 100% (43/43 plans complete across all phases)
+Progress: [████████████████████░] 93% (44/47 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43
-- Average duration: 4.2min
-- Total execution time: 3.15 hours
+- Total plans completed: 44
+- Average duration: 4.1min
+- Total execution time: 3.18 hours
 
 **By Phase:**
 
@@ -35,10 +35,11 @@ Progress: [████████████████████] 100% (4
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
 | 06-external-dependencies | 7 | 27.7min | 4.0min |
 | 07-output-generators | 5 | 24.1min | 4.8min |
+| 08-cli-polish | 3 | 6.0min | 2.0min |
 
 **Recent Trend:**
-- Last 5 plans: 07-05 (3min), 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min), 07-01 (~3min)
-- Trend: Phase 7 complete - all output generators, CLI, and integration tests done
+- Last 5 plans: 08-03 (2min), 07-05 (3min), 07-04 (3.1min), 07-03 (8min), 07-02 (7.3min)
+- Trend: Phase 8 started - module detection complete, fast execution
 
 *Updated after each plan completion*
 
@@ -178,6 +179,11 @@ Recent decisions affecting current work:
 - 07-04: Skip variant application for generate — generators handle variants internally via cfg.Variants map lookup (rationale: avoids CUE unification conflict with variant name field)
 - 07-05: Split tests across packages — build tests for SC1, generate tests for SC2-SC4 to avoid import cycles (rationale: generate imports build, so build cannot import generate)
 - 07-05: Verify behavior not binary identity — compare executables by running them, not comparing binaries (rationale: timestamps differ between builds)
+- 08-03: Extension-based detection for .cppm/.ixx/.mpp — Standard module extensions don't need content scanning (rationale: performance optimization while covering all standard extensions)
+- 08-03: Content scan limited to first 100 lines — Module declarations must appear early in C++20 (rationale: balance between accuracy and performance for large files)
+- 08-03: Kahn's algorithm for topological sort — Standard algorithm with O(V+E) complexity and deterministic ordering (rationale: efficient, well-tested, detects cycles with clear error)
+- 08-03: Skip std library imports in dependency graph — std modules are provided by the compiler, not user sources (rationale: simplifies graph, matches compiler behavior)
+- 08-03: clang-scan-deps as external tool — Compiler-accurate dependency detection without reimplementing C++ parsing (rationale: delegates to compiler expertise, handles all C++20 module syntax)
 
 ### Pending Todos
 
@@ -200,7 +206,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 19:35 UTC
-Stopped at: Phase 7 verified, all 4 success criteria passed
+Last session: 2026-01-23 22:29 UTC
+Stopped at: Completed 08-03-PLAN.md (Module Detection)
 Resume file: None
-Next step: Start Phase 8 (CLI Polish) with /gsd:discuss-phase 8 or /gsd:plan-phase 8
+Next step: Continue Phase 8 with 08-04 (Module Build Integration)
