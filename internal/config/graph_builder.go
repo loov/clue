@@ -33,11 +33,17 @@ func BuildGraphFromConfig(cfg *Config) (*graph.BuildGraph, error) {
 	// Add dependency edges
 	for name, target := range cfg.Targets {
 		for _, dep := range target.Depends {
-			// Validate dependency exists
-			if _, exists := cfg.Targets[dep]; !exists {
+			// Check if it's a target dependency (not an external dependency)
+			if _, exists := cfg.Targets[dep]; exists {
+				// Target-to-target dependency - add edge to build graph
+				builder.AddDependency(name, dep)
+			} else if _, exists := cfg.Dependencies[dep]; exists {
+				// External dependency - skip adding to graph
+				// External dependencies are handled separately in the builder
+			} else {
+				// Unknown dependency
 				return nil, fmt.Errorf("target %q depends on unknown target %q", name, dep)
 			}
-			builder.AddDependency(name, dep)
 		}
 	}
 

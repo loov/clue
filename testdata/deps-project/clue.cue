@@ -12,7 +12,7 @@ targets: {
 		name: "app"
 		type: "executable"
 		sources: ["main.cpp"]
-		includes: ["vendor/libmath"]
+		includes: ["vendor"]
 		depends: ["libmath"]
 	}
 }
