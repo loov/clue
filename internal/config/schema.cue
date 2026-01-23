@@ -10,7 +10,14 @@ package config
 	defines?: [...string]
 	depends?: [...string]  // Other target names
 
-	// Compiler/linker flags (semantic names)
+	// Semantic build flags (human-friendly)
+	optimize?: "none" | "size" | "fast" | "aggressive"
+	warnings?: "off" | "default" | "strict" | "pedantic"
+	warningsAsErrors?: bool | *true  // Default to true
+	debug?: "none" | "minimal" | "full"
+	sysLibs?: [...string]  // System libraries to link (e.g., ["pthread", "m"])
+
+	// Compiler/linker flags (raw flags for escape hatch)
 	flags?: {
 		compiler?: [...string]
 		linker?: [...string]
@@ -51,6 +58,9 @@ package config
 #Config: {
 	name: string
 	version?: string
+
+	// Build output directory
+	buildDir?: string | *"build"
 
 	// Toolchain selection
 	toolchain?: {
