@@ -50,6 +50,11 @@ func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) 
 	// Create command with context for cancellation support
 	cmd := exec.CommandContext(ctx, name, args...)
 
+	// Set up process group for clean termination
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true, // Create new process group
+	}
+
 	// Set working directory if specified
 	if e.config.WorkDir != "" {
 		cmd.Dir = e.config.WorkDir
@@ -129,4 +134,107 @@ func (e *Executor) RunCompiler(ctx context.Context, compiler string, args []stri
 func (e *Executor) ToolExists(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+// RunCommandWithCleanup executes a command with proper process group cleanup on cancellation.
+// On context cancellation, it sends SIGTERM first for graceful shutdown, then SIGKILL if
+// the process doesn't exit within 100ms.
+func (e *Executor) RunCommandWithCleanup(ctx context.Context, name string, args ...string) (*CommandResult, error) {
+	start := time.Now()
+
+	if e.config.Verbose {
+		fmt.Printf("[exec] %s %s\n", name, strings.Join(args, " "))
+	}
+
+	cmd := exec.CommandContext(ctx, name, args...)
+
+	// Set working directory if specified
+	if e.config.WorkDir != "" {
+		cmd.Dir = e.config.WorkDir
+	}
+
+	// Create process group for clean termination
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
+	var stdout, stderr bytes.Buffer
+	if e.config.StreamOutput {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	} else {
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+	}
+
+	// Start process
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	// Wait with cleanup on cancellation
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		// Normal completion
+		return e.buildResult(err, stdout, stderr, start), e.checkError(err)
+	case <-ctx.Done():
+		// Context cancelled - cleanup process group
+		if cmd.Process != nil {
+			pgid, err := syscall.Getpgid(cmd.Process.Pid)
+			if err == nil {
+				// Graceful termination first
+				syscall.Kill(-pgid, syscall.SIGTERM)
+
+				// Wait briefly for graceful exit
+				select {
+				case <-done:
+					// Process exited gracefully
+				case <-time.After(100 * time.Millisecond):
+					// Force kill
+					syscall.Kill(-pgid, syscall.SIGKILL)
+				}
+			}
+		}
+		return nil, ctx.Err()
+	}
+}
+
+// buildResult creates a CommandResult from command execution
+func (e *Executor) buildResult(err error, stdout, stderr bytes.Buffer, start time.Time) *CommandResult {
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+				exitCode = status.ExitStatus()
+			} else {
+				exitCode = exitErr.ExitCode()
+			}
+		}
+	}
+	return &CommandResult{
+		ExitCode: exitCode,
+		Stdout:   stdout.String(),
+		Stderr:   stderr.String(),
+		Duration: time.Since(start),
+	}
+}
+
+// checkError converts a command error to a user-friendly error
+func (e *Executor) checkError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+			if status.ExitStatus() != 0 {
+				return fmt.Errorf("command exited with code %d", status.ExitStatus())
+			}
+		}
+	}
+	return err
 }
