@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 6 of 8 (External Dependencies)
-Plan: 3 of 7 in phase 6 complete
+Plan: 4 of 7 in phase 6 complete
 Status: In progress
-Last activity: 2026-01-23 — Completed 06-03-PLAN.md (Tarball Fetching)
+Last activity: 2026-01-23 — Completed 06-04-PLAN.md (Dependency Resolution and Manager)
 
-Progress: [████████████████] 100% (34/34 plans complete across all phases)
+Progress: [████████████████] 100% (35/35 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 34
-- Average duration: 4.3min
-- Total execution time: 2.53 hours
+- Total plans completed: 35
+- Average duration: 4.2min
+- Total execution time: 2.57 hours
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [████████████████] 100% (34/34 plans c
 | 03-incremental-builds | 5 | 37min | 7.4min |
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
-| 06-external-dependencies | 3 | 8.0min | 2.7min |
+| 06-external-dependencies | 4 | 10.0min | 2.5min |
 
 **Recent Trend:**
-- Last 5 plans: 06-03 (2.0min), 06-02 (2.0min), 06-01 (4.0min), 05-07 (1.0min), 05-06 (3.5min)
-- Trend: Phase 6 progressing efficiently, tarball fetching complete
+- Last 5 plans: 06-04 (2.0min), 06-03 (2.0min), 06-02 (2.0min), 06-01 (4.0min), 05-07 (1.0min)
+- Trend: Phase 6 maintaining high velocity, dependency resolution complete
 
 *Updated after each plan completion*
 
@@ -163,6 +163,10 @@ Recent decisions affecting current work:
 - 06-03: CI mode vs non-CI checksum handling — CI errors on missing checksums, non-CI warns (rationale: reproducibility vs convenience)
 - 06-03: Streaming checksum computation — io.MultiWriter computes SHA256 during download (rationale: performance for large tarballs)
 - 06-03: Cleanup on extraction error — Remove target directory on any extraction failure (rationale: prevent partial/corrupted states)
+- 06-04: Alphabetical order for independent dependencies — No inter-dependencies defaults to alphabetical for reproducibility (rationale: deterministic build order)
+- 06-04: graph.StableTopologicalSort with lexical order — Stable sort with a < b comparison for consistent ordering (rationale: reproducible builds across environments)
+- 06-04: Fail-fast fetch on first error — FetchAll stops immediately on error (rationale: matches fail-fast principle from Phase 1)
+- 06-04: Cache-first fetch strategy — Manager checks cache.Has() before fetching (rationale: avoid unnecessary network operations)
 
 ### Pending Todos
 
@@ -184,7 +188,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 17:13 UTC
-Stopped at: Completed 06-03-PLAN.md (Tarball Fetching)
+Last session: 2026-01-23 17:18 UTC
+Stopped at: Completed 06-04-PLAN.md (Dependency Resolution and Manager)
 Resume file: None
-Next step: Continue Phase 6 with 06-04-PLAN.md (Git Fetching)
+Next step: Continue Phase 6 with 06-05-PLAN.md (CLI Commands)
