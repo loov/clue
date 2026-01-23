@@ -14,7 +14,7 @@ import (
 type BuildOptions struct {
 	Config   *config.Config
 	Variant  string   // "debug" or "release"
-	BuildDir string   // Build output root (default: "build")
+	BuildDir string   // Build output root (default: ".build")
 	Verbose  bool     // Show full compiler commands
 	Targets  []string // Specific targets to build (empty = all)
 }

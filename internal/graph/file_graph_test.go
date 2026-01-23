@@ -158,7 +158,7 @@ func TestObjectPath(t *testing.T) {
 	}{
 		{"myapp", "main.cpp", ".build", ".build/myapp/main.o"},
 		{"myapp", "src/utils.cpp", ".build", ".build/myapp/utils.o"},
-		{"lib", "math.c", "build", "build/lib/math.o"},
+		{"lib", "math.c", ".build", ".build/lib/math.o"},
 	}
 
 	for _, tt := range tests {

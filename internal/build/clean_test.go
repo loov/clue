@@ -10,7 +10,7 @@ import (
 func TestClean_VariantOnly(t *testing.T) {
 	// Setup: Create temp directory structure
 	tmpDir := t.TempDir()
-	buildDir := filepath.Join(tmpDir, "build")
+	buildDir := filepath.Join(tmpDir, ".build")
 
 	// Create build/debug/myapp/main.o and build/debug/bin/myapp
 	debugDir := filepath.Join(buildDir, "debug")
@@ -76,7 +76,7 @@ func TestClean_VariantOnly(t *testing.T) {
 func TestClean_All(t *testing.T) {
 	// Setup: Create temp directory structure
 	tmpDir := t.TempDir()
-	buildDir := filepath.Join(tmpDir, "build")
+	buildDir := filepath.Join(tmpDir, ".build")
 
 	// Create build/debug/ and build/release/
 	debugDir := filepath.Join(buildDir, "debug")
@@ -154,7 +154,7 @@ func TestClean_NonExistent(t *testing.T) {
 func TestClean_EmptyVariant(t *testing.T) {
 	// Test: Clean with empty variant and All=false should return error
 	tmpDir := t.TempDir()
-	buildDir := filepath.Join(tmpDir, "build")
+	buildDir := filepath.Join(tmpDir, ".build")
 
 	_, err := Clean(CleanOptions{
 		BuildDir: buildDir,

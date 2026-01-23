@@ -8,7 +8,7 @@ import (
 
 // CleanOptions configures what to clean during a clean operation
 type CleanOptions struct {
-	BuildDir string // Build root directory (default: "build")
+	BuildDir string // Build root directory (default: ".build")
 	Variant  string // Variant to clean (e.g., "debug", "release")
 	All      bool   // If true, remove entire BuildDir
 }
