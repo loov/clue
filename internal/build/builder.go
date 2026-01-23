@@ -6,9 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 )
 
 // BuildOptions holds options for a build operation
@@ -21,6 +23,7 @@ type BuildOptions struct {
 	ForceRebuild bool     // Force rebuild of all files
 	Jobs         int      // Number of parallel jobs
 	KeepGoing    bool     // Continue building despite errors
+	SkipDeps     bool     // Skip dependency building (for `clue deps build`)
 }
 
 // TargetResult holds the result of building a single target
@@ -49,6 +52,7 @@ type Builder struct {
 	parallelCompiler *ParallelCompiler
 	toolchain        *Toolchain
 	target           Platform
+	depResults       map[string]*DepBuildResult // Built dependencies
 }
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
@@ -164,6 +168,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		compilerPath = opts.Config.Toolchain.Compiler
 	}
 
+	// Collect include paths from dependencies
+	includes := append([]string{}, target.Includes...)
+	for _, dep := range target.Depends {
+		if depResult, isExternalDep := b.depResults[dep]; isExternalDep {
+			includes = append(includes, depResult.IncludePath)
+		}
+	}
+
 	// Collect compile options for all sources that need rebuilding
 	var toCompile []CompileOptions
 	var preExistingObjects []string
@@ -173,7 +185,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		objPath := filepath.Join(objDir, objName)
 
 		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
-			source, buildCfg, target.Includes, compilerPath, opts.ForceRebuild,
+			source, buildCfg, includes, compilerPath, opts.ForceRebuild,
 		)
 
 		if !needsRebuild {
@@ -189,7 +201,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		toCompile = append(toCompile, CompileOptions{
 			Source:   source,
 			Output:   objPath,
-			Includes: target.Includes,
+			Includes: includes,
 			Defines:  target.Defines,
 			Flags:    buildCfg,
 			Std:      opts.Config.Toolchain.Std,
@@ -213,7 +225,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 				compiledObjects = append(compiledObjects, r.Object)
 				// Store in cache
 				depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
-				err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, buildCfg, target.Includes, compilerPath)
+				err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, buildCfg, includes, compilerPath)
 				if err != nil && opts.Verbose {
 					fmt.Printf("  Warning: failed to cache result: %v\n", err)
 				}
@@ -232,17 +244,31 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		// Determine if we need C++ linker
 		useCPlusPlus := b.linker.needsCPlusPlusLinker(objectFiles)
 
-		// Build library paths and libraries from dependencies
+		// Build library paths, libraries, and includes from dependencies
 		var libPaths []string
 		var libs []string
+		var includes []string
+
 		for _, dep := range target.Depends {
-			depTarget := opts.Config.Targets[dep]
-			if depTarget.Type == "static_library" {
-				// Add library search path
-				depLibPath := filepath.Join(opts.BuildDir, opts.Variant, "lib")
-				libPaths = append(libPaths, depLibPath)
-				// Add library name (without lib prefix and .a suffix)
-				libs = append(libs, dep)
+			// Check if it's an external dependency
+			if depResult, isExternalDep := b.depResults[dep]; isExternalDep {
+				// Add external dependency library path and library
+				libDir := filepath.Dir(depResult.LibPath)
+				libPaths = append(libPaths, libDir)
+				libs = append(libs, depResult.Name)
+				includes = append(includes, depResult.IncludePath)
+			} else if depTarget, isTargetDep := opts.Config.Targets[dep]; isTargetDep {
+				// Check if it's a target dependency
+				if depTarget.Type == "static_library" {
+					// Add library search path
+					depLibPath := filepath.Join(opts.BuildDir, opts.Variant, "lib")
+					libPaths = append(libPaths, depLibPath)
+					// Add library name (without lib prefix and .a suffix)
+					libs = append(libs, dep)
+				}
+			} else {
+				// Unknown dependency
+				return nil, fmt.Errorf("unknown dependency or target: %q", dep)
 			}
 		}
 
@@ -322,6 +348,16 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 		return nil, fmt.Errorf("failed to initialize cache manager: %w", err)
 	}
 
+	// Build dependencies first (unless skipped)
+	if !opts.SkipDeps {
+		b.depResults, err = b.buildDependencies(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build dependencies: %w", err)
+		}
+	} else {
+		b.depResults = make(map[string]*DepBuildResult)
+	}
+
 	// Get build order from config
 	buildOrder, err := config.GetBuildOrder(opts.Config)
 	if err != nil {
@@ -394,4 +430,79 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 		Duration: time.Since(start),
 		Success:  true,
 	}, nil
+}
+
+// buildDependencies builds all external dependencies before the main targets
+func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map[string]*DepBuildResult, error) {
+	// Check if there are any dependencies
+	if len(opts.Config.Dependencies) == 0 {
+		return make(map[string]*DepBuildResult), nil
+	}
+
+	fmt.Println("Building dependencies...")
+
+	// Create dependency manager
+	mgr, err := deps.NewManager(
+		".", // Current directory as project root
+		opts.Config.Dependencies,
+		deps.ManagerOptions{
+			Verbose: opts.Verbose,
+			CIMode:  false,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dependency manager: %w", err)
+	}
+
+	// Ensure dependencies are fetched
+	if err := mgr.FetchAll(ctx); err != nil {
+		return nil, fmt.Errorf("failed to fetch dependencies: %w", err)
+	}
+
+	// Get build order
+	buildOrder := []string{}
+	for name := range opts.Config.Dependencies {
+		buildOrder = append(buildOrder, name)
+	}
+	// Sort alphabetically for deterministic builds
+	sort.Strings(buildOrder)
+
+	// Create dependency builder
+	depBuilder := NewDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbose)
+
+	// Build each dependency
+	results := make(map[string]*DepBuildResult)
+	totalFiles := 0
+	depStart := time.Now()
+
+	for _, depName := range buildOrder {
+		dep := opts.Config.Dependencies[depName]
+		if dep == nil {
+			return nil, fmt.Errorf("dependency %q not found", depName)
+		}
+
+		// Get source path from cache
+		sourcePath := dep.CachePath(".")
+
+		// Build dependency
+		buildOpts := DepBuildOptions{
+			Variant:  opts.Variant,
+			Platform: b.target,
+			BuildDir: opts.BuildDir,
+			Verbose:  opts.Verbose,
+		}
+
+		result, err := depBuilder.BuildDep(ctx, dep, sourcePath, buildOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build dependency %q: %w", depName, err)
+		}
+
+		results[depName] = result
+		totalFiles += result.SourceCount
+	}
+
+	depDuration := time.Since(depStart)
+	fmt.Printf("Dependencies built (%d files, %.1fs)\n\n", totalFiles, depDuration.Seconds())
+
+	return results, nil
 }
