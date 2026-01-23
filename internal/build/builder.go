@@ -160,12 +160,26 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		// Determine if we need C++ linker
 		useCPlusPlus := b.linker.needsCPlusPlusLinker(objectFiles)
 
+		// Build library paths and libraries from dependencies
+		var libPaths []string
+		var libs []string
+		for _, dep := range target.Depends {
+			depTarget := opts.Config.Targets[dep]
+			if depTarget.Type == "static_library" {
+				// Add library search path
+				depLibPath := filepath.Join(opts.BuildDir, opts.Variant, "lib")
+				libPaths = append(libPaths, depLibPath)
+				// Add library name (without lib prefix and .a suffix)
+				libs = append(libs, dep)
+			}
+		}
+
 		linkOpts := LinkOptions{
 			Objects:      objectFiles,
 			Output:       outputPath,
 			SysLibs:      []string{}, // TODO: Extract from config
-			LibPaths:     []string{}, // TODO: Extract from config
-			Libs:         []string{}, // TODO: Extract from config
+			LibPaths:     libPaths,
+			Libs:         libs,
 			Flags:        buildCfg,
 			UseCPlusPlus: useCPlusPlus,
 		}

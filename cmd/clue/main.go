@@ -2,11 +2,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	clerrors "github.com/loov/clue/internal/errors"
 )
@@ -45,8 +47,7 @@ func main() {
 	case "validate":
 		os.Exit(runValidate(*dirFlag, *variantFlag, *verboseFlag))
 	case "build":
-		fmt.Println("Build command not yet implemented (Phase 2)")
-		os.Exit(0)
+		os.Exit(runBuild(*dirFlag, *variantFlag, *verboseFlag, flag.Args()[1:]))
 	case "clean":
 		fmt.Println("Clean command not yet implemented (Phase 2)")
 		os.Exit(0)
@@ -60,13 +61,13 @@ func main() {
 	}
 }
 
-func runValidate(dir, variant string, verbose bool) int {
+// loadConfig loads and prepares configuration with variant and environment variables
+func loadConfig(dir, variant string, verbose bool) (*config.Config, string, error) {
 	// Load configuration
 	loader := config.NewLoader()
 	cfg, err := loader.Load(dir)
 	if err != nil {
-		printError(err)
-		return 1
+		return nil, "", err
 	}
 
 	if verbose {
@@ -88,8 +89,7 @@ func runValidate(dir, variant string, verbose bool) int {
 	if len(cfg.Variants) > 0 {
 		cfg, err = config.ApplyVariant(cfg, selectedVariant)
 		if err != nil {
-			printError(err)
-			return 1
+			return nil, "", err
 		}
 		if verbose {
 			fmt.Printf("Applied variant: %s\n", selectedVariant)
@@ -101,16 +101,14 @@ func runValidate(dir, variant string, verbose bool) int {
 	// Resolve environment variables
 	env, err := config.ResolveEnvVars(cfg)
 	if err != nil {
-		printError(err)
-		return 1
+		return nil, "", err
 	}
 
 	// Apply environment-based conditionals to config
 	if len(env.Variables) > 0 {
 		cfg, err = config.ApplyEnvVars(cfg, env)
 		if err != nil {
-			printError(err)
-			return 1
+			return nil, "", err
 		}
 	}
 
@@ -124,6 +122,18 @@ func runValidate(dir, variant string, verbose bool) int {
 			fmt.Printf("  %s = %s\n", name, value)
 		}
 	}
+
+	return cfg, selectedVariant, nil
+}
+
+func runValidate(dir, variant string, verbose bool) int {
+	cfg, selectedVariant, err := loadConfig(dir, variant, verbose)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	_ = selectedVariant // Not used in validate
 
 	// Build dependency graph
 	order, err := config.GetBuildOrder(cfg)
@@ -145,6 +155,42 @@ func runValidate(dir, variant string, verbose bool) int {
 		target := cfg.Targets[name]
 		fmt.Printf("    - %s (%s): %d sources\n",
 			name, target.Type, len(target.Sources))
+	}
+
+	return 0
+}
+
+func runBuild(dir, variant string, verbose bool, targets []string) int {
+	cfg, selectedVariant, err := loadConfig(dir, variant, verbose)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	// Determine build directory (default "build")
+	buildDir := "build"
+
+	// Create builder with toolchain
+	builder := build.NewBuilder(cfg.Toolchain.Compiler, verbose)
+
+	// Build options
+	opts := build.BuildOptions{
+		Config:   cfg,
+		Variant:  selectedVariant,
+		BuildDir: buildDir,
+		Verbose:  verbose,
+		Targets:  targets,
+	}
+
+	// Execute build
+	result, err := builder.Build(context.Background(), opts)
+	if err != nil {
+		return 1
+	}
+
+	// Report success
+	if !result.Success {
+		return 1
 	}
 
 	return 0
