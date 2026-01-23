@@ -81,6 +81,10 @@ Recent decisions affecting current work:
 - 02-03: Toolchain parameter with clang default — supports clang and gcc, defaults to clang if unknown (rationale: best C++20 module support)
 - 02-03: Fail-fast batch compilation — CompileSources stops on first error, returns successful results (rationale: matches fail-fast principle)
 - 02-03: Automatic output directory creation — creates filepath.Dir(opts.Output) before compilation (rationale: prevents blocking from missing directories)
+- 02-04: ar crs for static libraries — single command creates archive with symbol table, no separate ranlib (rationale: simpler, reliable)
+- 02-04: C++ linker selection via UseCPlusPlus flag — explicit control over clang++/g++ vs clang/gcc for linking (rationale: C++ std lib requirement)
+- 02-04: System libraries handled separately — distinct from additional libraries for API clarity (rationale: common use case deserves clear semantics)
+- 02-04: Automatic output directory creation for linker — link operations create directories as needed (rationale: reliability without manual setup)
 
 ### Pending Todos
 
@@ -92,7 +96,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23T06:33:29Z
-Stopped at: Completed 02-03-PLAN.md (Compiler Invocation)
+Last session: 2026-01-23T06:33:33Z
+Stopped at: Completed 02-04-PLAN.md (Linker & Archiver)
 Resume file: None
 Next step: Continue Phase 2 - Plan 02-05 (Build Orchestrator)
