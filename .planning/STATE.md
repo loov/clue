@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 6 of 8 (External Dependencies)
-Plan: 4 of 7 in phase 6 complete
+Plan: 5 of 7 in phase 6 complete
 Status: In progress
-Last activity: 2026-01-23 — Completed 06-04-PLAN.md (Dependency Resolution and Manager)
+Last activity: 2026-01-23 — Completed 06-05-PLAN.md (Dependency Building Integration)
 
-Progress: [████████████████] 100% (35/35 plans complete across all phases)
+Progress: [████████████████] 100% (36/36 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
-- Average duration: 4.2min
-- Total execution time: 2.57 hours
+- Total plans completed: 36
+- Average duration: 4.3min
+- Total execution time: 2.67 hours
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [████████████████] 100% (35/35 plans c
 | 03-incremental-builds | 5 | 37min | 7.4min |
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
 | 05-cross-platform-support | 7 | 24.0min | 3.4min |
-| 06-external-dependencies | 4 | 10.0min | 2.5min |
+| 06-external-dependencies | 5 | 16.2min | 3.2min |
 
 **Recent Trend:**
-- Last 5 plans: 06-04 (2.0min), 06-03 (2.0min), 06-02 (2.0min), 06-01 (4.0min), 05-07 (1.0min)
-- Trend: Phase 6 maintaining high velocity, dependency resolution complete
+- Last 5 plans: 06-05 (6.2min), 06-04 (2.0min), 06-03 (2.0min), 06-02 (2.0min), 06-01 (4.0min)
+- Trend: Phase 6 dependency building complete, CLI commands next
 
 *Updated after each plan completion*
 
@@ -167,6 +167,11 @@ Recent decisions affecting current work:
 - 06-04: graph.StableTopologicalSort with lexical order — Stable sort with a < b comparison for consistent ordering (rationale: reproducible builds across environments)
 - 06-04: Fail-fast fetch on first error — FetchAll stops immediately on error (rationale: matches fail-fast principle from Phase 1)
 - 06-04: Cache-first fetch strategy — Manager checks cache.Has() before fetching (rationale: avoid unnecessary network operations)
+- 06-05: DepBuilder in build package — Placed in internal/build to avoid import cycle (build→config→deps) (rationale: clean package hierarchy)
+- 06-05: Collapsed dependency build output — Single line per dependency, expands on error (rationale: clean progress without noise)
+- 06-05: Include path auto-detection — inline config > include/ directory > source root (rationale: matches C++ library conventions)
+- 06-05: Dependencies inherit variant and platform — DepBuildOptions passes variant and platform from main build (rationale: ABI compatibility)
+- 06-05: Dependency artifacts in .build/variant/deps/ — Separate from main project artifacts (rationale: clear ownership, easy to clean)
 
 ### Pending Todos
 
@@ -188,7 +193,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 17:18 UTC
-Stopped at: Completed 06-04-PLAN.md (Dependency Resolution and Manager)
+Last session: 2026-01-23 17:27 UTC
+Stopped at: Completed 06-05-PLAN.md (Dependency Building Integration)
 Resume file: None
-Next step: Continue Phase 6 with 06-05-PLAN.md (CLI Commands)
+Next step: Continue Phase 6 with 06-06-PLAN.md (CLI Commands)
