@@ -16,8 +16,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Compilation
 
 - [x] **COMP-01**: Compile C and C++ source files using configured toolchain
-- [ ] **COMP-02**: Track header dependencies to determine rebuild needs
-- [ ] **COMP-03**: Support incremental builds (content-hash based cache invalidation)
+- [x] **COMP-02**: Track header dependencies to determine rebuild needs
+- [x] **COMP-03**: Support incremental builds (content-hash based cache invalidation)
 - [ ] **COMP-04**: Support C++20 modules with compiler-driven dependency scanning
 - [x] **COMP-05**: Abstract compiler flags with semantic names (e.g., "optimize" → -O2)
 
@@ -96,8 +96,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-02 | Phase 1 | Complete |
 | CONF-03 | Phase 1 | Complete |
 | COMP-01 | Phase 2 | Complete |
-| COMP-02 | Phase 3 | Pending |
-| COMP-03 | Phase 3 | Pending |
+| COMP-02 | Phase 3 | Complete |
+| COMP-03 | Phase 3 | Complete |
 | COMP-04 | Phase 8 | Pending |
 | COMP-05 | Phase 2 | Complete |
 | DEPS-01 | Phase 2 | Complete |
