@@ -19,6 +19,8 @@ type BuildOptions struct {
 	Verbose      bool     // Show full compiler commands
 	Targets      []string // Specific targets to build (empty = all)
 	ForceRebuild bool     // Force rebuild of all files
+	Jobs         int      // Number of parallel jobs
+	KeepGoing    bool     // Continue building despite errors
 }
 
 // TargetResult holds the result of building a single target
@@ -40,24 +42,28 @@ type BuildResult struct {
 
 // Builder orchestrates the build process
 type Builder struct {
-	executor     *Executor
-	compiler     *Compiler
-	linker       *Linker
-	cacheManager *CacheManager
+	executor         *Executor
+	compiler         *Compiler
+	linker           *Linker
+	cacheManager     *CacheManager
+	parallelCompiler *ParallelCompiler
 }
 
 // NewBuilder creates a new Builder with the specified toolchain
-func NewBuilder(toolchain string, verbose bool) *Builder {
+func NewBuilder(toolchain string, verbose bool, jobs int, keepGoing bool) *Builder {
 	executor := NewExecutor(ExecutorConfig{
 		Verbose:      verbose,
 		StreamOutput: true,
 		WorkDir:      "",
 	})
 
+	compiler := NewCompiler(executor, toolchain)
+
 	return &Builder{
-		executor: executor,
-		compiler: NewCompiler(executor, toolchain),
-		linker:   NewLinker(executor, toolchain),
+		executor:         executor,
+		compiler:         compiler,
+		linker:           NewLinker(executor, toolchain),
+		parallelCompiler: NewParallelCompiler(compiler, toolchain, jobs, keepGoing, verbose),
 	}
 }
 
@@ -139,78 +145,65 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		compilerPath = opts.Config.Toolchain.Compiler
 	}
 
-	// Compile all source files
-	var objectFiles []string
+	// Collect compile options for all sources that need rebuilding
+	var toCompile []CompileOptions
+	var preExistingObjects []string
+
 	for _, source := range target.Sources {
-		// Determine object file path
 		objName := filepath.Base(source) + ".o"
 		objPath := filepath.Join(objDir, objName)
 
-		// Determine dependency file path
-		depPath := filepath.Join(objDir, filepath.Base(source)+".d")
-
-		// Check if rebuild is needed
 		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
-			source,
-			buildCfg,
-			target.Includes,
-			compilerPath,
-			opts.ForceRebuild,
+			source, buildCfg, target.Includes, compilerPath, opts.ForceRebuild,
 		)
 
 		if !needsRebuild {
-			// Skip cached file
 			progress.Skip(target.Name, source, reason)
-			objectFiles = append(objectFiles, objPath)
+			preExistingObjects = append(preExistingObjects, objPath)
 			continue
 		}
 
-		// Report progress
-		progress.Compiling(target.Name, source)
 		if opts.Verbose && changedFile != "" {
-			fmt.Printf("  Reason: %s (%s)\n", reason, changedFile)
-		} else if opts.Verbose {
-			fmt.Printf("  Reason: %s\n", reason)
+			fmt.Printf("  Will compile: %s (reason: %s, changed: %s)\n", source, reason, changedFile)
 		}
 
-		// Build compile options
-		compileOpts := CompileOptions{
+		toCompile = append(toCompile, CompileOptions{
 			Source:   source,
 			Output:   objPath,
 			Includes: target.Includes,
 			Defines:  target.Defines,
 			Flags:    buildCfg,
 			Std:      opts.Config.Toolchain.Std,
-		}
+		})
+	}
 
-		// Compile source
-		_, err := b.compiler.CompileSource(ctx, compileOpts)
-		if err != nil {
+	// Parallel compilation
+	var compiledObjects []string
+	if len(toCompile) > 0 {
+		results, err := b.parallelCompiler.CompileParallel(ctx, toCompile)
+		if err != nil && !opts.KeepGoing {
 			return &TargetResult{
-				Name:     target.Name,
-				Type:     target.Type,
-				Output:   outputPath,
-				Sources:  len(target.Sources),
-				Duration: time.Since(start),
-				Success:  false,
+				Name: target.Name, Type: target.Type, Output: outputPath,
+				Sources: len(target.Sources), Duration: time.Since(start), Success: false,
 			}, err
 		}
 
-		// Store result in cache
-		err = b.cacheManager.StoreResult(
-			source,
-			objPath,
-			depPath,
-			buildCfg,
-			target.Includes,
-			compilerPath,
-		)
-		if err != nil && opts.Verbose {
-			fmt.Printf("  Warning: failed to cache result: %v\n", err)
+		// Collect successful compilations and cache results
+		for _, r := range results {
+			if r.Error == nil {
+				compiledObjects = append(compiledObjects, r.Object)
+				// Store in cache
+				depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
+				err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, buildCfg, target.Includes, compilerPath)
+				if err != nil && opts.Verbose {
+					fmt.Printf("  Warning: failed to cache result: %v\n", err)
+				}
+			}
 		}
-
-		objectFiles = append(objectFiles, objPath)
 	}
+
+	// Combine pre-existing and newly compiled objects
+	objectFiles := append(preExistingObjects, compiledObjects...)
 
 	// Link or archive based on target type
 	switch target.Type {
