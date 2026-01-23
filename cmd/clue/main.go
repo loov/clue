@@ -26,6 +26,7 @@ func main() {
 	verboseFlag := flag.Bool("v", false, "Verbose output")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 	allFlag := flag.Bool("all", false, "Clean all build variants (for clean command)")
+	rebuildAllFlag := flag.Bool("rebuild-all", false, "Force rebuild of all files")
 	flag.Parse()
 
 	if *versionFlag {
@@ -49,7 +50,7 @@ func main() {
 	case "validate":
 		os.Exit(runValidate(*dirFlag, *variantFlag, *verboseFlag))
 	case "build":
-		os.Exit(runBuild(*dirFlag, *variantFlag, *verboseFlag, flag.Args()[1:]))
+		os.Exit(runBuild(*dirFlag, *variantFlag, *verboseFlag, *rebuildAllFlag, flag.Args()[1:]))
 	case "clean":
 		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag))
 	case "run":
@@ -161,7 +162,7 @@ func runValidate(dir, variant string, verbose bool) int {
 	return 0
 }
 
-func runBuild(dir, variant string, verbose bool, targets []string) int {
+func runBuild(dir, variant string, verbose bool, rebuildAll bool, targets []string) int {
 	cfg, selectedVariant, err := loadConfig(dir, variant, verbose)
 	if err != nil {
 		printError(err)
@@ -176,11 +177,12 @@ func runBuild(dir, variant string, verbose bool, targets []string) int {
 
 	// Build options
 	opts := build.BuildOptions{
-		Config:   cfg,
-		Variant:  selectedVariant,
-		BuildDir: buildDir,
-		Verbose:  verbose,
-		Targets:  targets,
+		Config:       cfg,
+		Variant:      selectedVariant,
+		BuildDir:     buildDir,
+		Verbose:      verbose,
+		Targets:      targets,
+		ForceRebuild: rebuildAll,
 	}
 
 	// Execute build
