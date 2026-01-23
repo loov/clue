@@ -1,0 +1,22 @@
+# Build output
+clue
+
+# Claude Code settings
+.claude/
+
+# Build artifacts
+.build/
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
