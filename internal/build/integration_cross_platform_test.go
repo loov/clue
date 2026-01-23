@@ -418,3 +418,103 @@ func TestSemanticFlagMapping_Linker(t *testing.T) {
 		})
 	}
 }
+
+// TestPlatformSpecificExtensions verifies platform-specific shared library extensions
+// This test verifies Success Criterion 4: Platform-specific file extensions
+func TestPlatformSpecificExtensions(t *testing.T) {
+	tests := []struct {
+		platform Platform
+		expected string
+	}{
+		{Platform{OS: "linux", Arch: "amd64"}, ".so"},
+		{Platform{OS: "linux", Arch: "arm64"}, ".so"},
+		{Platform{OS: "darwin", Arch: "amd64"}, ".dylib"},
+		{Platform{OS: "darwin", Arch: "arm64"}, ".dylib"},
+		{Platform{OS: "windows", Arch: "amd64"}, ".dll"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.platform.String(), func(t *testing.T) {
+			ext := SharedLibraryExtension(tt.platform)
+			if ext != tt.expected {
+				t.Errorf("SharedLibraryExtension(%s) = %s, want %s",
+					tt.platform, ext, tt.expected)
+			}
+		})
+	}
+}
+
+// TestOutputPathExtensions verifies that Builder.OutputPath uses correct extensions
+func TestOutputPathExtensions(t *testing.T) {
+	tests := []struct {
+		name         string
+		platform     Platform
+		targetType   string
+		expectedExt  string
+		expectedPath string // path fragment to verify
+	}{
+		{
+			name:         "linux shared library",
+			platform:     Platform{OS: "linux", Arch: "amd64"},
+			targetType:   "shared_library",
+			expectedExt:  ".so",
+			expectedPath: "lib/libmylib.so",
+		},
+		{
+			name:         "darwin shared library",
+			platform:     Platform{OS: "darwin", Arch: "arm64"},
+			targetType:   "shared_library",
+			expectedExt:  ".dylib",
+			expectedPath: "lib/libmylib.dylib",
+		},
+		{
+			name:         "linux static library",
+			platform:     Platform{OS: "linux", Arch: "amd64"},
+			targetType:   "static_library",
+			expectedExt:  ".a",
+			expectedPath: "lib/libmylib.a",
+		},
+		{
+			name:         "darwin static library",
+			platform:     Platform{OS: "darwin", Arch: "amd64"},
+			targetType:   "static_library",
+			expectedExt:  ".a",
+			expectedPath: "lib/libmylib.a",
+		},
+		{
+			name:         "linux executable",
+			platform:     Platform{OS: "linux", Arch: "arm64"},
+			targetType:   "executable",
+			expectedExt:  "",
+			expectedPath: "bin/mylib",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create builder with target platform
+			builder, err := NewBuilder("clang", tt.platform, false, 1, false)
+			if err != nil {
+				// If toolchain discovery fails, skip (cross-compiler may not be available)
+				t.Skipf("toolchain not available for %s: %v", tt.platform, err)
+			}
+
+			// Get output path
+			outputPath := builder.OutputPath("/build", "debug", "mylib", tt.targetType)
+
+			// Verify extension
+			if tt.expectedExt != "" {
+				if !strings.HasSuffix(outputPath, tt.expectedExt) {
+					t.Errorf("OutputPath should end with %s, got %s", tt.expectedExt, outputPath)
+				}
+			}
+
+			// Verify path contains expected fragment
+			if !strings.Contains(outputPath, tt.expectedPath) {
+				t.Errorf("OutputPath should contain %s, got %s", tt.expectedPath, outputPath)
+			}
+
+			t.Logf("OutputPath for %s %s: %s", tt.platform, tt.targetType, outputPath)
+		})
+	}
+}
