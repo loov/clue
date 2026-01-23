@@ -45,8 +45,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Platform Support
 
 - [x] **PLAT-01**: Support Linux with GCC and Clang toolchains
-- [ ] **PLAT-02**: Support macOS with Clang toolchain
-- [ ] **PLAT-03**: Support cross-compilation (build for different target than host)
+- [x] **PLAT-02**: Support macOS with Clang toolchain
+- [x] **PLAT-03**: Support cross-compilation (build for different target than host)
 
 ## v2 Requirements
 
@@ -113,8 +113,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEVX-02 | Phase 8 | Pending |
 | DEVX-03 | Phase 8 | Pending |
 | PLAT-01 | Phase 2 | Complete |
-| PLAT-02 | Phase 5 | Pending |
-| PLAT-03 | Phase 5 | Pending |
+| PLAT-02 | Phase 5 | Complete |
+| PLAT-03 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 23 total
@@ -123,4 +123,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-22 after roadmap creation*
+*Last updated: 2026-01-23 after Phase 5 completion*

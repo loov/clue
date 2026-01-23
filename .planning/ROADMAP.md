@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Core Compilation** - Single-threaded compilation to executables and static libraries
 - [x] **Phase 3: Incremental Builds** - Content-hash based caching with header dependency tracking
 - [x] **Phase 4: Parallel Execution** - Multi-core compilation with dependency-aware scheduling
-- [ ] **Phase 5: Cross-Platform Support** - macOS support and semantic compiler flag abstraction
+- [x] **Phase 5: Cross-Platform Support** - macOS support and semantic compiler flag abstraction
 - [ ] **Phase 6: External Dependencies** - Git, tarball, and vendored dependency handling
 - [ ] **Phase 7: Output Generators** - Ninja build file generation and compile_commands.json
 - [ ] **Phase 8: CLI Polish** - Build timing, output verbosity, and cross-compilation
@@ -145,7 +145,7 @@ Plans:
   3. Semantic flags like "optimization: fast" map to correct platform-specific flags (-O2 on GCC/Clang, /O2 on MSVC)
   4. User sees appropriate file extensions for target platform (.so on Linux, .dylib on macOS)
 
-**Plans**: 7 plans (6 original + 1 gap closure)
+**Plans**: 7 plans (6 original + 1 gap closure) — Complete
 
 Plans:
 - [x] 05-01-PLAN.md — Platform detection and validation using Go runtime
@@ -154,7 +154,7 @@ Plans:
 - [x] 05-04-PLAN.md — Compiler/linker integration with platform-aware extensions
 - [x] 05-05-PLAN.md — CLI --target flag for cross-compilation
 - [x] 05-06-PLAN.md — Integration tests for all success criteria
-- [ ] 05-07-PLAN.md — [GAP CLOSURE] Wire toolchain to compiler/linker flag building
+- [x] 05-07-PLAN.md — [GAP CLOSURE] Wire toolchain to compiler/linker flag building
 
 ---
 
@@ -269,7 +269,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Core Compilation | 9/9 | Complete | 2026-01-23 |
 | 3. Incremental Builds | 5/5 | Complete | 2026-01-23 |
 | 4. Parallel Execution | 4/4 | Complete | 2026-01-23 |
-| 5. Cross-Platform Support | 0/TBD | Not started | - |
+| 5. Cross-Platform Support | 7/7 | Complete | 2026-01-23 |
 | 6. External Dependencies | 0/TBD | Not started | - |
 | 7. Output Generators | 0/TBD | Not started | - |
 | 8. CLI Polish | 0/TBD | Not started | - |
