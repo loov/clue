@@ -177,7 +177,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		linkOpts := LinkOptions{
 			Objects:      objectFiles,
 			Output:       outputPath,
-			SysLibs:      []string{}, // TODO: Extract from config
+			SysLibs:      target.SysLibs,
 			LibPaths:     libPaths,
 			Libs:         libs,
 			Flags:        buildCfg,
