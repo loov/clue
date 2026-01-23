@@ -178,6 +178,49 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		}
 	}
 
+	// Check for C++20 modules
+	moduleSources, err := DetectModuleSources(target.Sources)
+	if err != nil {
+		return nil, fmt.Errorf("module detection failed: %w", err)
+	}
+
+	// Module compilation setup
+	var moduleDeps []ModuleDependency
+	var orderedModules []string
+	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, "modules")
+
+	if len(moduleSources) > 0 {
+		if opts.Verbosity == VerbosityVerbose {
+			fmt.Printf("Detected %d module source(s), scanning dependencies...\n", len(moduleSources))
+		}
+
+		// Check clang-scan-deps availability
+		if err := CheckScanDepsAvailable(); err != nil {
+			return nil, err
+		}
+
+		// Scan module dependencies
+		moduleDeps, err = ScanModuleDeps(moduleSources, opts.Config.Toolchain.Std, includes)
+		if err != nil {
+			return nil, fmt.Errorf("module dependency scan failed: %w", err)
+		}
+
+		// Order module sources
+		orderedModules, err = OrderModuleCompilation(moduleDeps)
+		if err != nil {
+			return nil, err
+		}
+
+		if opts.Verbosity == VerbosityVerbose {
+			fmt.Printf("Module compilation order: %v\n", orderedModules)
+		}
+
+		// Create BMI directory
+		if err := os.MkdirAll(bmiDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create BMI directory: %w", err)
+		}
+	}
+
 	// Collect compile options for all sources that need rebuilding
 	var toCompile []CompileOptions
 	var preExistingObjects []string
