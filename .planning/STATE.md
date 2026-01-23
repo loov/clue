@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 Phase: 2 of 8 (Core Compilation) - COMPLETE ✓
 Plan: 9 of 9 in current phase
 Status: Phase verified (6/6 success criteria met)
-Last activity: 2026-01-23 — Phase 2 verified and complete
+Last activity: 2026-01-23 — Completed quick task 001: adjust default build directory to .build
 
 Progress: [██████████] 100% (Phase 2 complete, ready for Phase 3)
 
@@ -106,6 +106,12 @@ None yet.
 
 - **Network isolation:** Environment has no external network access. CUE stubs work for testing but full validation requires `go mod tidy` with network.
 - **Variant application bug:** ApplyVariant() in variants.go unifies entire config with variant definition, causing conflicts. Validation works for configs without variants. Fix needed for variant-based builds.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Adjust default build directory to .build | 2026-01-23 | c3d5a8c | [001-adjust-default-build-dir](./quick/001-adjust-default-build-dir/) |
 
 ## Session Continuity
 
