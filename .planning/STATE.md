@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 5 of 8 (Cross-Platform Support) - COMPLETE
-Plan: 6 of 6 in current phase (all plans complete)
+Plan: 7 of 7 in current phase (all plans complete, gap closure done)
 Status: Phase complete, ready for Phase 6
-Last activity: 2026-01-23 — Completed 05-06-PLAN.md
+Last activity: 2026-01-23 — Completed 05-07-PLAN.md (gap closure)
 
-Progress: [███████████████░] 94% (30/32 plans complete across all phases)
+Progress: [███████████████░] 97% (31/32 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
-- Average duration: 4.7min
-- Total execution time: 2.39 hours
+- Total plans completed: 31
+- Average duration: 4.5min
+- Total execution time: 2.40 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [███████████████░] 94% (30/32 plans co
 | 02-core-compilation | 9 | 39min | 4.3min |
 | 03-incremental-builds | 5 | 37min | 7.4min |
 | 04-parallel-execution | 4 | 16.7min | 4.2min |
-| 05-cross-platform-support | 6 | 23.0min | 3.8min |
+| 05-cross-platform-support | 7 | 24.0min | 3.4min |
 
 **Recent Trend:**
-- Last 5 plans: 05-06 (3.5min), 05-04 (11min), 05-03 (2.0min), 05-02 (4.0min), 05-01 (2.5min)
-- Trend: Phase 5 complete with comprehensive integration tests
+- Last 5 plans: 05-07 (1.0min), 05-06 (3.5min), 05-04 (11min), 05-03 (2.0min), 05-02 (4.0min)
+- Trend: Phase 5 complete with gap closure and comprehensive tests
 
 *Updated after each plan completion*
 
@@ -151,6 +151,7 @@ Recent decisions affecting current work:
 - 05-05: Flag-before-command convention for --target — Flags must precede commands per Go flag package (e.g., --target=linux-arm64 build) (rationale: matches Go conventions, consistent with existing flags)
 - 05-05: Platform display timing — Show "Building for X" or "Cross-compiling for X" immediately after flag parsing (rationale: early user feedback on target platform)
 - 05-05: Default to HostPlatform — When --target not specified, use native platform for simplicity (rationale: common case should be simple)
+- 05-07: Wire toolchain.Name to flag building — Compiler and linker pass toolchain.Name directly to WithToolchain functions (rationale: enables toolchain-specific flag logic for coverage, sanitizers, and cross-compilation)
 
 ### Pending Todos
 
@@ -172,7 +173,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23 13:31 UTC
-Stopped at: Completed 05-06-PLAN.md (Integration Tests)
+Last session: 2026-01-23 16:27 UTC
+Stopped at: Completed 05-07-PLAN.md (Gap Closure - Toolchain Flag Wiring)
 Resume file: None
-Next step: Phase 5 complete, ready for Phase 6 (External Dependencies)
+Next step: Phase 5 complete (including gap closure), ready for Phase 6 (External Dependencies)
