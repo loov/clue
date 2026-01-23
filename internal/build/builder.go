@@ -47,10 +47,23 @@ type Builder struct {
 	linker           *Linker
 	cacheManager     *CacheManager
 	parallelCompiler *ParallelCompiler
+	toolchain        *Toolchain
+	target           Platform
 }
 
-// NewBuilder creates a new Builder with the specified toolchain
-func NewBuilder(toolchain string, verbose bool, jobs int, keepGoing bool) *Builder {
+// NewBuilder creates a new Builder with the specified toolchain and target platform
+func NewBuilder(toolchainName string, target Platform, verbose bool, jobs int, keepGoing bool) (*Builder, error) {
+	// Discover toolchain for the target platform
+	toolchain, err := DiscoverToolchain(toolchainName, target)
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover toolchain: %w", err)
+	}
+
+	// Validate toolchain exists
+	if err := ValidateToolchain(toolchain); err != nil {
+		return nil, err
+	}
+
 	executor := NewExecutor(ExecutorConfig{
 		Verbose:      verbose,
 		StreamOutput: true,
@@ -62,9 +75,11 @@ func NewBuilder(toolchain string, verbose bool, jobs int, keepGoing bool) *Build
 	return &Builder{
 		executor:         executor,
 		compiler:         compiler,
-		linker:           NewLinker(executor, toolchain),
+		linker:           NewLinker(executor, toolchain, target),
 		parallelCompiler: NewParallelCompiler(compiler, toolchain, jobs, keepGoing, verbose),
-	}
+		toolchain:        toolchain,
+		target:           target,
+	}, nil
 }
 
 // ObjectDir returns the path for object files: build/variant/target/obj/
@@ -75,12 +90,16 @@ func (b *Builder) ObjectDir(buildDir, variant, target string) string {
 // OutputPath returns the final artifact path
 // Executable: build/variant/bin/target
 // Static lib: build/variant/lib/libtarget.a
+// Shared lib: build/variant/lib/libtarget.so/.dylib (platform-specific)
 func (b *Builder) OutputPath(buildDir, variant, target, targetType string) string {
 	switch targetType {
 	case "executable":
 		return filepath.Join(buildDir, variant, "bin", target)
 	case "static_library":
 		return filepath.Join(buildDir, variant, "lib", "lib"+target+".a")
+	case "shared_library":
+		ext := SharedLibraryExtension(b.target)
+		return filepath.Join(buildDir, variant, "lib", "lib"+target+ext)
 	default:
 		return filepath.Join(buildDir, variant, "bin", target)
 	}

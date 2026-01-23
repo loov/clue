@@ -31,7 +31,7 @@ type ParallelResult struct {
 // ParallelCompiler handles parallel compilation of multiple source files
 type ParallelCompiler struct {
 	compiler  *Compiler
-	toolchain string
+	toolchain *Toolchain
 	jobs      int
 	keepGoing bool
 	verbose   bool
@@ -44,7 +44,7 @@ type ParallelCompiler struct {
 }
 
 // NewParallelCompiler creates a new ParallelCompiler instance
-func NewParallelCompiler(compiler *Compiler, toolchain string, jobs int, keepGoing bool, verbose bool) *ParallelCompiler {
+func NewParallelCompiler(compiler *Compiler, toolchain *Toolchain, jobs int, keepGoing bool, verbose bool) *ParallelCompiler {
 	return &ParallelCompiler{
 		compiler:  compiler,
 		toolchain: toolchain,
