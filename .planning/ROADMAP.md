@@ -221,10 +221,14 @@ Plans:
   3. User can run `clue run` after building to execute the resulting binary in one command
   4. User can build a C++20 project using modules (import std;) and Clue correctly determines module compilation order
 
-**Plans**: TBD
+**Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] 08-01: TBD during phase planning
+- [ ] 08-01-PLAN.md — Verbosity control and timing infrastructure (--quiet/--verbose flags)
+- [ ] 08-02-PLAN.md — Run command implementation (build-then-execute)
+- [ ] 08-03-PLAN.md — C++20 module detection and dependency scanning
+- [ ] 08-04-PLAN.md — Builder integration (timing display, module ordering)
+- [ ] 08-05-PLAN.md — Integration tests for all success criteria
 
 ---
 
@@ -282,7 +286,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Cross-Platform Support | 7/7 | Complete | 2026-01-23 |
 | 6. External Dependencies | 7/7 | Complete | 2026-01-23 |
 | 7. Output Generators | 5/5 | Complete | 2026-01-23 |
-| 8. CLI Polish | 0/TBD | Not started | - |
+| 8. CLI Polish | 0/5 | Planned | - |
 
 ---
 *Roadmap created: 2026-01-22*
