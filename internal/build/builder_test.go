@@ -8,7 +8,10 @@ import (
 )
 
 func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
-	b := NewBuilder("clang", false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 	target := config.Target{Name: "test"}
 	variant := config.Variant{Optimization: "fast", DebugInfo: true}
 
@@ -23,7 +26,10 @@ func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
-	b := NewBuilder("clang", false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 	target := config.Target{
 		Name:     "test",
 		Optimize: "size",
@@ -47,7 +53,10 @@ func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
-	b := NewBuilder("clang", false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 	// Target sets debug to minimal
 	target := config.Target{
 		Name:  "test",
@@ -65,7 +74,10 @@ func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
-	b := NewBuilder("clang", false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 
 	// Test pointer semantics: false should override default true
 	falseVal := false
@@ -83,7 +95,10 @@ func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 }
 
 func TestObjectDir_IncludesObjSubdirectory(t *testing.T) {
-	b := NewBuilder("clang", false, 1, false)
+	b, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 
 	objDir := b.ObjectDir(".build", "debug", "myapp")
 

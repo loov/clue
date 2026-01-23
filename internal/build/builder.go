@@ -309,6 +309,12 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, error) {
 	start := time.Now()
 
+	// Print platform and toolchain information
+	fmt.Printf("Building for %s\n", b.target)
+	if b.target.IsCrossCompile() {
+		fmt.Printf("Cross-compiling using %s\n", b.toolchain)
+	}
+
 	// Initialize cache manager
 	var err error
 	b.cacheManager, err = NewCacheManager(opts.BuildDir, opts.Verbose)

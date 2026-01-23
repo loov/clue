@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+// SharedLibraryExtension returns the platform-specific shared library extension
+func SharedLibraryExtension(target Platform) string {
+	switch target.OS {
+	case "darwin":
+		return ".dylib"
+	case "windows":
+		return ".dll"
+	default:
+		return ".so"
+	}
+}
+
 // LinkOptions holds options for linking an executable
 type LinkOptions struct {
 	Objects      []string    // Object files to link
@@ -36,14 +48,16 @@ type LinkResult struct {
 // Linker handles linking object files into executables and creating static libraries
 type Linker struct {
 	executor  *Executor
-	toolchain string // "clang" or "gcc"
+	toolchain *Toolchain
+	target    Platform
 }
 
 // NewLinker creates a new Linker with the given executor and toolchain
-func NewLinker(executor *Executor, toolchain string) *Linker {
+func NewLinker(executor *Executor, toolchain *Toolchain, target Platform) *Linker {
 	return &Linker{
 		executor:  executor,
 		toolchain: toolchain,
+		target:    target,
 	}
 }
 
@@ -51,15 +65,10 @@ func NewLinker(executor *Executor, toolchain string) *Linker {
 func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkResult, error) {
 	start := time.Now()
 
-	// Determine the linker command
-	linkerCmd := l.toolchain
+	// Determine the linker command based on C++ requirement
+	linkerCmd := l.toolchain.CC
 	if opts.UseCPlusPlus {
-		// Use C++ compiler for linking to bring in C++ standard library
-		if l.toolchain == "clang" {
-			linkerCmd = "clang++"
-		} else {
-			linkerCmd = "g++"
-		}
+		linkerCmd = l.toolchain.CXX
 	}
 
 	// Build command arguments
@@ -132,8 +141,8 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 		}
 	}
 
-	// Execute the archiver
-	result, err := l.executor.RunCommand(ctx, "ar", args...)
+	// Execute the archiver using toolchain AR
+	result, err := l.executor.RunCommand(ctx, l.toolchain.AR, args...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,

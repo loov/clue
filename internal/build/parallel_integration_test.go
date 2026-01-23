@@ -128,7 +128,10 @@ func TestParallelBuild_20Files(t *testing.T) {
 	}
 
 	// Create builder with 4 parallel jobs
-	builder := NewBuilder("clang", false, 4, false)
+	builder, err := NewBuilder("clang", HostPlatform(), false, 4, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 
 	opts := BuildOptions{
 		Config:   cfg,
@@ -186,7 +189,10 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	}
 
 	// Clean build with 1 job (sequential)
-	builder1 := NewBuilder("clang", false, 1, false)
+	builder1, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 	opts1 := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -206,7 +212,10 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	}
 
 	// Clean build with 4 jobs (parallel)
-	builder4 := NewBuilder("clang", false, 4, false)
+	builder4, err := NewBuilder("clang", HostPlatform(), false, 4, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 	opts4 := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -250,7 +259,10 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 	}
 
 	// Build with parallel execution
-	builder := NewBuilder("clang", false, 4, false)
+	builder, err := NewBuilder("clang", HostPlatform(), false, 4, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 	opts := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -302,7 +314,10 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	builder := NewBuilder("clang", false, 2, false)
+	builder, err := NewBuilder("clang", HostPlatform(), false, 2, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
 	opts := BuildOptions{
 		Config:   cfg,
 		Variant:  "debug",
@@ -412,7 +427,10 @@ targets: {
 	}
 
 	// Build WITHOUT keep-going: should stop on first error
-	builder1 := NewBuilder("clang", false, 1, false) // keepGoing=false
+	builder1, err := NewBuilder("clang", HostPlatform(), false, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	} // keepGoing=false
 	opts1 := BuildOptions{
 		Config:    cfg,
 		Variant:   "debug",
@@ -428,7 +446,10 @@ targets: {
 	}
 
 	// Build WITH keep-going: should compile all valid files
-	builder2 := NewBuilder("clang", false, 2, true) // keepGoing=true
+	builder2, err := NewBuilder("clang", HostPlatform(), false, 2, true)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	} // keepGoing=true
 	opts2 := BuildOptions{
 		Config:    cfg,
 		Variant:   "debug",

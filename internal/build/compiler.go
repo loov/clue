@@ -30,11 +30,11 @@ type CompileResult struct {
 // Compiler handles source file compilation
 type Compiler struct {
 	executor  *Executor
-	toolchain string // "clang" or "gcc"
+	toolchain *Toolchain
 }
 
 // NewCompiler creates a new Compiler instance
-func NewCompiler(executor *Executor, toolchain string) *Compiler {
+func NewCompiler(executor *Executor, toolchain *Toolchain) *Compiler {
 	return &Compiler{
 		executor:  executor,
 		toolchain: toolchain,
@@ -56,25 +56,10 @@ func (c *Compiler) isCPlusPlus(source string) bool {
 func (c *Compiler) compilerCmd(source string) string {
 	isCPP := c.isCPlusPlus(source)
 
-	switch c.toolchain {
-	case "gcc":
-		if isCPP {
-			return "g++"
-		}
-		return "gcc"
-	case "clang", "":
-		// Default to clang
-		if isCPP {
-			return "clang++"
-		}
-		return "clang"
-	default:
-		// Unknown toolchain, default to clang
-		if isCPP {
-			return "clang++"
-		}
-		return "clang"
+	if isCPP {
+		return c.toolchain.CXX
 	}
+	return c.toolchain.CC
 }
 
 // CompileSource compiles a single source file to an object file
