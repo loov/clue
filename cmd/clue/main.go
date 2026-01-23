@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 	clerrors "github.com/loov/clue/internal/errors"
 )
 
@@ -56,12 +58,14 @@ func main() {
 		os.Exit(runBuild(*dirFlag, *variantFlag, *targetFlag, *verboseFlag, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, flag.Args()[1:]))
 	case "clean":
 		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag))
+	case "deps":
+		os.Exit(runDeps(*dirFlag, *verboseFlag, flag.Args()[1:]))
 	case "run":
 		fmt.Println("Run command not yet implemented (Phase 2)")
 		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
-		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, run")
+		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, run")
 		os.Exit(1)
 	}
 }
@@ -286,6 +290,80 @@ func runClean(dir, variant string, all bool) int {
 
 	// Print result
 	fmt.Println(result.String())
+
+	return 0
+}
+
+func runDeps(dir string, verbose bool, args []string) int {
+	// Parse deps subcommand
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "Usage: clue deps <list|fetch|clean|update> [options]")
+		fmt.Fprintln(os.Stderr, "\nSubcommands:")
+		fmt.Fprintln(os.Stderr, "  list       Show dependency status")
+		fmt.Fprintln(os.Stderr, "  fetch      Download dependencies")
+		fmt.Fprintln(os.Stderr, "  clean      Remove dependency cache")
+		fmt.Fprintln(os.Stderr, "  update     Check for dependency updates (not yet implemented)")
+		return 1
+	}
+
+	subCmd := args[0]
+
+	// Load config
+	cfg, _, err := loadConfig(dir, "", verbose)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+
+	// Setup context for operations
+	ctx := context.Background()
+
+	switch subCmd {
+	case "list":
+		if err := deps.RunList(cfg.Dependencies, verbose); err != nil {
+			printError(err)
+			return 1
+		}
+
+	case "fetch":
+		// Parse fetch options
+		name := ""
+		if len(args) > 1 {
+			name = args[1]
+		}
+
+		if err := deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
+			Verbose: verbose,
+			CIMode:  false,
+			Name:    name,
+		}); err != nil {
+			printError(err)
+			return 1
+		}
+
+	case "clean":
+		// Parse clean options
+		name := ""
+		if len(args) > 1 {
+			name = args[1]
+		}
+
+		if err := deps.RunClean(cfg.Dependencies, name); err != nil {
+			printError(err)
+			return 1
+		}
+
+	case "update":
+		if err := deps.RunUpdate(ctx, cfg.Dependencies); err != nil {
+			printError(err)
+			return 1
+		}
+
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown deps subcommand: %s\n", subCmd)
+		fmt.Fprintln(os.Stderr, "Available subcommands: list, fetch, clean, update")
+		return 1
+	}
 
 	return 0
 }
