@@ -127,12 +127,20 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	// Run compilation using our capturing compiler wrapper
 	result, compileResult, err := p.compileSourceWithCapture(ctx, tempCompiler, captureExecutor, opts)
 
+	duration := time.Since(start)
+
 	// Get current count and increment
 	completed := p.completed.Add(1)
 
 	// Build progress message for buffer
-	fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
-		completed, p.total, filepath.Base(opts.Source))
+	// In verbose mode, show timing
+	if p.verbose {
+		fmt.Fprintf(&buf, "[%d/%d] Compiling: %s (%s)\n",
+			completed, p.total, filepath.Base(opts.Source), FormatDuration(duration))
+	} else {
+		fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
+			completed, p.total, filepath.Base(opts.Source))
+	}
 
 	// If there was captured output (errors, warnings), include it
 	if compileResult != nil {
@@ -156,7 +164,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 		DepFile:  depFile,
 		Output:   buf,
 		Error:    err,
-		Duration: time.Since(start),
+		Duration: duration,
 	}
 }
 
