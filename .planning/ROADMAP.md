@@ -17,7 +17,7 @@ Clue is a Go-based build system for C/C++ that replaces CMake/Make complexity wi
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - CUE configuration parsing and dependency graph infrastructure
-- [ ] **Phase 2: Core Compilation** - Single-threaded compilation to executables and static libraries
+- [x] **Phase 2: Core Compilation** - Single-threaded compilation to executables and static libraries
 - [ ] **Phase 3: Incremental Builds** - Content-hash based caching with header dependency tracking
 - [ ] **Phase 4: Parallel Execution** - Multi-core compilation with dependency-aware scheduling
 - [ ] **Phase 5: Cross-Platform Support** - macOS support and semantic compiler flag abstraction
@@ -79,8 +79,8 @@ Plans:
 - [x] 02-05-PLAN.md — Build command with progress output
 - [x] 02-06-PLAN.md — Clean command implementation
 - [x] 02-07-PLAN.md — Integration tests and multi-target test project
-- [ ] 02-08-PLAN.md — [GAP CLOSURE] Wire target semantic flags to build config
-- [ ] 02-09-PLAN.md — [GAP CLOSURE] Pass system libraries to linker
+- [x] 02-08-PLAN.md — [GAP CLOSURE] Wire target semantic flags to build config
+- [x] 02-09-PLAN.md — [GAP CLOSURE] Pass system libraries to linker
 
 ---
 
@@ -253,7 +253,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 8/8 | Complete ✓ | 2026-01-22 |
-| 2. Core Compilation | 0/7 | Planned | - |
+| 2. Core Compilation | 9/9 | Complete ✓ | 2026-01-23 |
 | 3. Incremental Builds | 0/TBD | Not started | - |
 | 4. Parallel Execution | 0/TBD | Not started | - |
 | 5. Cross-Platform Support | 0/TBD | Not started | - |
