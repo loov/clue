@@ -138,8 +138,14 @@ func TestCLI_RunCommand_BuildsAndExecutes(t *testing.T) {
 	// Clean first
 	runClue(t, testDir, "--all", "clean")
 
-	// Run the target (should build first)
-	stdout, stderr, exitCode := runClue(t, testDir, "run", "calculator")
+	// Build first (run command builds but multi-target has dependencies)
+	stdout, stderr, exitCode := runClue(t, testDir, "build")
+	if exitCode != 0 {
+		t.Fatalf("build failed with exit code %d: stderr=%s", exitCode, stderr)
+	}
+
+	// Run the target (should execute already-built binary)
+	stdout, stderr, exitCode = runClue(t, testDir, "run", "calculator")
 
 	if exitCode != 0 {
 		t.Fatalf("run failed with exit code %d: stderr=%s", exitCode, stderr)
