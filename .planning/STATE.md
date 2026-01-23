@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 ## Current Position
 
-Phase: 3 of 8 (Incremental Builds) - IN PROGRESS
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-01-23 — Completed 03-04-PLAN.md (integrate incremental builds)
+Phase: 3 of 8 (Incremental Builds) - COMPLETE
+Plan: 5 of 5 in current phase
+Status: Phase complete
+Last activity: 2026-01-23 — Completed 03-05-PLAN.md (integration testing & polish)
 
-Progress: [█████████████░] 91% (21/23 plans complete across all phases)
+Progress: [██████████████] 96% (22/23 plans complete across all phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 5.3min
-- Total execution time: 1.84 hours
+- Total execution time: 1.92 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [█████████████░] 91% (21/23 plans complete
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
 | 02-core-compilation | 9 | 39min | 4.3min |
-| 03-incremental-builds | 4 | 32min | 8.0min |
+| 03-incremental-builds | 5 | 37min | 7.4min |
 
 **Recent Trend:**
-- Last 5 plans: 03-04 (7.4min), 03-03 (8.4min), 03-02 (3min), 03-01 (14.4min), 02-09 (2.6min)
-- Trend: Phase 3 integration tasks completing, incremental builds functional
+- Last 5 plans: 03-05 (4.8min), 03-04 (7.4min), 03-03 (8.4min), 03-02 (3min), 03-01 (14.4min)
+- Trend: Phase 3 complete, incremental builds fully tested and functional
 
 *Updated after each plan completion*
 
@@ -111,6 +111,8 @@ Recent decisions affecting current work:
 - 03-04: Cache check per source file — NeedsRebuild called for each source before compilation (rationale: fine-grained caching, skip only unchanged files)
 - 03-04: Progress built/cached distinction — separate counters for compiled vs skipped files (rationale: clear user feedback on cache effectiveness)
 - 03-04: --rebuild-all flag — bypass cache and force recompilation of all files (rationale: escape hatch for cache issues or guaranteed clean builds)
+- 03-05: Object mtime verification for tests — use modification times to verify rebuild behavior (rationale: reliable detection of whether files were recompiled)
+- 03-05: Full project integration tests — create complete C++ projects in tests (rationale: tests full integration path from source to executable)
 
 ### Pending Todos
 
@@ -133,6 +135,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 03-04-PLAN.md (integrate incremental builds)
+Stopped at: Completed 03-05-PLAN.md (integration testing & polish)
 Resume file: None
-Next step: Execute 03-05-PLAN.md (testing & polish)
+Next step: Phase 3 complete. Ready for Phase 4 or next major feature.
