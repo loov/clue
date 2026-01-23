@@ -385,12 +385,34 @@ func runGenerate(dir, variant, target string, args []string) int {
 
 	subCmd := args[0]
 
-	// Load config
-	cfg, selectedVariant, err := loadConfig(dir, variant, false)
+	// Load config without applying variant - generators handle variants internally
+	loader := config.NewLoader()
+	cfg, err := loader.Load(dir)
 	if err != nil {
 		printError(err)
 		return 1
 	}
+
+	// Resolve environment variables (but don't apply variant)
+	env, err := config.ResolveEnvVars(cfg)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+	if len(env.Variables) > 0 {
+		cfg, err = config.ApplyEnvVars(cfg, env)
+		if err != nil {
+			printError(err)
+			return 1
+		}
+	}
+
+	// Determine selected variant for compile-commands
+	selector := config.NewVariantSelector()
+	if variant != "" {
+		selector.SetCLIFlag(variant)
+	}
+	selectedVariant := selector.Select()
 
 	// Determine target platform
 	var targetPlatform build.Platform
