@@ -11,29 +11,29 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 2 of 8 (Core Compilation)
-Plan: 2 of 7 in current phase
+Plan: 4 of 7 in current phase
 Status: In progress
-Last activity: 2026-01-23 — Completed 02-02-PLAN.md (Subprocess Executor)
+Last activity: 2026-01-23 — Completed 02-04-PLAN.md (Linker & Archiver)
 
-Progress: [███░░░░░░░] ~18% (2/7 plans in Phase 2 complete)
+Progress: [████░░░░░░] ~36% (4/7 plans in Phase 2 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 4.4min
-- Total execution time: 0.73 hours
+- Total plans completed: 12
+- Average duration: 4.0min
+- Total execution time: 0.80 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
-| 02-core-compilation | 2 | 4min | 2.0min |
+| 02-core-compilation | 4 | 8min | 2.0min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (2min), 02-01 (2min), 01-08 (2min), 01-07 (5min), 01-06 (3min)
-- Trend: Foundation infrastructure enables fast Phase 2 execution
+- Last 5 plans: 02-04 (2min), 02-03 (2min), 02-02 (2min), 02-01 (2min), 01-08 (2min)
+- Trend: Sustained 2min velocity in Phase 2, foundation infrastructure enabling rapid execution
 
 *Updated after each plan completion*
 
@@ -77,6 +77,10 @@ Recent decisions affecting current work:
 - 02-02: ExecutorConfig struct for configurable execution — Verbose/StreamOutput/WorkDir enable different use cases (testing vs production)
 - 02-02: Exit code extraction via syscall.WaitStatus — cross-platform compatibility with fallback to exitErr.ExitCode()
 - 02-02: RunCompiler wrapper always streams — real-time feedback for long compilation processes (rationale: better UX than silent builds)
+- 02-03: Compiler selection based on file extension — .cpp/.cc/.cxx/.C/.CPP trigger C++ compiler (rationale: standard convention across build systems)
+- 02-03: Toolchain parameter with clang default — supports clang and gcc, defaults to clang if unknown (rationale: best C++20 module support)
+- 02-03: Fail-fast batch compilation — CompileSources stops on first error, returns successful results (rationale: matches fail-fast principle)
+- 02-03: Automatic output directory creation — creates filepath.Dir(opts.Output) before compilation (rationale: prevents blocking from missing directories)
 
 ### Pending Todos
 
@@ -88,7 +92,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23T06:28:25Z
-Stopped at: Completed 02-02-PLAN.md (Subprocess Executor)
+Last session: 2026-01-23T06:33:29Z
+Stopped at: Completed 02-03-PLAN.md (Compiler Invocation)
 Resume file: None
-Next step: Continue Phase 2 - Plan 02-03 (Dependency Graph Builder)
+Next step: Continue Phase 2 - Plan 02-05 (Build Orchestrator)
