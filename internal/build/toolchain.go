@@ -51,7 +51,21 @@ func DiscoverToolchain(name string, target Platform) (*Toolchain, error) {
 }
 
 // crossPrefix returns the GNU triplet prefix for cross-compilation
+// Returns empty string if target matches host (native compilation)
 func crossPrefix(target Platform) string {
+	// If target matches host, no prefix needed (native compilation)
+	host := HostPlatform()
+	if target.OS == host.OS && target.Arch == host.Arch {
+		return ""
+	}
+
+	// Cross-compilation: return GNU triplet prefix based on target
+	return gnuTripletPrefix(target)
+}
+
+// gnuTripletPrefix returns the GNU triplet prefix for a given platform
+// This is the raw mapping without host comparison
+func gnuTripletPrefix(target Platform) string {
 	switch target.String() {
 	case "linux-arm64":
 		return "aarch64-linux-gnu-"
