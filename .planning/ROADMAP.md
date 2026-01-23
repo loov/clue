@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Cross-Platform Support** - macOS support and semantic compiler flag abstraction
 - [x] **Phase 6: External Dependencies** - Git, tarball, and vendored dependency handling
 - [x] **Phase 7: Output Generators** - Ninja build file generation and compile_commands.json
-- [ ] **Phase 8: CLI Polish** - Build timing, output verbosity, and cross-compilation
+- [x] **Phase 8: CLI Polish** - Build timing, output verbosity, and cross-compilation
 
 ## Phase Details
 
@@ -224,11 +224,11 @@ Plans:
 **Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] 08-01-PLAN.md — Verbosity control and timing infrastructure (--quiet/--verbose flags)
-- [ ] 08-02-PLAN.md — Run command implementation (build-then-execute)
-- [ ] 08-03-PLAN.md — C++20 module detection and dependency scanning
-- [ ] 08-04-PLAN.md — Builder integration (timing display, module ordering)
-- [ ] 08-05-PLAN.md — Integration tests for all success criteria
+- [x] 08-01-PLAN.md — Verbosity control and timing infrastructure (--quiet/--verbose flags)
+- [x] 08-02-PLAN.md — Run command implementation (build-then-execute)
+- [x] 08-03-PLAN.md — C++20 module detection and dependency scanning
+- [x] 08-04-PLAN.md — Builder integration (timing display, module ordering)
+- [x] 08-05-PLAN.md — Integration tests for all success criteria
 
 ---
 
@@ -286,7 +286,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Cross-Platform Support | 7/7 | Complete | 2026-01-23 |
 | 6. External Dependencies | 7/7 | Complete | 2026-01-23 |
 | 7. Output Generators | 5/5 | Complete | 2026-01-23 |
-| 8. CLI Polish | 0/5 | Planned | - |
+| 8. CLI Polish | 5/5 | Complete | 2026-01-23 |
 
 ---
 *Roadmap created: 2026-01-22*

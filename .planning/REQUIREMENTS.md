@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **COMP-01**: Compile C and C++ source files using configured toolchain
 - [x] **COMP-02**: Track header dependencies to determine rebuild needs
 - [x] **COMP-03**: Support incremental builds (content-hash based cache invalidation)
-- [ ] **COMP-04**: Support C++20 modules with compiler-driven dependency scanning
+- [x] **COMP-04**: Support C++20 modules with compiler-driven dependency scanning
 - [x] **COMP-05**: Abstract compiler flags with semantic names (e.g., "optimize" → -O2)
 
 ### Dependencies
@@ -39,8 +39,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Developer Experience
 
 - [x] **DEVX-01**: CLI with build, clean, and run commands
-- [ ] **DEVX-02**: Configurable output verbosity (quiet/normal/verbose)
-- [ ] **DEVX-03**: Display build timing for each compilation step
+- [x] **DEVX-02**: Configurable output verbosity (quiet/normal/verbose)
+- [x] **DEVX-03**: Display build timing for each compilation step
 
 ### Platform Support
 
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-01 | Phase 2 | Complete |
 | COMP-02 | Phase 3 | Complete |
 | COMP-03 | Phase 3 | Complete |
-| COMP-04 | Phase 8 | Pending |
+| COMP-04 | Phase 8 | Complete |
 | COMP-05 | Phase 2 | Complete |
 | DEPS-01 | Phase 2 | Complete |
 | DEPS-02 | Phase 6 | Complete |
@@ -110,8 +110,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUTP-05 | Phase 2 | Complete |
 | OUTP-06 | Phase 7 | Complete |
 | DEVX-01 | Phase 2 | Complete |
-| DEVX-02 | Phase 8 | Pending |
-| DEVX-03 | Phase 8 | Pending |
+| DEVX-02 | Phase 8 | Complete |
+| DEVX-03 | Phase 8 | Complete |
 | PLAT-01 | Phase 2 | Complete |
 | PLAT-02 | Phase 5 | Complete |
 | PLAT-03 | Phase 5 | Complete |
@@ -123,4 +123,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-23 after Phase 7 completion*
+*Last updated: 2026-01-23 after Phase 8 completion — ALL REQUIREMENTS COMPLETE*
