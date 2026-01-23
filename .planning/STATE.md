@@ -11,28 +11,28 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 2 of 8 (Core Compilation)
-Plan: 1 of 6 in current phase
+Plan: 2 of 7 in current phase
 Status: In progress
-Last activity: 2026-01-23 — Completed 02-01-PLAN.md (Semantic Flag Mapping)
+Last activity: 2026-01-23 — Completed 02-02-PLAN.md (Subprocess Executor)
 
-Progress: [███░░░░░░░] ~14% (1/6 plans in Phase 2 complete)
+Progress: [███░░░░░░░] ~18% (2/7 plans in Phase 2 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 4.7min
-- Total execution time: 0.78 hours
+- Total plans completed: 10
+- Average duration: 4.4min
+- Total execution time: 0.73 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 8 | 40min | 5.0min |
-| 02-core-compilation | 1 | 2min | 2.0min |
+| 02-core-compilation | 2 | 4min | 2.0min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (2min), 01-08 (2min), 01-07 (5min), 01-06 (3min), 01-05 (4min)
+- Last 5 plans: 02-02 (2min), 02-01 (2min), 01-08 (2min), 01-07 (5min), 01-06 (3min)
 - Trend: Foundation infrastructure enables fast Phase 2 execution
 
 *Updated after each plan completion*
@@ -74,6 +74,9 @@ Recent decisions affecting current work:
 - 02-01: Warnings as errors by default — warningsAsErrors: true (rationale: fail-fast principle, early error detection)
 - 02-01: Debug flag levels — none (no debug), minimal (-g1 line tables), full (-g complete) (rationale: fine-grained control over debug info size)
 - 02-01: Raw flags as escape hatch — RawCompiler/RawLinker alongside semantic flags (rationale: unblock edge cases without losing semantic benefits)
+- 02-02: ExecutorConfig struct for configurable execution — Verbose/StreamOutput/WorkDir enable different use cases (testing vs production)
+- 02-02: Exit code extraction via syscall.WaitStatus — cross-platform compatibility with fallback to exitErr.ExitCode()
+- 02-02: RunCompiler wrapper always streams — real-time feedback for long compilation processes (rationale: better UX than silent builds)
 
 ### Pending Todos
 
@@ -85,7 +88,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23T06:28:30Z
-Stopped at: Completed 02-01-PLAN.md (Semantic Flag Mapping)
+Last session: 2026-01-23T06:28:25Z
+Stopped at: Completed 02-02-PLAN.md (Subprocess Executor)
 Resume file: None
-Next step: Continue Phase 2 - Plan 02-02 (Compiler Invocation)
+Next step: Continue Phase 2 - Plan 02-03 (Dependency Graph Builder)
