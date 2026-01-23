@@ -29,7 +29,7 @@ type BuildOptions struct {
 // TargetResult holds the result of building a single target
 type TargetResult struct {
 	Name     string
-	Type     string        // "executable" or "static_library"
+	Type     string        // "executable", "static_library", or "shared_library"
 	Output   string        // Path to output artifact
 	Sources  int           // Number of source files
 	Duration time.Duration
@@ -199,12 +199,13 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		}
 
 		toCompile = append(toCompile, CompileOptions{
-			Source:   source,
-			Output:   objPath,
-			Includes: includes,
-			Defines:  target.Defines,
-			Flags:    buildCfg,
-			Std:      opts.Config.Toolchain.Std,
+			Source:     source,
+			Output:     objPath,
+			Includes:   includes,
+			Defines:    target.Defines,
+			Flags:      buildCfg,
+			Std:        opts.Config.Toolchain.Std,
+			TargetType: target.Type,
 		})
 	}
 
@@ -248,6 +249,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		var libPaths []string
 		var libs []string
 		var includes []string
+		hasSharedLibDeps := false
 
 		for _, dep := range target.Depends {
 			// Check if it's an external dependency
@@ -259,16 +261,31 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 				includes = append(includes, depResult.IncludePath)
 			} else if depTarget, isTargetDep := opts.Config.Targets[dep]; isTargetDep {
 				// Check if it's a target dependency
-				if depTarget.Type == "static_library" {
+				if depTarget.Type == "static_library" || depTarget.Type == "shared_library" {
 					// Add library search path
 					depLibPath := filepath.Join(opts.BuildDir, opts.Variant, "lib")
 					libPaths = append(libPaths, depLibPath)
-					// Add library name (without lib prefix and .a suffix)
+					// Add library name (without lib prefix and extension)
 					libs = append(libs, dep)
+					if depTarget.Type == "shared_library" {
+						hasSharedLibDeps = true
+					}
 				}
 			} else {
 				// Unknown dependency
 				return nil, fmt.Errorf("unknown dependency or target: %q", dep)
+			}
+		}
+
+		// Add rpath for shared library dependencies
+		if hasSharedLibDeps {
+			switch b.target.OS {
+			case "darwin":
+				// Look for libs relative to executable
+				buildCfg.RawLinker = append(buildCfg.RawLinker, "-Wl,-rpath,@executable_path/../lib")
+			case "linux":
+				// $ORIGIN is Linux equivalent of @executable_path
+				buildCfg.RawLinker = append(buildCfg.RawLinker, "-Wl,-rpath,$ORIGIN/../lib")
 			}
 		}
 
@@ -303,6 +320,56 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		}
 
 		_, err := b.linker.CreateStaticLibrary(ctx, archiveOpts)
+		if err != nil {
+			return &TargetResult{
+				Name:     target.Name,
+				Type:     target.Type,
+				Output:   outputPath,
+				Sources:  len(target.Sources),
+				Duration: time.Since(start),
+				Success:  false,
+			}, err
+		}
+
+	case "shared_library":
+		progress.Linking(target.Name)
+
+		// Determine if we need C++ linker
+		useCPlusPlus := b.linker.needsCPlusPlusLinker(objectFiles)
+
+		// Build library paths and libraries from dependencies
+		var libPaths []string
+		var libs []string
+
+		for _, dep := range target.Depends {
+			// Check if it's an external dependency
+			if depResult, isExternalDep := b.depResults[dep]; isExternalDep {
+				libDir := filepath.Dir(depResult.LibPath)
+				libPaths = append(libPaths, libDir)
+				libs = append(libs, depResult.Name)
+			} else if depTarget, isTargetDep := opts.Config.Targets[dep]; isTargetDep {
+				if depTarget.Type == "static_library" || depTarget.Type == "shared_library" {
+					depLibPath := filepath.Join(opts.BuildDir, opts.Variant, "lib")
+					libPaths = append(libPaths, depLibPath)
+					libs = append(libs, dep)
+				}
+			} else {
+				return nil, fmt.Errorf("unknown dependency or target: %q", dep)
+			}
+		}
+
+		sharedOpts := SharedLibraryOptions{
+			Objects:          objectFiles,
+			Output:           outputPath,
+			SysLibs:          target.SysLibs,
+			LibPaths:         libPaths,
+			Libs:             libs,
+			Flags:            buildCfg,
+			UseCPlusPlus:     useCPlusPlus,
+			SymbolVisibility: "default", // Could be configurable via target config later
+		}
+
+		_, err := b.linker.LinkSharedLibrary(ctx, sharedOpts)
 		if err != nil {
 			return &TargetResult{
 				Name:     target.Name,
