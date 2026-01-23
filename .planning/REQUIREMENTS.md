@@ -31,10 +31,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **OUTP-01**: Build executable binaries
 - [x] **OUTP-02**: Build static libraries (.a/.lib)
-- [ ] **OUTP-03**: Build shared libraries (.so/.dylib)
-- [ ] **OUTP-04**: Generate compile_commands.json for IDE integration
+- [x] **OUTP-03**: Build shared libraries (.so/.dylib)
+- [x] **OUTP-04**: Generate compile_commands.json for IDE integration
 - [x] **OUTP-05**: Execute builds directly (invoke compilers)
-- [ ] **OUTP-06**: Generate Ninja build files
+- [x] **OUTP-06**: Generate Ninja build files
 
 ### Developer Experience
 
@@ -105,10 +105,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPS-03 | Phase 6 | Complete |
 | OUTP-01 | Phase 2 | Complete |
 | OUTP-02 | Phase 2 | Complete |
-| OUTP-03 | Phase 7 | Pending |
-| OUTP-04 | Phase 7 | Pending |
+| OUTP-03 | Phase 7 | Complete |
+| OUTP-04 | Phase 7 | Complete |
 | OUTP-05 | Phase 2 | Complete |
-| OUTP-06 | Phase 7 | Pending |
+| OUTP-06 | Phase 7 | Complete |
 | DEVX-01 | Phase 2 | Complete |
 | DEVX-02 | Phase 8 | Pending |
 | DEVX-03 | Phase 8 | Pending |
@@ -123,4 +123,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-23 after Phase 6 completion*
+*Last updated: 2026-01-23 after Phase 7 completion*
