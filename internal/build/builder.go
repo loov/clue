@@ -82,7 +82,7 @@ func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs
 		executor:         executor,
 		compiler:         compiler,
 		linker:           NewLinker(executor, toolchain, target),
-		parallelCompiler: NewParallelCompiler(compiler, toolchain, jobs, keepGoing, verbose),
+		parallelCompiler: NewParallelCompiler(compiler, toolchain, jobs, keepGoing, verbosity),
 		toolchain:        toolchain,
 		target:           target,
 	}, nil

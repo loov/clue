@@ -34,7 +34,7 @@ type ParallelCompiler struct {
 	toolchain *Toolchain
 	jobs      int
 	keepGoing bool
-	verbose   bool
+	verbosity Verbosity
 
 	// Progress tracking
 	completed atomic.Int64
@@ -44,13 +44,13 @@ type ParallelCompiler struct {
 }
 
 // NewParallelCompiler creates a new ParallelCompiler instance
-func NewParallelCompiler(compiler *Compiler, toolchain *Toolchain, jobs int, keepGoing bool, verbose bool) *ParallelCompiler {
+func NewParallelCompiler(compiler *Compiler, toolchain *Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
 	return &ParallelCompiler{
 		compiler:  compiler,
 		toolchain: toolchain,
 		jobs:      jobs,
 		keepGoing: keepGoing,
-		verbose:   verbose,
+		verbosity: verbosity,
 	}
 }
 
@@ -116,7 +116,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 
 	// Create a capturing executor (doesn't stream to stdout)
 	captureExecutor := NewExecutor(ExecutorConfig{
-		Verbose:      p.verbose,
+		Verbose:      p.verbosity == VerbosityVerbose,
 		StreamOutput: false, // Capture, don't stream
 		WorkDir:      "",
 	})
@@ -133,13 +133,16 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	completed := p.completed.Add(1)
 
 	// Build progress message for buffer
-	// In verbose mode, show timing
-	if p.verbose {
-		fmt.Fprintf(&buf, "[%d/%d] Compiling: %s (%s)\n",
-			completed, p.total, filepath.Base(opts.Source), FormatDuration(duration))
-	} else {
-		fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
-			completed, p.total, filepath.Base(opts.Source))
+	// Skip all output in quiet mode
+	if p.verbosity != VerbosityQuiet {
+		// In verbose mode, show timing
+		if p.verbosity == VerbosityVerbose {
+			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s (%s)\n",
+				completed, p.total, filepath.Base(opts.Source), FormatDuration(duration))
+		} else {
+			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
+				completed, p.total, filepath.Base(opts.Source))
+		}
 	}
 
 	// If there was captured output (errors, warnings), include it

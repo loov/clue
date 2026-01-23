@@ -8,6 +8,7 @@ toolchain: {
 
 targets: {
 	moduletest: {
+		name:    "moduletest"
 		type:    "executable"
 		sources: ["main.cpp", "hello.cppm"]
 	}

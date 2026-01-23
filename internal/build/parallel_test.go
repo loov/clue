@@ -37,7 +37,7 @@ func TestParallelCompiler_SingleFile(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 2, false, false)
+	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
@@ -111,7 +111,7 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 2, false, false)
+	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
@@ -199,7 +199,7 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	jobs := 2
-	parallel := NewParallelCompiler(compiler, tc, jobs, false, false)
+	parallel := NewParallelCompiler(compiler, tc, jobs, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
@@ -248,7 +248,7 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 2, true, false) // keepGoing=true
+	parallel := NewParallelCompiler(compiler, tc, 2, true, VerbosityNormal) // keepGoing=true
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
@@ -319,7 +319,7 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 1, false, false) // jobs=1 to ensure order
+	parallel := NewParallelCompiler(compiler, tc, 1, false, VerbosityNormal) // jobs=1 to ensure order
 
 	// Create compile options - bad file first
 	objDir := filepath.Join(tmpDir, "obj")
@@ -374,7 +374,7 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 2, false, false)
+	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
@@ -420,7 +420,7 @@ func TestParallelCompiler_EmptySources(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 2, false, false)
+	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
 	// Compile empty list
 	results, err := parallel.CompileParallel(context.Background(), nil)
@@ -439,7 +439,7 @@ func TestParallelCompiler_GetProgress(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 2, false, false)
+	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
 	// Initially zero
 	completed, total := parallel.GetProgress()
@@ -456,7 +456,7 @@ func TestParallelCompiler_GetActive(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 2, false, false)
+	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
 	// Initially empty
 	active := parallel.GetActive()
@@ -504,7 +504,7 @@ func TestParallelCompiler_OutputNotInterleaved(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
-	parallel := NewParallelCompiler(compiler, tc, 4, false, false)
+	parallel := NewParallelCompiler(compiler, tc, 4, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
