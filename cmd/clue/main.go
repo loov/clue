@@ -188,6 +188,7 @@ func runBuild(dir, variant string, verbose bool, rebuildAll bool, targets []stri
 	// Execute build
 	result, err := builder.Build(context.Background(), opts)
 	if err != nil {
+		printError(err)
 		return 1
 	}
 
