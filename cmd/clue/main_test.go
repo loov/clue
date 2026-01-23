@@ -186,3 +186,160 @@ func TestCycleDetectionError(t *testing.T) {
 		t.Errorf("Expected 'cyclic' error in output, got:\n%s", output)
 	}
 }
+
+func TestBuild_MultiTarget(t *testing.T) {
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	// Get absolute path to testdata
+	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "multi-target"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean first
+	exec.Command(binary, "-dir", testdataDir, "clean", "--all").Run()
+
+	// Build the project - must run from project dir due to relative paths
+	cmd = exec.Command(binary, "build")
+	cmd.Dir = testdataDir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Build failed: %v\n%s", err, out)
+	}
+
+	output := string(out)
+	if !strings.Contains(output, "Built:") {
+		t.Errorf("Expected 'Built:' in output, got:\n%s", output)
+	}
+
+	// Check that artifacts exist
+	libPath := filepath.Join(testdataDir, "build", "debug", "lib", "libmathlib.a")
+	if _, err := os.Stat(libPath); os.IsNotExist(err) {
+		t.Errorf("Expected library at %s, but it doesn't exist", libPath)
+	}
+
+	exePath := filepath.Join(testdataDir, "build", "debug", "bin", "calculator")
+	if _, err := os.Stat(exePath); os.IsNotExist(err) {
+		t.Errorf("Expected executable at %s, but it doesn't exist", exePath)
+	}
+
+	// Run the executable
+	cmd = exec.Command(exePath)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Executable failed: %v\n%s", err, out)
+	}
+
+	output = string(out)
+	// Check expected output from calculator
+	if !strings.Contains(output, "add(2,3) = 5") {
+		t.Errorf("Expected calculation output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "multiply(4,5) = 20") {
+		t.Errorf("Expected multiplication output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "sqrt(16) = 4") {
+		t.Errorf("Expected sqrt output, got:\n%s", output)
+	}
+}
+
+func TestBuild_Verbose(t *testing.T) {
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "multi-target"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean first
+	exec.Command(binary, "clean", "--all").CombinedOutput()
+
+	// Build with verbose flag
+	cmd = exec.Command(binary, "-v", "build")
+	cmd.Dir = testdataDir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Build failed: %v\n%s", err, out)
+	}
+
+	output := string(out)
+	// Should contain compiler command
+	if !strings.Contains(output, "clang++") {
+		t.Errorf("Expected 'clang++' in verbose output, got:\n%s", output)
+	}
+}
+
+func TestClean_AfterBuild(t *testing.T) {
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "multi-target"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Build first
+	cmd = exec.Command(binary, "build")
+	cmd.Dir = testdataDir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Build failed: %v\n%s", err, out)
+	}
+
+	// Clean debug artifacts
+	cmd = exec.Command(binary, "clean")
+	cmd.Dir = testdataDir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Clean failed: %v\n%s", err, out)
+	}
+
+	// Verify debug dir is removed
+	debugDir := filepath.Join(testdataDir, "build", "debug")
+	if _, err := os.Stat(debugDir); !os.IsNotExist(err) {
+		t.Errorf("Expected debug dir to be removed, but it still exists")
+	}
+
+	// Clean all
+	cmd = exec.Command(binary, "clean", "--all")
+	cmd.Dir = testdataDir
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Clean all failed: %v\n%s", err, out)
+	}
+
+	// Verify build dir is removed or empty
+	buildDir := filepath.Join(testdataDir, "build")
+	entries, err := os.ReadDir(buildDir)
+	if err == nil && len(entries) > 0 {
+		t.Errorf("Expected build dir to be empty after clean --all, but found %d entries", len(entries))
+	}
+}
