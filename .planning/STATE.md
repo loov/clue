@@ -208,7 +208,6 @@ None yet.
 ### Blockers/Concerns
 
 - **Network isolation:** Environment has no external network access. Used `go test -mod=mod` to work with locally cached modules in phase 3. CUE stubs work for testing but full validation requires `go mod tidy` with network.
-- **Variant application bug:** ApplyVariant() in variants.go unifies entire config with variant definition, causing conflicts. Validation works for configs without variants. Fix needed for variant-based builds.
 - **--rebuild-all output issue:** The --rebuild-all flag completes successfully but produces no output and may not actually force recompilation. Needs investigation in future plan.
 - **Optimization flag mapping:** Schema uses "O0/O1/O2/O3" but build.BuildCompilerFlags expects "none/size/fast/aggressive" - mismatch means variant optimization settings don't translate to compiler flags.
 
@@ -220,11 +219,12 @@ None yet.
 | 002 | Fix testdata CUE files to use idiomatic syntax | 2026-01-23 | 1e30e6f | [002-fix-testdata-cue-idiomatic](./quick/002-fix-testdata-cue-idiomatic/) |
 | 003 | Target object folder structure | 2026-01-23 | b16ea53 | [003-target-obj-folder-structure](./quick/003-target-obj-folder-structure/) |
 | 004 | Fix orphaned integration tests (Verbosity enum) | 2026-01-24 | de8cb80 | [004-fix-orphaned-integration-tests-update-ve](./quick/004-fix-orphaned-integration-tests-update-ve/) |
+| 005 | Fix go test ./cmd/clue (variant + flag fixes) | 2026-01-24 | 0793bc5 | [005-fix-go-test-cmd-clue](./quick/005-fix-go-test-cmd-clue/) |
 
 ## Session Continuity
 
-Last session: 2026-01-24 05:25 UTC
-Stopped at: Completed quick task 004 (Fix orphaned integration tests)
+Last session: 2026-01-24 05:34 UTC
+Stopped at: Completed quick task 005 (Fix go test ./cmd/clue)
 Resume file: None
 Next step: PROJECT COMPLETE - No further plans
 
