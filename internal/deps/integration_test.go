@@ -63,16 +63,16 @@ func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
 	buildDir := ".build"
 	defer os.RemoveAll(buildDir) // Cleanup
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), false, 1, false)
+	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
 
 	opts := build.BuildOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbose:  false,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: build.VerbosityNormal,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -200,16 +200,16 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 	buildDir := ".build"
 	defer os.RemoveAll(buildDir)
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), false, 1, false)
+	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
 
 	opts := build.BuildOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbose:  false,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: build.VerbosityNormal,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -238,7 +238,7 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel2()
 
-	builder2, err := build.NewBuilder("clang", build.HostPlatform(), false, 1, false)
+	builder2, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create second builder: %v", err)
 	}
@@ -289,16 +289,16 @@ func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
 	buildDir := ".build"
 	defer os.RemoveAll(buildDir)
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), true, 1, false)
+	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityVerbose, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
 
 	opts := build.BuildOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbose:  true, // Enable verbose to see build steps
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: build.VerbosityVerbose, // Enable verbose to see build steps
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
