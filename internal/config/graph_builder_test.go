@@ -34,7 +34,7 @@ func TestBuildGraphFromConfig(t *testing.T) {
 		}
 	}
 }`
-	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -112,7 +112,7 @@ func TestBuildGraphCycleDetection(t *testing.T) {
 		}
 	}
 }`
-	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -147,7 +147,7 @@ func TestBuildGraphUnknownDependency(t *testing.T) {
 		}
 	}
 }`
-	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -187,7 +187,7 @@ func TestGetBuildOrder(t *testing.T) {
 		}
 	}
 }`
-	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

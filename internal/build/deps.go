@@ -59,8 +59,8 @@ func ParseDepFile(path string) (DependencyInfo, error) {
 			target = lineTarget
 
 			// Parse dependencies
-			depFields := strings.Fields(lineDeps)
-			for _, dep := range depFields {
+			depFields := strings.FieldsSeq(lineDeps)
+			for dep := range depFields {
 				dep = strings.TrimSpace(dep)
 				if dep != "" {
 					sources = append(sources, dep)

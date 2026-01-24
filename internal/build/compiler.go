@@ -10,20 +10,20 @@ import (
 
 // CompileOptions holds options for compiling a single source file
 type CompileOptions struct {
-	Source     string      // Source file path
-	Output     string      // Output object file path
-	Includes   []string    // Include directories
-	Defines    []string    // Preprocessor defines
-	Flags      Config // Semantic flags
-	Std        string      // Language standard (e.g., "c++20", "c17")
-	TargetType string      // "executable", "static_library", "shared_library"
+	Source     string   // Source file path
+	Output     string   // Output object file path
+	Includes   []string // Include directories
+	Defines    []string // Preprocessor defines
+	Flags      Config   // Semantic flags
+	Std        string   // Language standard (e.g., "c++20", "c17")
+	TargetType string   // "executable", "static_library", "shared_library"
 }
 
 // CompileResult holds the result of a compilation
 type CompileResult struct {
 	Source   string
 	Object   string
-	DepFile  string        // Path to generated .d file
+	DepFile  string // Path to generated .d file
 	Duration time.Duration
 	Success  bool
 }
@@ -113,7 +113,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 
 	// Create output directory if it doesn't exist
 	outputDir := filepath.Dir(opts.Output)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return &CompileResult{
 			Source:   opts.Source,
 			Object:   opts.Output,

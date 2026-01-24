@@ -15,7 +15,7 @@ import (
 func createTempSource(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create source file %s: %v", name, err)
 	}
 	return path
@@ -33,7 +33,7 @@ func TestParallelCompiler_SingleFile(t *testing.T) {
 	source := createTempSource(t, tmpDir, "main.cpp", `int main() { return 0; }`)
 
 	// Setup compiler
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
@@ -50,7 +50,6 @@ func TestParallelCompiler_SingleFile(t *testing.T) {
 
 	// Compile in parallel (single file)
 	results, err := parallel.CompileParallel(context.Background(), sources)
-
 	// Verify success
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
@@ -107,7 +106,7 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 	}
 
 	// Setup compiler
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
@@ -126,7 +125,6 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 
 	// Compile in parallel
 	results, err := parallel.CompileParallel(context.Background(), opts)
-
 	// Verify success
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
@@ -151,8 +149,8 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 	progressPattern := regexp.MustCompile(`^\[\d+/\d+\] Compiling: \S+\.cpp$`)
 	for _, result := range results {
 		output := strings.TrimSpace(result.Output.String())
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(output, "\n")
+		for line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
@@ -178,19 +176,19 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 	// Create 4 source files
 	fileCount := 4
 	var sources []string
-	for i := 0; i < fileCount; i++ {
+	for i := range fileCount {
 		name := filepath.Join(tmpDir, func() string {
 			return string(rune('a'+i)) + ".cpp"
 		}())
 		content := `int func` + string(rune('A'+i)) + `() { return ` + string(rune('0'+i)) + `; }`
-		if err := os.WriteFile(name, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(name, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		sources = append(sources, name)
 	}
 
 	// Setup compiler with limited concurrency
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	jobs := 2
@@ -211,7 +209,6 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 	// We can't easily instrument the parallel compiler to track concurrency,
 	// but we can at least verify it completes successfully with the limit set
 	results, err := parallel.CompileParallel(context.Background(), opts)
-
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
 	}
@@ -238,7 +235,7 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 	good2 := createTempSource(t, tmpDir, "good2.cpp", `int good2() { return 2; }`)
 
 	// Setup compiler with keepGoing=true
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, true, VerbosityNormal) // keepGoing=true
@@ -309,7 +306,7 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 	good := createTempSource(t, tmpDir, "good.cpp", `int good() { return 1; }`)
 
 	// Setup compiler with keepGoing=false (fail fast)
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 1, false, VerbosityNormal) // jobs=1 to ensure order
@@ -354,17 +351,17 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 	// Create multiple source files
 	fileCount := 5
 	var sources []string
-	for i := 0; i < fileCount; i++ {
+	for i := range fileCount {
 		name := filepath.Join(tmpDir, string(rune('a'+i))+".cpp")
 		content := `int func` + string(rune('A'+i)) + `() { return ` + string(rune('0'+i)) + `; }`
-		if err := os.WriteFile(name, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(name, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		sources = append(sources, name)
 	}
 
 	// Setup compiler with limited concurrency
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
@@ -405,14 +402,13 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 
 func TestParallelCompiler_EmptySources(t *testing.T) {
 	// Setup compiler
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
 	// Compile empty list
 	results, err := parallel.CompileParallel(context.Background(), nil)
-
 	if err != nil {
 		t.Errorf("Expected nil error for empty sources, got: %v", err)
 	}
@@ -479,17 +475,17 @@ func TestParallelCompiler_OutputNotInterleaved(t *testing.T) {
 	// Create multiple source files
 	fileCount := 5
 	var sources []string
-	for i := 0; i < fileCount; i++ {
+	for i := range fileCount {
 		name := filepath.Join(tmpDir, string(rune('a'+i))+".cpp")
 		content := `int func` + string(rune('A'+i)) + `() { return ` + string(rune('0'+i)) + `; }`
-		if err := os.WriteFile(name, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(name, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		sources = append(sources, name)
 	}
 
 	// Setup compiler with max concurrency
-	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
+	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 4, false, VerbosityNormal)
@@ -508,7 +504,6 @@ func TestParallelCompiler_OutputNotInterleaved(t *testing.T) {
 
 	// Compile in parallel
 	results, err := parallel.CompileParallel(context.Background(), opts)
-
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
 	}

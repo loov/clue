@@ -61,13 +61,13 @@ func TestManager_VendoredAlwaysCached(t *testing.T) {
 
 	// Create a vendored directory
 	vendorPath := filepath.Join(tmpDir, "vendor", "libfoo")
-	if err := os.MkdirAll(vendorPath, 0755); err != nil {
+	if err := os.MkdirAll(vendorPath, 0o755); err != nil {
 		t.Fatalf("Failed to create vendor directory: %v", err)
 	}
 
 	// Create a dummy source file
 	sourceFile := filepath.Join(vendorPath, "foo.cpp")
-	if err := os.WriteFile(sourceFile, []byte("// foo"), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte("// foo"), 0o644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -103,13 +103,13 @@ func TestFetchAll_SkipsCached(t *testing.T) {
 
 	// Create a vendored dependency (always cached)
 	vendorPath := filepath.Join(tmpDir, "vendor", "libfoo")
-	if err := os.MkdirAll(vendorPath, 0755); err != nil {
+	if err := os.MkdirAll(vendorPath, 0o755); err != nil {
 		t.Fatalf("Failed to create vendor directory: %v", err)
 	}
 
 	// Create a dummy source file
 	sourceFile := filepath.Join(vendorPath, "foo.cpp")
-	if err := os.WriteFile(sourceFile, []byte("// foo"), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte("// foo"), 0o644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -182,12 +182,12 @@ func TestClean(t *testing.T) {
 
 	// Create a dummy file in .deps directory
 	depsDir := filepath.Join(tmpDir, ".deps")
-	if err := os.MkdirAll(depsDir, 0755); err != nil {
+	if err := os.MkdirAll(depsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create .deps directory: %v", err)
 	}
 
 	dummyFile := filepath.Join(depsDir, "dummy.txt")
-	if err := os.WriteFile(dummyFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(dummyFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create dummy file: %v", err)
 	}
 
@@ -230,11 +230,11 @@ func TestManager_BuildOrder(t *testing.T) {
 	vendorPath3 := filepath.Join(tmpDir, "vendor", "mmm")
 
 	for _, path := range []string{vendorPath1, vendorPath2, vendorPath3} {
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatalf("Failed to create vendor directory: %v", err)
 		}
 		sourceFile := filepath.Join(path, "source.cpp")
-		if err := os.WriteFile(sourceFile, []byte("// source"), 0644); err != nil {
+		if err := os.WriteFile(sourceFile, []byte("// source"), 0o644); err != nil {
 			t.Fatalf("Failed to create source file: %v", err)
 		}
 	}

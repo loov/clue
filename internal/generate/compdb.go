@@ -85,7 +85,7 @@ func CompileCommands(opts CompDBOptions) error {
 	}
 
 	// Write to output file
-	return os.WriteFile(opts.OutputPath, data, 0644)
+	return os.WriteFile(opts.OutputPath, data, 0o644)
 }
 
 // buildTargetCommands creates compile commands for a target's sources

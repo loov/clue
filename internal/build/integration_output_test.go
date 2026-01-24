@@ -28,7 +28,7 @@ func TestSharedLibraryBuildAndLink(t *testing.T) {
     return 42;
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte(libSrc), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte(libSrc), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
@@ -38,7 +38,7 @@ int main() {
     return lib_get_value() - 42; // Returns 0 if lib works
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte(mainSrc), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte(mainSrc), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -66,7 +66,7 @@ targets: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
 
@@ -85,11 +85,11 @@ targets: {
 
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbosity:    VerbosityNormal,
-		Jobs:     1,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: VerbosityNormal,
+		Jobs:      1,
 	}
 
 	// Build

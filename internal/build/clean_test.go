@@ -14,25 +14,25 @@ func TestClean_VariantOnly(t *testing.T) {
 
 	// Create build/debug/myapp/main.o and build/debug/bin/myapp
 	debugDir := filepath.Join(buildDir, "debug")
-	if err := os.MkdirAll(filepath.Join(debugDir, "myapp"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(debugDir, "myapp"), 0o755); err != nil {
 		t.Fatalf("Failed to create debug/myapp dir: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(debugDir, "bin"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(debugDir, "bin"), 0o755); err != nil {
 		t.Fatalf("Failed to create debug/bin dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(debugDir, "myapp", "main.o"), []byte("obj"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(debugDir, "myapp", "main.o"), []byte("obj"), 0o644); err != nil {
 		t.Fatalf("Failed to create main.o: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(debugDir, "bin", "myapp"), []byte("exe"), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(debugDir, "bin", "myapp"), []byte("exe"), 0o755); err != nil {
 		t.Fatalf("Failed to create myapp: %v", err)
 	}
 
 	// Create build/release/myapp/main.o
 	releaseDir := filepath.Join(buildDir, "release")
-	if err := os.MkdirAll(filepath.Join(releaseDir, "myapp"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(releaseDir, "myapp"), 0o755); err != nil {
 		t.Fatalf("Failed to create release/myapp dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(releaseDir, "myapp", "main.o"), []byte("obj"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(releaseDir, "myapp", "main.o"), []byte("obj"), 0o644); err != nil {
 		t.Fatalf("Failed to create release main.o: %v", err)
 	}
 
@@ -42,7 +42,6 @@ func TestClean_VariantOnly(t *testing.T) {
 		Variant:  "debug",
 		All:      false,
 	})
-
 	if err != nil {
 		t.Fatalf("Clean failed: %v", err)
 	}
@@ -81,16 +80,16 @@ func TestClean_All(t *testing.T) {
 	// Create build/debug/ and build/release/
 	debugDir := filepath.Join(buildDir, "debug")
 	releaseDir := filepath.Join(buildDir, "release")
-	if err := os.MkdirAll(filepath.Join(debugDir, "myapp"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(debugDir, "myapp"), 0o755); err != nil {
 		t.Fatalf("Failed to create debug dir: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(releaseDir, "myapp"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(releaseDir, "myapp"), 0o755); err != nil {
 		t.Fatalf("Failed to create release dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(debugDir, "myapp", "main.o"), []byte("obj"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(debugDir, "myapp", "main.o"), []byte("obj"), 0o644); err != nil {
 		t.Fatalf("Failed to create debug main.o: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(releaseDir, "myapp", "main.o"), []byte("obj"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(releaseDir, "myapp", "main.o"), []byte("obj"), 0o644); err != nil {
 		t.Fatalf("Failed to create release main.o: %v", err)
 	}
 
@@ -100,7 +99,6 @@ func TestClean_All(t *testing.T) {
 		Variant:  "", // Should be ignored when All is true
 		All:      true,
 	})
-
 	if err != nil {
 		t.Fatalf("Clean failed: %v", err)
 	}
@@ -135,7 +133,6 @@ func TestClean_NonExistent(t *testing.T) {
 		Variant:  "debug",
 		All:      false,
 	})
-
 	if err != nil {
 		t.Fatalf("Clean should not error on non-existent directory: %v", err)
 	}

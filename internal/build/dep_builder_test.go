@@ -16,7 +16,7 @@ func TestDepBuilder_InlineConfig(t *testing.T) {
 
 	// Create source files
 	sourcePath := filepath.Join(tmpDir, "libfoo")
-	if err := os.MkdirAll(sourcePath, 0755); err != nil {
+	if err := os.MkdirAll(sourcePath, 0o755); err != nil {
 		t.Fatalf("failed to create source directory: %v", err)
 	}
 
@@ -26,7 +26,7 @@ func TestDepBuilder_InlineConfig(t *testing.T) {
 int add(int a, int b) {
     return a + b;
 }
-`), 0644); err != nil {
+`), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -54,9 +54,9 @@ int add(int a, int b) {
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
-		Variant:  "debug",
-		Platform: HostPlatform(),
-		BuildDir: buildDir,
+		Variant:   "debug",
+		Platform:  HostPlatform(),
+		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
 
@@ -92,7 +92,7 @@ func TestDepBuilder_ClueConfig(t *testing.T) {
 
 	// Create source files
 	sourcePath := filepath.Join(tmpDir, "libbar")
-	if err := os.MkdirAll(sourcePath, 0755); err != nil {
+	if err := os.MkdirAll(sourcePath, 0o755); err != nil {
 		t.Fatalf("failed to create source directory: %v", err)
 	}
 
@@ -102,7 +102,7 @@ func TestDepBuilder_ClueConfig(t *testing.T) {
 int multiply(int a, int b) {
     return a * b;
 }
-`), 0644); err != nil {
+`), 0o644); err != nil {
 		t.Fatalf("failed to write bar.cpp: %v", err)
 	}
 
@@ -116,7 +116,7 @@ targets: {
 	}
 }
 `
-	if err := os.WriteFile(clueCue, []byte(cueContent), 0644); err != nil {
+	if err := os.WriteFile(clueCue, []byte(cueContent), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
 
@@ -138,9 +138,9 @@ targets: {
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
-		Variant:  "release",
-		Platform: HostPlatform(),
-		BuildDir: buildDir,
+		Variant:   "release",
+		Platform:  HostPlatform(),
+		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
 
@@ -170,13 +170,13 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 
 	// Create source files but NO configuration
 	sourcePath := filepath.Join(tmpDir, "libnone")
-	if err := os.MkdirAll(sourcePath, 0755); err != nil {
+	if err := os.MkdirAll(sourcePath, 0o755); err != nil {
 		t.Fatalf("failed to create source directory: %v", err)
 	}
 
 	// Write a simple C++ source file
 	mainCpp := filepath.Join(sourcePath, "main.cpp")
-	if err := os.WriteFile(mainCpp, []byte(`int test() { return 42; }`), 0644); err != nil {
+	if err := os.WriteFile(mainCpp, []byte(`int test() { return 42; }`), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -198,9 +198,9 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
-		Variant:  "debug",
-		Platform: HostPlatform(),
-		BuildDir: buildDir,
+		Variant:   "debug",
+		Platform:  HostPlatform(),
+		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
 
@@ -224,14 +224,14 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 
 	// Create source files
 	sourcePath := filepath.Join(tmpDir, "libglob")
-	if err := os.MkdirAll(sourcePath, 0755); err != nil {
+	if err := os.MkdirAll(sourcePath, 0o755); err != nil {
 		t.Fatalf("failed to create source directory: %v", err)
 	}
 
 	// Write multiple C++ source files
 	for _, name := range []string{"a.cpp", "b.cpp", "c.cpp"} {
 		file := filepath.Join(sourcePath, name)
-		if err := os.WriteFile(file, []byte(`int test() { return 1; }`), 0644); err != nil {
+		if err := os.WriteFile(file, []byte(`int test() { return 1; }`), 0o644); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 	}
@@ -260,9 +260,9 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
-		Variant:  "debug",
-		Platform: HostPlatform(),
-		BuildDir: buildDir,
+		Variant:   "debug",
+		Platform:  HostPlatform(),
+		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
 
@@ -285,13 +285,13 @@ func TestDepBuilder_IncludePath(t *testing.T) {
 	// Create source files with include directory
 	sourcePath := filepath.Join(tmpDir, "libinc")
 	includeDir := filepath.Join(sourcePath, "include")
-	if err := os.MkdirAll(includeDir, 0755); err != nil {
+	if err := os.MkdirAll(includeDir, 0o755); err != nil {
 		t.Fatalf("failed to create include directory: %v", err)
 	}
 
 	// Write a header file
 	headerFile := filepath.Join(includeDir, "test.h")
-	if err := os.WriteFile(headerFile, []byte("#pragma once\nint test();"), 0644); err != nil {
+	if err := os.WriteFile(headerFile, []byte("#pragma once\nint test();"), 0o644); err != nil {
 		t.Fatalf("failed to write header: %v", err)
 	}
 
@@ -300,7 +300,7 @@ func TestDepBuilder_IncludePath(t *testing.T) {
 	if err := os.WriteFile(mainCpp, []byte(`
 #include "test.h"
 int test() { return 42; }
-`), 0644); err != nil {
+`), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -328,9 +328,9 @@ int test() { return 42; }
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
-		Variant:  "debug",
-		Platform: HostPlatform(),
-		BuildDir: buildDir,
+		Variant:   "debug",
+		Platform:  HostPlatform(),
+		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
 

@@ -42,7 +42,7 @@ type CacheManager struct {
 // NewCacheManager creates a cache manager for the given build directory
 func NewCacheManager(buildDir string, verbosity Verbosity) (*CacheManager, error) {
 	cacheDir := filepath.Join(buildDir, "cache")
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
@@ -88,7 +88,7 @@ func atomicWrite(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	tempFile := filepath.Join(dir, fmt.Sprintf(".tmp.%d.%d", os.Getpid(), time.Now().UnixNano()))
 
-	if err := os.WriteFile(tempFile, data, 0644); err != nil {
+	if err := os.WriteFile(tempFile, data, 0o644); err != nil {
 		return err
 	}
 

@@ -49,7 +49,7 @@ void func%d() {
 }
 `, i, i)
 		filename := filepath.Join(dir, fmt.Sprintf("file%02d.cpp", i))
-		err := os.WriteFile(filename, []byte(source), 0644)
+		err := os.WriteFile(filename, []byte(source), 0o644)
 		if err != nil {
 			t.Fatalf("failed to write source file %s: %v", filename, err)
 		}
@@ -67,7 +67,7 @@ void func%d() {
 	}
 	mainSource.WriteString("    return 0;\n}\n")
 	mainPath := filepath.Join(dir, "main.cpp")
-	err := os.WriteFile(mainPath, []byte(mainSource.String()), 0644)
+	err := os.WriteFile(mainPath, []byte(mainSource.String()), 0o644)
 	if err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
@@ -95,7 +95,7 @@ targets: {
 `, formatCueArray(sources))
 
 	configPath := filepath.Join(dir, "clue.cue")
-	err = os.WriteFile(configPath, []byte(cueConfig), 0644)
+	err = os.WriteFile(configPath, []byte(cueConfig), 0o644)
 	if err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
@@ -128,11 +128,11 @@ func TestParallelBuild_20Files(t *testing.T) {
 	}
 
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: filepath.Join(projectDir, "build"),
-		Verbosity:    VerbosityNormal,
-		Jobs:     4,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(projectDir, "build"),
+		Verbosity: VerbosityNormal,
+		Jobs:      4,
 	}
 
 	// Build
@@ -188,11 +188,11 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts1 := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: filepath.Join(projectDir, "build1"),
-		Verbosity:    VerbosityNormal,
-		Jobs:     1,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(projectDir, "build1"),
+		Verbosity: VerbosityNormal,
+		Jobs:      1,
 	}
 
 	start1 := time.Now()
@@ -211,11 +211,11 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts4 := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: filepath.Join(projectDir, "build4"),
-		Verbosity:    VerbosityNormal,
-		Jobs:     4,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(projectDir, "build4"),
+		Verbosity: VerbosityNormal,
+		Jobs:      4,
 	}
 
 	start4 := time.Now()
@@ -258,11 +258,11 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: filepath.Join(projectDir, "build"),
-		Verbosity:    VerbosityNormal,
-		Jobs:     4,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(projectDir, "build"),
+		Verbosity: VerbosityNormal,
+		Jobs:      4,
 	}
 
 	result, err := builder.Build(context.Background(), opts)
@@ -313,11 +313,11 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: filepath.Join(projectDir, "build"),
-		Verbosity:    VerbosityNormal,
-		Jobs:     2,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(projectDir, "build"),
+		Verbosity: VerbosityNormal,
+		Jobs:      2,
 	}
 
 	// Create cancellable context
@@ -381,13 +381,13 @@ void another_good() {
 	badPath := filepath.Join(dir, "bad.cpp")
 	anotherPath := filepath.Join(dir, "another.cpp")
 
-	if err := os.WriteFile(goodPath, []byte(goodSource), 0644); err != nil {
+	if err := os.WriteFile(goodPath, []byte(goodSource), 0o644); err != nil {
 		t.Fatalf("failed to write good.cpp: %v", err)
 	}
-	if err := os.WriteFile(badPath, []byte(badSource), 0644); err != nil {
+	if err := os.WriteFile(badPath, []byte(badSource), 0o644); err != nil {
 		t.Fatalf("failed to write bad.cpp: %v", err)
 	}
-	if err := os.WriteFile(anotherPath, []byte(anotherGood), 0644); err != nil {
+	if err := os.WriteFile(anotherPath, []byte(anotherGood), 0o644); err != nil {
 		t.Fatalf("failed to write another.cpp: %v", err)
 	}
 
@@ -406,7 +406,7 @@ targets: {
     }
 }
 `, goodPath, badPath, anotherPath)
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(cueConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
 
@@ -425,7 +425,7 @@ targets: {
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  filepath.Join(dir, "build1"),
-		Verbosity:    VerbosityNormal,
+		Verbosity: VerbosityNormal,
 		Jobs:      1,
 		KeepGoing: false,
 	}
@@ -444,7 +444,7 @@ targets: {
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  filepath.Join(dir, "build2"),
-		Verbosity:    VerbosityNormal,
+		Verbosity: VerbosityNormal,
 		Jobs:      2,
 		KeepGoing: true,
 	}

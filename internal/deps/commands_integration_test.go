@@ -125,16 +125,16 @@ func TestDepsClean_Integration(t *testing.T) {
 	gitDir := filepath.Join(depsDir, "git")
 	tarballDir := filepath.Join(depsDir, "tarball")
 
-	if err := os.MkdirAll(gitDir, 0755); err != nil {
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
 		t.Fatalf("Failed to create git dir: %v", err)
 	}
-	if err := os.MkdirAll(tarballDir, 0755); err != nil {
+	if err := os.MkdirAll(tarballDir, 0o755); err != nil {
 		t.Fatalf("Failed to create tarball dir: %v", err)
 	}
 
 	// Create some dummy files
 	testFile := filepath.Join(gitDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -240,7 +240,6 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 		Verbose: false,
 		CIMode:  false,
 	})
-
 	if err != nil {
 		t.Errorf("Fetch should succeed: %v", err)
 	}

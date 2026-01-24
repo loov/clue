@@ -19,6 +19,12 @@ revive:
 golangci-lint:
 	golangci-lint run ./...
 
+fmt:
+	gofumpt -l -w .
+
+modernize:
+	go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
+
 # Other common targets
 test:
 	go test ./...

@@ -18,9 +18,7 @@ import (
 	"github.com/loov/clue/internal/generate"
 )
 
-var (
-	version = "0.1.0-dev"
-)
+var version = "0.1.0-dev"
 
 func main() {
 	// Parse command line flags
@@ -205,10 +203,7 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 	actualJobs := jobs
 	if actualJobs == 0 {
 		// Default: half of CPU cores (minimum 1)
-		actualJobs = runtime.NumCPU() / 2
-		if actualJobs < 1 {
-			actualJobs = 1
-		}
+		actualJobs = max(runtime.NumCPU()/2, 1)
 	} else if actualJobs < 0 {
 		// Unlimited: use all cores
 		actualJobs = runtime.NumCPU()
@@ -306,7 +301,6 @@ func runClean(dir, variant string, all bool, verbosity build.Verbosity) int {
 		Variant:  variant,
 		All:      all,
 	})
-
 	if err != nil {
 		printError(err)
 		return 1
@@ -550,10 +544,7 @@ func runRun(dir, variant string, verbosity build.Verbosity, jobs int, args []str
 	// Compute actual job count (same as runBuild)
 	actualJobs := jobs
 	if actualJobs == 0 {
-		actualJobs = runtime.NumCPU() / 2
-		if actualJobs < 1 {
-			actualJobs = 1
-		}
+		actualJobs = max(runtime.NumCPU()/2, 1)
 	} else if actualJobs < 0 {
 		actualJobs = runtime.NumCPU()
 	}

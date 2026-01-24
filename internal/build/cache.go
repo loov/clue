@@ -89,8 +89,8 @@ func NormalizeFlags(flags []string) []string {
 		}
 
 		// Handle -I flags with relative paths
-		if strings.HasPrefix(flag, "-I") {
-			includePath := strings.TrimPrefix(flag, "-I")
+		if after, ok := strings.CutPrefix(flag, "-I"); ok {
+			includePath := after
 			if !filepath.IsAbs(includePath) {
 				// Resolve relative path to absolute
 				absPath, err := filepath.Abs(includePath)

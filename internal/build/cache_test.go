@@ -13,7 +13,7 @@ func TestComputeFileHash(t *testing.T) {
 	t.Run("computes consistent hash for file", func(t *testing.T) {
 		testFile := filepath.Join(tmpDir, "test.cpp")
 		content := []byte("int main() {}")
-		if err := os.WriteFile(testFile, content, 0644); err != nil {
+		if err := os.WriteFile(testFile, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -47,10 +47,10 @@ func TestComputeFileHash(t *testing.T) {
 		file1 := filepath.Join(tmpDir, "file1.cpp")
 		file2 := filepath.Join(tmpDir, "file2.cpp")
 
-		if err := os.WriteFile(file1, []byte("int main() {}"), 0644); err != nil {
+		if err := os.WriteFile(file1, []byte("int main() {}"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(file2, []byte("int foo() {}"), 0644); err != nil {
+		if err := os.WriteFile(file2, []byte("int foo() {}"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -177,20 +177,20 @@ func TestGetCompilerIdentity(t *testing.T) {
 
 func TestComputeCacheKey(t *testing.T) {
 	key1 := CacheKey{
-		SourceHash:  "abc123",
-		DepsHash:    "def456",
-		CompilerID:  CompilerIdentity{Path: "/usr/bin/clang", Mtime: 123456, Size: 1000},
-		Flags:       []string{"-O2", "-Wall"},
+		SourceHash:   "abc123",
+		DepsHash:     "def456",
+		CompilerID:   CompilerIdentity{Path: "/usr/bin/clang", Mtime: 123456, Size: 1000},
+		Flags:        []string{"-O2", "-Wall"},
 		IncludePaths: []string{"/usr/include"},
 	}
 
 	key2 := key1 // Same key
 
 	key3 := CacheKey{
-		SourceHash:  "different",
-		DepsHash:    "def456",
-		CompilerID:  CompilerIdentity{Path: "/usr/bin/clang", Mtime: 123456, Size: 1000},
-		Flags:       []string{"-O2", "-Wall"},
+		SourceHash:   "different",
+		DepsHash:     "def456",
+		CompilerID:   CompilerIdentity{Path: "/usr/bin/clang", Mtime: 123456, Size: 1000},
+		Flags:        []string{"-O2", "-Wall"},
 		IncludePaths: []string{"/usr/include"},
 	}
 

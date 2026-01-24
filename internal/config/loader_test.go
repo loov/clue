@@ -14,7 +14,7 @@ func TestValidConfig(t *testing.T) {
 
 	// Using pure JSON for stub parser
 	validConfig := `{"name": "testproject", "version": "1.0.0", "toolchain": {"compiler": "clang", "std": "c++20"}, "targets": {"main": {"name": "main", "type": "executable", "sources": ["main.cpp"]}}}`
-	if err := os.WriteFile(configPath, []byte(validConfig), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(validConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +50,7 @@ func TestInvalidConfig(t *testing.T) {
 
 	// Missing required source field (empty array)
 	invalidConfig := `{"name": "testproject", "targets": {"main": {"name": "main", "type": "executable", "sources": []}}}`
-	if err := os.WriteFile(configPath, []byte(invalidConfig), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(invalidConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,7 +88,7 @@ func TestTargetExtraction(t *testing.T) {
 	configPath := filepath.Join(dir, "clue.cue")
 
 	config := `{"name": "multilib", "targets": {"util": {"name": "util", "type": "static_library", "sources": ["util.cpp"], "headers": ["util.h"], "includes": ["include/"]}, "app": {"name": "app", "type": "executable", "sources": ["main.cpp"], "depends": ["util"], "flags": {"compiler": ["-Wall", "-Wextra"]}}}}`
-	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -189,7 +189,7 @@ func TestVariantExtraction(t *testing.T) {
 	configPath := filepath.Join(dir, "clue.cue")
 
 	config := `{"name": "project", "targets": {"app": {"name": "app", "type": "executable", "sources": ["main.cpp"]}}, "variants": {"debug": {"name": "debug", "optimization": "O0", "debug_info": true, "defines": ["DEBUG"]}, "release": {"name": "release", "optimization": "O2", "debug_info": false}}}`
-	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -237,7 +237,7 @@ func TestMinimalConfig(t *testing.T) {
 
 	// Minimal valid config
 	minimalConfig := `{"name": "minimal", "targets": {"app": {"name": "app", "type": "executable", "sources": ["main.cpp"]}}}`
-	if err := os.WriteFile(configPath, []byte(minimalConfig), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(minimalConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -272,7 +272,7 @@ targets: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
 		t.Fatalf("failed to write config: %v", err)
 	}
 
@@ -323,13 +323,12 @@ variants: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
 		t.Fatalf("failed to write config: %v", err)
 	}
 
 	loader := NewLoader()
 	cfg, err := loader.Load(dir)
-
 	if err != nil {
 		t.Fatalf("loader should accept valid config: %v", err)
 	}
@@ -370,7 +369,7 @@ targets: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
 		t.Fatalf("failed to write config: %v", err)
 	}
 

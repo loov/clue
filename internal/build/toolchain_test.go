@@ -108,11 +108,11 @@ func TestDiscoverToolchain_CrossLinuxArm64(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		toolchain    string
-		expectedCC   string
-		expectedCXX  string
-		expectedAR   string
+		name        string
+		toolchain   string
+		expectedCC  string
+		expectedCXX string
+		expectedAR  string
 	}{
 		{
 			name:        "gcc cross arm64",
@@ -154,11 +154,11 @@ func TestDiscoverToolchain_CrossLinuxAmd64(t *testing.T) {
 	target := Platform{OS: "linux", Arch: "amd64"}
 
 	tests := []struct {
-		name         string
-		toolchain    string
-		expectedCC   string
-		expectedCXX  string
-		expectedAR   string
+		name        string
+		toolchain   string
+		expectedCC  string
+		expectedCXX string
+		expectedAR  string
 	}{
 		{
 			name:        "gcc cross amd64",

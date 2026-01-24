@@ -112,3 +112,4 @@ RUN npx get-shit-done-cc --global
 RUN go install honnef.co/go/tools/cmd/staticcheck@latest
 RUN curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b /home/node/go/bin v2.8.0
 RUN go install github.com/mgechev/revive@latest
+RUN go install mvdan.cc/gofumpt@latest

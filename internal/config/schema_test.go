@@ -28,13 +28,13 @@ func TestSchemaEmbedded(t *testing.T) {
 func TestSchemaConstraints(t *testing.T) {
 	// Verify key constraints are present
 	constraints := []string{
-		`"executable"`,            // Target type enum
-		`"static_library"`,        // Target type enum
-		`"shared_library"`,        // Target type enum
-		`"O0"`,                    // Optimization level
-		`"O2"`,                    // Optimization level
-		`=~"^[a-zA-Z]`,           // Name regex constraint
-		`[_, ...]`,               // At least one source
+		`"executable"`,     // Target type enum
+		`"static_library"`, // Target type enum
+		`"shared_library"`, // Target type enum
+		`"O0"`,             // Optimization level
+		`"O2"`,             // Optimization level
+		`=~"^[a-zA-Z]`,     // Name regex constraint
+		`[_, ...]`,         // At least one source
 	}
 
 	for _, constraint := range constraints {

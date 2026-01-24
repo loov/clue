@@ -93,7 +93,6 @@ func TestRunFetch_NoDeps(t *testing.T) {
 		CIMode:  false,
 		Name:    "",
 	})
-
 	if err != nil {
 		t.Fatalf("RunFetch failed: %v", err)
 	}
@@ -156,13 +155,13 @@ func TestRunClean_RemovesDir(t *testing.T) {
 	// Create .deps directory with some content
 	depsDir := filepath.Join(tmpDir, ".deps")
 	gitDir := filepath.Join(depsDir, "git", "test-dep")
-	if err := os.MkdirAll(gitDir, 0755); err != nil {
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
 		t.Fatalf("failed to create test dirs: %v", err)
 	}
 
 	// Write a test file
 	testFile := filepath.Join(gitDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -196,10 +195,10 @@ func TestRunClean_SingleDependency(t *testing.T) {
 	// Create .deps directory with multiple dependencies
 	depsDir := filepath.Join(tmpDir, ".deps")
 	gitDir := filepath.Join(depsDir, "git")
-	if err := os.MkdirAll(filepath.Join(gitDir, "libfoo-main"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(gitDir, "libfoo-main"), 0o755); err != nil {
 		t.Fatalf("failed to create test dirs: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(gitDir, "libbar-v1.0"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(gitDir, "libbar-v1.0"), 0o755); err != nil {
 		t.Fatalf("failed to create test dirs: %v", err)
 	}
 

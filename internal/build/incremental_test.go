@@ -25,7 +25,7 @@ func createTestProject(t *testing.T, tmpDir string) (string, *config.Config) {
 	// Create directory structure
 	srcDir := filepath.Join(tmpDir, "src")
 	buildDir := filepath.Join(tmpDir, ".build")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		t.Fatalf("failed to create src dir: %v", err)
 	}
 
@@ -36,7 +36,7 @@ func createTestProject(t *testing.T, tmpDir string) (string, *config.Config) {
 #define VERSION 1
 #endif
 `
-	if err := os.WriteFile(headerPath, []byte(headerContent), 0644); err != nil {
+	if err := os.WriteFile(headerPath, []byte(headerContent), 0o644); err != nil {
 		t.Fatalf("failed to write config.h: %v", err)
 	}
 
@@ -50,7 +50,7 @@ int main() {
     return 0;
 }
 `
-	if err := os.WriteFile(mainPath, []byte(mainContent), 0644); err != nil {
+	if err := os.WriteFile(mainPath, []byte(mainContent), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -62,7 +62,7 @@ int get_version() {
     return VERSION;
 }
 `
-	if err := os.WriteFile(utilsPath, []byte(utilsContent), 0644); err != nil {
+	if err := os.WriteFile(utilsPath, []byte(utilsContent), 0o644); err != nil {
 		t.Fatalf("failed to write utils.cpp: %v", err)
 	}
 
@@ -124,10 +124,10 @@ func TestIncremental_FirstBuild(t *testing.T) {
 
 	// Build for the first time
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbosity:    VerbosityNormal,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: VerbosityNormal,
 	}
 
 	result, err := builder.Build(context.Background(), opts)
@@ -175,10 +175,10 @@ func TestIncremental_NoChanges(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbosity:    VerbosityNormal,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: VerbosityNormal,
 	}
 
 	// First build
@@ -223,10 +223,10 @@ func TestIncremental_SourceChange(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbosity:    VerbosityNormal,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: VerbosityNormal,
 	}
 
 	// First build
@@ -250,7 +250,7 @@ int get_version() {
     return VERSION + 1;  // Changed
 }
 `
-	if err := os.WriteFile(utilsPath, []byte(modifiedContent), 0644); err != nil {
+	if err := os.WriteFile(utilsPath, []byte(modifiedContent), 0o644); err != nil {
 		t.Fatalf("failed to modify utils.cpp: %v", err)
 	}
 
@@ -287,10 +287,10 @@ func TestIncremental_HeaderChange(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbosity:    VerbosityNormal,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: VerbosityNormal,
 	}
 
 	// First build
@@ -313,7 +313,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 #define VERSION 2
 #endif
 `
-	if err := os.WriteFile(headerPath, []byte(modifiedHeader), 0644); err != nil {
+	if err := os.WriteFile(headerPath, []byte(modifiedHeader), 0o644); err != nil {
 		t.Fatalf("failed to modify config.h: %v", err)
 	}
 
@@ -346,10 +346,10 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbosity:    VerbosityNormal,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: VerbosityNormal,
 	}
 
 	// First build
@@ -395,10 +395,10 @@ func TestIncremental_ContentRevert(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 	opts := Options{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbosity:    VerbosityNormal,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: VerbosityNormal,
 	}
 
 	// First build with original content
@@ -424,7 +424,7 @@ int get_version() {
     return VERSION + 999;  // Modified
 }
 `
-	if err := os.WriteFile(utilsPath, []byte(modifiedContent), 0644); err != nil {
+	if err := os.WriteFile(utilsPath, []byte(modifiedContent), 0o644); err != nil {
 		t.Fatalf("failed to modify utils.cpp: %v", err)
 	}
 
@@ -444,7 +444,7 @@ int get_version() {
 
 	// Revert to original content
 	time.Sleep(100 * time.Millisecond)
-	if err := os.WriteFile(utilsPath, originalContent, 0644); err != nil {
+	if err := os.WriteFile(utilsPath, originalContent, 0o644); err != nil {
 		t.Fatalf("failed to revert utils.cpp: %v", err)
 	}
 

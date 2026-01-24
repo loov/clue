@@ -1,6 +1,6 @@
 module github.com/loov/clue
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/Duncaen/go-ninja v0.0.0-20190726135315-8e5210064eb2

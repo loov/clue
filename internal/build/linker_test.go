@@ -21,7 +21,7 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 
 	// Create main.cpp
 	mainCpp := filepath.Join(tmpDir, "main.cpp")
-	if err := os.WriteFile(mainCpp, []byte("int main() { return 42; }"), 0644); err != nil {
+	if err := os.WriteFile(mainCpp, []byte("int main() { return 42; }"), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -34,7 +34,7 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -49,7 +49,6 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}
@@ -96,7 +95,7 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 
 	// Create add.cpp
 	addCpp := filepath.Join(tmpDir, "add.cpp")
-	if err := os.WriteFile(addCpp, []byte("int add(int a, int b) { return a + b; }"), 0644); err != nil {
+	if err := os.WriteFile(addCpp, []byte("int add(int a, int b) { return a + b; }"), 0o644); err != nil {
 		t.Fatalf("failed to write add.cpp: %v", err)
 	}
 
@@ -109,7 +108,7 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -122,7 +121,6 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 		Objects: []string{addObj},
 		Output:  libPath,
 	})
-
 	if err != nil {
 		t.Fatalf("CreateStaticLibrary failed: %v", err)
 	}
@@ -164,7 +162,7 @@ func TestLinker_LinkWithStaticLibrary_Integration(t *testing.T) {
 
 	// Create add.cpp (no main)
 	addCpp := filepath.Join(tmpDir, "add.cpp")
-	if err := os.WriteFile(addCpp, []byte("int add(int a, int b) { return a + b; }"), 0644); err != nil {
+	if err := os.WriteFile(addCpp, []byte("int add(int a, int b) { return a + b; }"), 0o644); err != nil {
 		t.Fatalf("failed to write add.cpp: %v", err)
 	}
 
@@ -172,7 +170,7 @@ func TestLinker_LinkWithStaticLibrary_Integration(t *testing.T) {
 	mainCpp := filepath.Join(tmpDir, "main.cpp")
 	mainContent := `int add(int a, int b);
 int main() { return add(20, 22); }`
-	if err := os.WriteFile(mainCpp, []byte(mainContent), 0644); err != nil {
+	if err := os.WriteFile(mainCpp, []byte(mainContent), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -191,7 +189,7 @@ int main() { return add(20, 22); }`
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -215,7 +213,6 @@ int main() { return add(20, 22); }`
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}
@@ -260,7 +257,7 @@ int main() {
     pthread_join(t, nullptr);
     return 0;
 }`
-	if err := os.WriteFile(mainCpp, []byte(mainContent), 0644); err != nil {
+	if err := os.WriteFile(mainCpp, []byte(mainContent), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -273,7 +270,7 @@ int main() {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -289,7 +286,6 @@ int main() {
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}
@@ -320,7 +316,7 @@ func TestLinker_OutputNaming(t *testing.T) {
 
 	// Create a simple source file
 	srcCpp := filepath.Join(tmpDir, "test.cpp")
-	if err := os.WriteFile(srcCpp, []byte("int main() { return 0; }"), 0644); err != nil {
+	if err := os.WriteFile(srcCpp, []byte("int main() { return 0; }"), 0o644); err != nil {
 		t.Fatalf("failed to write test.cpp: %v", err)
 	}
 
@@ -332,7 +328,7 @@ func TestLinker_OutputNaming(t *testing.T) {
 	}
 
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -498,7 +494,7 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 	// Create a simple shared library source
 	libCpp := filepath.Join(tmpDir, "lib.cpp")
 	libContent := `int lib_func() { return 42; }`
-	if err := os.WriteFile(libCpp, []byte(libContent), 0644); err != nil {
+	if err := os.WriteFile(libCpp, []byte(libContent), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
@@ -511,7 +507,7 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -529,7 +525,6 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
 	}
@@ -574,7 +569,7 @@ func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
 
 	// Create a simple shared library source
 	libCpp := filepath.Join(tmpDir, "lib.cpp")
-	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0644); err != nil {
+	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
@@ -598,7 +593,6 @@ func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
 	}
@@ -638,7 +632,7 @@ func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
 
 	// Create a simple shared library source
 	libCpp := filepath.Join(tmpDir, "lib.cpp")
-	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0644); err != nil {
+	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
@@ -662,7 +656,6 @@ func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
 	}
@@ -692,7 +685,7 @@ func TestLinkSharedLibrary_WithExecutable(t *testing.T) {
 
 	// Create shared library source
 	libCpp := filepath.Join(tmpDir, "lib.cpp")
-	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0644); err != nil {
+	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
@@ -700,7 +693,7 @@ func TestLinkSharedLibrary_WithExecutable(t *testing.T) {
 	mainCpp := filepath.Join(tmpDir, "main.cpp")
 	mainContent := `extern int lib_func();
 int main() { return lib_func() - 42; }` // Returns 0 on success
-	if err := os.WriteFile(mainCpp, []byte(mainContent), 0644); err != nil {
+	if err := os.WriteFile(mainCpp, []byte(mainContent), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -732,7 +725,6 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
 	}
@@ -747,7 +739,6 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 		UseCPlusPlus: true,
 		Flags:        Config{},
 	})
-
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}

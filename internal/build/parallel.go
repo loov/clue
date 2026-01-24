@@ -15,7 +15,7 @@ import (
 
 // createDir creates a directory if it doesn't exist
 func createDir(dir string) error {
-	return os.MkdirAll(dir, 0755)
+	return os.MkdirAll(dir, 0o755)
 }
 
 // ParallelResult holds the result of a single compilation in parallel mode
@@ -75,7 +75,6 @@ func (p *ParallelCompiler) CompileParallel(ctx context.Context, sources []Compil
 
 	// Launch workers for each source file
 	for _, opts := range sources {
-		opts := opts // Capture for closure
 		g.Go(func() error {
 			// Track active file
 			p.addActive(opts.Source)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestCompileCommands_Basic(t *testing.T) {
 	// Create source files (so AbsPath works)
 	for _, src := range cfg.Targets["myapp"].Sources {
 		srcPath := filepath.Join(tmpDir, src)
-		if err := os.WriteFile(srcPath, []byte("// test"), 0644); err != nil {
+		if err := os.WriteFile(srcPath, []byte("// test"), 0o644); err != nil {
 			t.Fatalf("Failed to create source file: %v", err)
 		}
 	}
@@ -135,13 +136,13 @@ func TestCompileCommands_Arguments(t *testing.T) {
 	}
 
 	// Create files and directories
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(tmpDir, "include"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "include"), 0o755); err != nil {
 		t.Fatalf("failed to create include dir: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(tmpDir, "vendor"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "vendor"), 0o755); err != nil {
 		t.Fatalf("failed to create vendor dir: %v", err)
 	}
 
@@ -255,13 +256,13 @@ func TestCompileCommands_MultipleTargets(t *testing.T) {
 	}
 
 	// Create source files
-	if err := os.WriteFile(filepath.Join(tmpDir, "app.cpp"), []byte("// app"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "app.cpp"), []byte("// app"), 0o644); err != nil {
 		t.Fatalf("failed to write app.cpp: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte("// lib"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte("// lib"), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// util"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// util"), 0o644); err != nil {
 		t.Fatalf("failed to write util.cpp: %v", err)
 	}
 
@@ -332,7 +333,7 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 
 	// Create source files
 	for _, src := range cfg.Targets["mixed"].Sources {
-		if err := os.WriteFile(filepath.Join(tmpDir, src), []byte("// test"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, src), []byte("// test"), 0o644); err != nil {
 			t.Fatalf("failed to write %s: %v", src, err)
 		}
 	}
@@ -369,10 +370,10 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 
 	// Verify correct compiler for each file
 	testCases := map[string]string{
-		"main.c":   "clang",   // C file -> clang
-		"util.cpp": "clang++", // C++ file -> clang++
+		"main.c":    "clang",   // C file -> clang
+		"util.cpp":  "clang++", // C++ file -> clang++
 		"helper.cc": "clang++", // C++ file -> clang++
-		"legacy.C": "clang++", // C++ file (uppercase .C) -> clang++
+		"legacy.C":  "clang++", // C++ file (uppercase .C) -> clang++
 	}
 
 	for file, expectedCompiler := range testCases {
@@ -408,7 +409,7 @@ func TestCompileCommands_VariantFlags(t *testing.T) {
 		Dependencies: map[string]deps.Dependency{},
 	}
 
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -472,10 +473,10 @@ func TestCompileCommands_GCCToolchain(t *testing.T) {
 		Dependencies: map[string]deps.Dependency{},
 	}
 
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.c"), []byte("// c"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.c"), []byte("// c"), 0o644); err != nil {
 		t.Fatalf("failed to write main.c: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// cpp"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// cpp"), 0o644); err != nil {
 		t.Fatalf("failed to write util.cpp: %v", err)
 	}
 
@@ -523,13 +524,13 @@ func TestCompileCommands_WithDependencies(t *testing.T) {
 
 	// Create vendored dependency structure
 	depPath := filepath.Join(tmpDir, "vendor", "mylib")
-	if err := os.MkdirAll(filepath.Join(depPath, "include"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(depPath, "include"), 0o755); err != nil {
 		t.Fatalf("failed to create include dir: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(depPath, "src"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(depPath, "src"), 0o755); err != nil {
 		t.Fatalf("failed to create src dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(depPath, "src", "mylib.cpp"), []byte("// lib"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(depPath, "src", "mylib.cpp"), []byte("// lib"), 0o644); err != nil {
 		t.Fatalf("failed to write mylib.cpp: %v", err)
 	}
 
@@ -555,7 +556,7 @@ func TestCompileCommands_WithDependencies(t *testing.T) {
 		},
 	}
 
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// main"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// main"), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -653,10 +654,5 @@ func TestIsCPlusPlusFile(t *testing.T) {
 
 // Helper function to check if an argument is in the list
 func containsArg(args []string, target string) bool {
-	for _, arg := range args {
-		if arg == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(args, target)
 }

@@ -22,9 +22,9 @@ type DepMarker struct {
 	Name      string    `json:"name"`
 	Type      string    `json:"type"`
 	FetchedAt time.Time `json:"fetched_at"`
-	Ref       string    `json:"ref,omitempty"`       // for git dependencies
-	URL       string    `json:"url,omitempty"`       // for tarball dependencies
-	Path      string    `json:"path,omitempty"`      // for vendored dependencies
+	Ref       string    `json:"ref,omitempty"`  // for git dependencies
+	URL       string    `json:"url,omitempty"`  // for tarball dependencies
+	Path      string    `json:"path,omitempty"` // for vendored dependencies
 }
 
 // NewCache creates a new dependency cache manager
@@ -32,7 +32,7 @@ func NewCache(projectDir string, verbose bool) (*Cache, error) {
 	depsDir := filepath.Join(projectDir, ".deps")
 
 	// Create .deps directory if it doesn't exist
-	if err := os.MkdirAll(depsDir, 0755); err != nil {
+	if err := os.MkdirAll(depsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create .deps directory: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (c *Cache) MarkFetched(dep Dependency) error {
 		return fmt.Errorf("failed to marshal marker: %w", err)
 	}
 
-	if err := os.WriteFile(markerPath, data, 0644); err != nil {
+	if err := os.WriteFile(markerPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write marker file: %w", err)
 	}
 

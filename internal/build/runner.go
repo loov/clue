@@ -14,10 +14,10 @@ type RunOptions struct {
 	Config    *config.Config
 	Variant   string
 	BuildDir  string
-	Target    string      // Target name to run
-	Args      []string    // Arguments to pass to executable
-	Verbosity Verbosity   // For build output
-	Jobs      int         // Parallel jobs for build
+	Target    string    // Target name to run
+	Args      []string  // Arguments to pass to executable
+	Verbosity Verbosity // For build output
+	Jobs      int       // Parallel jobs for build
 }
 
 // RunResult contains the result of running an executable

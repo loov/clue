@@ -10,8 +10,8 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	cueerrors "cuelang.org/go/cue/errors"
 
-	clerrors "github.com/loov/clue/internal/errors"
 	"github.com/loov/clue/internal/deps"
+	clerrors "github.com/loov/clue/internal/errors"
 )
 
 // Config represents a parsed and validated build configuration

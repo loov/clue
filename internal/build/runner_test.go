@@ -79,13 +79,13 @@ func TestRunTarget_NotExecutable_StaticLibrary(t *testing.T) {
 	}
 
 	opts := RunOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: "build",
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  "build",
 		Target:    "mylib",
-		Args:     []string{},
+		Args:      []string{},
 		Verbosity: VerbosityNormal,
-		Jobs:     1,
+		Jobs:      1,
 	}
 
 	ctx := context.Background()
@@ -126,13 +126,13 @@ func TestRunTarget_NotExecutable_SharedLibrary(t *testing.T) {
 	}
 
 	opts := RunOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: "build",
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  "build",
 		Target:    "myshared",
-		Args:     []string{},
+		Args:      []string{},
 		Verbosity: VerbosityNormal,
-		Jobs:     1,
+		Jobs:      1,
 	}
 
 	ctx := context.Background()

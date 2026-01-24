@@ -74,7 +74,8 @@ func (r *Resolver) BuildOrder() ([]string, error) {
 func (r *Resolver) ValidateReferences(targets map[string]struct {
 	Name    string
 	Depends []string
-}) error {
+},
+) error {
 	// Get all valid target names
 	validTargets := make(map[string]bool)
 	for _, target := range targets {

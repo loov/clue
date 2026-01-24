@@ -23,25 +23,25 @@ func SharedLibraryExtension(target Platform) string {
 
 // LinkOptions holds options for linking an executable
 type LinkOptions struct {
-	Objects      []string    // Object files to link
-	Output       string      // Output executable path
-	SysLibs      []string    // System libraries (pthread, m, dl)
-	LibPaths     []string    // Library search paths (-L)
-	Libs         []string    // Additional libraries to link
-	Flags        Config // For raw linker flags and debug info
-	UseCPlusPlus bool        // Use clang++/g++ for linking (C++ std lib)
+	Objects      []string // Object files to link
+	Output       string   // Output executable path
+	SysLibs      []string // System libraries (pthread, m, dl)
+	LibPaths     []string // Library search paths (-L)
+	Libs         []string // Additional libraries to link
+	Flags        Config   // For raw linker flags and debug info
+	UseCPlusPlus bool     // Use clang++/g++ for linking (C++ std lib)
 }
 
 // SharedLibraryOptions holds options for linking a shared library
 type SharedLibraryOptions struct {
-	Objects          []string    // Object files to link
-	Output           string      // Output .so/.dylib path
-	SysLibs          []string    // System libraries (pthread, m, dl)
-	LibPaths         []string    // Library search paths (-L)
-	Libs             []string    // Additional libraries to link
-	Flags            Config // For raw linker flags and debug info
-	UseCPlusPlus     bool        // Use clang++/g++ for linking (C++ std lib)
-	SymbolVisibility string      // "default" or "hidden"
+	Objects          []string // Object files to link
+	Output           string   // Output .so/.dylib path
+	SysLibs          []string // System libraries (pthread, m, dl)
+	LibPaths         []string // Library search paths (-L)
+	Libs             []string // Additional libraries to link
+	Flags            Config   // For raw linker flags and debug info
+	UseCPlusPlus     bool     // Use clang++/g++ for linking (C++ std lib)
+	SymbolVisibility string   // "default" or "hidden"
 }
 
 // ArchiveOptions holds options for creating a static library
@@ -114,7 +114,7 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 	// Create output directory if needed
 	outputDir := filepath.Dir(opts.Output)
 	if outputDir != "" && outputDir != "." {
-		if err := os.MkdirAll(outputDir, 0755); err != nil {
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
@@ -148,7 +148,7 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 	// Create output directory if needed
 	outputDir := filepath.Dir(opts.Output)
 	if outputDir != "" && outputDir != "." {
-		if err := os.MkdirAll(outputDir, 0755); err != nil {
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
@@ -230,7 +230,7 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 	// Create output directory if needed
 	outputDir := filepath.Dir(opts.Output)
 	if outputDir != "" && outputDir != "." {
-		if err := os.MkdirAll(outputDir, 0755); err != nil {
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
@@ -260,11 +260,11 @@ func (l *Linker) needsCPlusPlusLinker(objects []string) bool {
 		// Common C++ extensions: .cpp, .cc, .cxx, .C
 		objLower := strings.ToLower(obj)
 		if strings.Contains(objLower, ".cpp.") ||
-		   strings.Contains(objLower, ".cc.") ||
-		   strings.Contains(objLower, ".cxx.") ||
-		   strings.HasSuffix(objLower, ".cpp.o") ||
-		   strings.HasSuffix(objLower, ".cc.o") ||
-		   strings.HasSuffix(objLower, ".cxx.o") {
+			strings.Contains(objLower, ".cc.") ||
+			strings.Contains(objLower, ".cxx.") ||
+			strings.HasSuffix(objLower, ".cpp.o") ||
+			strings.HasSuffix(objLower, ".cc.o") ||
+			strings.HasSuffix(objLower, ".cxx.o") {
 			return true
 		}
 	}

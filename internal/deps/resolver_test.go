@@ -9,7 +9,6 @@ func TestBuildOrder_NoDependencies(t *testing.T) {
 	// Empty deps map should return empty order
 	resolver := NewResolver(map[string]Dependency{})
 	order, err := resolver.BuildOrder()
-
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -29,7 +28,6 @@ func TestBuildOrder_Independent(t *testing.T) {
 
 	resolver := NewResolver(deps)
 	order, err := resolver.BuildOrder()
-
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -58,7 +56,6 @@ func TestBuildOrder_WithDependencies(t *testing.T) {
 
 	resolver := NewResolver(deps)
 	order, err := resolver.BuildOrder()
-
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

@@ -100,7 +100,7 @@ func TestExecutor_ProcessGroupSetup(t *testing.T) {
 	// This validates the SysProcAttr setup doesn't break normal execution
 
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 	})
 
@@ -148,7 +148,7 @@ func TestExecutor_CancellationCleanup(t *testing.T) {
 	// Test that cancelling a context properly terminates the command
 
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   false,
+		Verbose:      false,
 		StreamOutput: false,
 	})
 

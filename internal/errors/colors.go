@@ -10,14 +10,14 @@ import (
 
 // ANSI color codes
 const (
-	ansiReset     = "\033[0m"
-	ansiRed       = "\033[31m"
-	ansiBoldRed   = "\033[1;31m"
-	ansiYellow    = "\033[33m"
-	ansiCyan      = "\033[36m"
-	ansiBlue      = "\033[34m"
-	ansiGreen     = "\033[32m"
-	ansiBold      = "\033[1m"
+	ansiReset   = "\033[0m"
+	ansiRed     = "\033[31m"
+	ansiBoldRed = "\033[1;31m"
+	ansiYellow  = "\033[33m"
+	ansiCyan    = "\033[36m"
+	ansiBlue    = "\033[34m"
+	ansiGreen   = "\033[32m"
+	ansiBold    = "\033[1m"
 )
 
 // noColor disables all color output when true

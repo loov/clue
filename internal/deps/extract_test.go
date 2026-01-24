@@ -29,13 +29,13 @@ func createTestTarGz(t *testing.T, files map[string]string) string {
 	for name, content := range files {
 		hdr := &tar.Header{
 			Name: name,
-			Mode: 0644,
+			Mode: 0o644,
 			Size: int64(len(content)),
 		}
 		if content == "" {
 			// Directory
 			hdr.Typeflag = tar.TypeDir
-			hdr.Mode = 0755
+			hdr.Mode = 0o755
 		} else {
 			hdr.Typeflag = tar.TypeReg
 		}
@@ -80,7 +80,7 @@ func createTestTarGzWithSymlink(t *testing.T) string {
 	// Add a regular file
 	hdr := &tar.Header{
 		Name:     "file.txt",
-		Mode:     0644,
+		Mode:     0o644,
 		Size:     5,
 		Typeflag: tar.TypeReg,
 	}
@@ -94,7 +94,7 @@ func createTestTarGzWithSymlink(t *testing.T) string {
 	// Add a symlink
 	symlinkHdr := &tar.Header{
 		Name:     "link.txt",
-		Mode:     0644,
+		Mode:     0o644,
 		Typeflag: tar.TypeSymlink,
 		Linkname: "file.txt",
 	}
@@ -229,13 +229,13 @@ func TestStripPrefix(t *testing.T) {
 	prefixDir := filepath.Join(targetDir, prefix)
 
 	// Create files in prefix directory
-	if err := os.MkdirAll(filepath.Join(prefixDir, "subdir"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(prefixDir, "subdir"), 0o755); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(prefixDir, "file1.txt"), []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(prefixDir, "file1.txt"), []byte("content1"), 0o644); err != nil {
 		t.Fatalf("failed to write file1: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(prefixDir, "subdir", "file2.txt"), []byte("content2"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(prefixDir, "subdir", "file2.txt"), []byte("content2"), 0o644); err != nil {
 		t.Fatalf("failed to write file2: %v", err)
 	}
 

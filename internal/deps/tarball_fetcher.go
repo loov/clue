@@ -100,7 +100,7 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 	}
 
 	// Create target directory
-	if err := os.MkdirAll(targetPath, 0755); err != nil {
+	if err := os.MkdirAll(targetPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create target directory %s: %w", targetPath, err)
 	}
 

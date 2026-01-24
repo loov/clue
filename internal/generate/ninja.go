@@ -389,7 +389,7 @@ func writeIfChanged(path string, content []byte) error {
 		return nil // No change needed
 	}
 
-	return os.WriteFile(path, content, 0644)
+	return os.WriteFile(path, content, 0o644)
 }
 
 // WriteNinjaTo writes Ninja file content to a writer (for testing)

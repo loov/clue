@@ -22,8 +22,8 @@ type Progress struct {
 	verbosity   Verbosity
 	startTime   time.Time
 	out         io.Writer
-	mu          sync.Mutex   // for output serialization
-	activeFiles []string     // currently compiling files
+	mu          sync.Mutex // for output serialization
+	activeFiles []string   // currently compiling files
 }
 
 // NewProgress creates a new Progress instance

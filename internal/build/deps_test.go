@@ -13,7 +13,7 @@ func TestParseDepFile(t *testing.T) {
 		depFile := filepath.Join(tmpDir, "simple.d")
 		content := `main.o: src/main.cpp include/config.h include/utils.h
 `
-		if err := os.WriteFile(depFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -44,7 +44,7 @@ func TestParseDepFile(t *testing.T) {
   include/config.h \
   include/utils.h
 `
-		if err := os.WriteFile(depFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -79,7 +79,7 @@ include/config.h:
 
 include/utils.h:
 `
-		if err := os.WriteFile(depFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -117,7 +117,7 @@ include/utils.h:
 		content := `this is not a valid dependency file format
 it has no colon
 `
-		if err := os.WriteFile(depFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -131,7 +131,7 @@ it has no colon
 		depFile := filepath.Join(tmpDir, "spaces.d")
 		content := `output.o:   src/file.cpp    include/header.h     lib/other.h
 `
-		if err := os.WriteFile(depFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -158,7 +158,7 @@ it has no colon
   \
   include/config.h
 `
-		if err := os.WriteFile(depFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 

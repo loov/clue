@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"time"
 
@@ -31,9 +32,9 @@ type Options struct {
 // TargetResult holds the result of building a single target
 type TargetResult struct {
 	Name     string
-	Type     string        // "executable", "static_library", or "shared_library"
-	Output   string        // Path to output artifact
-	Sources  int           // Number of source files
+	Type     string // "executable", "static_library", or "shared_library"
+	Output   string // Path to output artifact
+	Sources  int    // Number of source files
 	Duration time.Duration
 	Success  bool
 }
@@ -159,7 +160,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	outputPath := b.OutputPath(opts.BuildDir, opts.Variant, target.Name, target.Type)
 
 	// Create directories
-	if err := os.MkdirAll(objDir, 0755); err != nil {
+	if err := os.MkdirAll(objDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create object directory: %w", err)
 	}
 
@@ -218,7 +219,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 		// Create BMI directory
-		if err := os.MkdirAll(bmiDir, 0755); err != nil {
+		if err := os.MkdirAll(bmiDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create BMI directory: %w", err)
 		}
 	}
@@ -486,13 +487,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	for _, targetName := range buildOrder {
 		// Skip if specific targets requested and this isn't one
 		if len(opts.Targets) > 0 {
-			found := false
-			for _, t := range opts.Targets {
-				if t == targetName {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(opts.Targets, targetName)
 			if !found {
 				continue
 			}
@@ -510,13 +505,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	for _, targetName := range buildOrder {
 		// Skip if specific targets requested and this isn't one
 		if len(opts.Targets) > 0 {
-			found := false
-			for _, t := range opts.Targets {
-				if t == targetName {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(opts.Targets, targetName)
 			if !found {
 				continue
 			}

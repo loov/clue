@@ -76,7 +76,7 @@ func TestMissingDependency(t *testing.T) {
 
 func TestDeterministicOrder(t *testing.T) {
 	// Run multiple times to verify stability
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		b := NewBuilder()
 
 		// Diamond dependency: main -> {a, b} -> base

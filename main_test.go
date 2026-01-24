@@ -88,7 +88,7 @@ func TestValidateInvalidConfig(t *testing.T) {
 		}
 	}
 }`
-	if err := os.WriteFile(filepath.Join(invalidDir, "clue.cue"), []byte(invalidConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(invalidDir, "clue.cue"), []byte(invalidConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -173,7 +173,7 @@ func TestCycleDetectionError(t *testing.T) {
 		}
 	}
 }`
-	if err := os.WriteFile(filepath.Join(cycleDir, "clue.cue"), []byte(cycleConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(cycleDir, "clue.cue"), []byte(cycleConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -419,7 +419,7 @@ func TestTargetFlag_Empty(t *testing.T) {
 			}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -457,7 +457,7 @@ func TestTargetFlag_Valid(t *testing.T) {
 			}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -469,7 +469,7 @@ func TestTargetFlag_Valid(t *testing.T) {
 	outputStr := string(output)
 	// Should show cross-compilation message (even if build fails due to missing cross-compiler)
 	if !strings.Contains(outputStr, "Cross-compiling for linux-amd64") &&
-	   !strings.Contains(outputStr, "compiler not found: x86_64-linux-gnu") {
+		!strings.Contains(outputStr, "compiler not found: x86_64-linux-gnu") {
 		t.Errorf("Expected cross-compilation message or toolchain error, got:\n%s", outputStr)
 	}
 }
@@ -496,7 +496,7 @@ func TestTargetFlag_Invalid(t *testing.T) {
 			}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -538,7 +538,7 @@ func TestTargetFlag_UnsupportedPlatform(t *testing.T) {
 			}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(testdataDir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

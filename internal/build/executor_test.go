@@ -134,7 +134,7 @@ func TestExecutor_RunCommand_WorkDir(t *testing.T) {
 
 func TestExecutor_RunCommand_Verbose(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
-		Verbose:   true,
+		Verbose:      true,
 		StreamOutput: false,
 	})
 

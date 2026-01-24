@@ -52,7 +52,7 @@ dependencies: {
 	}
 }
 `
-	err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(configContent), 0644)
+	err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(configContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
@@ -246,12 +246,12 @@ dependencies: {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testDir := filepath.Join(tmpDir, tt.name)
-			if err := os.MkdirAll(testDir, 0755); err != nil {
+			if err := os.MkdirAll(testDir, 0o755); err != nil {
 				t.Fatalf("failed to create test dir: %v", err)
 			}
 			defer os.RemoveAll(testDir)
 
-			err := os.WriteFile(filepath.Join(testDir, "clue.cue"), []byte(tt.config), 0644)
+			err := os.WriteFile(filepath.Join(testDir, "clue.cue"), []byte(tt.config), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to write test config: %v", err)
 			}

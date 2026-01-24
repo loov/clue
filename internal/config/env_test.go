@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -28,8 +29,8 @@ func TestEnvInjection(t *testing.T) {
 
 func TestBuildEnvCUE(t *testing.T) {
 	envVars := map[string]string{
-		"SIMPLE":        "value",
-		"WITH_SPECIAL":  "path/to/file",
+		"SIMPLE":         "value",
+		"WITH_SPECIAL":   "path/to/file",
 		"WITH_BACKSLASH": "C:\\path",
 	}
 
@@ -198,7 +199,7 @@ env: {
 	}
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -257,7 +258,7 @@ env: {
 	}
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -318,7 +319,7 @@ targets: {
 	}
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -368,7 +369,7 @@ env: {
 	}
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -398,12 +399,7 @@ env: {
 
 // helper function for string slice contains
 func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 // helper function

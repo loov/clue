@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -44,7 +45,7 @@ int main() {
 }
 `
 	mainPath := filepath.Join(dir, "main.cpp")
-	err := os.WriteFile(mainPath, []byte(mainSource), 0644)
+	err := os.WriteFile(mainPath, []byte(mainSource), 0o644)
 	if err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
@@ -68,7 +69,7 @@ targets: {
 `, mainPath)
 
 	configPath := filepath.Join(dir, "clue.cue")
-	err = os.WriteFile(configPath, []byte(cueConfig), 0644)
+	err = os.WriteFile(configPath, []byte(cueConfig), 0o644)
 	if err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
@@ -346,13 +347,7 @@ func TestSemanticFlagMapping(t *testing.T) {
 
 			// Verify all expected flags are present
 			for _, expectedFlag := range tt.expected {
-				found := false
-				for _, flag := range flags {
-					if flag == expectedFlag {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(flags, expectedFlag)
 				if !found {
 					t.Errorf("expected flag %s not found in %v", expectedFlag, flags)
 				}
@@ -401,13 +396,7 @@ func TestSemanticFlagMapping_Linker(t *testing.T) {
 
 			// Verify all expected flags are present
 			for _, expectedFlag := range tt.expected {
-				found := false
-				for _, flag := range flags {
-					if flag == expectedFlag {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(flags, expectedFlag)
 				if !found {
 					t.Errorf("expected linker flag %s not found in %v", expectedFlag, flags)
 				}

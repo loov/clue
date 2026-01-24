@@ -90,7 +90,7 @@ func TestCompiler_CompileSource_Integration(t *testing.T) {
 	// Create a simple C++ file
 	sourceFile := filepath.Join(tmpDir, "main.cpp")
 	sourceContent := `int main() { return 0; }`
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
 		t.Fatalf("Failed to write source file: %v", err)
 	}
 
@@ -113,7 +113,6 @@ func TestCompiler_CompileSource_Integration(t *testing.T) {
 	}
 
 	result, err := compiler.CompileSource(context.Background(), opts)
-
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -152,7 +151,7 @@ func TestCompiler_CompileSource_Error(t *testing.T) {
 	// Create a C++ file with syntax error
 	sourceFile := filepath.Join(tmpDir, "bad.cpp")
 	sourceContent := `int main() { syntax error }`
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
 		t.Fatalf("Failed to write source file: %v", err)
 	}
 
@@ -202,7 +201,7 @@ func TestCompiler_CompileSource_WithFlags(t *testing.T) {
 	// Create a simple C++ file
 	sourceFile := filepath.Join(tmpDir, "main.cpp")
 	sourceContent := `int main() { return 0; }`
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
 		t.Fatalf("Failed to write source file: %v", err)
 	}
 
@@ -225,7 +224,6 @@ func TestCompiler_CompileSource_WithFlags(t *testing.T) {
 	}
 
 	result, err := compiler.CompileSource(context.Background(), opts)
-
 	// Verify compilation succeeded (flags are valid)
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -252,17 +250,17 @@ func TestCompiler_CompileSource_WithIncludes(t *testing.T) {
 	includeDir := filepath.Join(tmpDir, "include")
 	srcDir := filepath.Join(tmpDir, "src")
 
-	if err := os.MkdirAll(includeDir, 0755); err != nil {
+	if err := os.MkdirAll(includeDir, 0o755); err != nil {
 		t.Fatalf("Failed to create include dir: %v", err)
 	}
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		t.Fatalf("Failed to create src dir: %v", err)
 	}
 
 	// Create header file
 	headerFile := filepath.Join(includeDir, "header.h")
 	headerContent := `#define HEADER_LOADED 1`
-	if err := os.WriteFile(headerFile, []byte(headerContent), 0644); err != nil {
+	if err := os.WriteFile(headerFile, []byte(headerContent), 0o644); err != nil {
 		t.Fatalf("Failed to write header file: %v", err)
 	}
 
@@ -270,7 +268,7 @@ func TestCompiler_CompileSource_WithIncludes(t *testing.T) {
 	sourceFile := filepath.Join(srcDir, "main.cpp")
 	sourceContent := `#include "header.h"
 int main() { return HEADER_LOADED; }`
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
 		t.Fatalf("Failed to write source file: %v", err)
 	}
 
@@ -294,7 +292,6 @@ int main() { return HEADER_LOADED; }`
 	}
 
 	result, err := compiler.CompileSource(context.Background(), opts)
-
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -321,7 +318,7 @@ func TestCompileSource_GeneratesDepFile(t *testing.T) {
 
 	// Create source file with an include
 	srcDir := filepath.Join(tmpDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		t.Fatalf("failed to create src dir: %v", err)
 	}
 
@@ -332,7 +329,7 @@ func TestCompileSource_GeneratesDepFile(t *testing.T) {
 #endif
 `
 	headerPath := filepath.Join(srcDir, "config.h")
-	if err := os.WriteFile(headerPath, []byte(headerContent), 0644); err != nil {
+	if err := os.WriteFile(headerPath, []byte(headerContent), 0o644); err != nil {
 		t.Fatalf("failed to write header file: %v", err)
 	}
 
@@ -341,7 +338,7 @@ func TestCompileSource_GeneratesDepFile(t *testing.T) {
 int main() { return VERSION; }
 `
 	srcPath := filepath.Join(srcDir, "main.cpp")
-	if err := os.WriteFile(srcPath, []byte(srcContent), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(srcContent), 0o644); err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
 
@@ -352,7 +349,7 @@ int main() { return VERSION; }
 
 	// Compile
 	objDir := filepath.Join(tmpDir, "obj")
-	if err := os.MkdirAll(objDir, 0755); err != nil {
+	if err := os.MkdirAll(objDir, 0o755); err != nil {
 		t.Fatalf("failed to create obj dir: %v", err)
 	}
 
@@ -363,7 +360,6 @@ int main() { return VERSION; }
 		Flags:    Config{},
 		Std:      "c++17",
 	})
-
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("compilation failed: %v", err)
@@ -418,14 +414,14 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 	// Create first source file (good)
 	goodFile := filepath.Join(tmpDir, "good.cpp")
 	goodContent := `int main() { return 0; }`
-	if err := os.WriteFile(goodFile, []byte(goodContent), 0644); err != nil {
+	if err := os.WriteFile(goodFile, []byte(goodContent), 0o644); err != nil {
 		t.Fatalf("Failed to write good source file: %v", err)
 	}
 
 	// Create second source file (bad)
 	badFile := filepath.Join(tmpDir, "bad.cpp")
 	badContent := `int main() { syntax error }`
-	if err := os.WriteFile(badFile, []byte(badContent), 0644); err != nil {
+	if err := os.WriteFile(badFile, []byte(badContent), 0o644); err != nil {
 		t.Fatalf("Failed to write bad source file: %v", err)
 	}
 
@@ -505,7 +501,7 @@ func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
 	// Create a simple C++ file
 	sourceFile := filepath.Join(tmpDir, "lib.cpp")
 	sourceContent := `int lib_func() { return 42; }`
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
 		t.Fatalf("Failed to write source file: %v", err)
 	}
 
@@ -529,7 +525,6 @@ func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
 	}
 
 	result, err := compiler.CompileSource(context.Background(), opts)
-
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -570,7 +565,7 @@ func TestCompiler_Executable_NoPIC(t *testing.T) {
 	// Create a simple C++ file
 	sourceFile := filepath.Join(tmpDir, "main.cpp")
 	sourceContent := `int main() { return 0; }`
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
 		t.Fatalf("Failed to write source file: %v", err)
 	}
 
@@ -594,7 +589,6 @@ func TestCompiler_Executable_NoPIC(t *testing.T) {
 	}
 
 	result, err := compiler.CompileSource(context.Background(), opts)
-
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)

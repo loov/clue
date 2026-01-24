@@ -21,7 +21,7 @@ targets: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -55,7 +55,7 @@ targets: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +91,7 @@ variants: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -121,7 +121,7 @@ targets: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,13 +163,12 @@ variants: {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	loader := NewLoader()
 	cfg, err := loader.Load(dir)
-
 	if err != nil {
 		t.Fatalf("valid config should load successfully: %v", err)
 	}
@@ -199,13 +198,12 @@ targets: {
     }
 }
 `
-			if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 				t.Fatal(err)
 			}
 
 			loader := NewLoader()
 			_, err := loader.Load(dir)
-
 			if err != nil {
 				t.Errorf("target type %q should be valid: %v", typ, err)
 			}
@@ -236,13 +234,12 @@ variants: {
     }
 }
 `
-			if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
 				t.Fatal(err)
 			}
 
 			loader := NewLoader()
 			_, err := loader.Load(dir)
-
 			if err != nil {
 				t.Errorf("optimization %q should be valid: %v", opt, err)
 			}

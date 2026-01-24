@@ -32,7 +32,7 @@ func TestNinjaIdenticalOutput(t *testing.T) {
 
 	// Create simple C++ project
 	mainSrc := `int main() { return 0; }`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte(mainSrc), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte(mainSrc), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -54,7 +54,7 @@ variants: {
     debug: { name: "debug", debug_info: true }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
 
@@ -178,10 +178,10 @@ func TestCompileCommandsIDECompatibility(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create project with includes and defines
-	if err := os.MkdirAll(filepath.Join(tmpDir, "include"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "include"), 0o755); err != nil {
 		t.Fatalf("failed to create include dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "include", "config.h"), []byte("#define VERSION 1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "include", "config.h"), []byte("#define VERSION 1"), 0o644); err != nil {
 		t.Fatalf("failed to write config.h: %v", err)
 	}
 
@@ -191,7 +191,7 @@ int debug = 1;
 #endif
 int main() { return 0; }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte(mainSrc), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte(mainSrc), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -214,7 +214,7 @@ variants: {
     debug: { name: "debug", debug_info: true }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
 
@@ -282,8 +282,8 @@ variants: {
 	// Verify include path is absolute
 	foundAbsInclude := false
 	for _, arg := range cmd.Arguments {
-		if strings.HasPrefix(arg, "-I") {
-			includePath := strings.TrimPrefix(arg, "-I")
+		if after, ok := strings.CutPrefix(arg, "-I"); ok {
+			includePath := after
 			if filepath.IsAbs(includePath) {
 				foundAbsInclude = true
 			}
@@ -341,7 +341,7 @@ func TestNinjaSharedLibrary(t *testing.T) {
 
 	// Create library source
 	libSrc := `extern "C" int get_value() { return 42; }`
-	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte(libSrc), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte(libSrc), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
@@ -363,7 +363,7 @@ variants: {
     debug: { name: "debug", debug_info: true }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
 

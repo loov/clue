@@ -68,10 +68,10 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	objDir := filepath.Join(opts.BuildDir, opts.Variant, "deps", dep.Name(), "obj")
 	libDir := filepath.Join(opts.BuildDir, opts.Variant, "deps", dep.Name(), "lib")
 
-	if err := os.MkdirAll(objDir, 0755); err != nil {
+	if err := os.MkdirAll(objDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create object directory: %w", err)
 	}
-	if err := os.MkdirAll(libDir, 0755); err != nil {
+	if err := os.MkdirAll(libDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create library directory: %w", err)
 	}
 

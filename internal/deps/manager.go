@@ -7,14 +7,14 @@ import (
 
 // Manager coordinates dependency fetching and building
 type Manager struct {
-	projectDir       string
-	cache            *Cache
-	gitFetcher       *GitFetcher
-	tarballFetcher   *TarballFetcher
-	vendoredFetcher  *VendoredFetcher
-	resolver         *Resolver
-	verbose          bool
-	ciMode           bool
+	projectDir      string
+	cache           *Cache
+	gitFetcher      *GitFetcher
+	tarballFetcher  *TarballFetcher
+	vendoredFetcher *VendoredFetcher
+	resolver        *Resolver
+	verbose         bool
+	ciMode          bool
 }
 
 // ManagerOptions configures the manager

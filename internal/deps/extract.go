@@ -89,7 +89,7 @@ func ExtractTarGz(archivePath, targetDir string) error {
 		switch hdr.Typeflag {
 		case tar.TypeDir:
 			// Create directory
-			if err := os.MkdirAll(fullPath, 0755); err != nil {
+			if err := os.MkdirAll(fullPath, 0o755); err != nil {
 				// Cleanup on error
 				for _, path := range extractedFiles {
 					os.RemoveAll(path)
@@ -100,7 +100,7 @@ func ExtractTarGz(archivePath, targetDir string) error {
 
 		case tar.TypeReg:
 			// Create parent directory if needed
-			if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 				// Cleanup on error
 				for _, path := range extractedFiles {
 					os.RemoveAll(path)
@@ -198,7 +198,7 @@ func ExtractZip(archivePath, targetDir string) error {
 
 		// Handle directories
 		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(fullPath, 0755); err != nil {
+			if err := os.MkdirAll(fullPath, 0o755); err != nil {
 				// Cleanup on error
 				for _, path := range extractedFiles {
 					os.RemoveAll(path)
@@ -210,7 +210,7 @@ func ExtractZip(archivePath, targetDir string) error {
 		}
 
 		// Create parent directory
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 			// Cleanup on error
 			for _, path := range extractedFiles {
 				os.RemoveAll(path)

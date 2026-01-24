@@ -133,7 +133,7 @@ func TestErrorListMaxLimit(t *testing.T) {
 	list.Max = 3
 
 	// Add more errors than max
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		list.Add(&RichError{Message: "error"})
 	}
 
@@ -181,7 +181,7 @@ func TestExtractSnippet(t *testing.T) {
 line 2
 line 3
 line 4`
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
