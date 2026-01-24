@@ -1,566 +1,610 @@
-# Architecture Research
+# Architecture Research: v0.2.0
 
-**Domain:** Build systems (Go implementation for C/C++ with CUE configuration)
-**Researched:** 2026-01-22
+**Domain:** C++ Build System (Go-based)
+**Features:** Windows MSVC, Watch Mode, Build Profiling
+**Researched:** 2026-01-24
 **Confidence:** HIGH
 
-## System Overview
+## Executive Summary
 
-Build systems follow a well-established multi-phase architecture. Based on analysis of Ninja, CMake, Bazel, and Meson, the following architecture emerges as the standard pattern:
+The existing Clue architecture is well-designed for extensibility. Windows MSVC support requires a new toolchain abstraction layer since MSVC uses fundamentally different flag syntax (`/flag` vs `-flag`) and tools (`cl.exe`, `link.exe`, `lib.exe`). Watch mode fits cleanly as a new top-level orchestrator that wraps existing build logic. Build profiling integrates naturally with the existing `Progress` type, adding timing instrumentation and output formatting.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CLUE BUILD SYSTEM                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                   │
-│  │   CUE Files  │───▶│  CUE Parser  │───▶│  Validator   │                   │
-│  │  (*.cue)     │    │  & Loader    │    │  (Schema)    │                   │
-│  └──────────────┘    └──────────────┘    └──────┬───────┘                   │
-│                                                  │                           │
-│                                                  ▼                           │
-│  ┌──────────────┐    ┌──────────────────────────────────────────┐           │
-│  │ Source Files │───▶│         CONFIGURATION MODEL              │           │
-│  │ (*.cpp, *.h) │    │  (Targets, Dependencies, Toolchains)     │           │
-│  └──────────────┘    └──────────────────┬───────────────────────┘           │
-│                                          │                                   │
-│                      ┌───────────────────┼───────────────────┐              │
-│                      │                   │                   │              │
-│                      ▼                   ▼                   ▼              │
-│  ┌──────────────────────┐  ┌───────────────────┐  ┌────────────────────┐   │
-│  │  DEPENDENCY RESOLVER │  │  SOURCE SCANNER   │  │ EXTERNAL DEP MGR   │   │
-│  │  (DAG Construction)  │  │  (C++ Modules/    │  │ (Git, Tarball,     │   │
-│  │                      │  │   #include scan)  │  │  Vendor)           │   │
-│  └──────────┬───────────┘  └─────────┬─────────┘  └─────────┬──────────┘   │
-│             │                        │                      │              │
-│             └────────────────────────┴──────────────────────┘              │
-│                                      │                                      │
-│                                      ▼                                      │
-│                      ┌───────────────────────────────┐                     │
-│                      │       DEPENDENCY GRAPH        │                     │
-│                      │   (DAG: Targets ↔ Files)      │                     │
-│                      └───────────────┬───────────────┘                     │
-│                                      │                                      │
-│                                      ▼                                      │
-│                      ┌───────────────────────────────┐                     │
-│                      │       BUILD PLANNER           │                     │
-│                      │  (Topological Sort, Tasks)    │                     │
-│                      └───────────────┬───────────────┘                     │
-│                                      │                                      │
-│                      ┌───────────────┴───────────────┐                     │
-│                      ▼                               ▼                      │
-│  ┌───────────────────────────┐       ┌───────────────────────────┐         │
-│  │   DIRECT EXECUTOR         │       │   BACKEND GENERATOR       │         │
-│  │   (Parallel Runner)       │       │   (Ninja / Make files)    │         │
-│  └───────────────────────────┘       └───────────────────────────┘         │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                         FILE WATCHER (Watch Mode)                    │   │
-│  │                    (fsnotify → Change Detection → Rebuild)           │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+The recommended approach creates three isolated feature additions: (1) toolchain interface abstraction with MSVC implementation, (2) `internal/watch` package using fsnotify, and (3) profiling extensions to `internal/build` with JSON/Chrome Trace output. No major refactoring of existing code is required.
 
-## Component Responsibilities
+## Existing Architecture Analysis
 
-| Component | Responsibility | Key Data Structures | Dependencies |
-|-----------|---------------|---------------------|--------------|
-| **CUE Parser & Loader** | Parse CUE configuration files, validate against schema | `cue.Value`, `cue.Instance` | cuelang.org/go |
-| **Configuration Model** | In-memory representation of build targets, toolchains | `Target`, `Library`, `Executable`, `Toolchain` | CUE Parser |
-| **Dependency Resolver** | Build DAG from declared dependencies | `DAG`, `Node`, `Edge` | Config Model |
-| **Source Scanner** | Scan C++ files for `#include` and `import` | `SourceFile`, `Dependency` | Filesystem |
-| **External Dep Manager** | Fetch external dependencies (git, tarball, vendor) | `ExternalDep`, `Cache` | Network, Git |
-| **Dependency Graph** | Unified DAG of all build dependencies | `Graph`, `Node` (file/command), `Edge` | Resolver + Scanner |
-| **Build Planner** | Topological sort, generate task order | `BuildPlan`, `Task`, `TaskQueue` | Dependency Graph |
-| **Direct Executor** | Run compiler/linker commands in parallel | `Worker`, `Pool`, `Result` | Build Plan, Toolchain |
-| **Backend Generator** | Generate Ninja/Make build files | Templates, `BuildFile` | Build Plan |
-| **File Watcher** | Detect source changes, trigger incremental rebuild | `Watcher`, `Event` | fsnotify |
-
-## Recommended Project Structure
-
-Based on Go project layout best practices and build system component boundaries:
+### Current Component Structure
 
 ```
-clue/
-├── cmd/
-│   └── clue/
-│       └── main.go              # CLI entry point
-├── internal/
-│   ├── config/
-│   │   ├── loader.go            # CUE file loading
-│   │   ├── schema.go            # CUE schema definitions
-│   │   ├── model.go             # Target, Library, Executable types
-│   │   └── validate.go          # Validation logic
-│   ├── graph/
-│   │   ├── dag.go               # DAG data structure
-│   │   ├── node.go              # Node types (file, command)
-│   │   ├── edge.go              # Edge/dependency types
-│   │   └── topo.go              # Topological sort (Kahn's algorithm)
-│   ├── deps/
-│   │   ├── resolver.go          # Dependency resolution
-│   │   ├── external.go          # External dependency manager
-│   │   ├── git.go               # Git clone support
-│   │   ├── tarball.go           # Tarball download support
-│   │   └── vendor.go            # Vendored dependency support
-│   ├── scanner/
-│   │   ├── cpp.go               # C++ #include scanner
-│   │   ├── modules.go           # C++20 module scanner (P1689R5)
-│   │   └── cache.go             # Scan result caching
-│   ├── plan/
-│   │   ├── planner.go           # Build plan generation
-│   │   ├── task.go              # Task definition
-│   │   └── incremental.go       # Change detection logic
-│   ├── exec/
-│   │   ├── executor.go          # Parallel task executor
-│   │   ├── pool.go              # Worker pool
-│   │   ├── compiler.go          # Compiler invocation
-│   │   └── output.go            # Output buffering/display
-│   ├── backend/
-│   │   ├── ninja.go             # Ninja file generator
-│   │   ├── make.go              # Makefile generator (optional)
-│   │   └── templates/           # Backend templates
-│   ├── watch/
-│   │   ├── watcher.go           # File watcher (fsnotify)
-│   │   └── debounce.go          # Event debouncing
-│   └── toolchain/
-│       ├── detect.go            # Compiler detection
-│       ├── gcc.go               # GCC toolchain
-│       ├── clang.go             # Clang toolchain
-│       └── msvc.go              # MSVC toolchain (Windows)
-├── pkg/
-│   └── cue/
-│       └── schema/              # Public CUE schema files for users
-│           ├── target.cue
-│           ├── toolchain.cue
-│           └── project.cue
-├── schema/
-│   └── *.cue                    # Internal CUE schema definitions
-├── testdata/
-│   └── projects/                # Test project fixtures
-├── go.mod
-├── go.sum
-└── README.md
+internal/
+  build/
+    builder.go      -- Build orchestrator, entry point
+    toolchain.go    -- GCC/Clang discovery (Unix-only)
+    platform.go     -- Platform detection (linux/darwin/amd64/arm64)
+    compiler.go     -- CompileSource(), flag construction
+    linker.go       -- LinkExecutable(), CreateStaticLibrary(), LinkSharedLibrary()
+    executor.go     -- RunCommand() subprocess execution
+    parallel.go     -- ParallelCompiler, errgroup-based concurrency
+    progress.go     -- Progress tracking, output formatting
+    cache.go        -- Build cache key computation
+    cache_manager.go -- Cache hit/miss logic
+    flags.go        -- Semantic flag to compiler flag translation
+
+  config/
+    loader.go       -- CUE configuration parsing
+    schema.cue      -- CUE schema definitions
+    variants.go     -- Variant application
+
+  generate/
+    ninja.go        -- build.ninja generation
+    compdb.go       -- compile_commands.json generation
+
+  graph/
+    builder.go      -- Target dependency graph
+    file_graph.go   -- File-level dependency graph
+
+  deps/
+    manager.go      -- External dependency management
+    fetcher.go      -- Dependency fetching
+
+  errors/
+    formatter.go    -- Rich error formatting with colors
 ```
 
-**Key decisions:**
-- `internal/` for all private implementation (Go compiler enforces this)
-- `pkg/cue/schema/` exposes CUE schemas users import into their projects
-- Each domain (`graph`, `deps`, `scanner`, etc.) is its own package with clear boundaries
-- `cmd/clue/main.go` stays minimal - just wires up dependencies and starts CLI
+### Key Abstractions
 
-## Architectural Patterns
+**Toolchain:** Currently a simple struct with `CC`, `CXX`, `AR`, `Name` fields. Discovery is Unix-specific (GCC/Clang only). This is the primary integration point for MSVC.
 
-### Pattern 1: Bipartite Dependency Graph (from Ninja)
+**Compiler/Linker:** Take `CompileOptions`/`LinkOptions` and construct command-line arguments. Flag construction uses `CompilerFlagsWithToolchain()` which already has toolchain parameter but only distinguishes "gcc" vs "clang".
 
-The dependency graph should be bipartite: **file nodes** point to **command nodes**, which point back to **file nodes**.
+**Executor:** Generic subprocess execution, already cross-platform (uses `syscall.SysProcAttr` but conditionally).
 
-**What:** Model the build as a graph where nodes are either files or build commands (not mixed)
-**When:** Always - this is the core data structure
-**Why:** Better captures build structure: commands are out-of-date if any input changes, and update all outputs
+**Progress:** Already has atomic counters, timing, and output formatting. Natural extension point for profiling.
+
+## Feature Integration Analysis
+
+---
+
+## 1. Windows MSVC Support
+
+### Modified Components
+
+| Package | File | Change Type | Description |
+|---------|------|-------------|-------------|
+| `internal/build` | `toolchain.go` | **MAJOR** | Extract interface, add MSVC implementation |
+| `internal/build` | `platform.go` | **MINOR** | Add "windows-amd64" to supported platforms |
+| `internal/build` | `flags.go` | **MAJOR** | Add MSVC flag mappings (`-O2` -> `/O2`) |
+| `internal/build` | `compiler.go` | **MODERATE** | Handle MSVC-specific dependency output (`/showIncludes`) |
+| `internal/build` | `linker.go` | **MAJOR** | MSVC uses `link.exe` and `lib.exe`, different flags |
+| `internal/build` | `executor.go` | **MINOR** | Windows process group handling differs |
+| `internal/config` | `schema.cue` | **MINOR** | Add "msvc" to toolchain.compiler options |
+| `internal/generate` | `ninja.go` | **MODERATE** | Add MSVC rules with `/` flags |
+
+### New Components
+
+| Package | File | Purpose |
+|---------|------|---------|
+| `internal/build` | `toolchain_unix.go` | Build-tagged GCC/Clang discovery |
+| `internal/build` | `toolchain_windows.go` | Build-tagged MSVC discovery |
+| `internal/build` | `toolchain_msvc.go` | MSVC-specific toolchain implementation |
+| `internal/build` | `flags_msvc.go` | MSVC semantic flag translation |
+| `internal/build` | `executor_windows.go` | Windows-specific process handling |
+
+### Architecture Pattern: Toolchain Interface
 
 ```go
-// internal/graph/node.go
-type NodeKind int
+// toolchain.go - New interface abstraction
+type ToolchainDriver interface {
+    // Tool paths
+    CC() string      // C compiler (gcc, clang, cl.exe)
+    CXX() string     // C++ compiler (g++, clang++, cl.exe)
+    Archiver() string // Static lib (ar, lib.exe)
+    Linker() string   // Link tool (ld via compiler, link.exe)
 
-const (
-    NodeFile NodeKind = iota    // Source/object/output files
-    NodeCommand                  // Compile/link commands
-)
+    // Flag translation
+    CompilerFlags(config Config) []string
+    LinkerFlags(config Config) []string
 
-type Node struct {
-    ID       string
-    Kind     NodeKind
-    Path     string          // For file nodes
-    Command  *BuildCommand   // For command nodes
-    Inputs   []*Node         // Edges in
-    Outputs  []*Node         // Edges out
-}
+    // Dependency output format
+    DependencyFlags(source, depFile string) []string
+    ParseDependencies(output []byte) ([]string, error)
 
-// Invariant: A file node has at most ONE input edge (one command produces it)
-// Invariant: Command nodes always have file inputs and file outputs
-```
+    // Platform characteristics
+    ObjectExtension() string     // ".o" or ".obj"
+    ExecutableExtension() string // "" or ".exe"
+    StaticLibPrefix() string     // "lib" or ""
+    StaticLibExtension() string  // ".a" or ".lib"
+    SharedLibExtension() string  // ".so", ".dylib", ".dll"
 
-**Source:** [The Performance of Open Source Software - Ninja](https://aosabook.org/en/posa/ninja.html)
-
-### Pattern 2: Path Canonicalization / Interning (from Ninja)
-
-**What:** Map every file path to a unique in-memory object early, use pointer comparison
-**When:** Graph construction, any path comparison
-**Why:** Eliminates string comparison overhead, ensures same file always maps to same node
-
-```go
-// internal/graph/intern.go
-type PathInterner struct {
-    mu    sync.RWMutex
-    paths map[string]*Node
-}
-
-func (p *PathInterner) Intern(path string) *Node {
-    canonical := filepath.Clean(path)  // Canonicalize: foo/../bar.h → bar.h
-
-    p.mu.RLock()
-    if node, ok := p.paths[canonical]; ok {
-        p.mu.RUnlock()
-        return node
-    }
-    p.mu.RUnlock()
-
-    p.mu.Lock()
-    defer p.mu.Unlock()
-    // Double-check after acquiring write lock
-    if node, ok := p.paths[canonical]; ok {
-        return node
-    }
-    node := &Node{Path: canonical, Kind: NodeFile}
-    p.paths[canonical] = node
-    return node
+    // Identity for cache keys
+    Identity() (CompilerIdentity, error)
 }
 ```
 
-**Source:** [The Performance of Open Source Software - Ninja](https://aosabook.org/en/posa/ninja.html)
+### MSVC Flag Mapping
 
-### Pattern 3: Two-Phase Build (from CMake/Meson)
+| Semantic | GCC/Clang | MSVC |
+|----------|-----------|------|
+| `optimize: "none"` | `-O0` | `/Od` |
+| `optimize: "size"` | `-Os` | `/O1` |
+| `optimize: "fast"` | `-O2` | `/O2` |
+| `optimize: "aggressive"` | `-O3` | `/Ox` |
+| `debug: "full"` | `-g` | `/Zi` |
+| `debug: "minimal"` | `-g1` | `/Z7` |
+| `warnings: "default"` | `-Wall` | `/W3` |
+| `warnings: "strict"` | `-Wall -Wextra` | `/W4` |
+| `warnings: "pedantic"` | `-Wall -Wextra -Wpedantic` | `/W4 /permissive-` |
+| `warningsAsErrors: true` | `-Werror` | `/WX` |
 
-**What:** Separate configuration/analysis from execution
-**When:** Always - this separation is fundamental
-**Why:** Allows generating different backends, enables caching of analysis, supports IDE integration
-
-```
-Phase 1: Configure
-  Input:  CUE files, source files
-  Output: In-memory configuration model
-  Work:   Parse CUE, validate schema, detect toolchains
-
-Phase 2: Generate/Execute
-  Input:  Configuration model
-  Output: Build artifacts OR backend files (Ninja/Make)
-  Work:   Build DAG, topological sort, run/generate
-```
+### MSVC Detection Strategy
 
 ```go
-// cmd/clue/main.go (simplified)
-func main() {
-    // Phase 1: Configure
-    config, err := config.Load("build.cue")
-    graph := deps.BuildGraph(config)
-
-    // Phase 2: Execute (or generate)
-    if *generateNinja {
-        backend.GenerateNinja(graph, "build.ninja")
-    } else {
-        exec.Run(graph, *jobs)
+// toolchain_windows.go
+func DiscoverMSVC() (*MSVCToolchain, error) {
+    // 1. Check VCINSTALLDIR environment variable (set by vcvarsall.bat)
+    if vcdir := os.Getenv("VCINSTALLDIR"); vcdir != "" {
+        return findMSVCInVC(vcdir)
     }
+
+    // 2. Use vswhere.exe to locate Visual Studio
+    // Located at: %ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
+    vswhereOutput, err := exec.Command("vswhere.exe",
+        "-latest", "-products", "*",
+        "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "-property", "installationPath").Output()
+    if err == nil {
+        return findMSVCInInstall(strings.TrimSpace(string(vswhereOutput)))
+    }
+
+    // 3. Check well-known paths
+    return findMSVCInDefaultPaths()
 }
 ```
 
-**Source:** [The Architecture of Open Source Applications - CMake](https://aosabook.org/en/v1/cmake.html)
+### Data Flow Changes (MSVC)
 
-### Pattern 4: Topological Sort with Parallel Execution (from Buck/Bazel)
+**Before:**
+```
+Config -> BuildCompilerFlags() -> [-O2, -Wall, ...] -> exec(clang, args)
+```
 
-**What:** Use Kahn's algorithm to determine build order, execute independent tasks in parallel
-**When:** Build execution
-**Why:** Maximizes parallelism while respecting dependencies
+**After:**
+```
+Config -> toolchain.CompilerFlags() ->
+    GCC/Clang: [-O2, -Wall, ...]
+    MSVC:      [/O2, /W3, ...]
+-> exec(toolchain.CC(), args)
+```
+
+---
+
+## 2. Watch Mode
+
+### Modified Components
+
+| Package | File | Change Type | Description |
+|---------|------|-------------|-------------|
+| `main.go` | | **MINOR** | Add `watch` command |
+| `internal/build` | `builder.go` | **NONE** | Reused as-is |
+
+### New Components
+
+| Package | File | Purpose |
+|---------|------|---------|
+| `internal/watch` | `watcher.go` | fsnotify wrapper with debouncing |
+| `internal/watch` | `rebuild.go` | Incremental rebuild orchestration |
+| `internal/watch` | `filter.go` | Source file filtering (.c, .cpp, .h, etc.) |
+
+### Architecture Pattern: Watch Orchestrator
 
 ```go
-// internal/graph/topo.go
-func (g *Graph) TopologicalLevels() [][]Node {
-    // Returns nodes grouped by "level" - all nodes at same level can run in parallel
-    inDegree := make(map[*Node]int)
-    for _, node := range g.Nodes {
-        inDegree[node] = len(node.Inputs)
-    }
+// internal/watch/watcher.go
+type Watcher struct {
+    fsWatcher   *fsnotify.Watcher
+    config      *config.Config
+    builder     *build.Builder
+    opts        build.Options
 
-    var levels [][]Node
-    var currentLevel []*Node
+    // Debouncing
+    pending     map[string]time.Time
+    debounce    time.Duration  // Default 100ms
 
-    // Start with nodes that have no dependencies
-    for node, degree := range inDegree {
-        if degree == 0 {
-            currentLevel = append(currentLevel, node)
+    // State
+    lastBuild   time.Time
+    building    atomic.Bool
+}
+
+func (w *Watcher) Run(ctx context.Context) error {
+    // 1. Add watches for all source directories
+    for _, target := range w.config.Targets {
+        for _, source := range target.Sources {
+            dir := filepath.Dir(source)
+            w.fsWatcher.Add(dir)
+        }
+        for _, include := range target.Includes {
+            w.fsWatcher.Add(include)
         }
     }
 
-    for len(currentLevel) > 0 {
-        levels = append(levels, currentLevel)
-        var nextLevel []*Node
+    // 2. Event loop with debouncing
+    for {
+        select {
+        case event := <-w.fsWatcher.Events:
+            if w.isRelevant(event) {
+                w.pending[event.Name] = time.Now()
+                w.scheduleRebuild()
+            }
+        case err := <-w.fsWatcher.Errors:
+            // Log but continue
+        case <-ctx.Done():
+            return ctx.Err()
+        }
+    }
+}
+```
 
-        for _, node := range currentLevel {
-            for _, dependent := range node.Outputs {
-                inDegree[dependent]--
-                if inDegree[dependent] == 0 {
-                    nextLevel = append(nextLevel, dependent)
+### fsnotify Integration
+
+**Library:** `github.com/fsnotify/fsnotify` (cross-platform, widely used)
+
+**Key Considerations:**
+1. **Debouncing:** Editors save files in multiple steps; wait 100ms for events to settle
+2. **Recursive watching:** fsnotify doesn't support recursive watching; must add each directory
+3. **Event filtering:** Ignore `.o`, `.d` files in build directory
+4. **Platform limits:** inotify has watch limits (~65K default on Linux)
+
+### Data Flow (Watch Mode)
+
+```
+User runs: clue watch
+
+1. Load config, create Builder
+2. Initial build (full)
+3. Add watches for source directories
+4. Event loop:
+   - File change detected
+   - Debounce (100ms window)
+   - Determine affected targets
+   - Incremental rebuild
+   - Report results
+   - Continue watching
+```
+
+### Incremental Rebuild Strategy
+
+```go
+// internal/watch/rebuild.go
+func (w *Watcher) affectedTargets(changedFiles []string) []string {
+    affected := make(map[string]bool)
+
+    for _, file := range changedFiles {
+        // Check each target's sources and includes
+        for name, target := range w.config.Targets {
+            if containsFile(target.Sources, file) ||
+               containsInIncludePath(target.Includes, file) {
+                affected[name] = true
+                // Also add dependents
+                for _, dep := range w.config.Targets {
+                    if slices.Contains(dep.Depends, name) {
+                        affected[dep.Name] = true
+                    }
                 }
             }
         }
-        currentLevel = nextLevel
     }
 
-    return levels
+    return maps.Keys(affected)
 }
 ```
 
-**Source:** [Buck: What Makes Buck so Fast?](https://buck.build/concept/what_makes_buck_so_fast.html)
+---
 
-### Pattern 5: Incremental Build via Dependency Logs (from Ninja)
+## 3. Build Profiling
 
-**What:** Persist dependency information (headers discovered during compile) for incremental builds
-**When:** After successful builds, before subsequent builds
-**Why:** Enables accurate incremental builds without re-scanning all sources
+### Modified Components
 
-```go
-// internal/plan/deps_log.go
-type DepsLog struct {
-    // Map from output file to its discovered dependencies
-    // These are header dependencies discovered by the compiler (-MD flag)
-    Entries map[string]DepsEntry
-}
+| Package | File | Change Type | Description |
+|---------|------|-------------|-------------|
+| `main.go` | | **MINOR** | Add `--profile` flag |
+| `internal/build` | `builder.go` | **MODERATE** | Add profiling hooks |
+| `internal/build` | `parallel.go` | **MINOR** | Capture per-compilation timing |
+| `internal/build` | `progress.go` | **MINOR** | Extend with profiling data collection |
 
-type DepsEntry struct {
-    Output   string
-    Deps     []string  // Discovered header files
-    MTime    int64     // Modification time when built
-    CmdHash  uint64    // Hash of command line used
-}
+### New Components
 
-// Load deps log at start of build
-// After each successful compile, record discovered deps
-// Use deps to determine what needs rebuilding
-```
+| Package | File | Purpose |
+|---------|------|---------|
+| `internal/build` | `profiler.go` | Timing collection and aggregation |
+| `internal/build` | `profile_output.go` | JSON and Chrome Trace output |
 
-**Ninja optimization:** Store deps as integer IDs rather than full paths, use sequential integer identifiers. This reduced Ninja's deps log from 200MB to 2MB on Chrome.
-
-**Source:** [The Performance of Open Source Software - Ninja](https://aosabook.org/en/posa/ninja.html)
-
-### Pattern 6: Work-Stealing Parallel Executor
-
-**What:** Worker threads pull tasks from a shared queue, steal from other workers when idle
-**When:** Build execution
-**Why:** Maximizes CPU utilization, handles variable task durations gracefully
+### Architecture Pattern: Profiler
 
 ```go
-// internal/exec/pool.go
-type WorkerPool struct {
-    workers   int
-    taskQueue chan *Task
-    results   chan *Result
-    wg        sync.WaitGroup
+// internal/build/profiler.go
+type Profiler struct {
+    enabled     bool
+    startTime   time.Time
+    events      []ProfileEvent
+    mu          sync.Mutex
 }
 
-func (p *WorkerPool) Run(tasks []*Task) []*Result {
-    // Start workers
-    for i := 0; i < p.workers; i++ {
-        p.wg.Add(1)
-        go p.worker()
+type ProfileEvent struct {
+    Name      string        `json:"name"`
+    Category  string        `json:"cat"`   // "compile", "link", "cache"
+    Phase     string        `json:"ph"`    // "B"/"E" for begin/end, "X" for complete
+    Timestamp int64         `json:"ts"`    // Microseconds from start
+    Duration  int64         `json:"dur"`   // For "X" phase
+    PID       int           `json:"pid"`
+    TID       int           `json:"tid"`   // Goroutine ID for parallel
+    Args      map[string]any `json:"args,omitempty"`
+}
+
+func (p *Profiler) BeginPhase(name, category string) func() {
+    if !p.enabled {
+        return func() {}
     }
-
-    // Feed tasks as dependencies are satisfied
-    go func() {
-        ready := filterReady(tasks)
-        for _, task := range ready {
-            p.taskQueue <- task
-        }
-        // As tasks complete, add newly-ready tasks
-    }()
-
-    // Collect results
-    var results []*Result
-    for result := range p.results {
-        results = append(results, result)
+    start := time.Now()
+    return func() {
+        p.recordEvent(ProfileEvent{
+            Name:      name,
+            Category:  category,
+            Phase:     "X",
+            Timestamp: p.usFromStart(start),
+            Duration:  time.Since(start).Microseconds(),
+        })
     }
-    return results
 }
 ```
 
-## Data Flow
+### Output Formats
 
-### Flow 1: Configuration Loading
-
+**1. Summary (default with --profile):**
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│ build.cue   │────▶│ CUE Loader  │────▶│ cue.Value   │────▶│ Validator   │
-│ (user file) │     │ (cuelang)   │     │ (parsed)    │     │ (vs schema) │
-└─────────────┘     └─────────────┘     └─────────────┘     └──────┬──────┘
-                                                                    │
-                                            ┌───────────────────────┘
-                                            ▼
-                    ┌─────────────┐     ┌─────────────┐
-                    │ Go Structs  │◀────│ Decode      │
-                    │ (Targets)   │     │ (cue→Go)    │
-                    └─────────────┘     └─────────────┘
+Build Profile Summary
+=====================
+Total:     2.45s
+Compile:   1.82s (74%)
+  foo.cpp: 0.45s
+  bar.cpp: 0.38s
+  ...
+Link:      0.51s (21%)
+Cache:     0.12s (5%)
+  Hits: 15, Misses: 8
 ```
 
-**Key step:** CUE validation happens BEFORE Go decoding. Invalid configs never reach Go code.
-
-### Flow 2: Dependency Graph Construction
-
-```
-┌─────────────┐     ┌─────────────────┐
-│ Config      │────▶│ Declared deps   │───┐
-│ (Targets)   │     │ (from CUE)      │   │
-└─────────────┘     └─────────────────┘   │
-                                          │     ┌──────────────────┐
-                                          ├────▶│  Merge & Build   │
-┌─────────────┐     ┌─────────────────┐   │     │  Dependency      │
-│ Source      │────▶│ Scanned deps    │───┘     │  Graph (DAG)     │
-│ Files       │     │ (#include/      │         └──────────────────┘
-└─────────────┘     │  import)        │
-                    └─────────────────┘
-
-External deps resolved in parallel:
-┌─────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ External    │────▶│ Git Clone /     │────▶│ Add to Graph    │
-│ Dep Specs   │     │ Tarball / Vendor│     │ as Available    │
-└─────────────┘     └─────────────────┘     └─────────────────┘
-```
-
-### Flow 3: Build Execution
-
-```
-┌─────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ Dependency  │────▶│ Topological     │────▶│ Task Levels     │
-│ Graph       │     │ Sort            │     │ (parallelizable)│
-└─────────────┘     └─────────────────┘     └────────┬────────┘
-                                                     │
-                    ┌────────────────────────────────┘
-                    ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     PARALLEL EXECUTOR                         │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐         │
-│  │Worker 1 │  │Worker 2 │  │Worker 3 │  │Worker N │   ...   │
-│  │ g++ ... │  │ g++ ... │  │ ar ...  │  │ ld ...  │         │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────┘         │
-└──────────────────────────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────────────────────┐
-│  OUTPUT BUFFER (serial display, buffered per-task output)   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Flow 4: Watch Mode / Incremental Rebuild
-
-```
-┌─────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ fsnotify    │────▶│ Event           │────▶│ Debounce        │
-│ Watcher     │     │ (file changed)  │     │ (100-500ms)     │
-└─────────────┘     └─────────────────┘     └────────┬────────┘
-                                                     │
-                    ┌────────────────────────────────┘
-                    ▼
-┌─────────────────────────────────────────────────────────────┐
-│  INCREMENTAL REBUILD                                        │
-│  1. Find changed files in graph                             │
-│  2. Mark all dependents as stale (walk forward in DAG)      │
-│  3. Rebuild only stale nodes                                │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Source Globbing
-
-**What:** Using wildcards like `*.cpp` to discover sources
-**Why bad:** Build system can't detect removed files without re-globbing, defeats caching
-**Instead:** Require explicit source lists in configuration (like Meson, Ninja)
-
-**How Clue should handle:** CUE config must list sources explicitly. Can provide a helper command `clue sources` to generate source lists.
-
-### Anti-Pattern 2: In-Source Builds
-
-**What:** Writing build artifacts into source tree
-**Why bad:** Pollutes source tree, confuses VCS, makes clean builds harder
-**Instead:** Enforce out-of-source builds (separate build directory)
-
-**How Clue should handle:** Always use a dedicated build directory (e.g., `build/` or `.clue/build/`).
-
-### Anti-Pattern 3: Cycles in Dependency Graph
-
-**What:** Allowing A depends on B depends on A
-**Why bad:** Makes build ordering impossible, indicates architectural problems
-**Instead:** Detect cycles during graph construction, fail with clear error
-
-```go
-// internal/graph/dag.go
-func (g *Graph) DetectCycle() ([]Node, bool) {
-    // Use DFS with coloring: white (unvisited), gray (in progress), black (done)
-    // If we hit a gray node, we found a cycle
-    // Return the cycle path for error reporting
+**2. JSON (--profile=json):**
+```json
+{
+  "total_ms": 2450,
+  "phases": {
+    "compile": {"duration_ms": 1820, "files": 23, "cache_hits": 15},
+    "link": {"duration_ms": 510, "targets": 3},
+    "cache": {"duration_ms": 120, "operations": 46}
+  },
+  "slowest_files": [
+    {"path": "foo.cpp", "duration_ms": 450},
+    {"path": "bar.cpp", "duration_ms": 380}
+  ]
 }
 ```
 
-### Anti-Pattern 4: Global Mutable State
-
-**What:** Using package-level variables to share state between components
-**Why bad:** Makes testing hard, creates hidden dependencies, causes race conditions
-**Instead:** Explicit dependency injection, pass context/config through call chain
-
-### Anti-Pattern 5: Blocking on External Dependencies
-
-**What:** Fetching external deps synchronously in main build path
-**Why bad:** Slow builds, no parallelism, poor UX
-**Instead:** Fetch external deps in parallel, cache aggressively, fail fast
-
-## Build Order Implications for Clue Development
-
-Based on the component dependencies, the recommended development order:
-
-```
-Phase 1: Foundation
-├── internal/config/           # CUE loading, schema, model
-└── internal/graph/            # DAG, nodes, edges, topo sort
-
-Phase 2: Analysis
-├── internal/scanner/          # C++ source scanning
-├── internal/deps/             # Dependency resolution
-└── internal/toolchain/        # Compiler detection
-
-Phase 3: Execution
-├── internal/plan/             # Build planning
-├── internal/exec/             # Parallel executor
-└── cmd/clue/                  # CLI
-
-Phase 4: Extensions
-├── internal/backend/          # Ninja/Make generation
-├── internal/watch/            # File watching
-└── pkg/cue/schema/           # Public schemas
+**3. Chrome Trace (--profile=trace):**
+```json
+[
+  {"name": "foo.cpp", "cat": "compile", "ph": "X", "ts": 0, "dur": 450000, "pid": 1, "tid": 1},
+  {"name": "bar.cpp", "cat": "compile", "ph": "X", "ts": 50000, "dur": 380000, "pid": 1, "tid": 2}
+]
 ```
 
-**Rationale:**
-1. Config and graph are foundational - everything else depends on them
-2. Scanner and deps need graph to add nodes/edges
-3. Execution needs complete graph
-4. Backends and watch are optional extensions
+The Chrome Trace format can be visualized in `chrome://tracing` or Perfetto.
 
-## Technology Recommendations
+### Data Flow (Profiling)
 
-| Component | Recommended Technology | Rationale |
-|-----------|----------------------|-----------|
-| Config parsing | `cuelang.org/go` | Project requirement, excellent Go integration |
-| Dependency graph | Custom implementation | Build systems need specialized DAG semantics |
-| Source scanning | Regex + compiler flags | `-MMD` for gcc/clang generates deps; regex fallback for quick scanning |
-| Parallel execution | `sync.WaitGroup` + channels | Standard Go concurrency; simple, proven |
-| File watching | `github.com/fsnotify/fsnotify` | Cross-platform, widely used, well-maintained |
-| CLI | `github.com/spf13/cobra` | Standard for Go CLIs, good UX |
-| Ninja backend | Text templates | Ninja format is simple, no library needed |
+```
+Build starts
+  |
+  v
+Profiler.Begin("build")
+  |
+  +-> For each target:
+  |     Profiler.Begin("compile:target")
+  |       +-> For each source (parallel):
+  |       |     Profiler.Begin("compile:source")
+  |       |       -> Compilation
+  |       |     Profiler.End()
+  |       Profiler.End()
+  |     Profiler.Begin("link:target")
+  |       -> Linking
+  |     Profiler.End()
+  |
+Profiler.End()
+  |
+  v
+Output profile (summary/JSON/trace)
+```
+
+---
+
+## Cross-Platform Considerations
+
+### Build Tags Strategy
+
+```
+internal/build/
+  toolchain.go          // Interface definition (all platforms)
+  toolchain_unix.go     // +build linux darwin
+  toolchain_windows.go  // +build windows
+  executor.go           // Common code
+  executor_unix.go      // +build linux darwin (process groups)
+  executor_windows.go   // +build windows (job objects)
+```
+
+### Windows-Specific Issues
+
+| Issue | Impact | Mitigation |
+|-------|--------|------------|
+| Long paths (>260 chars) | Build fails in deep directories | Use `\\?\` prefix via `filepath.EvalSymlinks` |
+| File locking | Can't delete .obj during rebuild | Use `gofrs/flock` for cache, handle EBUSY |
+| Case-insensitive FS | Include path mismatches | Normalize paths with `filepath.Clean` |
+| Process groups | Signal handling differs | Use Windows Job Objects |
+| Line endings | Source file hashing inconsistent | Normalize to LF before hashing |
+
+### Maintaining Linux/macOS Compatibility
+
+1. **All new code uses build tags** - Platform-specific code isolated
+2. **CI matrix includes all platforms** - Linux, macOS, Windows
+3. **Interface-based abstraction** - Toolchain interface hides platform differences
+4. **Feature flags** - MSVC features only available on Windows
+
+---
+
+## Suggested Phase Order
+
+Based on dependency analysis and risk assessment:
+
+### Phase 1: Toolchain Abstraction (Foundation)
+
+**Rationale:** MSVC support requires refactoring the toolchain abstraction. This is the foundation for everything else and has the highest risk of breaking existing functionality.
+
+**Components:**
+1. Extract `ToolchainDriver` interface
+2. Implement `GCCToolchain` and `ClangToolchain` (existing behavior)
+3. Add platform detection for Windows
+4. Update `flags.go` to use interface
+
+**Risk:** HIGH - Core abstraction change
+**Dependencies:** None (enables MSVC)
+
+### Phase 2: Windows Build Support (Platform)
+
+**Rationale:** With toolchain abstraction in place, MSVC implementation can proceed. Must be done before watch mode or profiling to ensure cross-platform testing.
+
+**Components:**
+1. `MSVCToolchain` implementation
+2. MSVC flag mappings
+3. Windows executor adjustments
+4. Ninja MSVC rules
+
+**Risk:** MEDIUM - Windows-specific, isolated
+**Dependencies:** Phase 1 (Toolchain Abstraction)
+
+### Phase 3: Build Profiling (Enhancement)
+
+**Rationale:** Profiling is independent of watch mode and provides immediate value for debugging builds. Lower complexity than watch mode.
+
+**Components:**
+1. `Profiler` type with event collection
+2. Integration with `Builder` and `ParallelCompiler`
+3. Output formats (summary, JSON, trace)
+4. CLI flag (`--profile`)
+
+**Risk:** LOW - Additive, no existing code changes
+**Dependencies:** None (can parallel with Phase 2)
+
+### Phase 4: Watch Mode (Feature)
+
+**Rationale:** Watch mode is the most complex new feature. Best implemented after profiling is available for debugging.
+
+**Components:**
+1. `internal/watch` package
+2. fsnotify integration with debouncing
+3. Incremental rebuild logic
+4. CLI command (`clue watch`)
+
+**Risk:** MEDIUM - New subsystem, edge cases with file events
+**Dependencies:** None (can parallel with Phase 2-3)
+
+---
+
+## Component Dependency Diagram
+
+```
+                    +-------------------+
+                    |     main.go       |
+                    |  (CLI commands)   |
+                    +-------------------+
+                           |
+        +------------------+------------------+
+        |                  |                  |
+        v                  v                  v
++---------------+  +---------------+  +---------------+
+| clue build    |  | clue watch    |  | --profile     |
++---------------+  +---------------+  +---------------+
+        |                  |                  |
+        v                  v                  v
++---------------+  +---------------+  +---------------+
+| build.Builder |  | watch.Watcher |  | build.Profiler|
++---------------+  +---------------+  +---------------+
+        |                  |
+        +--------+---------+
+                 |
+                 v
+        +-------------------+
+        | ToolchainDriver   |  <-- NEW INTERFACE
+        +-------------------+
+               |
+    +----------+----------+
+    |          |          |
+    v          v          v
++-------+  +-------+  +------+
+| GCC   |  | Clang |  | MSVC |  <-- NEW
++-------+  +-------+  +------+
+```
+
+---
+
+## Testing Strategy
+
+### MSVC Testing
+
+1. **CI Matrix:** Add Windows runner with MSVC
+2. **vcvarsall.bat:** Run before tests to set environment
+3. **Mock toolchain:** Unit tests use interface mocking
+4. **Integration:** Real MSVC builds on Windows CI only
+
+### Watch Mode Testing
+
+1. **Unit tests:** Mock fsnotify events
+2. **Integration:** Real file changes with short timeout
+3. **Platform tests:** Linux inotify, macOS FSEvents, Windows ReadDirectoryChanges
+
+### Profiling Testing
+
+1. **Unit tests:** Verify timing collection
+2. **Format tests:** Validate JSON/trace output
+3. **Integration:** Full build with profiling enabled
+
+---
+
+## Risk Assessment
+
+| Feature | Risk | Mitigation |
+|---------|------|------------|
+| Toolchain Interface | Breaking existing builds | Extensive test coverage before merge |
+| MSVC Flag Mapping | Incorrect translations | Side-by-side comparison with CMake/Meson |
+| Windows Long Paths | Unexpected failures | Use `\\?\` prefix, test deep directories |
+| fsnotify Limits | Too many watches | Implement directory batching, document limits |
+| Watch Debouncing | Missed or duplicate builds | Configurable debounce, thorough edge case testing |
+| Profile Overhead | Slowdown when profiling | Conditional instrumentation, benchmark overhead |
+
+---
 
 ## Sources
 
-### Authoritative (HIGH confidence)
-- [The Performance of Open Source Applications - Ninja](https://aosabook.org/en/posa/ninja.html) - Ninja internals, bipartite graph, performance optimizations
-- [The Architecture of Open Source Applications - CMake](https://aosabook.org/en/v1/cmake.html) - Two-phase architecture, parser design
-- [Bazel Dependencies Documentation](https://bazel.build/concepts/dependencies) - DAG concepts, dependency graph types
-- [Ninja Manual](https://ninja-build.org/manual.html) - Build file format, dependency handling
-- [CMake C++ Modules Documentation](https://cmake.org/cmake/help/latest/manual/cmake-cxxmodules.7.html) - P1689R5 format for module deps
-- [CUE Go Integration](https://cuelang.org/docs/integration/go/) - CUE loading and decoding in Go
+### fsnotify / Watch Mode
+- [fsnotify/fsnotify GitHub](https://github.com/fsnotify/fsnotify) - Cross-platform filesystem notifications
+- [fsnotify Go Package](https://pkg.go.dev/github.com/fsnotify/fsnotify) - API documentation
 
-### Verified (MEDIUM confidence)
-- [Meson Build System Overview](https://mesonbuild.com/Overview.html) - Two-phase build, backend generation
-- [Buck: What Makes Buck so Fast?](https://buck.build/concept/what_makes_buck_so_fast.html) - Parallel execution, DAG traversal
-- [Go Project Layout](https://github.com/golang-standards/project-layout) - Go project structure conventions
-- [fsnotify GitHub](https://github.com/fsnotify/fsnotify) - File watching limitations and best practices
-- [Fuchsia - How Ninja Works](https://fuchsia.dev/fuchsia-src/development/build/ninja_how) - Ninja dependency handling
+### Profiling
+- [Go runtime/pprof](https://pkg.go.dev/runtime/pprof) - Built-in profiling
+- [Go Diagnostics](https://go.dev/doc/diagnostics) - Official profiling guide
+- [Chrome Trace Format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU) - Trace event format
 
-### Supporting (LOW confidence - WebSearch only)
-- [Gradle Incremental Build](https://docs.gradle.org/current/userguide/incremental_build.html) - Change detection patterns
-- [Pluto Build System](https://pluto-build.github.io/) - Incremental build theory
+### MSVC
+- [MSVC Compiler Options](https://learn.microsoft.com/en-us/cpp/build/reference/compiler-options?view=msvc-170) - Microsoft documentation
+- [Clang MSVC Compatibility](https://clang.llvm.org/docs/MSVCCompatibility.html) - Clang's MSVC support
+- [Visual Studio Build Tools](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170) - Command-line usage
+
+### File Locking
+- [gofrs/flock](https://github.com/gofrs/flock) - Cross-platform file locking
+- [Go internal filelock](https://pkg.go.dev/cmd/go/internal/lockedfile/internal/filelock) - Go's internal implementation

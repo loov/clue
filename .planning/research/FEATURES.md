@@ -1,7 +1,7 @@
 # Feature Research: C/C++ Build Systems
 
 **Domain:** C/C++ build systems
-**Researched:** 2026-01-22
+**Researched:** 2026-01-22 (v0.1.0), Updated 2026-01-24 (v0.2.0 additions)
 **Confidence:** HIGH (based on official documentation, multiple authoritative sources)
 
 ## Executive Summary
@@ -10,7 +10,188 @@ This research surveys the feature landscape of modern C/C++ build systems (CMake
 
 ---
 
-## Feature Landscape
+## v0.2.0 Feature Additions
+
+This section covers features planned for v0.2.0: Windows MSVC support, watch mode, and build profiling.
+
+### Windows MSVC Support
+
+#### Table Stakes
+
+| Feature | Description | Complexity | Notes |
+|---------|-------------|------------|-------|
+| **Visual Studio detection** | Use vswhere.exe to locate VS installations and vcvarsall.bat | MEDIUM | vswhere is at `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe`; must parse JSON output |
+| **Environment setup** | Execute vcvarsall.bat to set PATH, INCLUDE, LIB environment variables | MEDIUM | MSVC requires ~20 environment variables; cannot work without vcvars setup |
+| **cl.exe compilation** | Invoke cl.exe with MSVC-style flags (/c, /Fo, /I, /D, etc.) | MEDIUM | Different flag syntax from GCC: forward slash prefixes, colon separators |
+| **link.exe linking** | Invoke link.exe for executables and DLLs with /OUT, /LIBPATH, etc. | MEDIUM | Separate linker binary unlike GCC/Clang which use same binary |
+| **lib.exe archiving** | Use lib.exe for static libraries instead of ar | LOW | Simpler than linking; /OUT flag for output |
+| **Debug symbols (/Zi, /Z7)** | Generate PDB files for debugging | LOW | /Zi creates separate .pdb, /Z7 embeds in .obj |
+| **Optimization flags** | Map debug/release to /Od and /O2 respectively | LOW | Direct mapping from existing semantic flags |
+| **Warning levels (/W3, /W4, /Wall)** | Configure warning strictness | LOW | /W4 is roughly equivalent to -Wall -Wextra |
+| **Response files (@file)** | Support long command lines via response files | MEDIUM | Windows command line limit is 32KB; response files essential |
+| **windows-amd64 platform** | Add windows-amd64 to supported platforms | LOW | Extend existing Platform struct |
+
+#### Differentiators
+
+| Feature | Description | Complexity | Notes |
+|---------|-------------|------------|-------|
+| **Automatic vcvars detection** | Find and setup MSVC environment without manual configuration | HIGH | Parse vswhere JSON, locate vcvarsall.bat, capture environment |
+| **Multi-version support** | Support VS 2019, 2022, and Build Tools editions | MEDIUM | vswhere can filter by version; `-latest` flag gets newest |
+| **Cross-architecture (x86/x64/ARM64)** | Support x86_amd64, amd64_arm64 cross-compilation | HIGH | Different vcvars bat files per architecture |
+| **Incremental linking** | Enable MSVC incremental linking for faster debug builds | LOW | /INCREMENTAL flag to link.exe |
+| **Parallel compilation (/MP)** | Enable MSVC's built-in parallel compilation | LOW | /MP flag enables per-cl.exe parallelism |
+| **PDB path control** | Allow customizing PDB output location | LOW | /Fd flag for compiler, /PDB for linker |
+| **Edit and Continue (/ZI)** | Support Edit and Continue debugging | LOW | Requires /ZI flag; x86/x64 only |
+
+#### Anti-features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **MSBuild integration** | Adds massive complexity; not a command-line build system | Use cl.exe/link.exe directly via command line |
+| **Project file generation (.vcxproj)** | Outside scope; Visual Studio specific | Already have Ninja generation; IDE users can use compile_commands.json |
+| **Windows SDK version management** | Complex versioning matrix; rarely needed | Use vcvarsall defaults; document manual override |
+| **ATL/MFC support** | Niche; adds significant complexity | Document as unsupported; users can add raw flags |
+| **Windows Store/UWP builds** | Different target platform; niche use case | Focus on desktop applications only |
+
+---
+
+### Watch Mode
+
+#### Table Stakes
+
+| Feature | Description | Complexity | Notes |
+|---------|-------------|------------|-------|
+| **Directory watching** | Monitor source directories for file changes | LOW | Use fsnotify; watch directories not individual files |
+| **File change detection** | Detect Create, Write, Remove, Rename events | LOW | fsnotify provides these event types directly |
+| **Event debouncing** | Coalesce rapid file changes (e.g., editor save) | MEDIUM | 100-200ms debounce window typical; prevents duplicate builds |
+| **Incremental rebuild trigger** | Trigger rebuild only for changed files | LOW | Existing incremental build infrastructure handles this |
+| **Graceful shutdown** | Handle Ctrl+C to stop watching cleanly | LOW | Existing signal handling can be extended |
+| **Initial build** | Run full build before starting watch | LOW | Standard build invocation |
+| **Source file filtering** | Only watch .c, .cpp, .h, .hpp files | LOW | Filter by extension in event handler |
+
+#### Differentiators
+
+| Feature | Description | Complexity | Notes |
+|---------|-------------|------------|-------|
+| **Smart dependency awareness** | Rebuild dependents when header changes | MEDIUM | Parse existing .d files to know what to rebuild |
+| **Parallel watch + build** | Continue watching while build runs | MEDIUM | Run build in goroutine; queue changes during build |
+| **Build success/failure notification** | Clear visual feedback (sound, system notification) | LOW | Optional; print colored success/failure |
+| **Watch multiple directories** | Monitor src/, include/, and dependency dirs | LOW | fsnotify supports multiple watch paths |
+| **Configurable debounce** | Allow tuning debounce interval | LOW | Flag: `--debounce 200ms` |
+| **Exclude patterns** | Ignore build/, .git/, etc. | MEDIUM | Glob pattern matching on paths |
+| **Run command on success** | Execute custom command after successful build | LOW | Similar to existing `clue run` |
+
+#### Anti-features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Recursive subdirectory watching** | fsnotify doesn't support it natively; adds complexity | Explicitly add directories to watch list |
+| **Network filesystem watching** | NFS/SMB don't support notifications | Document limitation; polling fallback too complex |
+| **Hot reload / live patching** | C++ doesn't support this well; out of scope | Just rebuild and re-run |
+| **Browser refresh integration** | Outside scope of C++ build system | Users can use external tools like browser-sync |
+
+---
+
+### Build Profiling
+
+#### Table Stakes
+
+| Feature | Description | Complexity | Notes |
+|---------|-------------|------------|-------|
+| **Per-file compilation timing** | Record duration for each source file | LOW | Already captured in CompileResult.Duration |
+| **Total build time** | Report overall build duration | LOW | Simple timer around build |
+| **Slowest files report** | List N slowest compilation units | LOW | Sort by duration; print top 10 |
+| **Timing data persistence** | Save timing data to file for analysis | LOW | Write JSON to .clue/profile.json |
+| **Human-readable summary** | Print timing summary at build end | LOW | "Build completed in 5.2s (slowest: foo.cpp 1.2s)" |
+
+#### Differentiators
+
+| Feature | Description | Complexity | Notes |
+|---------|-------------|------------|-------|
+| **Chrome Trace format** | Generate JSON viewable in chrome://tracing | MEDIUM | Standard format; good visualization |
+| **Parallelism visualization** | Show which files compiled in parallel | MEDIUM | Track start/end times per file; timeline view |
+| **Bottleneck detection** | Identify serialization points in build | HIGH | Analyze dependency graph for sequential chains |
+| **Historical comparison** | Compare current build to previous | MEDIUM | Store history; diff timing data |
+| **Compiler phase breakdown** | Frontend vs backend time (if -ftime-trace available) | HIGH | Parse Clang's JSON; integrate with our timeline |
+| **Link time tracking** | Separate compilation from linking time | LOW | Already separate operations |
+| **Cache hit/miss reporting** | Show how many files were rebuilt vs cached | LOW | Count cache lookups vs compiles |
+
+#### Anti-features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Deep compiler integration** | Requires compiler modifications; not portable | Use compiler's own profiling flags (-ftime-trace) |
+| **Template instantiation analysis** | Clang-specific; complex | Document how to use ClangBuildAnalyzer externally |
+| **Always-on profiling** | Performance overhead; clutters output | Opt-in via `--profile` flag |
+| **Network-based profiling dashboards** | Outside scope; over-engineering | JSON files work with existing tools |
+
+---
+
+### v0.2.0 Dependencies on Existing Features
+
+| New Feature | Depends On | How It Uses It |
+|-------------|------------|----------------|
+| **Windows MSVC** | `Platform` struct | Extend with windows-amd64; add IsMSVC() method |
+| **Windows MSVC** | `Toolchain` struct | New MSVC toolchain with CC=cl.exe, CXX=cl.exe, AR=lib.exe |
+| **Windows MSVC** | `Compiler` | New branch for MSVC flag generation |
+| **Windows MSVC** | `Linker` | New branch for link.exe invocation |
+| **Windows MSVC** | Response files | New feature needed for Windows command line limits |
+| **Watch Mode** | `Builder` | Trigger builds via existing Builder interface |
+| **Watch Mode** | Incremental builds | Rely on cache invalidation to rebuild only changed files |
+| **Watch Mode** | Signal handling | Extend existing SIGINT handling for clean shutdown |
+| **Watch Mode** | Dependency tracking | Use .d files to know which sources depend on changed headers |
+| **Build Profiling** | `CompileResult.Duration` | Already captures per-file timing |
+| **Build Profiling** | `ParallelCompiler` | Already tracks start/end per goroutine |
+| **Build Profiling** | Build output | Extend to include timing summary |
+
+---
+
+### v0.2.0 Feature Priority Matrix
+
+| Feature | Priority | Effort | Rationale |
+|---------|----------|--------|-----------|
+| Windows MSVC (basic) | P0 | HIGH | Stated priority; unlocks Windows development |
+| Watch mode (basic) | P1 | MEDIUM | High developer productivity gain |
+| Build profiling (basic) | P2 | LOW | Low effort, useful diagnostics |
+| MSVC auto-detection | P1 | MEDIUM | Required for good Windows DX |
+| Watch debouncing | P0 | LOW | Required for correctness |
+| Chrome trace output | P2 | MEDIUM | Nice visualization; existing format |
+| MSVC cross-arch | P3 | HIGH | Niche use case |
+| Parallelism visualization | P3 | MEDIUM | Power user feature |
+
+---
+
+### v0.2.0 Sources
+
+#### Windows MSVC
+- [MSVC Compiler Options (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/reference/compiler-options?view=msvc-170)
+- [MSVC Compiler Command-Line Syntax (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/reference/compiler-command-line-syntax?view=msvc-170)
+- [Use the Microsoft C++ Build Tools from the command line (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170)
+- [MSVC Linker Options (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/reference/linker-options?view=msvc-170)
+- [/LIBPATH Linker Option (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/reference/libpath-additional-libpath?view=msvc-170)
+- [Debug Information Format /Z7, /Zi, /ZI (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/reference/z7-zi-zi-debug-information-format?view=msvc-170)
+- [Response Files @ Syntax (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/reference/at-specify-a-compiler-response-file?view=msvc-170)
+- [vswhere GitHub Repository (Microsoft)](https://github.com/microsoft/vswhere)
+- [Tools for detecting Visual Studio instances (Microsoft Learn)](https://learn.microsoft.com/en-us/visualstudio/install/tools-for-managing-visual-studio-instances?view=visualstudio)
+
+#### Watch Mode
+- [fsnotify GitHub Repository](https://github.com/fsnotify/fsnotify)
+- [fsnotify Go Package Documentation](https://pkg.go.dev/github.com/fsnotify/fsnotify)
+- [efsw C++ File Watcher (GitHub)](https://github.com/SpartanJ/efsw)
+- [Ninja Build System Manual](https://ninja-build.org/manual.html)
+- [Debounce Watch NPM Package](https://www.npmjs.com/package/@bscotch/debounce-watch)
+
+#### Build Profiling
+- [Introducing vcperf /timetrace (Microsoft C++ Blog)](https://devblogs.microsoft.com/cppblog/introducing-vcperf-timetrace-for-cpp-build-time-analysis/)
+- [Finding build bottlenecks with C++ Build Insights (Microsoft C++ Blog)](https://devblogs.microsoft.com/cppblog/finding-build-bottlenecks-with-cpp-build-insights/)
+- [Profiling Compilation Times (Adobe Lagrange)](https://opensource.adobe.com/lagrange-docs/dev/compilation-profiling/)
+- [ClangBuildAnalyzer GitHub Repository](https://github.com/aras-p/ClangBuildAnalyzer)
+- [Clang -ftime-trace Documentation](https://clang.llvm.org/docs/analyzer/developer-docs/PerformanceInvestigation.html)
+- [time-trace: timeline / flame chart profiler for Clang (Aras' blog)](https://aras-p.info/blog/2019/01/16/time-trace-timeline-flame-chart-profiler-for-Clang/)
+
+---
+
+## Feature Landscape (v0.1.0 - Original Research)
 
 ### Table Stakes (Users Expect These)
 
