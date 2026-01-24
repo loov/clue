@@ -429,7 +429,7 @@ func TestParallelCompiler_EmptySources(t *testing.T) {
 		t.Errorf("Expected nil error for empty sources, got: %v", err)
 	}
 
-	if results != nil && len(results) != 0 {
+	if len(results) != 0 {
 		t.Errorf("Expected nil or empty results for empty sources, got: %v", results)
 	}
 }

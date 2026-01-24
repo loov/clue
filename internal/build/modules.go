@@ -25,7 +25,6 @@ type ModuleDependency struct {
 var (
 	exportModulePattern = regexp.MustCompile(`^\s*export\s+module\s+([a-zA-Z_][a-zA-Z0-9_.:]*)\s*;`)
 	modulePattern       = regexp.MustCompile(`^\s*module\s+([a-zA-Z_][a-zA-Z0-9_.:]*)\s*;`)
-	importPattern       = regexp.MustCompile(`^\s*import\s+([a-zA-Z_][a-zA-Z0-9_.:]*|<[^>]+>)\s*;`)
 	importStdPattern    = regexp.MustCompile(`^\s*import\s+(std|std\.[a-zA-Z_][a-zA-Z0-9_.]*)\s*;`)
 )
 

@@ -1,7 +1,6 @@
 package build
 
 import (
-	"reflect"
 	"testing"
 )
 
@@ -275,11 +274,6 @@ func contains(slice []string, str string) bool {
 		}
 	}
 	return false
-}
-
-// Helper to check if slices are equal (for order-sensitive tests)
-func slicesEqual(a, b []string) bool {
-	return reflect.DeepEqual(a, b)
 }
 
 // Phase 5 extended flag tests

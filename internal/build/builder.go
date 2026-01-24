@@ -290,10 +290,9 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 		// Determine if we need C++ linker
 		useCPlusPlus := b.linker.needsCPlusPlusLinker(objectFiles)
 
-		// Build library paths, libraries, and includes from dependencies
+		// Build library paths and libraries from dependencies
 		var libPaths []string
 		var libs []string
-		var includes []string
 		hasSharedLibDeps := false
 
 		for _, dep := range target.Depends {
@@ -303,7 +302,6 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 				libDir := filepath.Dir(depResult.LibPath)
 				libPaths = append(libPaths, libDir)
 				libs = append(libs, depResult.Name)
-				includes = append(includes, depResult.IncludePath)
 			} else if depTarget, isTargetDep := opts.Config.Targets[dep]; isTargetDep {
 				// Check if it's a target dependency
 				if depTarget.Type == "static_library" || depTarget.Type == "shared_library" {
