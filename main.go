@@ -198,8 +198,8 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 		return 1
 	}
 
-	// Determine build directory (default "build")
-	buildDir := "build"
+	// Determine build directory (default .build)
+	buildDir := ".build"
 
 	// Compute actual job count
 	actualJobs := jobs
@@ -282,7 +282,7 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 
 func runClean(dir, variant string, all bool, verbosity build.Verbosity) int {
 	// Determine build directory relative to project directory
-	buildDir := filepath.Join(dir, "build")
+	buildDir := filepath.Join(dir, ".build")
 
 	// If not cleaning all, need to determine variant
 	if !all {
@@ -565,7 +565,7 @@ func runRun(dir, variant string, verbosity build.Verbosity, jobs int, args []str
 	result, err := build.RunTarget(buildCtx.Ctx, build.RunOptions{
 		Config:    cfg,
 		Variant:   selectedVariant,
-		BuildDir:  "build",
+		BuildDir:  ".build",
 		Target:    targetName,
 		Args:      execArgs,
 		Verbosity: verbosity,
