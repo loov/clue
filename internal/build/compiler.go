@@ -10,13 +10,15 @@ import (
 
 // CompileOptions holds options for compiling a single source file
 type CompileOptions struct {
-	Source     string   // Source file path
-	Output     string   // Output object file path
-	Includes   []string // Include directories
-	Defines    []string // Preprocessor defines
-	Flags      Config   // Semantic flags
-	Std        string   // Language standard (e.g., "c++20", "c17")
-	TargetType string   // "executable", "static_library", "shared_library"
+	Source       string            // Source file path
+	Output       string            // Output object file path
+	Includes     []string          // Include directories
+	Defines      []string          // Preprocessor defines
+	Flags        Config            // Semantic flags
+	Std          string            // Language standard (e.g., "c++20", "c17")
+	TargetType   string            // "executable", "static_library", "shared_library"
+	ModuleOutput string            // Path to output precompiled module (.pcm) when compiling module interface
+	ModuleFiles  map[string]string // Map of module name to .pcm path for -fmodule-file flags
 }
 
 // CompileResult holds the result of a compilation
@@ -46,7 +48,7 @@ func NewCompiler(executor *Executor, toolchain *Toolchain) *Compiler {
 func (c *Compiler) isCPlusPlus(source string) bool {
 	ext := filepath.Ext(source)
 	switch ext {
-	case ".cpp", ".cc", ".cxx", ".C", ".CPP":
+	case ".cpp", ".cc", ".cxx", ".C", ".CPP", ".cppm", ".ixx", ".mpp":
 		return true
 	default:
 		return false
@@ -104,7 +106,17 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 		args = append(args, "-std="+opts.Std)
 	}
 
-	// 9. Semantic flags
+	// 9. C++20 Module flags
+	if opts.ModuleOutput != "" {
+		// Generate precompiled module interface when compiling module source
+		args = append(args, "-fmodule-output="+opts.ModuleOutput)
+	}
+	for modName, pcmPath := range opts.ModuleFiles {
+		// Reference precompiled modules when compiling consumers
+		args = append(args, fmt.Sprintf("-fmodule-file=%s=%s", modName, pcmPath))
+	}
+
+	// 10. Semantic flags
 	semanticFlags := CompilerFlagsWithToolchain(opts.Flags, c.toolchain.Name)
 	args = append(args, semanticFlags...)
 

@@ -200,6 +200,14 @@ func (p *ParallelCompiler) compileSourceWithCapture(ctx context.Context, compile
 		args = append(args, "-std="+opts.Std)
 	}
 
+	// C++20 Module flags
+	if opts.ModuleOutput != "" {
+		args = append(args, "-fmodule-output="+opts.ModuleOutput)
+	}
+	for modName, pcmPath := range opts.ModuleFiles {
+		args = append(args, fmt.Sprintf("-fmodule-file=%s=%s", modName, pcmPath))
+	}
+
 	// Semantic flags
 	semanticFlags := CompilerFlags(opts.Flags)
 	args = append(args, semanticFlags...)

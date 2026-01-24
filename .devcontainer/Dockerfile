@@ -49,6 +49,7 @@ ENV PATH=$PATH:/usr/local/go/bin
 RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
   --slave /usr/bin/clang++ clang++ /usr/bin/clang++-20
+RUN ln -s /usr/bin/clang-scan-deps-20 /usr/bin/clang-scan-deps
 
 # Ensure default node user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && \
