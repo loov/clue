@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 Phase: 9 of 12 (Toolchain Abstraction)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-01-24 - Roadmap created for v0.2.0
+Last activity: 2026-01-24 - Completed quick task 018: add fmt dependency example
 
 Progress: [--------------------] 0% (0/4 v0.2.0 phases)
 
@@ -57,6 +57,12 @@ None yet.
 ### Blockers/Concerns
 
 - **Network isolation:** Environment has no external network access. Use `go test -mod=mod` with locally cached modules.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 018 | Add fmt dependency example to testdata | 2026-01-24 | 3a09a30 | [018-add-fmt-dependency-example-to-testdata](./quick/018-add-fmt-dependency-example-to-testdata/) |
 
 ## Session Continuity
 
