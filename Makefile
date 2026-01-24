@@ -1,4 +1,4 @@
-.PHONY: lint vet staticcheck revive golangci-lint test build clean all
+.PHONY: lint vet staticcheck revive golangci-lint fmt modernize test build clean all
 
 # Default target
 all: lint test build

@@ -25,6 +25,13 @@ Individual linters:
 - `make revive` - Style and conventions
 - `make golangci-lint` - Combined linter suite
 
+### Formatting
+
+```bash
+make fmt        # Format code with gofumpt
+make modernize  # Apply Go modernization fixes
+```
+
 ### Testing
 
 ```bash
