@@ -13,17 +13,18 @@ import (
 func runClue(t *testing.T, dir string, args ...string) (stdout, stderr string, exitCode int) {
 	t.Helper()
 
-	// Build clue if not already built (main.go is at project root)
-	clueCmd := exec.Command("go", "build", "-o", "clue_test_bin", ".")
+	// Create temp directory for test binary (auto-cleaned by Go test framework)
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "clue_test_bin")
+
+	// Build clue in temp directory (main.go is at project root)
+	clueCmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	clueCmd.Dir = findProjectRoot(t)
 	if err := clueCmd.Run(); err != nil {
 		t.Fatalf("failed to build clue: %v", err)
 	}
 
-	cluePath := filepath.Join(findProjectRoot(t), "clue_test_bin")
-	defer os.Remove(cluePath)
-
-	cmd := exec.Command(cluePath, args...)
+	cmd := exec.Command(binaryPath, args...)
 	cmd.Dir = dir
 
 	var outBuf, errBuf bytes.Buffer
