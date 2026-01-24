@@ -23,11 +23,7 @@ func TestRunList_Empty(t *testing.T) {
 
 func TestRunList_WithDeps(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -42,7 +38,7 @@ func TestRunList_WithDeps(t *testing.T) {
 	}
 
 	// Run list
-	err = RunList(deps, false)
+	err := RunList(deps, false)
 	if err != nil {
 		t.Fatalf("RunList failed: %v", err)
 	}
@@ -52,11 +48,7 @@ func TestRunList_WithDeps(t *testing.T) {
 
 func TestRunList_Verbose(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -69,7 +61,7 @@ func TestRunList_Verbose(t *testing.T) {
 	}
 
 	// Run list with verbose
-	err = RunList(deps, true)
+	err := RunList(deps, true)
 	if err != nil {
 		t.Fatalf("RunList verbose failed: %v", err)
 	}
@@ -77,11 +69,7 @@ func TestRunList_Verbose(t *testing.T) {
 
 func TestRunFetch_NoDeps(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -93,7 +81,7 @@ func TestRunFetch_NoDeps(t *testing.T) {
 
 	// Run fetch
 	ctx := context.Background()
-	err = RunFetch(ctx, deps, FetchOptions{
+	err := RunFetch(ctx, deps, FetchOptions{
 		Verbose: false,
 		CIMode:  false,
 		Name:    "",
@@ -106,11 +94,7 @@ func TestRunFetch_NoDeps(t *testing.T) {
 
 func TestRunFetch_InvalidDependency(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -124,7 +108,7 @@ func TestRunFetch_InvalidDependency(t *testing.T) {
 
 	// Run fetch - should fail
 	ctx := context.Background()
-	err = RunFetch(ctx, deps, FetchOptions{
+	err := RunFetch(ctx, deps, FetchOptions{
 		Verbose: false,
 		CIMode:  false,
 		Name:    "",
@@ -142,11 +126,7 @@ func TestRunFetch_InvalidDependency(t *testing.T) {
 
 func TestRunClean_NotExists(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -157,7 +137,7 @@ func TestRunClean_NotExists(t *testing.T) {
 	deps := make(map[string]Dependency)
 
 	// Run clean - should succeed even though .deps doesn't exist
-	err = RunClean(deps, "")
+	err := RunClean(deps, "")
 	if err != nil {
 		t.Fatalf("RunClean failed: %v", err)
 	}
@@ -165,11 +145,7 @@ func TestRunClean_NotExists(t *testing.T) {
 
 func TestRunClean_RemovesDir(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -198,7 +174,7 @@ func TestRunClean_RemovesDir(t *testing.T) {
 	deps := make(map[string]Dependency)
 
 	// Run clean
-	err = RunClean(deps, "")
+	err := RunClean(deps, "")
 	if err != nil {
 		t.Fatalf("RunClean failed: %v", err)
 	}
@@ -211,11 +187,7 @@ func TestRunClean_RemovesDir(t *testing.T) {
 
 func TestRunClean_SingleDependency(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -239,7 +211,7 @@ func TestRunClean_SingleDependency(t *testing.T) {
 	}
 
 	// Clean just libfoo
-	err = RunClean(deps, "libfoo")
+	err := RunClean(deps, "libfoo")
 	if err != nil {
 		t.Fatalf("RunClean failed: %v", err)
 	}
@@ -255,11 +227,7 @@ func TestRunClean_SingleDependency(t *testing.T) {
 
 func TestRunUpdate(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "clue-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
 	origDir, _ := os.Getwd()
@@ -271,7 +239,7 @@ func TestRunUpdate(t *testing.T) {
 
 	// Run update - should succeed (just prints placeholder message)
 	ctx := context.Background()
-	err = RunUpdate(ctx, deps)
+	err := RunUpdate(ctx, deps)
 	if err != nil {
 		t.Fatalf("RunUpdate failed: %v", err)
 	}

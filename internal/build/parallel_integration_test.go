@@ -38,10 +38,7 @@ func formatCueArray(items []string) string {
 func createLargeTestProject(t *testing.T) (projectDir string, cleanup func()) {
 	t.Helper()
 
-	dir, err := os.MkdirTemp("", "clue-paralleltest-*")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
+	dir := t.TempDir()
 
 	// Create 20 source files
 	for i := 1; i <= 20; i++ {
@@ -54,7 +51,6 @@ void func%d() {
 		filename := filepath.Join(dir, fmt.Sprintf("file%02d.cpp", i))
 		err := os.WriteFile(filename, []byte(source), 0644)
 		if err != nil {
-			os.RemoveAll(dir)
 			t.Fatalf("failed to write source file %s: %v", filename, err)
 		}
 	}
@@ -71,9 +67,8 @@ void func%d() {
 	}
 	mainSource.WriteString("    return 0;\n}\n")
 	mainPath := filepath.Join(dir, "main.cpp")
-	err = os.WriteFile(mainPath, []byte(mainSource.String()), 0644)
+	err := os.WriteFile(mainPath, []byte(mainSource.String()), 0644)
 	if err != nil {
-		os.RemoveAll(dir)
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
@@ -102,12 +97,11 @@ targets: {
 	configPath := filepath.Join(dir, "clue.cue")
 	err = os.WriteFile(configPath, []byte(cueConfig), 0644)
 	if err != nil {
-		os.RemoveAll(dir)
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
 
 	cleanup = func() {
-		os.RemoveAll(dir)
+		// No-op: t.TempDir() handles cleanup automatically
 	}
 
 	return dir, cleanup
@@ -368,11 +362,7 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 func TestParallelBuild_KeepGoing(t *testing.T) {
 	skipIfNoClangPP(t)
 
-	dir, err := os.MkdirTemp("", "clue-keepgoing-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Create project with one file that will fail to compile
 	goodSource := `#include <iostream>

@@ -111,11 +111,7 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 		t.Skip("no C++ compiler available (clang++ or g++)")
 	}
 
-	dir, err := os.MkdirTemp("", "clue-cross-platform-*")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Create test project with platform-agnostic config
 	createCrossPlatformTestProject(t, dir)
