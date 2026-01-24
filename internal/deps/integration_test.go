@@ -31,7 +31,7 @@ func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	if err := os.Chdir(projectDir); err != nil {
 		t.Fatalf("Failed to change to project directory: %v", err)
@@ -183,7 +183,7 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	if err := os.Chdir(projectDir); err != nil {
 		t.Fatalf("Failed to change to project directory: %v", err)
@@ -272,7 +272,7 @@ func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	if err := os.Chdir(projectDir); err != nil {
 		t.Fatalf("Failed to change to project directory: %v", err)

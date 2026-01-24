@@ -207,7 +207,7 @@ func TestBuild_MultiTarget(t *testing.T) {
 	}
 
 	// Clean first
-	exec.Command(binary, "-dir", testdataDir, "--all", "clean").Run()
+	_ = exec.Command(binary, "-dir", testdataDir, "--all", "clean").Run()
 
 	// Build the project - must run from project dir due to relative paths
 	cmd = exec.Command(binary, "build")
@@ -272,7 +272,7 @@ func TestBuild_Verbose(t *testing.T) {
 	}
 
 	// Clean first
-	exec.Command(binary, "--all", "clean").CombinedOutput()
+	_, _ = exec.Command(binary, "--all", "clean").CombinedOutput()
 
 	// Build with verbose flag
 	cmd = exec.Command(binary, "-v", "build")
@@ -363,7 +363,7 @@ func TestBuild_SysLibs(t *testing.T) {
 	}
 
 	// Clean first
-	exec.Command(binary, "--all", "clean").Run()
+	_ = exec.Command(binary, "--all", "clean").Run()
 
 	// Build with verbose flag to see linker command
 	cmd = exec.Command(binary, "-v", "build")

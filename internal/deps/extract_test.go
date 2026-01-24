@@ -229,9 +229,15 @@ func TestStripPrefix(t *testing.T) {
 	prefixDir := filepath.Join(targetDir, prefix)
 
 	// Create files in prefix directory
-	os.MkdirAll(filepath.Join(prefixDir, "subdir"), 0755)
-	os.WriteFile(filepath.Join(prefixDir, "file1.txt"), []byte("content1"), 0644)
-	os.WriteFile(filepath.Join(prefixDir, "subdir", "file2.txt"), []byte("content2"), 0644)
+	if err := os.MkdirAll(filepath.Join(prefixDir, "subdir"), 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(prefixDir, "file1.txt"), []byte("content1"), 0644); err != nil {
+		t.Fatalf("failed to write file1: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(prefixDir, "subdir", "file2.txt"), []byte("content2"), 0644); err != nil {
+		t.Fatalf("failed to write file2: %v", err)
+	}
 
 	// Strip prefix
 	if err := StripPrefix(targetDir, prefix); err != nil {
@@ -344,7 +350,7 @@ func TestExtractZip_PathTraversal(t *testing.T) {
 
 	zw := zip.NewWriter(tmpFile)
 	w, _ := zw.Create("../../../etc/passwd")
-	w.Write([]byte("malicious"))
+	_, _ = w.Write([]byte("malicious"))
 	zw.Close()
 	tmpFile.Close()
 

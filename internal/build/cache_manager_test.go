@@ -48,9 +48,13 @@ func TestNeedsRebuild_NotCached(t *testing.T) {
 
 	// Create a dummy source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
-	os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Check if needs rebuild (should return true since not cached)
 	needsRebuild, reason, header := cm.NeedsRebuild(
@@ -85,9 +89,13 @@ func TestNeedsRebuild_Forced(t *testing.T) {
 
 	// Create a dummy source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
-	os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Check with forceRebuild=true
 	needsRebuild, reason, header := cm.NeedsRebuild(
@@ -122,21 +130,31 @@ func TestStoreResult_and_GetCached(t *testing.T) {
 
 	// Create source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
 	srcContent := []byte("int main() { return 0; }")
-	os.WriteFile(srcPath, srcContent, 0644)
+	if err := os.WriteFile(srcPath, srcContent, 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Create object file
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 	objPath := filepath.Join(objDir, "test.cpp.o")
-	os.WriteFile(objPath, []byte("fake object"), 0644)
+	if err := os.WriteFile(objPath, []byte("fake object"), 0644); err != nil {
+		t.Fatalf("failed to write object file: %v", err)
+	}
 
 	// Create dep file
 	depPath := filepath.Join(objDir, "test.cpp.d")
 	depContent := "test.cpp.o: " + srcPath + "\n\n" + srcPath + ":\n"
-	os.WriteFile(depPath, []byte(depContent), 0644)
+	if err := os.WriteFile(depPath, []byte(depContent), 0644); err != nil {
+		t.Fatalf("failed to write dep file: %v", err)
+	}
 
 	// Create fake compiler
 	compilerPath := "/usr/bin/clang"
@@ -183,19 +201,29 @@ func TestNeedsRebuild_SourceChanged(t *testing.T) {
 
 	// Create source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
-	os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Create object and dep files
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 	objPath := filepath.Join(objDir, "test.cpp.o")
-	os.WriteFile(objPath, []byte("fake object"), 0644)
+	if err := os.WriteFile(objPath, []byte("fake object"), 0644); err != nil {
+		t.Fatalf("failed to write object file: %v", err)
+	}
 
 	depPath := filepath.Join(objDir, "test.cpp.d")
 	depContent := "test.cpp.o: " + srcPath + "\n\n" + srcPath + ":\n"
-	os.WriteFile(depPath, []byte(depContent), 0644)
+	if err := os.WriteFile(depPath, []byte(depContent), 0644); err != nil {
+		t.Fatalf("failed to write dep file: %v", err)
+	}
 
 	compilerPath := "/usr/bin/clang"
 
@@ -207,7 +235,9 @@ func TestNeedsRebuild_SourceChanged(t *testing.T) {
 
 	// Now modify the source file
 	time.Sleep(10 * time.Millisecond) // Ensure different content
-	os.WriteFile(srcPath, []byte("int main() { return 1; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 1; }"), 0644); err != nil {
+		t.Fatalf("failed to write modified source file: %v", err)
+	}
 
 	// Check if needs rebuild
 	needsRebuild, reason, _ := cm.NeedsRebuild(
@@ -239,29 +269,43 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 
 	// Create header file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	headerPath := filepath.Join(srcDir, "config.h")
-	os.WriteFile(headerPath, []byte("#define VERSION 1"), 0644)
+	if err := os.WriteFile(headerPath, []byte("#define VERSION 1"), 0644); err != nil {
+		t.Fatalf("failed to write header file: %v", err)
+	}
 
 	// Create source file that includes header
 	srcPath := filepath.Join(srcDir, "test.cpp")
 	srcContent := "#include \"config.h\"\nint main() { return VERSION; }"
-	os.WriteFile(srcPath, []byte(srcContent), 0644)
+	if err := os.WriteFile(srcPath, []byte(srcContent), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Create object file
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 	objPath := filepath.Join(objDir, "test.cpp.o")
-	os.WriteFile(objPath, []byte("fake object"), 0644)
+	if err := os.WriteFile(objPath, []byte("fake object"), 0644); err != nil {
+		t.Fatalf("failed to write object file: %v", err)
+	}
 
 	// Create dep file listing the header
 	depPath := filepath.Join(objDir, "test.cpp.d")
 	depContent := "test.cpp.o: " + srcPath + " " + headerPath + "\n\n" + srcPath + ":\n\n" + headerPath + ":\n"
-	os.WriteFile(depPath, []byte(depContent), 0644)
+	if err := os.WriteFile(depPath, []byte(depContent), 0644); err != nil {
+		t.Fatalf("failed to write dep file: %v", err)
+	}
 
 	// Create a fake compiler binary
 	compilerPath := filepath.Join(tmpDir, "fake-clang")
-	os.WriteFile(compilerPath, []byte("#!/bin/sh\necho fake"), 0755)
+	if err := os.WriteFile(compilerPath, []byte("#!/bin/sh\necho fake"), 0755); err != nil {
+		t.Fatalf("failed to write fake compiler: %v", err)
+	}
 
 	// Store the result
 	err = cm.StoreResult(srcPath, objPath, depPath, Config{}, []string{}, compilerPath)
@@ -277,7 +321,9 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 
 	// Now modify the header
 	time.Sleep(10 * time.Millisecond)
-	os.WriteFile(headerPath, []byte("#define VERSION 2"), 0644)
+	if err := os.WriteFile(headerPath, []byte("#define VERSION 2"), 0644); err != nil {
+		t.Fatalf("failed to write modified header file: %v", err)
+	}
 
 	// Check if needs rebuild
 	needsRebuild, reason, changedHeader := cm.NeedsRebuild(
@@ -313,22 +359,34 @@ func TestManifestPersistence(t *testing.T) {
 
 	// Create and cache a source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
-	os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 	objPath := filepath.Join(objDir, "test.cpp.o")
-	os.WriteFile(objPath, []byte("fake object"), 0644)
+	if err := os.WriteFile(objPath, []byte("fake object"), 0644); err != nil {
+		t.Fatalf("failed to write object file: %v", err)
+	}
 
 	depPath := filepath.Join(objDir, "test.cpp.d")
 	depContent := "test.cpp.o: " + srcPath + "\n\n" + srcPath + ":\n"
-	os.WriteFile(depPath, []byte(depContent), 0644)
+	if err := os.WriteFile(depPath, []byte(depContent), 0644); err != nil {
+		t.Fatalf("failed to write dep file: %v", err)
+	}
 
 	// Create a fake compiler binary
 	compilerPath := filepath.Join(tmpDir, "fake-clang")
-	os.WriteFile(compilerPath, []byte("#!/bin/sh\necho fake"), 0755)
+	if err := os.WriteFile(compilerPath, []byte("#!/bin/sh\necho fake"), 0755); err != nil {
+		t.Fatalf("failed to write fake compiler: %v", err)
+	}
 
 	err = cm1.StoreResult(srcPath, objPath, depPath, Config{}, []string{}, compilerPath)
 	if err != nil {
@@ -415,19 +473,29 @@ func TestNeedsRebuild_ObjectMissing(t *testing.T) {
 
 	// Create source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
-	os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Create object and dep files
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 	objPath := filepath.Join(objDir, "test.cpp.o")
-	os.WriteFile(objPath, []byte("fake object"), 0644)
+	if err := os.WriteFile(objPath, []byte("fake object"), 0644); err != nil {
+		t.Fatalf("failed to write object file: %v", err)
+	}
 
 	depPath := filepath.Join(objDir, "test.cpp.d")
 	depContent := "test.cpp.o: " + srcPath + "\n\n" + srcPath + ":\n"
-	os.WriteFile(depPath, []byte(depContent), 0644)
+	if err := os.WriteFile(depPath, []byte(depContent), 0644); err != nil {
+		t.Fatalf("failed to write dep file: %v", err)
+	}
 
 	compilerPath := "/usr/bin/clang"
 
@@ -463,19 +531,29 @@ func TestNeedsRebuild_DepFileMissing(t *testing.T) {
 
 	// Create source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
-	os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Create object and dep files
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 	objPath := filepath.Join(objDir, "test.cpp.o")
-	os.WriteFile(objPath, []byte("fake object"), 0644)
+	if err := os.WriteFile(objPath, []byte("fake object"), 0644); err != nil {
+		t.Fatalf("failed to write object file: %v", err)
+	}
 
 	depPath := filepath.Join(objDir, "test.cpp.d")
 	depContent := "test.cpp.o: " + srcPath + "\n\n" + srcPath + ":\n"
-	os.WriteFile(depPath, []byte(depContent), 0644)
+	if err := os.WriteFile(depPath, []byte(depContent), 0644); err != nil {
+		t.Fatalf("failed to write dep file: %v", err)
+	}
 
 	compilerPath := "/usr/bin/clang"
 
@@ -511,19 +589,29 @@ func TestNeedsRebuild_FlagsChanged(t *testing.T) {
 
 	// Create source file
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 	srcPath := filepath.Join(srcDir, "test.cpp")
-	os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644)
+	if err := os.WriteFile(srcPath, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Create object and dep files
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 	objPath := filepath.Join(objDir, "test.cpp.o")
-	os.WriteFile(objPath, []byte("fake object"), 0644)
+	if err := os.WriteFile(objPath, []byte("fake object"), 0644); err != nil {
+		t.Fatalf("failed to write object file: %v", err)
+	}
 
 	depPath := filepath.Join(objDir, "test.cpp.d")
 	depContent := "test.cpp.o: " + srcPath + "\n\n" + srcPath + ":\n"
-	os.WriteFile(depPath, []byte(depContent), 0644)
+	if err := os.WriteFile(depPath, []byte(depContent), 0644); err != nil {
+		t.Fatalf("failed to write dep file: %v", err)
+	}
 
 	compilerPath := "/usr/bin/clang"
 

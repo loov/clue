@@ -9,8 +9,8 @@ func TestSimpleGraph(t *testing.T) {
 	b := NewBuilder()
 
 	// main depends on lib
-	b.AddNode(Node{ID: "lib", Type: NodeTypeStatic})
-	b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
+	_ = b.AddNode(Node{ID: "lib", Type: NodeTypeStatic})
+	_ = b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
 	b.AddDependency("main", "lib")
 
 	g, err := b.Build()
@@ -43,9 +43,9 @@ func TestCycleDetection(t *testing.T) {
 	b := NewBuilder()
 
 	// Create cycle: a -> b -> c -> a
-	b.AddNode(Node{ID: "a", Type: NodeTypeStatic})
-	b.AddNode(Node{ID: "b", Type: NodeTypeStatic})
-	b.AddNode(Node{ID: "c", Type: NodeTypeStatic})
+	_ = b.AddNode(Node{ID: "a", Type: NodeTypeStatic})
+	_ = b.AddNode(Node{ID: "b", Type: NodeTypeStatic})
+	_ = b.AddNode(Node{ID: "c", Type: NodeTypeStatic})
 	b.AddDependency("a", "b")
 	b.AddDependency("b", "c")
 	b.AddDependency("c", "a") // Creates cycle
@@ -62,7 +62,7 @@ func TestCycleDetection(t *testing.T) {
 func TestMissingDependency(t *testing.T) {
 	b := NewBuilder()
 
-	b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
+	_ = b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
 	b.AddDependency("main", "nonexistent")
 
 	_, err := b.Build()
@@ -80,10 +80,10 @@ func TestDeterministicOrder(t *testing.T) {
 		b := NewBuilder()
 
 		// Diamond dependency: main -> {a, b} -> base
-		b.AddNode(Node{ID: "base", Type: NodeTypeStatic})
-		b.AddNode(Node{ID: "a", Type: NodeTypeStatic})
-		b.AddNode(Node{ID: "b", Type: NodeTypeStatic})
-		b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
+		_ = b.AddNode(Node{ID: "base", Type: NodeTypeStatic})
+		_ = b.AddNode(Node{ID: "a", Type: NodeTypeStatic})
+		_ = b.AddNode(Node{ID: "b", Type: NodeTypeStatic})
+		_ = b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
 
 		b.AddDependency("a", "base")
 		b.AddDependency("b", "base")
@@ -118,9 +118,9 @@ func TestDeterministicOrder(t *testing.T) {
 func TestDependencies(t *testing.T) {
 	b := NewBuilder()
 
-	b.AddNode(Node{ID: "base", Type: NodeTypeStatic})
-	b.AddNode(Node{ID: "lib", Type: NodeTypeStatic})
-	b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
+	_ = b.AddNode(Node{ID: "base", Type: NodeTypeStatic})
+	_ = b.AddNode(Node{ID: "lib", Type: NodeTypeStatic})
+	_ = b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
 
 	b.AddDependency("lib", "base")
 	b.AddDependency("main", "lib")

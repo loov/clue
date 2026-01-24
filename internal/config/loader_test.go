@@ -272,7 +272,9 @@ targets: {
     }
 }
 `
-	os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
 
 	loader := NewLoader()
 	_, err := loader.Load(dir)
@@ -321,7 +323,9 @@ variants: {
     }
 }
 `
-	os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
 
 	loader := NewLoader()
 	cfg, err := loader.Load(dir)
@@ -366,7 +370,9 @@ targets: {
     }
 }
 `
-	os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
 
 	loader := NewLoader()
 	_, err := loader.Load(dir)

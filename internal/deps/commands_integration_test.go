@@ -39,7 +39,9 @@ func TestDepsList_Integration(t *testing.T) {
 
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
 	output := buf.String()
 
 	if err != nil {
@@ -69,7 +71,7 @@ func TestDepsFetch_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	if err := os.Chdir(projectDir); err != nil {
 		t.Fatalf("Failed to change to project directory: %v", err)
@@ -99,7 +101,9 @@ func TestDepsFetch_Integration(t *testing.T) {
 
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
 	output := buf.String()
 
 	if err != nil {
@@ -150,15 +154,19 @@ func TestDepsClean_Integration(t *testing.T) {
 
 	// Change to temp directory so manager uses correct path
 	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(originalDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
 
 	// Run deps clean
 	err := deps.RunClean(dummyDeps, "")
 
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
 
 	if err != nil {
 		t.Errorf("RunClean failed: %v", err)
@@ -185,7 +193,7 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	if err := os.Chdir(projectDir); err != nil {
 		t.Fatalf("Failed to change to project directory: %v", err)
@@ -211,7 +219,9 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 
 	w1.Close()
 	os.Stdout = oldStdout
-	listBuf.ReadFrom(r1)
+	if _, err := listBuf.ReadFrom(r1); err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
 	listOutput := listBuf.String()
 
 	if err != nil {

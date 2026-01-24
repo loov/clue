@@ -44,8 +44,10 @@ func TestCompileCommands_Basic(t *testing.T) {
 
 	// Change to temp directory for AbsPath to work
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 
@@ -133,13 +135,21 @@ func TestCompileCommands_Arguments(t *testing.T) {
 	}
 
 	// Create files and directories
-	os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0644)
-	os.MkdirAll(filepath.Join(tmpDir, "include"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "vendor"), 0755)
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0644); err != nil {
+		t.Fatalf("failed to write main.cpp: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, "include"), 0755); err != nil {
+		t.Fatalf("failed to create include dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, "vendor"), 0755); err != nil {
+		t.Fatalf("failed to create vendor dir: %v", err)
+	}
 
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -156,7 +166,9 @@ func TestCompileCommands_Arguments(t *testing.T) {
 
 	data, _ := os.ReadFile(outputPath)
 	var commands []CompileCommand
-	json.Unmarshal(data, &commands)
+	if err := json.Unmarshal(data, &commands); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
 
 	if len(commands) != 1 {
 		t.Fatalf("Expected 1 command, got %d", len(commands))
@@ -243,13 +255,21 @@ func TestCompileCommands_MultipleTargets(t *testing.T) {
 	}
 
 	// Create source files
-	os.WriteFile(filepath.Join(tmpDir, "app.cpp"), []byte("// app"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte("// lib"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// util"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "app.cpp"), []byte("// app"), 0644); err != nil {
+		t.Fatalf("failed to write app.cpp: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte("// lib"), 0644); err != nil {
+		t.Fatalf("failed to write lib.cpp: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// util"), 0644); err != nil {
+		t.Fatalf("failed to write util.cpp: %v", err)
+	}
 
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -264,7 +284,9 @@ func TestCompileCommands_MultipleTargets(t *testing.T) {
 
 	data, _ := os.ReadFile(outputPath)
 	var commands []CompileCommand
-	json.Unmarshal(data, &commands)
+	if err := json.Unmarshal(data, &commands); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
 
 	// Should have 3 entries (1 from app, 2 from lib)
 	if len(commands) != 3 {
@@ -310,12 +332,16 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 
 	// Create source files
 	for _, src := range cfg.Targets["mixed"].Sources {
-		os.WriteFile(filepath.Join(tmpDir, src), []byte("// test"), 0644)
+		if err := os.WriteFile(filepath.Join(tmpDir, src), []byte("// test"), 0644); err != nil {
+			t.Fatalf("failed to write %s: %v", src, err)
+		}
 	}
 
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -331,7 +357,9 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 
 	data, _ := os.ReadFile(outputPath)
 	var commands []CompileCommand
-	json.Unmarshal(data, &commands)
+	if err := json.Unmarshal(data, &commands); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
 
 	// Map file to compiler
 	compilers := make(map[string]string)
@@ -380,11 +408,15 @@ func TestCompileCommands_VariantFlags(t *testing.T) {
 		Dependencies: map[string]deps.Dependency{},
 	}
 
-	os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// test"), 0644); err != nil {
+		t.Fatalf("failed to write main.cpp: %v", err)
+	}
 
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -399,7 +431,9 @@ func TestCompileCommands_VariantFlags(t *testing.T) {
 
 	data, _ := os.ReadFile(outputPath)
 	var commands []CompileCommand
-	json.Unmarshal(data, &commands)
+	if err := json.Unmarshal(data, &commands); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
 
 	if len(commands) != 1 {
 		t.Fatalf("Expected 1 command, got %d", len(commands))
@@ -438,12 +472,18 @@ func TestCompileCommands_GCCToolchain(t *testing.T) {
 		Dependencies: map[string]deps.Dependency{},
 	}
 
-	os.WriteFile(filepath.Join(tmpDir, "main.c"), []byte("// c"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// cpp"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.c"), []byte("// c"), 0644); err != nil {
+		t.Fatalf("failed to write main.c: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "util.cpp"), []byte("// cpp"), 0644); err != nil {
+		t.Fatalf("failed to write util.cpp: %v", err)
+	}
 
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -459,7 +499,9 @@ func TestCompileCommands_GCCToolchain(t *testing.T) {
 
 	data, _ := os.ReadFile(outputPath)
 	var commands []CompileCommand
-	json.Unmarshal(data, &commands)
+	if err := json.Unmarshal(data, &commands); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
 
 	// Map file to compiler
 	compilers := make(map[string]string)
@@ -481,9 +523,15 @@ func TestCompileCommands_WithDependencies(t *testing.T) {
 
 	// Create vendored dependency structure
 	depPath := filepath.Join(tmpDir, "vendor", "mylib")
-	os.MkdirAll(filepath.Join(depPath, "include"), 0755)
-	os.MkdirAll(filepath.Join(depPath, "src"), 0755)
-	os.WriteFile(filepath.Join(depPath, "src", "mylib.cpp"), []byte("// lib"), 0644)
+	if err := os.MkdirAll(filepath.Join(depPath, "include"), 0755); err != nil {
+		t.Fatalf("failed to create include dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(depPath, "src"), 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(depPath, "src", "mylib.cpp"), []byte("// lib"), 0644); err != nil {
+		t.Fatalf("failed to write mylib.cpp: %v", err)
+	}
 
 	cfg := &config.Config{
 		Name:     "with-deps",
@@ -507,11 +555,15 @@ func TestCompileCommands_WithDependencies(t *testing.T) {
 		},
 	}
 
-	os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// main"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.cpp"), []byte("// main"), 0644); err != nil {
+		t.Fatalf("failed to write main.cpp: %v", err)
+	}
 
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -526,7 +578,9 @@ func TestCompileCommands_WithDependencies(t *testing.T) {
 
 	data, _ := os.ReadFile(outputPath)
 	var commands []CompileCommand
-	json.Unmarshal(data, &commands)
+	if err := json.Unmarshal(data, &commands); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
 
 	// Should have 2 entries (1 from app, 1 from mylib dependency)
 	if len(commands) != 2 {

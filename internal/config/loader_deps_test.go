@@ -246,7 +246,9 @@ dependencies: {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testDir := filepath.Join(tmpDir, tt.name)
-			os.MkdirAll(testDir, 0755)
+			if err := os.MkdirAll(testDir, 0755); err != nil {
+				t.Fatalf("failed to create test dir: %v", err)
+			}
 			defer os.RemoveAll(testDir)
 
 			err := os.WriteFile(filepath.Join(testDir, "clue.cue"), []byte(tt.config), 0644)

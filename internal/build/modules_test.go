@@ -17,7 +17,9 @@ func TestDetectModuleSources_ByExtension(t *testing.T) {
 	}
 
 	for _, f := range files {
-		os.WriteFile(f, []byte("// empty"), 0644)
+		if err := os.WriteFile(f, []byte("// empty"), 0644); err != nil {
+			t.Fatalf("failed to write file %s: %v", f, err)
+		}
 	}
 
 	moduleSources, err := DetectModuleSources(files)
@@ -36,10 +38,14 @@ func TestDetectModuleSources_ByContent(t *testing.T) {
 
 	// Create a .cpp file with module content
 	moduleFile := filepath.Join(tmpDir, "uses_module.cpp")
-	os.WriteFile(moduleFile, []byte("import std;\n\nint main() { return 0; }"), 0644)
+	if err := os.WriteFile(moduleFile, []byte("import std;\n\nint main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write module file: %v", err)
+	}
 
 	regularFile := filepath.Join(tmpDir, "regular.cpp")
-	os.WriteFile(regularFile, []byte("#include <iostream>\n\nint main() { return 0; }"), 0644)
+	if err := os.WriteFile(regularFile, []byte("#include <iostream>\n\nint main() { return 0; }"), 0644); err != nil {
+		t.Fatalf("failed to write regular file: %v", err)
+	}
 
 	moduleSources, err := DetectModuleSources([]string{moduleFile, regularFile})
 	if err != nil {

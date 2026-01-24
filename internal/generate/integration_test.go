@@ -67,8 +67,10 @@ variants: {
 
 	// Change to temp dir for clue build
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	buildDir := filepath.Join(tmpDir, ".build")
 
@@ -176,7 +178,9 @@ func TestCompileCommandsIDECompatibility(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create project with includes and defines
-	os.MkdirAll(filepath.Join(tmpDir, "include"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "include"), 0755); err != nil {
+		t.Fatalf("failed to create include dir: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(tmpDir, "include", "config.h"), []byte("#define VERSION 1"), 0644); err != nil {
 		t.Fatalf("failed to write config.h: %v", err)
 	}
@@ -223,8 +227,10 @@ variants: {
 
 	// Change to temp dir for generation
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	// Generate compile_commands.json
 	compdbPath := filepath.Join(tmpDir, "compile_commands.json")
@@ -370,8 +376,10 @@ variants: {
 
 	// Change to temp dir
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp dir: %v", err)
+	}
 
 	buildDir := filepath.Join(tmpDir, ".build")
 

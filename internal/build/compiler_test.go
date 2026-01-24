@@ -321,7 +321,9 @@ func TestCompileSource_GeneratesDepFile(t *testing.T) {
 
 	// Create source file with an include
 	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
 
 	// Create a header file
 	headerContent := `#ifndef CONFIG_H
@@ -330,14 +332,18 @@ func TestCompileSource_GeneratesDepFile(t *testing.T) {
 #endif
 `
 	headerPath := filepath.Join(srcDir, "config.h")
-	os.WriteFile(headerPath, []byte(headerContent), 0644)
+	if err := os.WriteFile(headerPath, []byte(headerContent), 0644); err != nil {
+		t.Fatalf("failed to write header file: %v", err)
+	}
 
 	// Create source that includes the header
 	srcContent := `#include "config.h"
 int main() { return VERSION; }
 `
 	srcPath := filepath.Join(srcDir, "main.cpp")
-	os.WriteFile(srcPath, []byte(srcContent), 0644)
+	if err := os.WriteFile(srcPath, []byte(srcContent), 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
@@ -346,7 +352,9 @@ int main() { return VERSION; }
 
 	// Compile
 	objDir := filepath.Join(tmpDir, "obj")
-	os.MkdirAll(objDir, 0755)
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		t.Fatalf("failed to create obj dir: %v", err)
+	}
 
 	result, err := compiler.CompileSource(context.Background(), CompileOptions{
 		Source:   srcPath,
