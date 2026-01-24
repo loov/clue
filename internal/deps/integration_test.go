@@ -11,6 +11,7 @@ import (
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 )
 
 // TestSuccessCriteria1_VendoredDependency verifies that users can build projects with vendored dependencies
@@ -167,6 +168,107 @@ targets: {
 
 	if mylib.Name() != "mylib" {
 		t.Errorf("Expected name 'mylib', got %q", mylib.Name())
+	}
+}
+
+// TestGitDepProject_ConfigParsing verifies config parsing for the git-dep-project testdata
+func TestGitDepProject_ConfigParsing(t *testing.T) {
+	// Setup: use testdata/git-dep-project
+	projectDir, err := filepath.Abs("../../testdata/git-dep-project")
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	// Verify project directory exists
+	if _, err := os.Stat(projectDir); os.IsNotExist(err) {
+		t.Fatalf("Test project not found at %s", projectDir)
+	}
+
+	// Change to project directory so relative paths work
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(projectDir); err != nil {
+		t.Fatalf("Failed to change to project directory: %v", err)
+	}
+
+	// Load configuration
+	loader := config.NewLoader()
+	cfg, err := loader.Load(".")
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Verify dependencies map contains "fmt"
+	if len(cfg.Dependencies) != 1 {
+		t.Errorf("Expected 1 dependency, got %d", len(cfg.Dependencies))
+	}
+
+	fmtDep, exists := cfg.Dependencies["fmt"]
+	if !exists {
+		t.Fatalf("Expected dependency 'fmt' not found")
+	}
+
+	// Verify it's a git dependency
+	if fmtDep.Type() != "git" {
+		t.Errorf("Expected type 'git', got %q", fmtDep.Type())
+	}
+
+	// Verify dependency name
+	if fmtDep.Name() != "fmt" {
+		t.Errorf("Expected name 'fmt', got %q", fmtDep.Name())
+	}
+
+	// Cast to GitDependency to access specific fields
+	gitDep, ok := fmtDep.(*deps.GitDependency)
+	if !ok {
+		t.Fatalf("Failed to cast dependency to GitDependency")
+	}
+
+	// Verify repo URL
+	expectedRepo := "https://github.com/fmtlib/fmt"
+	if gitDep.Repo != expectedRepo {
+		t.Errorf("Expected repo %q, got %q", expectedRepo, gitDep.Repo)
+	}
+
+	// Verify ref
+	expectedRef := "10.2.1"
+	if gitDep.Ref != expectedRef {
+		t.Errorf("Expected ref %q, got %q", expectedRef, gitDep.Ref)
+	}
+
+	// Verify build config
+	if gitDep.BuildConfig == nil {
+		t.Fatal("Expected build config, got nil")
+	}
+
+	// Verify sources
+	expectedSources := []string{"src/format.cc", "src/os.cc"}
+	if len(gitDep.BuildConfig.Sources) != len(expectedSources) {
+		t.Errorf("Expected %d sources, got %d", len(expectedSources), len(gitDep.BuildConfig.Sources))
+	}
+	for i, src := range expectedSources {
+		if i < len(gitDep.BuildConfig.Sources) && gitDep.BuildConfig.Sources[i] != src {
+			t.Errorf("Expected source[%d] %q, got %q", i, src, gitDep.BuildConfig.Sources[i])
+		}
+	}
+
+	// Verify includes
+	expectedIncludes := []string{"include"}
+	if len(gitDep.BuildConfig.Includes) != len(expectedIncludes) {
+		t.Errorf("Expected %d includes, got %d", len(expectedIncludes), len(gitDep.BuildConfig.Includes))
+	}
+	if len(gitDep.BuildConfig.Includes) > 0 && gitDep.BuildConfig.Includes[0] != expectedIncludes[0] {
+		t.Errorf("Expected include %q, got %q", expectedIncludes[0], gitDep.BuildConfig.Includes[0])
+	}
+
+	// Verify target type
+	expectedTargetType := "static_library"
+	if gitDep.BuildConfig.Type != expectedTargetType {
+		t.Errorf("Expected targetType %q, got %q", expectedTargetType, gitDep.BuildConfig.Type)
 	}
 }
 
