@@ -33,6 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   wget \
   gnupg \
   clang \
+  lsb-release \
+  locales \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Go
@@ -42,6 +44,11 @@ RUN ARCH=$(dpkg --print-architecture) && \
   tar -C /usr/local -xzf "go${GO_VERSION}.linux-${ARCH}.tar.gz" && \
   rm "go${GO_VERSION}.linux-${ARCH}.tar.gz"
 ENV PATH=$PATH:/usr/local/go/bin
+
+# Install latest clang
+RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
+  --slave /usr/bin/clang++ clang++ /usr/bin/clang++-20
 
 # Ensure default node user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && \
