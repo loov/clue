@@ -221,11 +221,12 @@ None yet.
 | 004 | Fix orphaned integration tests (Verbosity enum) | 2026-01-24 | de8cb80 | [004-fix-orphaned-integration-tests-update-ve](./quick/004-fix-orphaned-integration-tests-update-ve/) |
 | 005 | Fix go test ./cmd/clue (variant + flag fixes) | 2026-01-24 | 0793bc5 | [005-fix-go-test-cmd-clue](./quick/005-fix-go-test-cmd-clue/) |
 | 006 | Move cmd/clue to project root | 2026-01-24 | f1caee3 | [006-move-cmd-clue-to-root-of-project](./quick/006-move-cmd-clue-to-root-of-project/) |
+| 007 | Fix build directory to .build | 2026-01-24 | 60f0ed0 | [007-fix-build-directory-to-build](./quick/007-fix-build-directory-to-build/) |
 
 ## Session Continuity
 
-Last session: 2026-01-24 06:14 UTC
-Stopped at: Completed quick task 006 (Move cmd/clue to project root)
+Last session: 2026-01-24 06:40 UTC
+Stopped at: Completed quick task 007 (Fix build directory to .build)
 Resume file: None
 Next step: PROJECT COMPLETE - No further plans
 
