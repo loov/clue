@@ -220,11 +220,12 @@ None yet.
 | 003 | Target object folder structure | 2026-01-23 | b16ea53 | [003-target-obj-folder-structure](./quick/003-target-obj-folder-structure/) |
 | 004 | Fix orphaned integration tests (Verbosity enum) | 2026-01-24 | de8cb80 | [004-fix-orphaned-integration-tests-update-ve](./quick/004-fix-orphaned-integration-tests-update-ve/) |
 | 005 | Fix go test ./cmd/clue (variant + flag fixes) | 2026-01-24 | 0793bc5 | [005-fix-go-test-cmd-clue](./quick/005-fix-go-test-cmd-clue/) |
+| 006 | Move cmd/clue to project root | 2026-01-24 | f1caee3 | [006-move-cmd-clue-to-root-of-project](./quick/006-move-cmd-clue-to-root-of-project/) |
 
 ## Session Continuity
 
-Last session: 2026-01-24 05:34 UTC
-Stopped at: Completed quick task 005 (Fix go test ./cmd/clue)
+Last session: 2026-01-24 06:14 UTC
+Stopped at: Completed quick task 006 (Move cmd/clue to project root)
 Resume file: None
 Next step: PROJECT COMPLETE - No further plans
 
