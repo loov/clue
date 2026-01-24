@@ -223,12 +223,12 @@ func TestBuild_MultiTarget(t *testing.T) {
 	}
 
 	// Check that artifacts exist
-	libPath := filepath.Join(testdataDir, "build", "debug", "lib", "libmathlib.a")
+	libPath := filepath.Join(testdataDir, ".build", "debug", "lib", "libmathlib.a")
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Errorf("Expected library at %s, but it doesn't exist", libPath)
 	}
 
-	exePath := filepath.Join(testdataDir, "build", "debug", "bin", "calculator")
+	exePath := filepath.Join(testdataDir, ".build", "debug", "bin", "calculator")
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Errorf("Expected executable at %s, but it doesn't exist", exePath)
 	}
@@ -323,7 +323,7 @@ func TestClean_AfterBuild(t *testing.T) {
 	}
 
 	// Verify debug dir is removed
-	debugDir := filepath.Join(testdataDir, "build", "debug")
+	debugDir := filepath.Join(testdataDir, ".build", "debug")
 	if _, err := os.Stat(debugDir); !os.IsNotExist(err) {
 		t.Errorf("Expected debug dir to be removed, but it still exists")
 	}
@@ -337,7 +337,7 @@ func TestClean_AfterBuild(t *testing.T) {
 	}
 
 	// Verify build dir is removed or empty
-	buildDir := filepath.Join(testdataDir, "build")
+	buildDir := filepath.Join(testdataDir, ".build")
 	entries, err := os.ReadDir(buildDir)
 	if err == nil && len(entries) > 0 {
 		t.Errorf("Expected build dir to be empty after clean --all, but found %d entries", len(entries))
@@ -379,7 +379,7 @@ func TestBuild_SysLibs(t *testing.T) {
 	}
 
 	// Verify executable was created and runs
-	exePath := filepath.Join(testdataDir, "build", "debug", "bin", "mathtest")
+	exePath := filepath.Join(testdataDir, ".build", "debug", "bin", "mathtest")
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Fatalf("executable not found at %s", exePath)
 	}
