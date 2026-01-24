@@ -64,11 +64,12 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 018 | Add fmt dependency example to testdata | 2026-01-24 | 3a09a30 | [018-add-fmt-dependency-example-to-testdata](./quick/018-add-fmt-dependency-example-to-testdata/) |
 | 019 | Fix C++20 module compilation | 2026-01-24 | 403e441 | [019-fix-module-test-build](./quick/019-fix-module-test-build/) |
+| 020 | Create OS-specific sysLibs sample project | 2026-01-24 | 4715d34 | [020-create-a-testdata-sample-project-that-sh](./quick/020-create-a-testdata-sample-project-that-sh/) |
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed quick task 019 (C++20 module compilation fix)
+Stopped at: Completed quick task 020 (OS-specific sysLibs sample project)
 Resume file: None
 Next step: `/gsd:plan-phase 9`
 
