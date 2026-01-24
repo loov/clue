@@ -1,4 +1,4 @@
-package build_test
+package main
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ func runClue(t *testing.T, dir string, args ...string) (stdout, stderr string, e
 
 	// Build clue in temp directory (main.go is at project root)
 	clueCmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	clueCmd.Dir = findProjectRoot(t)
+	clueCmd.Dir = "."
 	if err := clueCmd.Run(); err != nil {
 		t.Fatalf("failed to build clue: %v", err)
 	}
@@ -42,24 +42,8 @@ func runClue(t *testing.T, dir string, args ...string) (stdout, stderr string, e
 	return outBuf.String(), errBuf.String(), exitCode
 }
 
-func findProjectRoot(t *testing.T) string {
-	t.Helper()
-	// Walk up from current directory to find go.mod
-	dir, _ := os.Getwd()
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("could not find project root")
-		}
-		dir = parent
-	}
-}
-
 func TestCLI_QuietMode_NoOutputOnSuccess(t *testing.T) {
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	testDir := filepath.Join("testdata", "multi-target")
 
 	// Clean first
 	runClue(t, testDir, "--all", "clean")
@@ -78,7 +62,7 @@ func TestCLI_QuietMode_NoOutputOnSuccess(t *testing.T) {
 }
 
 func TestCLI_VerboseMode_ShowsCommands(t *testing.T) {
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	testDir := filepath.Join("testdata", "multi-target")
 
 	// Clean first
 	runClue(t, testDir, "--all", "clean")
@@ -97,7 +81,7 @@ func TestCLI_VerboseMode_ShowsCommands(t *testing.T) {
 }
 
 func TestCLI_MutuallyExclusiveFlags(t *testing.T) {
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	testDir := filepath.Join("testdata", "multi-target")
 
 	_, stderr, exitCode := runClue(t, testDir, "--quiet", "-v", "build")
 
@@ -111,7 +95,7 @@ func TestCLI_MutuallyExclusiveFlags(t *testing.T) {
 }
 
 func TestCLI_TimingDisplay(t *testing.T) {
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	testDir := filepath.Join("testdata", "multi-target")
 
 	// Clean first
 	runClue(t, testDir, "--all", "clean")
@@ -134,7 +118,7 @@ func TestCLI_TimingDisplay(t *testing.T) {
 }
 
 func TestCLI_RunCommand_BuildsAndExecutes(t *testing.T) {
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	testDir := filepath.Join("testdata", "multi-target")
 
 	// Clean first
 	runClue(t, testDir, "--all", "clean")
@@ -161,7 +145,7 @@ func TestCLI_RunCommand_BuildsAndExecutes(t *testing.T) {
 func TestCLI_RunCommand_PassesArguments(t *testing.T) {
 	// This test requires a program that echoes arguments
 	// Skip if testdata/args-test doesn't exist
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "args-test")
+	testDir := filepath.Join("testdata", "args-test")
 	if _, err := os.Stat(testDir); os.IsNotExist(err) {
 		t.Skip("testdata/args-test not found")
 	}
@@ -184,7 +168,7 @@ func TestCLI_RunCommand_PassesArguments(t *testing.T) {
 
 func TestCLI_RunCommand_FailsOnNonExecutable(t *testing.T) {
 	// Need a test project with a library target
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	testDir := filepath.Join("testdata", "multi-target")
 	if _, err := os.Stat(testDir); os.IsNotExist(err) {
 		t.Skip("testdata/multi-target not found")
 	}
@@ -202,7 +186,7 @@ func TestCLI_RunCommand_FailsOnNonExecutable(t *testing.T) {
 }
 
 func TestCLI_RunCommand_FailsOnMissingTarget(t *testing.T) {
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "multi-target")
+	testDir := filepath.Join("testdata", "multi-target")
 
 	_, stderr, exitCode := runClue(t, testDir, "run", "nonexistent")
 
@@ -217,7 +201,7 @@ func TestCLI_RunCommand_FailsOnMissingTarget(t *testing.T) {
 
 func TestCLI_ModuleDetection(t *testing.T) {
 	// Test module detection (doesn't require full compilation)
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "module-test")
+	testDir := filepath.Join("testdata", "module-test")
 	if _, err := os.Stat(testDir); os.IsNotExist(err) {
 		t.Skip("testdata/module-test not found")
 	}
@@ -237,7 +221,7 @@ func TestCLI_ModuleBuild(t *testing.T) {
 		t.Skip("clang-scan-deps not available, skipping module build test")
 	}
 
-	testDir := filepath.Join(findProjectRoot(t), "testdata", "module-test")
+	testDir := filepath.Join("testdata", "module-test")
 	if _, err := os.Stat(testDir); os.IsNotExist(err) {
 		t.Skip("testdata/module-test not found")
 	}
