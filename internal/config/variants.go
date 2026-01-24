@@ -59,8 +59,9 @@ func SelectVariant(cliFlag string) string {
 	return vs.Select()
 }
 
-// ApplyVariant merges the selected variant into the base configuration
-// using CUE's unification. The variant must be defined in cfg.Raw.
+// ApplyVariant sets the active variant in the configuration.
+// It extracts variant details from the CUE config and stores them for build use.
+// The variant must be defined in cfg.Raw under variants.{variantName}.
 func ApplyVariant(cfg *Config, variantName string) (*Config, error) {
 	if cfg.Raw.Err() != nil {
 		return nil, fmt.Errorf("invalid base config: %w", cfg.Raw.Err())
@@ -84,22 +85,9 @@ func ApplyVariant(cfg *Config, variantName string) (*Config, error) {
 		return nil, fmt.Errorf("invalid variant %q: %w", variantName, err)
 	}
 
-	// Unify variant with base - this merges the variant's overrides
-	// The variant settings will override corresponding base settings
-	unified := cfg.Raw.Unify(variantVal)
-	if err := unified.Err(); err != nil {
-		return nil, fmt.Errorf("variant %q conflicts with base configuration: %w", variantName, err)
-	}
-
-	// Validate the unified result
-	if err := unified.Validate(); err != nil {
-		return nil, fmt.Errorf("variant %q produces invalid configuration: %w", variantName, err)
-	}
-
-	// Update the config's Raw value and re-extract variant info
-	cfg.Raw = unified
-
-	// Update the active variant in config
+	// Extract variant details into the ActiveVariant struct
+	// Note: We no longer unify variant with root config as that causes field conflicts.
+	// The variant settings are applied during build through the ActiveVariant field.
 	variant, err := extractVariantDetails(variantVal, variantName)
 	if err != nil {
 		return nil, err

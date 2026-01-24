@@ -33,7 +33,6 @@ targets: {
 }
 variants: {
 	debug: {
-		name:         "debug"
 		optimization: "O0"
 		debug_info:   true
 		defines:      ["DEBUG", "_DEBUG"]
@@ -42,7 +41,6 @@ variants: {
 		}
 	}
 	release: {
-		name:         "release"
 		optimization: "O2"
 		debug_info:   false
 		defines:      ["NDEBUG"]
@@ -52,7 +50,6 @@ variants: {
 		}
 	}
 	asan: {
-		name:         "asan"
 		optimization: "O1"
 		debug_info:   true
 		defines:      ["DEBUG", "ASAN_ENABLED"]
