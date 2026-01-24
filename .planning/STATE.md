@@ -200,6 +200,7 @@ Recent decisions affecting current work:
 - 08-05: Integration tests use exec.Command — Build clue binary and execute via exec.Command for end-to-end testing (rationale: tests actual CLI behavior including flag parsing and output formatting)
 - 08-05: Tests skip gracefully when dependencies missing — Use t.Skip() when optional test dependencies like clang-scan-deps not available (rationale: allows tests to run in diverse environments)
 - 08-05: Module test project without full compilation — Create module test project but accept that compilation may fail without full module support (rationale: tests module detection and ordering logic independently)
+- quick-008: t.TempDir() for test binary placement — CLI tests build test binary in t.TempDir() instead of project root (rationale: automatic cleanup by Go test framework, prevents test artifacts from polluting project root)
 
 ### Pending Todos
 
@@ -222,11 +223,12 @@ None yet.
 | 005 | Fix go test ./cmd/clue (variant + flag fixes) | 2026-01-24 | 0793bc5 | [005-fix-go-test-cmd-clue](./quick/005-fix-go-test-cmd-clue/) |
 | 006 | Move cmd/clue to project root | 2026-01-24 | f1caee3 | [006-move-cmd-clue-to-root-of-project](./quick/006-move-cmd-clue-to-root-of-project/) |
 | 007 | Fix build directory to .build | 2026-01-24 | 60f0ed0 | [007-fix-build-directory-to-build](./quick/007-fix-build-directory-to-build/) |
+| 008 | Move clue_test_bin to temp folder | 2026-01-24 | bba8d64 | [008-clue-test-bin-in-temp-folder](./quick/008-clue-test-bin-in-temp-folder/) |
 
 ## Session Continuity
 
-Last session: 2026-01-24 06:40 UTC
-Stopped at: Completed quick task 007 (Fix build directory to .build)
+Last session: 2026-01-24 07:41 UTC
+Stopped at: Completed quick task 008 (Move clue_test_bin to temp folder)
 Resume file: None
 Next step: PROJECT COMPLETE - No further plans
 
