@@ -135,7 +135,7 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 
-	opts := BuildOptions{
+	opts := Options{
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  filepath.Join(dir, "build"),
@@ -274,67 +274,67 @@ func TestCrossCompilerNaming(t *testing.T) {
 func TestSemanticFlagMapping(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    BuildConfig
+		config    Config
 		toolchain string
 		expected  []string
 	}{
 		{
 			name:      "optimization fast",
-			config:    BuildConfig{Optimize: "fast"},
+			config:    Config{Optimize: "fast"},
 			toolchain: "gcc",
 			expected:  []string{"-O2"},
 		},
 		{
 			name:      "optimization size",
-			config:    BuildConfig{Optimize: "size"},
+			config:    Config{Optimize: "size"},
 			toolchain: "clang",
 			expected:  []string{"-Os"},
 		},
 		{
 			name:      "warnings strict",
-			config:    BuildConfig{Warnings: "strict"},
+			config:    Config{Warnings: "strict"},
 			toolchain: "gcc",
 			expected:  []string{"-Wall", "-Wextra"},
 		},
 		{
 			name:      "debug full",
-			config:    BuildConfig{Debug: "full"},
+			config:    Config{Debug: "full"},
 			toolchain: "clang",
 			expected:  []string{"-g"},
 		},
 		{
 			name:      "sanitizer address",
-			config:    BuildConfig{Sanitizers: []string{"address"}},
+			config:    Config{Sanitizers: []string{"address"}},
 			toolchain: "clang",
 			expected:  []string{"-fsanitize=address"},
 		},
 		{
 			name:      "sanitizer undefined",
-			config:    BuildConfig{Sanitizers: []string{"undefined"}},
+			config:    Config{Sanitizers: []string{"undefined"}},
 			toolchain: "gcc",
 			expected:  []string{"-fsanitize=undefined"},
 		},
 		{
 			name:      "lto enabled",
-			config:    BuildConfig{LTO: true},
+			config:    Config{LTO: true},
 			toolchain: "clang",
 			expected:  []string{"-flto"},
 		},
 		{
 			name:      "pic enabled",
-			config:    BuildConfig{PIC: true},
+			config:    Config{PIC: true},
 			toolchain: "gcc",
 			expected:  []string{"-fPIC"},
 		},
 		{
 			name:      "coverage clang",
-			config:    BuildConfig{Coverage: true},
+			config:    Config{Coverage: true},
 			toolchain: "clang",
 			expected:  []string{"-fprofile-instr-generate", "-fcoverage-mapping"},
 		},
 		{
 			name:      "coverage gcc",
-			config:    BuildConfig{Coverage: true},
+			config:    Config{Coverage: true},
 			toolchain: "gcc",
 			expected:  []string{"-fprofile-arcs", "-ftest-coverage"},
 		},
@@ -342,7 +342,7 @@ func TestSemanticFlagMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := BuildCompilerFlagsWithToolchain(tt.config, tt.toolchain)
+			flags := CompilerFlagsWithToolchain(tt.config, tt.toolchain)
 
 			// Verify all expected flags are present
 			for _, expectedFlag := range tt.expected {
@@ -365,31 +365,31 @@ func TestSemanticFlagMapping(t *testing.T) {
 func TestSemanticFlagMapping_Linker(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    BuildConfig
+		config    Config
 		toolchain string
 		expected  []string
 	}{
 		{
 			name:      "debug full in linker",
-			config:    BuildConfig{Debug: "full"},
+			config:    Config{Debug: "full"},
 			toolchain: "gcc",
 			expected:  []string{"-g"},
 		},
 		{
 			name:      "sanitizer address in linker",
-			config:    BuildConfig{Sanitizers: []string{"address"}},
+			config:    Config{Sanitizers: []string{"address"}},
 			toolchain: "clang",
 			expected:  []string{"-fsanitize=address"},
 		},
 		{
 			name:      "lto in linker",
-			config:    BuildConfig{LTO: true},
+			config:    Config{LTO: true},
 			toolchain: "gcc",
 			expected:  []string{"-flto"},
 		},
 		{
 			name:      "coverage clang in linker",
-			config:    BuildConfig{Coverage: true},
+			config:    Config{Coverage: true},
 			toolchain: "clang",
 			expected:  []string{"-fprofile-instr-generate"},
 		},
@@ -397,7 +397,7 @@ func TestSemanticFlagMapping_Linker(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := BuildLinkerFlagsWithToolchain(tt.config, []string{}, tt.toolchain)
+			flags := LinkerFlagsWithToolchain(tt.config, []string{}, tt.toolchain)
 
 			// Verify all expected flags are present
 			for _, expectedFlag := range tt.expected {

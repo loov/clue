@@ -104,7 +104,7 @@ func TestCompiler_CompileSource_Integration(t *testing.T) {
 	opts := CompileOptions{
 		Source: sourceFile,
 		Output: objectFile,
-		Flags: BuildConfig{
+		Flags: Config{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -166,7 +166,7 @@ func TestCompiler_CompileSource_Error(t *testing.T) {
 	opts := CompileOptions{
 		Source: sourceFile,
 		Output: objectFile,
-		Flags: BuildConfig{
+		Flags: Config{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -216,7 +216,7 @@ func TestCompiler_CompileSource_WithFlags(t *testing.T) {
 	opts := CompileOptions{
 		Source: sourceFile,
 		Output: objectFile,
-		Flags: BuildConfig{
+		Flags: Config{
 			Optimize:         "fast",
 			Warnings:         "strict",
 			WarningsAsErrors: true,
@@ -285,7 +285,7 @@ int main() { return HEADER_LOADED; }`
 		Source:   sourceFile,
 		Output:   objectFile,
 		Includes: []string{includeDir},
-		Flags: BuildConfig{
+		Flags: Config{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -352,7 +352,7 @@ int main() { return VERSION; }
 		Source:   srcPath,
 		Output:   filepath.Join(objDir, "main.cpp.o"),
 		Includes: []string{srcDir},
-		Flags:    BuildConfig{},
+		Flags:    Config{},
 		Std:      "c++17",
 	})
 
@@ -431,7 +431,7 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 		{
 			Source: goodFile,
 			Output: filepath.Join(tmpDir, "good.o"),
-			Flags: BuildConfig{
+			Flags: Config{
 				Optimize:         "none",
 				Warnings:         "default",
 				WarningsAsErrors: false,
@@ -441,7 +441,7 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 		{
 			Source: badFile,
 			Output: filepath.Join(tmpDir, "bad.o"),
-			Flags: BuildConfig{
+			Flags: Config{
 				Optimize:         "none",
 				Warnings:         "default",
 				WarningsAsErrors: false,
@@ -512,7 +512,7 @@ func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
 		Source:     sourceFile,
 		Output:     objectFile,
 		TargetType: "shared_library", // This should trigger automatic -fPIC
-		Flags: BuildConfig{
+		Flags: Config{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -577,7 +577,7 @@ func TestCompiler_Executable_NoPIC(t *testing.T) {
 		Source:     sourceFile,
 		Output:     objectFile,
 		TargetType: "executable",
-		Flags: BuildConfig{
+		Flags: Config{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,

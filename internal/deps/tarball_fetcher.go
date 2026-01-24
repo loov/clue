@@ -135,7 +135,7 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 	// Count extracted files for verbose output
 	if f.verbose {
 		fileCount := 0
-		filepath.Walk(targetPath, func(path string, info os.FileInfo, err error) error {
+		filepath.Walk(targetPath, func(_ string, info os.FileInfo, err error) error {
 			if err == nil && !info.IsDir() {
 				fileCount++
 			}

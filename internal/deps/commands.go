@@ -145,7 +145,7 @@ func RunClean(deps map[string]Dependency, name string) error {
 }
 
 // RunUpdate checks for dependency updates (placeholder for Phase 6)
-func RunUpdate(ctx context.Context, deps map[string]Dependency) error {
+func RunUpdate(_ context.Context, _ map[string]Dependency) error {
 	fmt.Println("Dependency update checking not yet implemented")
 	return nil
 }

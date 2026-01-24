@@ -14,7 +14,7 @@ type CompileOptions struct {
 	Output     string      // Output object file path
 	Includes   []string    // Include directories
 	Defines    []string    // Preprocessor defines
-	Flags      BuildConfig // Semantic flags
+	Flags      Config // Semantic flags
 	Std        string      // Language standard (e.g., "c++20", "c17")
 	TargetType string      // "executable", "static_library", "shared_library"
 }
@@ -105,7 +105,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 	}
 
 	// 9. Semantic flags
-	semanticFlags := BuildCompilerFlagsWithToolchain(opts.Flags, c.toolchain.Name)
+	semanticFlags := CompilerFlagsWithToolchain(opts.Flags, c.toolchain.Name)
 	args = append(args, semanticFlags...)
 
 	// 10. Raw compiler flags (already included in semantic flags via BuildCompilerFlags)

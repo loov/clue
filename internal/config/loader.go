@@ -158,7 +158,7 @@ func (l *Loader) convertCUEError(err error, baseDir string) error {
 }
 
 // singleCUEError converts one CUE error to a RichError
-func (l *Loader) singleCUEError(err error, baseDir string) *clerrors.RichError {
+func (l *Loader) singleCUEError(err error, _ string) *clerrors.RichError {
 	rich := &clerrors.RichError{
 		Message: cueerrors.Details(err, nil),
 	}

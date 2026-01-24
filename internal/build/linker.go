@@ -28,7 +28,7 @@ type LinkOptions struct {
 	SysLibs      []string    // System libraries (pthread, m, dl)
 	LibPaths     []string    // Library search paths (-L)
 	Libs         []string    // Additional libraries to link
-	Flags        BuildConfig // For raw linker flags and debug info
+	Flags        Config // For raw linker flags and debug info
 	UseCPlusPlus bool        // Use clang++/g++ for linking (C++ std lib)
 }
 
@@ -39,7 +39,7 @@ type SharedLibraryOptions struct {
 	SysLibs          []string    // System libraries (pthread, m, dl)
 	LibPaths         []string    // Library search paths (-L)
 	Libs             []string    // Additional libraries to link
-	Flags            BuildConfig // For raw linker flags and debug info
+	Flags            Config // For raw linker flags and debug info
 	UseCPlusPlus     bool        // Use clang++/g++ for linking (C++ std lib)
 	SymbolVisibility string      // "default" or "hidden"
 }
@@ -108,7 +108,7 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 	}
 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
-	linkerFlags := BuildLinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name) // Pass empty sysLibs since we handle them above
+	linkerFlags := LinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name) // Pass empty sysLibs since we handle them above
 	args = append(args, linkerFlags...)
 
 	// Create output directory if needed
@@ -224,7 +224,7 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 	}
 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
-	linkerFlags := BuildLinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name)
+	linkerFlags := LinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name)
 	args = append(args, linkerFlags...)
 
 	// Create output directory if needed

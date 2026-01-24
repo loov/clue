@@ -202,7 +202,7 @@ func (p *ParallelCompiler) compileSourceWithCapture(ctx context.Context, compile
 	}
 
 	// Semantic flags
-	semanticFlags := BuildCompilerFlags(opts.Flags)
+	semanticFlags := CompilerFlags(opts.Flags)
 	args = append(args, semanticFlags...)
 
 	// Create output directory if needed

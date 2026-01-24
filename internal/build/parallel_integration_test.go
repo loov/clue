@@ -127,7 +127,7 @@ func TestParallelBuild_20Files(t *testing.T) {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build"),
@@ -187,7 +187,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts1 := BuildOptions{
+	opts1 := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build1"),
@@ -210,7 +210,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts4 := BuildOptions{
+	opts4 := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build4"),
@@ -257,7 +257,7 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build"),
@@ -312,7 +312,7 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: filepath.Join(projectDir, "build"),
@@ -421,7 +421,7 @@ targets: {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	} // keepGoing=false
-	opts1 := BuildOptions{
+	opts1 := Options{
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  filepath.Join(dir, "build1"),
@@ -440,7 +440,7 @@ targets: {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	} // keepGoing=true
-	opts2 := BuildOptions{
+	opts2 := Options{
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  filepath.Join(dir, "build2"),

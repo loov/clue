@@ -117,7 +117,7 @@ func (p *Progress) Complete(artifact string, fileCount, cachedCount int, duratio
 }
 
 // Skip reports that a file was skipped due to cache hit
-func (p *Progress) Skip(target, filename string, reason RebuildReason) {
+func (p *Progress) Skip(target, filename string, _ RebuildReason) {
 	p.current.Add(1)
 	p.cached.Add(1)
 

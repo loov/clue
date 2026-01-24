@@ -5,8 +5,8 @@ import (
 	"os"
 )
 
-// BuildConfig holds semantic build configuration options
-type BuildConfig struct {
+// Config holds semantic build configuration options
+type Config struct {
 	Optimize         string   // "none", "size", "fast", "aggressive"
 	Warnings         string   // "off", "default", "strict", "pedantic"
 	WarningsAsErrors bool     // Default true
@@ -44,13 +44,13 @@ var debugFlags = map[string]string{
 	"full":    "-g",
 }
 
-// BuildCompilerFlags constructs compiler flags from semantic configuration
-func BuildCompilerFlags(config BuildConfig) []string {
-	return BuildCompilerFlagsWithToolchain(config, "gcc")
+// CompilerFlags constructs compiler flags from semantic configuration
+func CompilerFlags(config Config) []string {
+	return CompilerFlagsWithToolchain(config, "gcc")
 }
 
-// BuildCompilerFlagsWithToolchain constructs compiler flags with toolchain-specific handling
-func BuildCompilerFlagsWithToolchain(config BuildConfig, toolchain string) []string {
+// CompilerFlagsWithToolchain constructs compiler flags with toolchain-specific handling
+func CompilerFlagsWithToolchain(config Config, toolchain string) []string {
 	var flags []string
 
 	// Add optimization flag
@@ -112,13 +112,13 @@ func BuildCompilerFlagsWithToolchain(config BuildConfig, toolchain string) []str
 	return flags
 }
 
-// BuildLinkerFlags constructs linker flags from semantic configuration
-func BuildLinkerFlags(config BuildConfig, sysLibs []string) []string {
-	return BuildLinkerFlagsWithToolchain(config, sysLibs, "gcc")
+// LinkerFlags constructs linker flags from semantic configuration
+func LinkerFlags(config Config, sysLibs []string) []string {
+	return LinkerFlagsWithToolchain(config, sysLibs, "gcc")
 }
 
-// BuildLinkerFlagsWithToolchain constructs linker flags with toolchain-specific handling
-func BuildLinkerFlagsWithToolchain(config BuildConfig, sysLibs []string, toolchain string) []string {
+// LinkerFlagsWithToolchain constructs linker flags with toolchain-specific handling
+func LinkerFlagsWithToolchain(config Config, sysLibs []string, toolchain string) []string {
 	var flags []string
 
 	// Add system library flags

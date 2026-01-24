@@ -45,7 +45,7 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 		return nil, fmt.Errorf("failed to create builder: %w", err)
 	}
 
-	buildOpts := BuildOptions{
+	buildOpts := Options{
 		Config:    opts.Config,
 		Variant:   opts.Variant,
 		BuildDir:  opts.BuildDir,

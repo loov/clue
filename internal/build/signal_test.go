@@ -16,12 +16,12 @@ func TestSetupSignalHandling_CreatesContext(t *testing.T) {
 
 	// Verify context is not nil
 	if bc.Ctx == nil {
-		t.Error("BuildContext.Ctx should not be nil")
+		t.Error("Context.Ctx should not be nil")
 	}
 
 	// Verify Cancel is not nil
 	if bc.Cancel == nil {
-		t.Error("BuildContext.Cancel should not be nil")
+		t.Error("Context.Cancel should not be nil")
 	}
 
 	// Verify context is not already cancelled
@@ -33,11 +33,11 @@ func TestSetupSignalHandling_CreatesContext(t *testing.T) {
 	}
 }
 
-func TestBuildContext_IsCancelled_InitiallyFalse(t *testing.T) {
+func TestContext_IsCancelled_InitiallyFalse(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	bc := &BuildContext{
+	bc := &Context{
 		Ctx:    ctx,
 		Cancel: cancel,
 	}
@@ -47,10 +47,10 @@ func TestBuildContext_IsCancelled_InitiallyFalse(t *testing.T) {
 	}
 }
 
-func TestBuildContext_IsCancelled_TrueAfterCancel(t *testing.T) {
+func TestContext_IsCancelled_TrueAfterCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	bc := &BuildContext{
+	bc := &Context{
 		Ctx:    ctx,
 		Cancel: cancel,
 	}

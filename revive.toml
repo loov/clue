@@ -1,0 +1,11 @@
+# Revive linter configuration
+# https://github.com/mgechev/revive
+
+# Exclude files from the confusing-naming check for internal/errors package
+# The package provides rich error formatting and is always aliased as `clerrors` when imported
+ignoreGeneratedHeader = false
+severity = "warning"
+confidence = 0.8
+
+[rule.confusing-naming]
+  disabled = true

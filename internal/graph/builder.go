@@ -7,9 +7,12 @@ import (
 	"github.com/dominikbraun/graph"
 )
 
+// Error variables for graph operations.
 var (
+	// ErrCyclicDependency is returned when a cycle is detected in the dependency graph.
 	ErrCyclicDependency = errors.New("cyclic dependency detected")
-	ErrNodeNotFound     = errors.New("node not found")
+	// ErrNodeNotFound is returned when a referenced node does not exist in the graph.
+	ErrNodeNotFound = errors.New("node not found")
 )
 
 // BuildGraph represents the dependency graph of build targets

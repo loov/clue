@@ -3,6 +3,7 @@ package graph
 // NodeType identifies what kind of build artifact a node represents
 type NodeType string
 
+// NodeType constants define the types of build artifacts.
 const (
 	NodeTypeSource     NodeType = "source"     // .c, .cpp files
 	NodeTypeHeader     NodeType = "header"     // .h, .hpp files (for dependency tracking)

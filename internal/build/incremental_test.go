@@ -123,7 +123,7 @@ func TestIncremental_FirstBuild(t *testing.T) {
 	}
 
 	// Build for the first time
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
@@ -174,7 +174,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
@@ -222,7 +222,7 @@ func TestIncremental_SourceChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
@@ -286,7 +286,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
@@ -345,7 +345,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,
@@ -394,7 +394,7 @@ func TestIncremental_ContentRevert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,

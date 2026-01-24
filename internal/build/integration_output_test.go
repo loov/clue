@@ -84,7 +84,7 @@ targets: {
 	}
 
 	buildDir := filepath.Join(tmpDir, ".build")
-	opts := BuildOptions{
+	opts := Options{
 		Config:   cfg,
 		Variant:  "debug",
 		BuildDir: buildDir,

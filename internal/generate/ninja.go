@@ -40,8 +40,8 @@ func (d defaultTarget) RequiredVersion() ninja.Version {
 	return ninja.Version(0)
 }
 
-// GenerateNinja creates a build.ninja file for the project
-func GenerateNinja(opts NinjaOptions) error {
+// Ninja creates a build.ninja file for the project
+func Ninja(opts NinjaOptions) error {
 	// Set defaults
 	if opts.OutputPath == "" {
 		opts.OutputPath = "build.ninja"
@@ -183,7 +183,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, toolchain *build.Toolchain) []string {
+func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, _ *build.Toolchain) []string {
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 
@@ -270,7 +270,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 // Note: objectPath is defined in compdb.go and shared between both generators
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output
-func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.BuildConfig, includes []string, isCPP bool) []string {
+func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, includes []string, _ bool) []string {
 	var flags []string
 
 	// Language standard
@@ -289,14 +289,14 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 	}
 
 	// Semantic flags from build package
-	semanticFlags := build.BuildCompilerFlags(buildCfg)
+	semanticFlags := build.CompilerFlags(buildCfg)
 	flags = append(flags, semanticFlags...)
 
 	return flags
 }
 
 // buildLinkerFlagsForNinja builds linker flags for executables
-func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.BuildConfig, buildDir, variant string, platform build.Platform) []string {
+func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, buildDir, variant string, _ build.Platform) []string {
 	var flags []string
 
 	// Library search paths for dependencies
@@ -315,14 +315,14 @@ func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg
 	}
 
 	// Semantic linker flags
-	semanticFlags := build.BuildLinkerFlags(buildCfg, []string{})
+	semanticFlags := build.LinkerFlags(buildCfg, []string{})
 	flags = append(flags, semanticFlags...)
 
 	return flags
 }
 
 // buildSharedLibLinkerFlags builds linker flags for shared libraries
-func buildSharedLibLinkerFlags(cfg *config.Config, target config.Target, buildCfg build.BuildConfig, platform build.Platform) []string {
+func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg build.Config, platform build.Platform) []string {
 	var flags []string
 
 	// Platform-specific shared library flags
@@ -341,7 +341,7 @@ func buildSharedLibLinkerFlags(cfg *config.Config, target config.Target, buildCf
 	}
 
 	// Semantic linker flags
-	semanticFlags := build.BuildLinkerFlags(buildCfg, []string{})
+	semanticFlags := build.LinkerFlags(buildCfg, []string{})
 	flags = append(flags, semanticFlags...)
 
 	return flags

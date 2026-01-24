@@ -11,7 +11,7 @@ import (
 	"github.com/loov/clue/internal/deps"
 )
 
-func TestGenerateCompileCommands_Basic(t *testing.T) {
+func TestCompileCommands_Basic(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -57,9 +57,9 @@ func TestGenerateCompileCommands_Basic(t *testing.T) {
 		Toolchain:  "clang",
 	}
 
-	err := GenerateCompileCommands(opts)
+	err := CompileCommands(opts)
 	if err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	// Read and parse output
@@ -103,7 +103,7 @@ func TestGenerateCompileCommands_Basic(t *testing.T) {
 	}
 }
 
-func TestGenerateCompileCommands_Arguments(t *testing.T) {
+func TestCompileCommands_Arguments(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create config with includes, defines, std setting
@@ -150,8 +150,8 @@ func TestGenerateCompileCommands_Arguments(t *testing.T) {
 		Toolchain:  "clang",
 	}
 
-	if err := GenerateCompileCommands(opts); err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+	if err := CompileCommands(opts); err != nil {
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	data, _ := os.ReadFile(outputPath)
@@ -217,7 +217,7 @@ func TestGenerateCompileCommands_Arguments(t *testing.T) {
 	}
 }
 
-func TestGenerateCompileCommands_MultipleTargets(t *testing.T) {
+func TestCompileCommands_MultipleTargets(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -258,8 +258,8 @@ func TestGenerateCompileCommands_MultipleTargets(t *testing.T) {
 		OutputPath: outputPath,
 	}
 
-	if err := GenerateCompileCommands(opts); err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+	if err := CompileCommands(opts); err != nil {
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	data, _ := os.ReadFile(outputPath)
@@ -288,7 +288,7 @@ func TestGenerateCompileCommands_MultipleTargets(t *testing.T) {
 	}
 }
 
-func TestGenerateCompileCommands_CPlusPlusDetection(t *testing.T) {
+func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -325,8 +325,8 @@ func TestGenerateCompileCommands_CPlusPlusDetection(t *testing.T) {
 		Toolchain:  "clang",
 	}
 
-	if err := GenerateCompileCommands(opts); err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+	if err := CompileCommands(opts); err != nil {
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	data, _ := os.ReadFile(outputPath)
@@ -354,7 +354,7 @@ func TestGenerateCompileCommands_CPlusPlusDetection(t *testing.T) {
 	}
 }
 
-func TestGenerateCompileCommands_VariantFlags(t *testing.T) {
+func TestCompileCommands_VariantFlags(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -393,8 +393,8 @@ func TestGenerateCompileCommands_VariantFlags(t *testing.T) {
 		OutputPath: outputPath,
 	}
 
-	if err := GenerateCompileCommands(opts); err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+	if err := CompileCommands(opts); err != nil {
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	data, _ := os.ReadFile(outputPath)
@@ -418,7 +418,7 @@ func TestGenerateCompileCommands_VariantFlags(t *testing.T) {
 	}
 }
 
-func TestGenerateCompileCommands_GCCToolchain(t *testing.T) {
+func TestCompileCommands_GCCToolchain(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -453,8 +453,8 @@ func TestGenerateCompileCommands_GCCToolchain(t *testing.T) {
 		Toolchain:  "gcc",
 	}
 
-	if err := GenerateCompileCommands(opts); err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+	if err := CompileCommands(opts); err != nil {
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	data, _ := os.ReadFile(outputPath)
@@ -476,7 +476,7 @@ func TestGenerateCompileCommands_GCCToolchain(t *testing.T) {
 	}
 }
 
-func TestGenerateCompileCommands_WithDependencies(t *testing.T) {
+func TestCompileCommands_WithDependencies(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create vendored dependency structure
@@ -520,8 +520,8 @@ func TestGenerateCompileCommands_WithDependencies(t *testing.T) {
 		OutputPath: outputPath,
 	}
 
-	if err := GenerateCompileCommands(opts); err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+	if err := CompileCommands(opts); err != nil {
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	data, _ := os.ReadFile(outputPath)

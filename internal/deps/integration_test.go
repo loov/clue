@@ -68,7 +68,7 @@ func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
 
-	opts := build.BuildOptions{
+	opts := build.Options{
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  buildDir,
@@ -205,7 +205,7 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
 
-	opts := build.BuildOptions{
+	opts := build.Options{
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  buildDir,
@@ -294,7 +294,7 @@ func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
 
-	opts := build.BuildOptions{
+	opts := build.Options{
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  buildDir,

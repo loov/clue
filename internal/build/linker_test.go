@@ -47,7 +47,7 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 		Objects:      []string{mainObj},
 		Output:       exePath,
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {
@@ -213,7 +213,7 @@ int main() { return add(20, 22); }`
 		Objects:      []string{mainObj, libPath},
 		Output:       exePath,
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {
@@ -287,7 +287,7 @@ int main() {
 		Output:       exePath,
 		SysLibs:      []string{"pthread"},
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {
@@ -345,7 +345,7 @@ func TestLinker_OutputNaming(t *testing.T) {
 		Objects:      []string{objFile},
 		Output:       exePath,
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	}); err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}
@@ -527,7 +527,7 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 		Objects:      []string{libObj},
 		Output:       libPath,
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {
@@ -596,7 +596,7 @@ func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
 		Objects:      []string{libObj},
 		Output:       libPath,
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {
@@ -660,7 +660,7 @@ func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
 		Objects:      []string{libObj},
 		Output:       libPath,
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {
@@ -730,7 +730,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 		Objects:      []string{libObj},
 		Output:       libPath,
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {
@@ -745,7 +745,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 		LibPaths:     []string{tmpDir},
 		Libs:         []string{"test"},
 		UseCPlusPlus: true,
-		Flags:        BuildConfig{},
+		Flags:        Config{},
 	})
 
 	if err != nil {

@@ -23,7 +23,7 @@ func NewVendoredFetcher(projectDir string, verbose bool) *VendoredFetcher {
 
 // Fetch validates that the vendored dependency exists at the specified path
 // For vendored dependencies, "fetching" means validation only - no actual copying
-func (f *VendoredFetcher) Fetch(ctx context.Context, dep Dependency, targetPath string) error {
+func (f *VendoredFetcher) Fetch(_ context.Context, dep Dependency, _ string) error {
 	vendoredDep, ok := dep.(*VendoredDependency)
 	if !ok {
 		return fmt.Errorf("expected VendoredDependency, got %T", dep)

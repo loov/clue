@@ -1,3 +1,5 @@
+// Package build provides compilation, linking, and caching functionality
+// for building C and C++ projects.
 package build
 
 import (
@@ -13,8 +15,8 @@ import (
 	"github.com/loov/clue/internal/deps"
 )
 
-// BuildOptions holds options for a build operation
-type BuildOptions struct {
+// Options holds options for a build operation
+type Options struct {
 	Config       *config.Config
 	Variant      string    // "debug" or "release"
 	BuildDir     string    // Build output root (default: ".build")
@@ -36,8 +38,8 @@ type TargetResult struct {
 	Success  bool
 }
 
-// BuildResult holds the overall build result
-type BuildResult struct {
+// Result holds the overall build result
+type Result struct {
 	Targets  []TargetResult
 	Duration time.Duration
 	Success  bool
@@ -111,9 +113,9 @@ func (b *Builder) OutputPath(buildDir, variant, target, targetType string) strin
 	}
 }
 
-// targetToBuildConfig converts config.Target and config.Variant to BuildConfig
-func (b *Builder) targetToBuildConfig(target config.Target, variant config.Variant) BuildConfig {
-	cfg := BuildConfig{
+// targetToConfig converts config.Target and config.Variant to Config
+func (b *Builder) targetToConfig(target config.Target, variant config.Variant) Config {
+	cfg := Config{
 		Optimize:         variant.Optimization,
 		Warnings:         "default", // Default if not specified
 		WarningsAsErrors: true,      // Default to true
@@ -149,7 +151,7 @@ func (b *Builder) targetToBuildConfig(target config.Target, variant config.Varia
 }
 
 // BuildTarget builds a single target
-func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target config.Target, progress *Progress) (*TargetResult, error) {
+func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.Target, progress *Progress) (*TargetResult, error) {
 	start := time.Now()
 
 	// Calculate paths
@@ -162,7 +164,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 	}
 
 	// Build configuration from target and variant
-	buildCfg := b.targetToBuildConfig(target, opts.Config.ActiveVariant)
+	buildCfg := b.targetToConfig(target, opts.Config.ActiveVariant)
 
 	// Get compiler path for cache key
 	compilerPath, err := exec.LookPath(opts.Config.Toolchain.Compiler)
@@ -445,7 +447,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts BuildOptions, target con
 }
 
 // Build builds all targets in dependency order
-func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, error) {
+func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	start := time.Now()
 
 	// Print platform and toolchain information (skip in quiet mode)
@@ -527,7 +529,7 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 		if err != nil {
 			// Fail-fast: report error and stop
 			progress.Error(targetName, err)
-			return &BuildResult{
+			return &Result{
 				Targets:  results,
 				Duration: time.Since(start),
 				Success:  false,
@@ -546,7 +548,7 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 		fmt.Printf("\nTotal build time: %s\n", totalDuration.String())
 	}
 
-	return &BuildResult{
+	return &Result{
 		Targets:  results,
 		Duration: time.Since(start),
 		Success:  true,
@@ -554,7 +556,7 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 }
 
 // buildDependencies builds all external dependencies before the main targets
-func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map[string]*DepBuildResult, error) {
+func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[string]*DepBuildResult, error) {
 	// Check if there are any dependencies
 	if len(opts.Config.Dependencies) == 0 {
 		return make(map[string]*DepBuildResult), nil

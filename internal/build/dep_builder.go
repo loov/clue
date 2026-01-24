@@ -54,7 +54,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	start := time.Now()
 
 	// Determine sources and includes
-	sources, includes, err := db.determineBuildConfig(dep, sourcePath)
+	sources, includes, err := db.determineConfig(dep, sourcePath)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Output:   objPath,
 			Includes: compilationIncludes,
 			Defines:  []string{},
-			Flags: BuildConfig{
+			Flags: Config{
 				Optimize:         opts.Variant, // Use variant as optimization level
 				Warnings:         "default",
 				WarningsAsErrors: false, // Don't fail dependency builds on warnings
@@ -138,8 +138,8 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}, nil
 }
 
-// determineBuildConfig determines sources and includes for a dependency
-func (db *DepBuilder) determineBuildConfig(dep deps.Dependency, sourcePath string) ([]string, []string, error) {
+// determineConfig determines sources and includes for a dependency
+func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string) ([]string, []string, error) {
 	// Check for inline config first
 	var inlineConfig *deps.InlineConfig
 
@@ -288,7 +288,7 @@ func (db *DepBuilder) expandSourceGlobs(patterns []string, sourcePath string) ([
 }
 
 // determineIncludePath determines the include path for a dependency
-func (db *DepBuilder) determineIncludePath(dep deps.Dependency, sourcePath string, configIncludes []string) string {
+func (db *DepBuilder) determineIncludePath(dep deps.Dependency, sourcePath string, _ []string) string {
 	// If inline config specifies includes, use the first one
 	var inlineConfig *deps.InlineConfig
 

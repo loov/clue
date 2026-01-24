@@ -9,22 +9,22 @@ import (
 	"time"
 )
 
-// BuildContext provides a cancellable context for build operations
+// Context provides a cancellable context for build operations
 // with support for graceful shutdown and double Ctrl+C force exit.
-type BuildContext struct {
+type Context struct {
 	Ctx    context.Context
 	Cancel context.CancelFunc
 	stop   func() // internal stop function
 }
 
-// SetupSignalHandling creates a BuildContext that responds to SIGINT and SIGTERM.
+// SetupSignalHandling creates a Context that responds to SIGINT and SIGTERM.
 // The first signal cancels the context for graceful shutdown.
 // A second signal during graceful shutdown forces immediate exit.
-func SetupSignalHandling() *BuildContext {
+func SetupSignalHandling() *Context {
 	ctx, stop := signal.NotifyContext(context.Background(),
 		os.Interrupt, syscall.SIGTERM)
 
-	bc := &BuildContext{
+	bc := &Context{
 		Ctx:    ctx,
 		Cancel: func() { stop() }, // expose cancel ability
 		stop:   stop,
@@ -58,7 +58,7 @@ func SetupSignalHandling() *BuildContext {
 }
 
 // IsCancelled checks if the build context has been cancelled
-func (bc *BuildContext) IsCancelled() bool {
+func (bc *Context) IsCancelled() bool {
 	select {
 	case <-bc.Ctx.Done():
 		return true

@@ -44,7 +44,7 @@ func TestParallelCompiler_SingleFile(t *testing.T) {
 		{
 			Source: source,
 			Output: filepath.Join(objDir, "main.o"),
-			Flags:  BuildConfig{Optimize: "none"},
+			Flags:  Config{Optimize: "none"},
 		},
 	}
 
@@ -120,7 +120,7 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  BuildConfig{Optimize: "none"},
+			Flags:  Config{Optimize: "none"},
 		})
 	}
 
@@ -204,7 +204,7 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  BuildConfig{Optimize: "none"},
+			Flags:  Config{Optimize: "none"},
 		})
 	}
 
@@ -246,9 +246,9 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
 	opts := []CompileOptions{
-		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: BuildConfig{Optimize: "none"}},
-		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: BuildConfig{Optimize: "none"}},
-		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: BuildConfig{Optimize: "none"}},
+		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: Config{Optimize: "none"}},
+		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: Config{Optimize: "none"}},
+		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: Config{Optimize: "none"}},
 	}
 
 	// Compile in parallel with keep-going
@@ -317,8 +317,8 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 	// Create compile options - bad file first
 	objDir := filepath.Join(tmpDir, "obj")
 	opts := []CompileOptions{
-		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: BuildConfig{Optimize: "none"}},
-		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: BuildConfig{Optimize: "none"}},
+		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: Config{Optimize: "none"}},
+		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: Config{Optimize: "none"}},
 	}
 
 	// Compile in parallel (but with jobs=1, sequential)
@@ -377,7 +377,7 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  BuildConfig{Optimize: "none"},
+			Flags:  Config{Optimize: "none"},
 		})
 	}
 
@@ -395,13 +395,8 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 
 	// Either we get context cancelled error, or compilation completes before cancel
 	// This test mainly verifies no deadlock or panic occurs on cancellation
-	if err != nil {
-		// Check it's related to context cancellation
-		if !strings.Contains(err.Error(), "context canceled") &&
-			!strings.Contains(err.Error(), "compile") {
-			// Might be actual compile error or context error - both ok
-		}
-	}
+	// Both nil err (completed before cancel) and context cancelled errors are acceptable
+	_ = err
 
 	// Should have some results (at least in-flight ones complete)
 	// Results should not be nil even if cancelled
@@ -507,7 +502,7 @@ func TestParallelCompiler_OutputNotInterleaved(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  BuildConfig{Optimize: "none"},
+			Flags:  Config{Optimize: "none"},
 		})
 	}
 

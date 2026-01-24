@@ -182,7 +182,7 @@ func (v *VendoredDependency) Type() string {
 }
 
 // CachePath returns the original path (no caching for vendored dependencies)
-func (v *VendoredDependency) CachePath(baseDir string) string {
+func (v *VendoredDependency) CachePath(_ string) string {
 	return v.Path
 }
 

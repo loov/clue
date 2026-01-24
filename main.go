@@ -244,7 +244,7 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 	}
 
 	// Build options
-	opts := build.BuildOptions{
+	opts := build.Options{
 		Config:       cfg,
 		Variant:      selectedVariant,
 		BuildDir:     buildDir,
@@ -494,7 +494,7 @@ func generateNinja(dir string, cfg *config.Config, platform build.Platform) int 
 	sort.Strings(variants)
 
 	outputPath := filepath.Join(dir, "build.ninja")
-	err := generate.GenerateNinja(generate.NinjaOptions{
+	err := generate.Ninja(generate.NinjaOptions{
 		Config:     cfg,
 		Variants:   variants,
 		BuildDir:   cfg.BuildDir,
@@ -511,9 +511,9 @@ func generateNinja(dir string, cfg *config.Config, platform build.Platform) int 
 	return 0
 }
 
-func generateCompileCommands(dir string, cfg *config.Config, variant string, platform build.Platform) int {
+func generateCompileCommands(dir string, cfg *config.Config, variant string, _ build.Platform) int {
 	outputPath := filepath.Join(dir, "compile_commands.json")
-	err := generate.GenerateCompileCommands(generate.CompDBOptions{
+	err := generate.CompileCommands(generate.CompDBOptions{
 		Config:     cfg,
 		Variant:    variant,
 		BuildDir:   cfg.BuildDir,

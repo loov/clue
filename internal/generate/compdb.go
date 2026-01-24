@@ -29,8 +29,8 @@ type CompDBOptions struct {
 	Toolchain  string // "clang" or "gcc"
 }
 
-// GenerateCompileCommands creates a compile_commands.json file
-func GenerateCompileCommands(opts CompDBOptions) error {
+// CompileCommands creates a compile_commands.json file
+func CompileCommands(opts CompDBOptions) error {
 	// Get working directory with absolute path
 	workDir, err := filepath.Abs(".")
 	if err != nil {
@@ -150,7 +150,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 	}
 
 	// Build config for dependency (minimal defaults)
-	buildCfg := build.BuildConfig{
+	buildCfg := build.Config{
 		Optimize:         "none",
 		Warnings:         "default",
 		WarningsAsErrors: false, // Don't treat warnings as errors for deps
@@ -180,7 +180,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 }
 
 // buildCompilerArgs constructs the full compiler command arguments
-func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath string, buildCfg build.BuildConfig) []string {
+func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath string, buildCfg build.Config) []string {
 	var args []string
 
 	// 1. Compiler executable (based on file extension)
@@ -212,14 +212,14 @@ func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath
 	}
 
 	// 8. Semantic flags (using build package for consistency)
-	semanticFlags := build.BuildCompilerFlagsWithToolchain(buildCfg, opts.Toolchain)
+	semanticFlags := build.CompilerFlagsWithToolchain(buildCfg, opts.Toolchain)
 	args = append(args, semanticFlags...)
 
 	return args
 }
 
 // buildDepCompilerArgs constructs compiler arguments for a dependency source
-func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, includePath, source, objPath string, buildCfg build.BuildConfig) []string {
+func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, includePath, source, objPath string, buildCfg build.Config) []string {
 	var args []string
 
 	// 1. Compiler executable
@@ -252,7 +252,7 @@ func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, in
 	}
 
 	// 8. Semantic flags
-	semanticFlags := build.BuildCompilerFlagsWithToolchain(buildCfg, opts.Toolchain)
+	semanticFlags := build.CompilerFlagsWithToolchain(buildCfg, opts.Toolchain)
 	args = append(args, semanticFlags...)
 
 	return args

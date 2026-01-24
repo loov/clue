@@ -36,7 +36,7 @@ func createMinimalConfig(targetName, targetType string, sources []string) *confi
 	}
 }
 
-func TestGenerateNinja_BasicStructure(t *testing.T) {
+func TestNinja_BasicStructure(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.cpp"})
 
 	var buf bytes.Buffer
@@ -94,7 +94,7 @@ func TestGenerateNinja_BasicStructure(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_Depfile(t *testing.T) {
+func TestNinja_Depfile(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.c"})
 
 	var buf bytes.Buffer
@@ -127,7 +127,7 @@ func TestGenerateNinja_Depfile(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_MultiVariant(t *testing.T) {
+func TestNinja_MultiVariant(t *testing.T) {
 	cfg := &config.Config{
 		Name:     "test-project",
 		BuildDir: ".build",
@@ -192,7 +192,7 @@ func TestGenerateNinja_MultiVariant(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_StaticLibrary(t *testing.T) {
+func TestNinja_StaticLibrary(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "static_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
@@ -225,7 +225,7 @@ func TestGenerateNinja_StaticLibrary(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_SharedLibrary(t *testing.T) {
+func TestNinja_SharedLibrary(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
@@ -268,7 +268,7 @@ func TestGenerateNinja_SharedLibrary(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_SharedLibrary_Darwin(t *testing.T) {
+func TestNinja_SharedLibrary_Darwin(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
@@ -296,7 +296,7 @@ func TestGenerateNinja_SharedLibrary_Darwin(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_IncludesAndDefines(t *testing.T) {
+func TestNinja_IncludesAndDefines(t *testing.T) {
 	cfg := &config.Config{
 		Name:     "test-project",
 		BuildDir: ".build",
@@ -349,7 +349,7 @@ func TestGenerateNinja_IncludesAndDefines(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_ForwardSlashes(t *testing.T) {
+func TestNinja_ForwardSlashes(t *testing.T) {
 	cfg := &config.Config{
 		Name:     "test-project",
 		BuildDir: ".build",
@@ -403,14 +403,14 @@ func TestGenerateNinja_ForwardSlashes(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_WriteFile(t *testing.T) {
+func TestNinja_WriteFile(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.cpp"})
 
 	outputPath := filepath.Join(tmpDir, "build.ninja")
-	err := GenerateNinja(NinjaOptions{
+	err := Ninja(NinjaOptions{
 		Config:     cfg,
 		Variants:   []string{"debug"},
 		BuildDir:   ".build",
@@ -419,7 +419,7 @@ func TestGenerateNinja_WriteFile(t *testing.T) {
 		Platform:   build.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
-		t.Fatalf("GenerateNinja failed: %v", err)
+		t.Fatalf("Ninja failed: %v", err)
 	}
 
 	// Verify file exists
@@ -438,7 +438,7 @@ func TestGenerateNinja_WriteFile(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_WriteIfChanged(t *testing.T) {
+func TestNinja_WriteIfChanged(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputPath := filepath.Join(tmpDir, "build.ninja")
 
@@ -453,9 +453,9 @@ func TestGenerateNinja_WriteIfChanged(t *testing.T) {
 	}
 
 	// Generate first time
-	err := GenerateNinja(opts)
+	err := Ninja(opts)
 	if err != nil {
-		t.Fatalf("First GenerateNinja failed: %v", err)
+		t.Fatalf("First Ninja failed: %v", err)
 	}
 
 	// Get file info
@@ -466,9 +466,9 @@ func TestGenerateNinja_WriteIfChanged(t *testing.T) {
 	mtime1 := info1.ModTime()
 
 	// Generate second time with same content - should not modify
-	err = GenerateNinja(opts)
+	err = Ninja(opts)
 	if err != nil {
-		t.Fatalf("Second GenerateNinja failed: %v", err)
+		t.Fatalf("Second Ninja failed: %v", err)
 	}
 
 	info2, err := os.Stat(outputPath)
@@ -483,7 +483,7 @@ func TestGenerateNinja_WriteIfChanged(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_CCompiler(t *testing.T) {
+func TestNinja_CCompiler(t *testing.T) {
 	// Test that C files use cc rule, not cxx
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.c"})
 
@@ -512,7 +512,7 @@ func TestGenerateNinja_CCompiler(t *testing.T) {
 	}
 }
 
-func TestGenerateNinja_MixedSources(t *testing.T) {
+func TestNinja_MixedSources(t *testing.T) {
 	// Test project with both C and C++ files
 	cfg := &config.Config{
 		Name:     "test-project",

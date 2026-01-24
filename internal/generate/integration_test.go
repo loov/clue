@@ -78,7 +78,7 @@ variants: {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 
-	buildOpts := build.BuildOptions{
+	buildOpts := build.Options{
 		Config:    cfg,
 		Variant:   "debug",
 		BuildDir:  buildDir,
@@ -112,7 +112,7 @@ variants: {
 
 	// Generate ninja file
 	ninjaPath := filepath.Join(tmpDir, "build.ninja")
-	err = GenerateNinja(NinjaOptions{
+	err = Ninja(NinjaOptions{
 		Config:     cfg,
 		Variants:   []string{"debug"},
 		BuildDir:   buildDir,
@@ -121,7 +121,7 @@ variants: {
 		Platform:   build.HostPlatform(),
 	})
 	if err != nil {
-		t.Fatalf("GenerateNinja failed: %v", err)
+		t.Fatalf("Ninja failed: %v", err)
 	}
 
 	// Build with ninja
@@ -228,7 +228,7 @@ variants: {
 
 	// Generate compile_commands.json
 	compdbPath := filepath.Join(tmpDir, "compile_commands.json")
-	err = GenerateCompileCommands(CompDBOptions{
+	err = CompileCommands(CompDBOptions{
 		Config:     cfg,
 		Variant:    "debug",
 		BuildDir:   ".build",
@@ -236,7 +236,7 @@ variants: {
 		Toolchain:  "clang",
 	})
 	if err != nil {
-		t.Fatalf("GenerateCompileCommands failed: %v", err)
+		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
 	// Parse and validate JSON
@@ -377,7 +377,7 @@ variants: {
 
 	// Generate ninja file
 	ninjaPath := filepath.Join(tmpDir, "build.ninja")
-	err = GenerateNinja(NinjaOptions{
+	err = Ninja(NinjaOptions{
 		Config:     cfg,
 		Variants:   []string{"debug"},
 		BuildDir:   buildDir,
@@ -386,7 +386,7 @@ variants: {
 		Platform:   build.HostPlatform(),
 	})
 	if err != nil {
-		t.Fatalf("GenerateNinja failed: %v", err)
+		t.Fatalf("Ninja failed: %v", err)
 	}
 
 	// Build with ninja

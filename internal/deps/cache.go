@@ -1,3 +1,5 @@
+// Package deps provides dependency management including fetching,
+// caching, and building external dependencies.
 package deps
 
 import (

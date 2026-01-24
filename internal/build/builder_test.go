@@ -15,7 +15,7 @@ func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
 	target := config.Target{Name: "test"}
 	variant := config.Variant{Optimization: "fast", DebugInfo: true}
 
-	cfg := b.targetToBuildConfig(target, variant)
+	cfg := b.targetToConfig(target, variant)
 
 	if cfg.Optimize != "fast" {
 		t.Errorf("expected Optimize='fast', got '%s'", cfg.Optimize)
@@ -39,7 +39,7 @@ func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
 	// Variant has no optimization set
 	variant := config.Variant{Optimization: "", DebugInfo: false}
 
-	cfg := b.targetToBuildConfig(target, variant)
+	cfg := b.targetToConfig(target, variant)
 
 	if cfg.Optimize != "size" {
 		t.Errorf("expected Optimize='size' from target, got '%s'", cfg.Optimize)
@@ -65,7 +65,7 @@ func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
 	// Variant DebugInfo=true should override to "full"
 	variant := config.Variant{DebugInfo: true}
 
-	cfg := b.targetToBuildConfig(target, variant)
+	cfg := b.targetToConfig(target, variant)
 
 	// Variant DebugInfo=true should win over target.Debug
 	if cfg.Debug != "full" {
@@ -87,7 +87,7 @@ func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 	}
 	variant := config.Variant{}
 
-	cfg := b.targetToBuildConfig(target, variant)
+	cfg := b.targetToConfig(target, variant)
 
 	if cfg.WarningsAsErrors != false {
 		t.Errorf("expected WarningsAsErrors=false from target, got %v", cfg.WarningsAsErrors)

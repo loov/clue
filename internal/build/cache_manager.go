@@ -19,6 +19,7 @@ type CacheEntry struct {
 // RebuildReason explains why a file needs recompilation
 type RebuildReason string
 
+// RebuildReason constants define specific reasons for recompilation.
 const (
 	ReasonNotCached       RebuildReason = "not in cache"
 	ReasonSourceChanged   RebuildReason = "source changed"
@@ -103,7 +104,7 @@ func atomicWrite(path string, data []byte) error {
 // Returns (needsRebuild bool, reason RebuildReason, changedHeader string)
 func (cm *CacheManager) NeedsRebuild(
 	source string,
-	flags BuildConfig,
+	flags Config,
 	includes []string,
 	compilerPath string,
 	forceRebuild bool,
@@ -148,7 +149,7 @@ func (cm *CacheManager) NeedsRebuild(
 	}
 
 	// Compare flags
-	normalizedFlags := NormalizeFlags(BuildCompilerFlags(flags))
+	normalizedFlags := NormalizeFlags(CompilerFlags(flags))
 	if !stringSlicesEqual(normalizedFlags, entry.Key.Flags) {
 		return true, ReasonFlagsChanged, ""
 	}
@@ -235,7 +236,7 @@ func (cm *CacheManager) StoreResult(
 	source string,
 	objectPath string,
 	depFilePath string,
-	flags BuildConfig,
+	flags Config,
 	includes []string,
 	compilerPath string,
 ) error {
@@ -288,7 +289,7 @@ func (cm *CacheManager) StoreResult(
 		SourceHash:   sourceHash,
 		HeaderHashes: headerHashes,
 		CompilerID:   compilerID,
-		Flags:        NormalizeFlags(BuildCompilerFlags(flags)),
+		Flags:        NormalizeFlags(CompilerFlags(flags)),
 		IncludePaths: normalizeIncludePaths(includes),
 	}
 
