@@ -232,11 +232,12 @@ None yet.
 | 014 | Run revive and fix issues | 2026-01-24 | 74206be | [014-run-revive-and-fix-issues](./quick/014-run-revive-and-fix-issues/) |
 | 015 | Run golangci-lint and fix issues | 2026-01-24 | f2cec60 | [015-run-golangci-lint-and-fix-issues](./quick/015-run-golangci-lint-and-fix-issues/) |
 | 016 | Create Makefile with linter targets and CLAUDE.md | 2026-01-24 | 4fe393c | [016-create-makefile-linters-claude-instru](./quick/016-create-makefile-linters-claude-instru/) |
+| 017 | Rewrite git history to Go commit conventions | 2026-01-24 | ff7bfbc | [017-rewrite-git-history-go-conventions](./quick/017-rewrite-git-history-go-conventions/) |
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed quick task 016 (Create Makefile with linter targets and CLAUDE.md)
+Stopped at: Completed quick task 017 (Rewrite git history to Go commit conventions)
 Resume file: None
 Next step: PROJECT COMPLETE - No further plans
 
