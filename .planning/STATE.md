@@ -231,11 +231,12 @@ None yet.
 | 013 | Fix go vet issues | 2026-01-24 | 9250bb7 | [013-fix-go-vet-issues](./quick/013-fix-go-vet-issues/) |
 | 014 | Run revive and fix issues | 2026-01-24 | 74206be | [014-run-revive-and-fix-issues](./quick/014-run-revive-and-fix-issues/) |
 | 015 | Run golangci-lint and fix issues | 2026-01-24 | f2cec60 | [015-run-golangci-lint-and-fix-issues](./quick/015-run-golangci-lint-and-fix-issues/) |
+| 016 | Create Makefile with linter targets and CLAUDE.md | 2026-01-24 | 4fe393c | [016-create-makefile-linters-claude-instru](./quick/016-create-makefile-linters-claude-instru/) |
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed quick task 015 (Run golangci-lint and fix issues)
+Stopped at: Completed quick task 016 (Create Makefile with linter targets and CLAUDE.md)
 Resume file: None
 Next step: PROJECT COMPLETE - No further plans
 
