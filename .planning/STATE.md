@@ -224,11 +224,12 @@ None yet.
 | 006 | Move cmd/clue to project root | 2026-01-24 | f1caee3 | [006-move-cmd-clue-to-root-of-project](./quick/006-move-cmd-clue-to-root-of-project/) |
 | 007 | Fix build directory to .build | 2026-01-24 | 60f0ed0 | [007-fix-build-directory-to-build](./quick/007-fix-build-directory-to-build/) |
 | 008 | Move clue_test_bin to temp folder | 2026-01-24 | bba8d64 | [008-clue-test-bin-in-temp-folder](./quick/008-clue-test-bin-in-temp-folder/) |
+| 009 | Move CLI test to project root | 2026-01-24 | 703c6f7 | [009-move-cli-test-to-root](./quick/009-move-cli-test-to-root/) |
 
 ## Session Continuity
 
-Last session: 2026-01-24 07:41 UTC
-Stopped at: Completed quick task 008 (Move clue_test_bin to temp folder)
+Last session: 2026-01-24 06:53 UTC
+Stopped at: Completed quick task 009 (Move CLI test to project root)
 Resume file: None
 Next step: PROJECT COMPLETE - No further plans
 
