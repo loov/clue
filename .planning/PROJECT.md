@@ -38,7 +38,14 @@ Minimal configuration for common cases, with CUE's type system catching config e
 
 ### Active
 
-(Requirements for next milestone — define with `/gsd:new-milestone`)
+#### Current Milestone: v0.2.0 — Windows, Watch, Profiling
+
+**Goal:** Add Windows MSVC support as priority, plus watch mode and build profiling for developer experience.
+
+**Target features:**
+- Windows platform support with MSVC toolchain (cl.exe, link.exe)
+- Watch mode for automatic rebuilds on file changes
+- Build profiling to identify compilation bottlenecks
 
 ### Out of Scope
 
@@ -89,4 +96,4 @@ Minimal configuration for common cases, with CUE's type system catching config e
 | Verbosity enum (Quiet/Normal/Verbose) | Three levels cleaner than boolean combinations | ✓ Good |
 
 ---
-*Last updated: 2026-01-24 after v0.1.0 milestone*
+*Last updated: 2026-01-24 after v0.2.0 milestone start*

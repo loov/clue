@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time — not during.
 
-**Current focus:** v0.1.0 shipped — planning next milestone
+**Current focus:** v0.2.0 — Windows, Watch, Profiling
 
 ## Current Position
 
-Phase: v0.1.0 complete — awaiting v0.2.0 planning
-Plan: N/A
-Status: Milestone shipped, ready for next milestone planning
-Last activity: 2026-01-24 — v0.1.0 milestone complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-24 — Milestone v0.2.0 started
 
-Progress: [█████████████████████] 100% (v0.1.0 complete)
+Progress: [░░░░░░░░░░░░░░░░░░░░░] 0% (requirements phase)
 
 ## Performance Metrics
 
@@ -76,9 +76,9 @@ None — milestone complete.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: v0.1.0 milestone completion
+Stopped at: v0.2.0 milestone started
 Resume file: None
-Next step: `/gsd:new-milestone` to plan v0.2.0
+Next step: Complete requirements definition, then `/gsd:plan-phase`
 
 ## Milestone History
 
