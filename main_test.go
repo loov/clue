@@ -20,7 +20,7 @@ func TestValidateCommand(t *testing.T) {
 	}
 
 	// Find testdata directory
-	testdataDir := filepath.Join("..", "..", "testdata", "sample")
+	testdataDir := filepath.Join("testdata", "sample")
 
 	// Test validate command (flags before command for Go's flag package)
 	cmd = exec.Command(binary, "-dir", testdataDir, "-v", "validate")
@@ -52,7 +52,7 @@ func TestValidateWithVariant(t *testing.T) {
 		t.Fatalf("Failed to build: %v\n%s", err, out)
 	}
 
-	testdataDir := filepath.Join("..", "..", "testdata", "sample")
+	testdataDir := filepath.Join("testdata", "sample")
 
 	// Test with release variant (flags before command)
 	cmd = exec.Command(binary, "-dir", testdataDir, "-variant", "release", "-v", "validate")
@@ -201,7 +201,7 @@ func TestBuild_MultiTarget(t *testing.T) {
 	}
 
 	// Get absolute path to testdata
-	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "multi-target"))
+	testdataDir, err := filepath.Abs(filepath.Join("testdata", "multi-target"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestBuild_Verbose(t *testing.T) {
 		t.Fatalf("Failed to build: %v\n%s", err, out)
 	}
 
-	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "multi-target"))
+	testdataDir, err := filepath.Abs(filepath.Join("testdata", "multi-target"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +302,7 @@ func TestClean_AfterBuild(t *testing.T) {
 		t.Fatalf("Failed to build: %v\n%s", err, out)
 	}
 
-	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "multi-target"))
+	testdataDir, err := filepath.Abs(filepath.Join("testdata", "multi-target"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +357,7 @@ func TestBuild_SysLibs(t *testing.T) {
 		t.Fatalf("Failed to build: %v\n%s", err, out)
 	}
 
-	testdataDir, err := filepath.Abs(filepath.Join("..", "..", "testdata", "syslibs-test"))
+	testdataDir, err := filepath.Abs(filepath.Join("testdata", "syslibs-test"))
 	if err != nil {
 		t.Fatal(err)
 	}
