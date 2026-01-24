@@ -48,6 +48,56 @@ make build
 go build -o clue .
 ```
 
+## Commit Messages
+
+Use Go standard commit message format:
+
+```
+<scope>: <subject>
+```
+
+### Scope Rules
+
+- **Single package**: Use the package path
+  ```
+  internal/build: add parallel compilation
+  internal/config: fix variant merging
+  ```
+
+- **Two packages**: Use comma separator
+  ```
+  internal/build, internal/deps: fix error handling
+  ```
+
+- **Three+ packages or root files**: Use `all`
+  ```
+  all: update error handling across packages
+  all: fix linter issues
+  ```
+
+- **Documentation/planning**: Use `.planning`
+  ```
+  .planning: add phase 3 research
+  ```
+
+- **Other scopes**: `.devcontainer`, `testdata`, `schema`, `docs`
+
+### Subject Guidelines
+
+- Use lowercase, imperative mood ("add", "fix", "update", not "Added", "Fixes")
+- No period at the end
+- Keep under 72 characters
+
+### Examples
+
+```
+internal/build: add caching for compiled objects
+internal/deps: fix tarball extraction on Windows
+internal/build, internal/config: refactor error types
+all: modernize to Go 1.23 conventions
+.planning: complete phase 2 verification
+```
+
 ## Verification Requirements
 
 When completing tasks, ALWAYS run:
