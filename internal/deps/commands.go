@@ -56,11 +56,12 @@ func RunList(deps map[string]Dependency, verbose bool) error {
 
 		// Show additional info in verbose mode
 		if verbose && status.Ref != "" {
-			if status.Type == "git" {
+			switch status.Type {
+			case "git":
 				fmt.Printf("    ref: %s\n", status.Ref)
-			} else if status.Type == "tarball" {
+			case "tarball":
 				fmt.Printf("    url: %s\n", status.Ref)
-			} else if status.Type == "vendored" {
+			case "vendored":
 				fmt.Printf("    path: %s\n", status.Ref)
 			}
 		}

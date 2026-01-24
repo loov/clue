@@ -13,12 +13,12 @@ import (
 
 // CacheKey contains all inputs that affect compilation output
 type CacheKey struct {
-	SourceHash   string            `json:"source_hash"`    // xxHash of source file content
-	DepsHash     string            `json:"deps_hash"`      // Combined hash of all header dependencies
-	HeaderHashes map[string]string `json:"header_hashes"`  // path -> hash for all headers
-	CompilerID   CompilerIdentity  `json:"compiler_id"`    // Compiler identity (path + mtime + size)
-	Flags        []string          `json:"flags"`          // Normalized compiler flags
-	IncludePaths []string          `json:"include_paths"`  // Include directories (order preserved)
+	SourceHash   string            `json:"source_hash"`   // xxHash of source file content
+	DepsHash     string            `json:"deps_hash"`     // Combined hash of all header dependencies
+	HeaderHashes map[string]string `json:"header_hashes"` // path -> hash for all headers
+	CompilerID   CompilerIdentity  `json:"compiler_id"`   // Compiler identity (path + mtime + size)
+	Flags        []string          `json:"flags"`         // Normalized compiler flags
+	IncludePaths []string          `json:"include_paths"` // Include directories (order preserved)
 }
 
 // CompilerIdentity uniquely identifies a compiler binary
@@ -52,8 +52,8 @@ func ComputeCacheKey(key CacheKey) string {
 
 	// Write compiler identity
 	h.WriteString(key.CompilerID.Path)
-	h.WriteString(fmt.Sprintf("%d", key.CompilerID.Mtime))
-	h.WriteString(fmt.Sprintf("%d", key.CompilerID.Size))
+	fmt.Fprintf(h, "%d", key.CompilerID.Mtime)
+	fmt.Fprintf(h, "%d", key.CompilerID.Size)
 
 	// Write flags (order matters)
 	for _, flag := range key.Flags {

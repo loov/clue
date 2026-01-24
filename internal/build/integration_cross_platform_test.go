@@ -136,11 +136,11 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 	}
 
 	opts := BuildOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: filepath.Join(dir, "build"),
-		Verbosity:    VerbosityNormal,
-		Jobs:     1,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  filepath.Join(dir, "build"),
+		Verbosity: VerbosityNormal,
+		Jobs:      1,
 	}
 
 	// Build
@@ -200,9 +200,10 @@ func TestCrossCompilationTarget(t *testing.T) {
 
 	// Verify toolchain has correct GNU triplet prefix
 	expectedPrefix := ""
-	if targetPlatform.Arch == "arm64" {
+	switch targetPlatform.Arch {
+	case "arm64":
 		expectedPrefix = "aarch64-linux-gnu"
-	} else if targetPlatform.Arch == "amd64" {
+	case "amd64":
 		expectedPrefix = "x86_64-linux-gnu"
 	}
 
