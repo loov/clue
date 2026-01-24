@@ -1,7 +1,7 @@
 # Requirements: Clue v0.2.0
 
 **Defined:** 2026-01-24
-**Core Value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time — not during.
+**Core Value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time - not during.
 
 ## v0.2.0 Requirements
 
@@ -92,36 +92,36 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MSVC-01 | TBD | Pending |
-| MSVC-02 | TBD | Pending |
-| MSVC-03 | TBD | Pending |
-| MSVC-04 | TBD | Pending |
-| MSVC-05 | TBD | Pending |
-| MSVC-06 | TBD | Pending |
-| MSVC-07 | TBD | Pending |
-| MSVC-08 | TBD | Pending |
-| MSVC-09 | TBD | Pending |
-| MSVC-10 | TBD | Pending |
-| MSVC-11 | TBD | Pending |
-| MSVC-12 | TBD | Pending |
-| WATCH-01 | TBD | Pending |
-| WATCH-02 | TBD | Pending |
-| WATCH-03 | TBD | Pending |
-| WATCH-04 | TBD | Pending |
-| WATCH-05 | TBD | Pending |
-| WATCH-06 | TBD | Pending |
-| WATCH-07 | TBD | Pending |
-| PROF-01 | TBD | Pending |
-| PROF-02 | TBD | Pending |
-| PROF-03 | TBD | Pending |
-| PROF-04 | TBD | Pending |
-| PROF-05 | TBD | Pending |
+| MSVC-01 | Phase 10 | Pending |
+| MSVC-02 | Phase 10 | Pending |
+| MSVC-03 | Phase 10 | Pending |
+| MSVC-04 | Phase 10 | Pending |
+| MSVC-05 | Phase 10 | Pending |
+| MSVC-06 | Phase 10 | Pending |
+| MSVC-07 | Phase 10 | Pending |
+| MSVC-08 | Phase 10 | Pending |
+| MSVC-09 | Phase 10 | Pending |
+| MSVC-10 | Phase 10 | Pending |
+| MSVC-11 | Phase 9 | Pending |
+| MSVC-12 | Phase 9 | Pending |
+| WATCH-01 | Phase 12 | Pending |
+| WATCH-02 | Phase 12 | Pending |
+| WATCH-03 | Phase 12 | Pending |
+| WATCH-04 | Phase 12 | Pending |
+| WATCH-05 | Phase 12 | Pending |
+| WATCH-06 | Phase 12 | Pending |
+| WATCH-07 | Phase 12 | Pending |
+| PROF-01 | Phase 11 | Pending |
+| PROF-02 | Phase 11 | Pending |
+| PROF-03 | Phase 11 | Pending |
+| PROF-04 | Phase 11 | Pending |
+| PROF-05 | Phase 11 | Pending |
 
 **Coverage:**
 - v0.2.0 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24 (pending roadmap creation)
+- Mapped to phases: 24
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-24 after initial definition*
+*Last updated: 2026-01-24 after roadmap creation*
