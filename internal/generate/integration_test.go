@@ -73,17 +73,17 @@ variants: {
 	buildDir := filepath.Join(tmpDir, ".build")
 
 	// Build with clue
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), false, 1, false)
+	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
 
 	buildOpts := build.BuildOptions{
-		Config:   cfg,
-		Variant:  "debug",
-		BuildDir: buildDir,
-		Verbose:  false,
-		Jobs:     1,
+		Config:    cfg,
+		Variant:   "debug",
+		BuildDir:  buildDir,
+		Verbosity: build.VerbosityNormal,
+		Jobs:      1,
 	}
 
 	result, err := builder.Build(context.Background(), buildOpts)
