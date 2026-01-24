@@ -187,16 +187,16 @@ func (e *Executor) RunCommandWithCleanup(ctx context.Context, name string, args 
 		if cmd.Process != nil {
 			pgid, err := syscall.Getpgid(cmd.Process.Pid)
 			if err == nil {
-				// Graceful termination first
-				syscall.Kill(-pgid, syscall.SIGTERM)
+				// Graceful termination first (ignore error - process may have already exited)
+				_ = syscall.Kill(-pgid, syscall.SIGTERM)
 
 				// Wait briefly for graceful exit
 				select {
 				case <-done:
 					// Process exited gracefully
 				case <-time.After(100 * time.Millisecond):
-					// Force kill
-					syscall.Kill(-pgid, syscall.SIGKILL)
+					// Force kill (ignore error - process may have already exited)
+					_ = syscall.Kill(-pgid, syscall.SIGKILL)
 				}
 			}
 		}

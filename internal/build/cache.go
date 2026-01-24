@@ -44,25 +44,25 @@ func ComputeFileHash(path string) (string, error) {
 func ComputeCacheKey(key CacheKey) string {
 	h := xxh3.New()
 
-	// Write source hash
-	h.WriteString(key.SourceHash)
+	// Write source hash (WriteString to hash never fails)
+	_, _ = h.WriteString(key.SourceHash)
 
 	// Write deps hash
-	h.WriteString(key.DepsHash)
+	_, _ = h.WriteString(key.DepsHash)
 
 	// Write compiler identity
-	h.WriteString(key.CompilerID.Path)
+	_, _ = h.WriteString(key.CompilerID.Path)
 	fmt.Fprintf(h, "%d", key.CompilerID.Mtime)
 	fmt.Fprintf(h, "%d", key.CompilerID.Size)
 
 	// Write flags (order matters)
 	for _, flag := range key.Flags {
-		h.WriteString(flag)
+		_, _ = h.WriteString(flag)
 	}
 
 	// Write include paths (order matters)
 	for _, path := range key.IncludePaths {
-		h.WriteString(path)
+		_, _ = h.WriteString(path)
 	}
 
 	hash := h.Sum128()
