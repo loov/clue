@@ -207,7 +207,7 @@ func TestBuild_MultiTarget(t *testing.T) {
 	}
 
 	// Clean first
-	exec.Command(binary, "-dir", testdataDir, "clean", "--all").Run()
+	exec.Command(binary, "-dir", testdataDir, "--all", "clean").Run()
 
 	// Build the project - must run from project dir due to relative paths
 	cmd = exec.Command(binary, "build")
@@ -272,7 +272,7 @@ func TestBuild_Verbose(t *testing.T) {
 	}
 
 	// Clean first
-	exec.Command(binary, "clean", "--all").CombinedOutput()
+	exec.Command(binary, "--all", "clean").CombinedOutput()
 
 	// Build with verbose flag
 	cmd = exec.Command(binary, "-v", "build")
@@ -328,8 +328,8 @@ func TestClean_AfterBuild(t *testing.T) {
 		t.Errorf("Expected debug dir to be removed, but it still exists")
 	}
 
-	// Clean all
-	cmd = exec.Command(binary, "clean", "--all")
+	// Clean all (flags before command per decision 01-05)
+	cmd = exec.Command(binary, "--all", "clean")
 	cmd.Dir = testdataDir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -363,7 +363,7 @@ func TestBuild_SysLibs(t *testing.T) {
 	}
 
 	// Clean first
-	exec.Command(binary, "clean", "--all").Run()
+	exec.Command(binary, "--all", "clean").Run()
 
 	// Build with verbose flag to see linker command
 	cmd = exec.Command(binary, "-v", "build")
