@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -190,10 +189,6 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 		sources = append(sources, name)
 	}
 
-	// Track concurrent compilations
-	var maxConcurrent atomic.Int32
-	var currentConcurrent atomic.Int32
-
 	// Setup compiler with limited concurrency
 	executor := NewExecutor(ExecutorConfig{Verbose:    false, StreamOutput: false})
 	tc, _ := DiscoverToolchain("clang", HostPlatform())
@@ -227,8 +222,6 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 
 	// Note: Actual concurrency verification would require instrumenting the compiler
 	// The errgroup.SetLimit(jobs) ensures max concurrency is bounded
-	_ = maxConcurrent
-	_ = currentConcurrent
 }
 
 func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
