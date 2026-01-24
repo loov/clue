@@ -62,7 +62,7 @@ func (p *Progress) CompilingTimed(target, filename string, duration time.Duratio
 	basename := filepath.Base(filename)
 
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "[%d/%d] %s: %s (%s)\n", current, p.total, target, basename, FormatDuration(duration))
+	fmt.Fprintf(p.out, "[%d/%d] %s: %s (%s)\n", current, p.total, target, basename, duration.String())
 	p.mu.Unlock()
 }
 
@@ -102,7 +102,7 @@ func (p *Progress) Complete(artifact string, fileCount, cachedCount int, duratio
 		return
 	}
 
-	durationStr := FormatDuration(duration)
+	durationStr := duration.String()
 	p.mu.Lock()
 	if cachedCount > 0 {
 		fmt.Fprintf(p.out, "%s %s (%d files, %d cached, %s)\n",

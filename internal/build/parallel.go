@@ -138,7 +138,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 		// In verbose mode, show timing
 		if p.verbosity == VerbosityVerbose {
 			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s (%s)\n",
-				completed, p.total, filepath.Base(opts.Source), FormatDuration(duration))
+				completed, p.total, filepath.Base(opts.Source), duration.String())
 		} else {
 			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
 				completed, p.total, filepath.Base(opts.Source))

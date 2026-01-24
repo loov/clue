@@ -545,7 +545,7 @@ func (b *Builder) Build(ctx context.Context, opts BuildOptions) (*BuildResult, e
 	// Show total build time (not in quiet mode)
 	if opts.Verbosity >= VerbosityNormal {
 		totalDuration := time.Since(start)
-		fmt.Printf("\nTotal build time: %s\n", FormatDuration(totalDuration))
+		fmt.Printf("\nTotal build time: %s\n", totalDuration.String())
 	}
 
 	return &BuildResult{
@@ -628,7 +628,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts BuildOptions) (map
 
 	depDuration := time.Since(depStart)
 	if opts.Verbosity >= VerbosityNormal {
-		fmt.Printf("Dependencies built (%d files, %s)\n\n", totalFiles, FormatDuration(depDuration))
+		fmt.Printf("Dependencies built (%d files, %s)\n\n", totalFiles, depDuration.String())
 	}
 
 	return results, nil
