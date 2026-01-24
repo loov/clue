@@ -53,15 +53,15 @@ func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain *Toolchain, ver
 func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourcePath string, opts DepBuildOptions) (*DepBuildResult, error) {
 	start := time.Now()
 
-	// Determine sources and includes
-	sources, includes, err := db.determineConfig(dep, sourcePath)
+	// Determine sources, includes, and defines
+	cfg, err := db.determineConfig(dep, sourcePath)
 	if err != nil {
 		return nil, err
 	}
 
 	// Print progress (collapsed output)
 	if opts.Verbosity != VerbosityVerbose {
-		fmt.Printf("  Building %s [%d files]\n", dep.Name(), len(sources))
+		fmt.Printf("  Building %s [%d files]\n", dep.Name(), len(cfg.Sources))
 	}
 
 	// Create output directories
@@ -76,12 +76,12 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}
 
 	// Determine include path for compilation
-	includePath := db.determineIncludePath(dep, sourcePath, includes)
-	compilationIncludes := append(includes, includePath)
+	includePath := db.determineIncludePath(dep, sourcePath, cfg.Includes)
+	compilationIncludes := append(cfg.Includes, includePath)
 
 	// Compile each source file to object file
 	var objectFiles []string
-	for _, src := range sources {
+	for _, src := range cfg.Sources {
 		absPath := filepath.Join(sourcePath, src)
 		objName := filepath.Base(src) + ".o"
 		objPath := filepath.Join(objDir, objName)
@@ -91,7 +91,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Source:   absPath,
 			Output:   objPath,
 			Includes: compilationIncludes,
-			Defines:  []string{},
+			Defines:  cfg.Defines,
 			Flags: Config{
 				Optimize:         opts.Variant, // Use variant as optimization level
 				Warnings:         "default",
@@ -133,13 +133,20 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		Name:        dep.Name(),
 		LibPath:     libPath,
 		IncludePath: includePath,
-		SourceCount: len(sources),
+		SourceCount: len(cfg.Sources),
 		Duration:    time.Since(start),
 	}, nil
 }
 
-// determineConfig determines sources and includes for a dependency
-func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string) ([]string, []string, error) {
+// depConfig holds the resolved build configuration for a dependency
+type depConfig struct {
+	Sources  []string
+	Includes []string
+	Defines  []string
+}
+
+// determineConfig determines sources, includes, and defines for a dependency
+func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string) (*depConfig, error) {
 	// Check for inline config first
 	var inlineConfig *deps.InlineConfig
 
@@ -156,7 +163,7 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string) ([
 	if inlineConfig != nil {
 		sources, err := db.expandSourceGlobs(inlineConfig.Sources, sourcePath)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to expand source globs: %w", err)
+			return nil, fmt.Errorf("failed to expand source globs: %w", err)
 		}
 
 		// Resolve include paths relative to source path
@@ -165,22 +172,30 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string) ([
 			includes = append(includes, filepath.Join(sourcePath, inc))
 		}
 
-		return sources, includes, nil
+		return &depConfig{
+			Sources:  sources,
+			Includes: includes,
+			Defines:  inlineConfig.Defines,
+		}, nil
 	}
 
 	// Try loading clue.cue from source path
 	clueFile := filepath.Join(sourcePath, "clue.cue")
 	if _, err := os.Stat(clueFile); err != nil {
-		return nil, nil, fmt.Errorf("no build configuration for dependency %q: no inline config and no clue.cue found", dep.Name())
+		return nil, fmt.Errorf("no build configuration for dependency %q: no inline config and no clue.cue found", dep.Name())
 	}
 
 	// Load clue.cue
 	sources, includes, err := db.loadClueConfig(clueFile, sourcePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load clue.cue: %w", err)
+		return nil, fmt.Errorf("failed to load clue.cue: %w", err)
 	}
 
-	return sources, includes, nil
+	return &depConfig{
+		Sources:  sources,
+		Includes: includes,
+		Defines:  nil, // clue.cue loaded deps don't have inline defines yet
+	}, nil
 }
 
 // loadClueConfig loads build configuration from a clue.cue file

@@ -4,9 +4,9 @@ dependencies: {
 	fmt: {
 		type: "git"
 		repo: "https://github.com/fmtlib/fmt"
-		ref:  "10.2.1"
+		ref:  "9.1.0"
 		build: {
-			sources:    ["src/format.cc", "src/os.cc"]
+			sources:    ["src/format.cc"]
 			includes:   ["include"]
 			targetType: "static_library"
 		}
@@ -15,10 +15,9 @@ dependencies: {
 
 targets: {
 	app: {
-		name:     "app"
-		type:     "executable"
-		sources:  ["main.cpp"]
-		includes: [".build/cache/deps/fmt/include"]
-		depends:  ["fmt"]
+		name:    "app"
+		type:    "executable"
+		sources: ["main.cpp"]
+		depends: ["fmt"]
 	}
 }

@@ -235,7 +235,7 @@ func TestGitDepProject_ConfigParsing(t *testing.T) {
 	}
 
 	// Verify ref
-	expectedRef := "10.2.1"
+	expectedRef := "9.1.0"
 	if gitDep.Ref != expectedRef {
 		t.Errorf("Expected ref %q, got %q", expectedRef, gitDep.Ref)
 	}
@@ -246,7 +246,7 @@ func TestGitDepProject_ConfigParsing(t *testing.T) {
 	}
 
 	// Verify sources
-	expectedSources := []string{"src/format.cc", "src/os.cc"}
+	expectedSources := []string{"src/format.cc"}
 	if len(gitDep.BuildConfig.Sources) != len(expectedSources) {
 		t.Errorf("Expected %d sources, got %d", len(expectedSources), len(gitDep.BuildConfig.Sources))
 	}
