@@ -13,8 +13,8 @@ import (
 func runClue(t *testing.T, dir string, args ...string) (stdout, stderr string, exitCode int) {
 	t.Helper()
 
-	// Build clue if not already built
-	clueCmd := exec.Command("go", "build", "-o", "clue_test_bin", "./cmd/clue")
+	// Build clue if not already built (main.go is at project root)
+	clueCmd := exec.Command("go", "build", "-o", "clue_test_bin", ".")
 	clueCmd.Dir = findProjectRoot(t)
 	if err := clueCmd.Run(); err != nil {
 		t.Fatalf("failed to build clue: %v", err)
