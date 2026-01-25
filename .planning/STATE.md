@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 Phase: 9 of 12 (Toolchain Abstraction)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-01-24 - Completed quick task 019: fix C++20 module compilation
+Last activity: 2026-01-25 - Completed quick task 021: add minimal README
 
 Progress: [--------------------] 0% (0/4 v0.2.0 phases)
 
@@ -65,11 +65,12 @@ None yet.
 | 018 | Add fmt dependency example to testdata | 2026-01-24 | 3a09a30 | [018-add-fmt-dependency-example-to-testdata](./quick/018-add-fmt-dependency-example-to-testdata/) |
 | 019 | Fix C++20 module compilation | 2026-01-24 | 403e441 | [019-fix-module-test-build](./quick/019-fix-module-test-build/) |
 | 020 | Create OS-specific sysLibs sample project | 2026-01-24 | 4715d34 | [020-create-a-testdata-sample-project-that-sh](./quick/020-create-a-testdata-sample-project-that-sh/) |
+| 021 | Add minimal README with installation and quick start | 2026-01-25 | 2e9f7ce | [021-add-minimal-readme-that-explains-basic-u](./quick/021-add-minimal-readme-that-explains-basic-u/) |
 
 ## Session Continuity
 
-Last session: 2026-01-24
-Stopped at: Completed quick task 020 (OS-specific sysLibs sample project)
+Last session: 2026-01-25
+Stopped at: Completed quick task 021 (add minimal README)
 Resume file: None
 Next step: `/gsd:plan-phase 9`
 
