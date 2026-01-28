@@ -60,12 +60,12 @@ type LinkResult struct {
 // Linker handles linking object files into executables and creating static libraries
 type Linker struct {
 	executor  *Executor
-	toolchain *Toolchain
+	toolchain Toolchain
 	target    Platform
 }
 
 // NewLinker creates a new Linker with the given executor and toolchain
-func NewLinker(executor *Executor, toolchain *Toolchain, target Platform) *Linker {
+func NewLinker(executor *Executor, toolchain Toolchain, target Platform) *Linker {
 	return &Linker{
 		executor:  executor,
 		toolchain: toolchain,
@@ -78,9 +78,9 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 	start := time.Now()
 
 	// Determine the linker command based on C++ requirement
-	linkerCmd := l.toolchain.CC
+	linkerCmd := l.toolchain.CC()
 	if opts.UseCPlusPlus {
-		linkerCmd = l.toolchain.CXX
+		linkerCmd = l.toolchain.CXX()
 	}
 
 	// Build command arguments
@@ -108,7 +108,7 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 	}
 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
-	linkerFlags := LinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name) // Pass empty sysLibs since we handle them above
+	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{}) // Pass empty sysLibs since we handle them above
 	args = append(args, linkerFlags...)
 
 	// Create output directory if needed
@@ -154,7 +154,7 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 	}
 
 	// Execute the archiver using toolchain AR
-	result, err := l.executor.RunCommand(ctx, l.toolchain.AR, args...)
+	result, err := l.executor.RunCommand(ctx, l.toolchain.AR(), args...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -175,9 +175,9 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 	start := time.Now()
 
 	// Determine the linker command based on C++ requirement
-	linkerCmd := l.toolchain.CC
+	linkerCmd := l.toolchain.CC()
 	if opts.UseCPlusPlus {
-		linkerCmd = l.toolchain.CXX
+		linkerCmd = l.toolchain.CXX()
 	}
 
 	// Build command arguments
@@ -224,7 +224,7 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 	}
 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
-	linkerFlags := LinkerFlagsWithToolchain(opts.Flags, []string{}, l.toolchain.Name)
+	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{})
 	args = append(args, linkerFlags...)
 
 	// Create output directory if needed
