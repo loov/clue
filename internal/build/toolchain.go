@@ -7,47 +7,60 @@ import (
 	"strings"
 )
 
-// Toolchain represents a C/C++ compiler toolchain
-type Toolchain struct {
-	CC   string // C compiler path
-	CXX  string // C++ compiler path
-	AR   string // Archiver path
-	Name string // "clang" or "gcc"
+// Toolchain is the interface for C/C++ compiler toolchains
+type Toolchain interface {
+	// Compiler paths
+	CC() string
+	CXX() string
+	AR() string
+
+	// Toolchain identification
+	Name() string
+	IsCrossCompiler() bool
+	String() string
+
+	// Flag generation
+	CompilerFlags(config Config) []string
+	LinkerFlags(config Config, sysLibs []string) []string
+
+	// Compiler identity for cache keys
+	Identity() (CompilerIdentity, error)
 }
 
-// DiscoverToolchain discovers the appropriate toolchain for the given name and target platform
-func DiscoverToolchain(name string, target Platform) (*Toolchain, error) {
-	tc := &Toolchain{Name: name}
-
+// NewToolchain creates a toolchain implementation based on the name
+func NewToolchain(name string, target Platform) (Toolchain, error) {
 	// Get cross-compilation prefix if needed
 	prefix := crossPrefix(target)
 
-	// Check CC environment variable first, fall back to toolchain name
-	if cc := os.Getenv("CC"); cc != "" {
-		tc.CC = cc
-	} else {
-		if name == "gcc" {
-			tc.CC = prefix + "gcc"
-		} else {
-			tc.CC = prefix + "clang"
-		}
+	// Determine compiler paths with environment variable fallback
+	var cc, cxx, ar string
+
+	switch name {
+	case "gcc":
+		cc = getEnvOr("CC", prefix+"gcc")
+		cxx = getEnvOr("CXX", prefix+"g++")
+		ar = prefix + "ar"
+		return &GCCToolchain{
+			cc:     cc,
+			cxx:    cxx,
+			ar:     ar,
+			target: target,
+		}, nil
+
+	case "clang":
+		cc = getEnvOr("CC", prefix+"clang")
+		cxx = getEnvOr("CXX", prefix+"clang++")
+		ar = prefix + "ar"
+		return &ClangToolchain{
+			cc:     cc,
+			cxx:    cxx,
+			ar:     ar,
+			target: target,
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unknown toolchain: %s (supported: gcc, clang)", name)
 	}
-
-	// Check CXX environment variable first, fall back to toolchain++ variant
-	if cxx := os.Getenv("CXX"); cxx != "" {
-		tc.CXX = cxx
-	} else {
-		if name == "gcc" {
-			tc.CXX = prefix + "g++"
-		} else {
-			tc.CXX = prefix + "clang++"
-		}
-	}
-
-	// AR archiver
-	tc.AR = prefix + "ar"
-
-	return tc, nil
 }
 
 // crossPrefix returns the GNU triplet prefix for cross-compilation
@@ -80,38 +93,60 @@ func gnuTripletPrefix(target Platform) string {
 }
 
 // ValidateToolchain validates that all toolchain components exist in PATH
-func ValidateToolchain(tc *Toolchain) error {
+func ValidateToolchain(tc Toolchain) error {
 	// Validate C compiler
-	if _, err := exec.LookPath(tc.CC); err != nil {
-		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CC)
+	if _, err := exec.LookPath(tc.CC()); err != nil {
+		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CC())
 	}
 
 	// Validate C++ compiler
-	if _, err := exec.LookPath(tc.CXX); err != nil {
-		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CXX)
+	if _, err := exec.LookPath(tc.CXX()); err != nil {
+		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CXX())
 	}
 
 	// Validate archiver
-	if _, err := exec.LookPath(tc.AR); err != nil {
-		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.AR)
+	if _, err := exec.LookPath(tc.AR()); err != nil {
+		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.AR())
 	}
 
 	return nil
 }
 
-// IsCrossCompiler returns true if this toolchain is configured for cross-compilation
-func (tc *Toolchain) IsCrossCompiler() bool {
-	// Check if CC contains a GNU triplet prefix (contains hyphens before the compiler name)
-	// Examples: aarch64-linux-gnu-gcc, x86_64-linux-gnu-clang
-	return strings.Contains(tc.CC, "-linux-") || strings.Contains(tc.CC, "-darwin-")
+// getEnvOr returns the value of an environment variable or a fallback value
+func getEnvOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
 
-// String returns a descriptive string for build output
-func (tc *Toolchain) String() string {
-	if tc.IsCrossCompiler() {
-		// Extract the prefix from CC (everything before the final component)
-		// e.g., "aarch64-linux-gnu-gcc" -> "aarch64-linux-gnu-gcc (cross)"
-		return fmt.Sprintf("%s (cross)", tc.CC)
+// optimizationFlag returns the optimization flag for a given level
+func optimizationFlag(level string) string {
+	if flag, ok := optimizationFlags[level]; ok {
+		return flag
 	}
-	return fmt.Sprintf("%s (native)", tc.Name)
+	return ""
+}
+
+// warningFlagsForLevel returns warning flags for a given level
+func warningFlagsForLevel(level string) []string {
+	if flags, ok := warningFlags[level]; ok {
+		return flags
+	}
+	return []string{}
+}
+
+// debugFlag returns the debug flag for a given level
+func debugFlag(level string) string {
+	if flag, ok := debugFlags[level]; ok {
+		return flag
+	}
+	return ""
+}
+
+// isCrossCompiler checks if a compiler path contains GNU triplet prefix
+func isCrossCompiler(cc string) bool {
+	// Check if CC contains a GNU triplet prefix (contains hyphens before the compiler name)
+	// Examples: aarch64-linux-gnu-gcc, x86_64-linux-gnu-clang
+	return strings.Contains(cc, "-linux-") || strings.Contains(cc, "-darwin-")
 }
