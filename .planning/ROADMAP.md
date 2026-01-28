@@ -22,7 +22,7 @@ See v0.1.0 documentation for completed phase details.
 
 **Milestone Goal:** Add Windows MSVC support, build profiling, and watch mode for automatic rebuilds.
 
-- [ ] **Phase 9: Toolchain Abstraction** - Extract compiler interface for multi-toolchain support
+- [x] **Phase 9: Toolchain Abstraction** - Extract compiler interface for multi-toolchain support
 - [ ] **Phase 10: Windows MSVC** - MSVC toolchain with auto-detection and compilation
 - [ ] **Phase 11: Build Profiling** - Timing collection and performance reporting
 - [ ] **Phase 12: Watch Mode** - File watching with debounced incremental rebuilds
@@ -41,10 +41,10 @@ See v0.1.0 documentation for completed phase details.
 **Plans**: 4 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Create Toolchain interface and GCC/Clang implementations
-- [ ] 09-02-PLAN.md — Update all toolchain consumers to use the new interface
-- [ ] 09-03-PLAN.md — Update all tests to work with the new Toolchain interface
-- [ ] 09-04-PLAN.md — Clean up deprecated code and finalize the refactoring
+- [x] 09-01-PLAN.md — Create Toolchain interface and GCC/Clang implementations
+- [x] 09-02-PLAN.md — Update all toolchain consumers to use the new interface
+- [x] 09-03-PLAN.md — Update all tests to work with the new Toolchain interface
+- [x] 09-04-PLAN.md — Clean up deprecated code and finalize the refactoring
 
 ### Phase 10: Windows MSVC
 **Goal**: Users can build C/C++ projects on Windows using Visual Studio's MSVC toolchain
@@ -99,7 +99,7 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 9. Toolchain Abstraction | v0.2.0 | 0/4 | In progress | - |
+| 9. Toolchain Abstraction | v0.2.0 | 4/4 | Complete | 2026-01-28 |
 | 10. Windows MSVC | v0.2.0 | 0/TBD | Not started | - |
 | 11. Build Profiling | v0.2.0 | 0/TBD | Not started | - |
 | 12. Watch Mode | v0.2.0 | 0/TBD | Not started | - |

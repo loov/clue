@@ -102,8 +102,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MSVC-08 | Phase 10 | Pending |
 | MSVC-09 | Phase 10 | Pending |
 | MSVC-10 | Phase 10 | Pending |
-| MSVC-11 | Phase 9 | Pending |
-| MSVC-12 | Phase 9 | Pending |
+| MSVC-11 | Phase 9 | Complete |
+| MSVC-12 | Phase 9 | Complete |
 | WATCH-01 | Phase 12 | Pending |
 | WATCH-02 | Phase 12 | Pending |
 | WATCH-03 | Phase 12 | Pending |
