@@ -61,7 +61,7 @@ func Ninja(opts NinjaOptions) error {
 	}
 
 	// Discover toolchain for compiler paths
-	toolchain, err := build.DiscoverToolchain(opts.Toolchain, opts.Platform)
+	toolchain, err := build.NewToolchain(opts.Toolchain, opts.Platform)
 	if err != nil {
 		return err
 	}
@@ -74,9 +74,9 @@ func Ninja(opts NinjaOptions) error {
 	// Variables section
 	file = append(file, ninja.Comment{Lines: []string{"Build configuration"}})
 	file = append(file, ninja.Var{Key: "builddir", Val: ".ninja_build"})
-	file = append(file, ninja.Var{Key: "cc", Val: toolchain.CC})
-	file = append(file, ninja.Var{Key: "cxx", Val: toolchain.CXX})
-	file = append(file, ninja.Var{Key: "ar", Val: toolchain.AR})
+	file = append(file, ninja.Var{Key: "cc", Val: toolchain.CC()})
+	file = append(file, ninja.Var{Key: "cxx", Val: toolchain.CXX()})
+	file = append(file, ninja.Var{Key: "ar", Val: toolchain.AR()})
 
 	// Rules section
 	file = append(file, ninja.Comment{Lines: []string{"Compilation rules"}})
@@ -165,7 +165,7 @@ func Ninja(opts NinjaOptions) error {
 }
 
 // generateVariantBuilds generates build statements for a single variant
-func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, toolchain *build.Toolchain) []string {
+func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, toolchain build.Toolchain) []string {
 	var outputs []string
 
 	for _, targetName := range targetOrder {
@@ -183,7 +183,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, _ *build.Toolchain) []string {
+func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, _ build.Toolchain) []string {
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 
@@ -409,7 +409,7 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	}
 
 	// Discover toolchain
-	toolchain, err := build.DiscoverToolchain(opts.Toolchain, opts.Platform)
+	toolchain, err := build.NewToolchain(opts.Toolchain, opts.Platform)
 	if err != nil {
 		return err
 	}
@@ -422,9 +422,9 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	// Variables
 	file = append(file, ninja.Comment{Lines: []string{"Build configuration"}})
 	file = append(file, ninja.Var{Key: "builddir", Val: ".ninja_build"})
-	file = append(file, ninja.Var{Key: "cc", Val: toolchain.CC})
-	file = append(file, ninja.Var{Key: "cxx", Val: toolchain.CXX})
-	file = append(file, ninja.Var{Key: "ar", Val: toolchain.AR})
+	file = append(file, ninja.Var{Key: "cc", Val: toolchain.CC()})
+	file = append(file, ninja.Var{Key: "cxx", Val: toolchain.CXX()})
+	file = append(file, ninja.Var{Key: "ar", Val: toolchain.AR()})
 
 	// Rules
 	file = append(file, ninja.Comment{Lines: []string{"Compilation rules"}})
