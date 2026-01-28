@@ -31,6 +31,7 @@ type Toolchain interface {
 var (
 	_ Toolchain = (*GCCToolchain)(nil)
 	_ Toolchain = (*ClangToolchain)(nil)
+	_ Toolchain = (*MSVCToolchain)(nil)
 )
 
 // NewToolchain creates a toolchain implementation based on the name
@@ -64,8 +65,19 @@ func NewToolchain(name string, target Platform) (Toolchain, error) {
 			target: target,
 		}, nil
 
+	case "msvc":
+		// MSVC uses vswhere/vcvarsall discovery, not GNU triplet prefixes
+		installation, err := FindMSVC()
+		if err != nil {
+			return nil, err
+		}
+		return &MSVCToolchain{
+			installation: installation,
+			target:       target,
+		}, nil
+
 	default:
-		return nil, fmt.Errorf("unknown toolchain: %s (supported: gcc, clang)", name)
+		return nil, fmt.Errorf("unknown toolchain: %s (supported: gcc, clang, msvc)", name)
 	}
 }
 
