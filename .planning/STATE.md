@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 9 of 12 (Toolchain Abstraction)
-Plan: 1 of TBD in current phase
+Plan: 2 of TBD in current phase
 Status: In progress
-Last activity: 2026-01-28 - Completed 09-01-PLAN.md (Toolchain interface and implementations)
+Last activity: 2026-01-28 - Completed 09-02-PLAN.md (Migrated consumers to Toolchain interface)
 
 Progress: [--------------------] 0% (0/4 v0.2.0 phases)
 
@@ -25,15 +25,15 @@ Progress: [--------------------] 0% (0/4 v0.2.0 phases)
 - Total execution time: 3.77 hours
 
 **v0.2.0 Velocity:**
-- Total plans completed: 1
-- Average duration: 1.7min per plan
-- Total execution time: 1.7min (0.03 hours)
+- Total plans completed: 2
+- Average duration: 2.2min per plan
+- Total execution time: 4.4min (0.07 hours)
 
 **By Phase (v0.2.0):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 09 | 1/TBD | 1.7min | 1.7min |
+| 09 | 2/TBD | 4.4min | 2.2min |
 | 10 | 0/TBD | - | - |
 | 11 | 0/TBD | - | - |
 | 12 | 0/TBD | - | - |
@@ -51,6 +51,9 @@ Recent decisions affecting current work:
 - [v0.2.0 planning]: fsnotify for watch mode, Chrome Trace format for profiling
 - [09-01]: 9-method Toolchain interface covers all compiler operations (paths, flags, identity)
 - [09-01]: GCC and Clang have different coverage flags (gcov vs source-based coverage)
+- [09-02]: Migrated all build components from concrete *Toolchain to Toolchain interface
+- [09-02]: Builder uses NewToolchain factory instead of DiscoverToolchain for cleaner abstraction
+- [09-02]: Flag generation delegated to toolchain methods (CompilerFlags, LinkerFlags) instead of global functions
 
 ### Pending Todos
 
@@ -71,10 +74,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-28 20:37 UTC
-Stopped at: Completed 09-01-PLAN.md (Toolchain interface)
+Last session: 2026-01-28 20:44 UTC
+Stopped at: Completed 09-02-PLAN.md (Consumer migration)
 Resume file: None
-Next step: Execute 09-02-PLAN.md (Update consumers to use Toolchain interface)
+Next step: Execute 09-03-PLAN.md (Update tests)
 
 ## Milestone History
 
