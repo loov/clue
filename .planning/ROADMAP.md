@@ -56,12 +56,13 @@ Plans:
   3. User can link executables and create static/shared libraries using link.exe and lib.exe
   4. User can build debug and release variants with appropriate MSVC optimization flags
   5. Builds with many files or long paths succeed via response file support
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
-- [ ] 10-03: TBD
+- [ ] 10-01-PLAN.md - VS discovery with vswhere.exe and vcvarsall.bat environment capture
+- [ ] 10-02-PLAN.md - MSVCToolchain implementation with flag translation
+- [ ] 10-03-PLAN.md - Linker/compiler updates for link.exe, lib.exe, response files
+- [ ] 10-04-PLAN.md - Comprehensive tests for MSVC toolchain
 
 ### Phase 11: Build Profiling
 **Goal**: Users can identify compilation bottlenecks with timing data and performance summaries
@@ -100,7 +101,7 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 9. Toolchain Abstraction | v0.2.0 | 4/4 | Complete | 2026-01-28 |
-| 10. Windows MSVC | v0.2.0 | 0/TBD | Not started | - |
+| 10. Windows MSVC | v0.2.0 | 0/4 | Not started | - |
 | 11. Build Profiling | v0.2.0 | 0/TBD | Not started | - |
 | 12. Watch Mode | v0.2.0 | 0/TBD | Not started | - |
 
