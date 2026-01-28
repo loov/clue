@@ -53,17 +53,17 @@ type Builder struct {
 	linker           *Linker
 	cacheManager     *CacheManager
 	parallelCompiler *ParallelCompiler
-	toolchain        *Toolchain
+	toolchain        Toolchain
 	target           Platform
 	depResults       map[string]*DepBuildResult // Built dependencies
 }
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
 func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
-	// Discover toolchain for the target platform
-	toolchain, err := DiscoverToolchain(toolchainName, target)
+	// Create toolchain for the target platform
+	toolchain, err := NewToolchain(toolchainName, target)
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover toolchain: %w", err)
+		return nil, fmt.Errorf("failed to create toolchain: %w", err)
 	}
 
 	// Validate toolchain exists

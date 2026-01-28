@@ -31,7 +31,7 @@ type ParallelResult struct {
 // ParallelCompiler handles parallel compilation of multiple source files
 type ParallelCompiler struct {
 	compiler  *Compiler
-	toolchain *Toolchain
+	toolchain Toolchain
 	jobs      int
 	keepGoing bool
 	verbosity Verbosity
@@ -44,7 +44,7 @@ type ParallelCompiler struct {
 }
 
 // NewParallelCompiler creates a new ParallelCompiler instance
-func NewParallelCompiler(compiler *Compiler, toolchain *Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
+func NewParallelCompiler(compiler *Compiler, toolchain Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
 	return &ParallelCompiler{
 		compiler:  compiler,
 		toolchain: toolchain,
@@ -209,7 +209,7 @@ func (p *ParallelCompiler) compileSourceWithCapture(ctx context.Context, compile
 	}
 
 	// Semantic flags
-	semanticFlags := CompilerFlags(opts.Flags)
+	semanticFlags := p.toolchain.CompilerFlags(opts.Flags)
 	args = append(args, semanticFlags...)
 
 	// Create output directory if needed

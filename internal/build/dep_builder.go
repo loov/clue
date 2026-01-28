@@ -35,12 +35,12 @@ type DepBuildResult struct {
 type DepBuilder struct {
 	compiler  *Compiler
 	linker    *Linker
-	toolchain *Toolchain
+	toolchain Toolchain
 	verbosity Verbosity
 }
 
 // NewDepBuilder creates a new dependency builder
-func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain *Toolchain, verbosity Verbosity) *DepBuilder {
+func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain Toolchain, verbosity Verbosity) *DepBuilder {
 	return &DepBuilder{
 		compiler:  compiler,
 		linker:    linker,
