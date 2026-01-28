@@ -52,9 +52,11 @@ type ArchiveOptions struct {
 
 // LinkResult holds the result of a link or archive operation
 type LinkResult struct {
-	Output   string
-	Duration time.Duration
-	Success  bool
+	Output      string
+	ImportLib   string // Import library path for DLLs (MSVC only)
+	Duration    time.Duration
+	Success     bool
+	CleanupPath string // Response file to cleanup (internal use)
 }
 
 // Linker handles linking object files into executables and creating static libraries
@@ -73,10 +75,65 @@ func NewLinker(executor *Executor, toolchain Toolchain, target Platform) *Linker
 	}
 }
 
+// isMSVC returns true if the toolchain is MSVC
+func isMSVC(tc Toolchain) bool {
+	return tc.Name() == "msvc"
+}
+
+// getMSVCLinker returns the MSVC linker path (link.exe)
+// For MSVC, we use link.exe directly rather than cl.exe for linking
+func getMSVCLinker() string {
+	return "link.exe"
+}
+
+// getMSVCLib returns the MSVC librarian path (lib.exe)
+func getMSVCLib() string {
+	return "lib.exe"
+}
+
+// translateSysLibForMSVC translates Unix-style system library names to MSVC format.
+// Some libraries don't have Windows equivalents and are skipped.
+func translateSysLibForMSVC(lib string) string {
+	// Skip libraries with no Windows equivalent
+	switch lib {
+	case "pthread", "rt", "dl":
+		// pthread: Windows uses native threading
+		// rt: realtime extensions (Linux-specific)
+		// dl: dynamic loading (Windows uses LoadLibrary)
+		return ""
+	case "m":
+		// math library: linked automatically in MSVC
+		return ""
+	}
+
+	// Add .lib suffix if not present
+	if strings.HasSuffix(lib, ".lib") {
+		return lib
+	}
+	return lib + ".lib"
+}
+
 // LinkExecutable links object files into an executable binary
 func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkResult, error) {
 	start := time.Now()
 
+	// Create output directory if needed
+	outputDir := filepath.Dir(opts.Output)
+	if outputDir != "" && outputDir != "." {
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create output directory: %w", err)
+		}
+	}
+
+	// Branch based on toolchain
+	if isMSVC(l.toolchain) {
+		return l.linkExecutableMSVC(ctx, opts, start)
+	}
+	return l.linkExecutableGCC(ctx, opts, start)
+}
+
+// linkExecutableGCC links using GCC/Clang toolchain
+func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start time.Time) (*LinkResult, error) {
 	// Determine the linker command based on C++ requirement
 	linkerCmd := l.toolchain.CC()
 	if opts.UseCPlusPlus {
@@ -111,14 +168,6 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{}) // Pass empty sysLibs since we handle them above
 	args = append(args, linkerFlags...)
 
-	// Create output directory if needed
-	outputDir := filepath.Dir(opts.Output)
-	if outputDir != "" && outputDir != "." {
-		if err := os.MkdirAll(outputDir, 0o755); err != nil {
-			return nil, fmt.Errorf("failed to create output directory: %w", err)
-		}
-	}
-
 	// Execute the linker
 	result, err := l.executor.RunCommand(ctx, linkerCmd, args...)
 	if err != nil {
@@ -136,14 +185,73 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 	}, nil
 }
 
+// linkExecutableMSVC links using MSVC toolchain (link.exe)
+func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start time.Time) (*LinkResult, error) {
+	// Build MSVC-style command: link.exe /nologo objects... /OUT:output.exe libs...
+	var args []string
+
+	// Get linker flags first (includes /nologo, /DEBUG, etc.)
+	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{})
+	args = append(args, linkerFlags...)
+
+	// Add all object files
+	args = append(args, opts.Objects...)
+
+	// Add output flag (MSVC style)
+	args = append(args, "/OUT:"+opts.Output)
+
+	// Add library search paths (MSVC style)
+	for _, path := range opts.LibPaths {
+		args = append(args, "/LIBPATH:"+path)
+	}
+
+	// Add additional libraries
+	for _, lib := range opts.Libs {
+		if strings.HasSuffix(lib, ".lib") {
+			args = append(args, lib)
+		} else {
+			args = append(args, lib+".lib")
+		}
+	}
+
+	// Add system libraries (translated to MSVC format)
+	for _, sysLib := range opts.SysLibs {
+		if translated := translateSysLibForMSVC(sysLib); translated != "" {
+			args = append(args, translated)
+		}
+	}
+
+	// Use response file for long command lines
+	finalArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer os.Remove(cleanupPath)
+	}
+
+	// Execute link.exe
+	result, err := l.executor.RunCommand(ctx, getMSVCLinker(), finalArgs...)
+	if err != nil {
+		// Show full command line on linker errors (per CONTEXT.md)
+		cmdLine := getMSVCLinker() + " " + strings.Join(args, " ")
+		return &LinkResult{
+			Output:   opts.Output,
+			Duration: time.Since(start),
+			Success:  false,
+		}, fmt.Errorf("linker failed: %w\nCommand: %s", err, cmdLine)
+	}
+
+	return &LinkResult{
+		Output:   opts.Output,
+		Duration: result.Duration,
+		Success:  true,
+	}, nil
+}
+
 // CreateStaticLibrary archives object files into a static library
 func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (*LinkResult, error) {
 	start := time.Now()
-
-	// Build ar command arguments
-	// ar crs: c=create, r=replace/insert, s=create symbol table
-	args := []string{"crs", opts.Output}
-	args = append(args, opts.Objects...)
 
 	// Create output directory if needed
 	outputDir := filepath.Dir(opts.Output)
@@ -152,6 +260,20 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
+
+	// Branch based on toolchain
+	if isMSVC(l.toolchain) {
+		return l.createStaticLibraryMSVC(ctx, opts, start)
+	}
+	return l.createStaticLibraryGCC(ctx, opts, start)
+}
+
+// createStaticLibraryGCC creates a static library using ar
+func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions, start time.Time) (*LinkResult, error) {
+	// Build ar command arguments
+	// ar crs: c=create, r=replace/insert, s=create symbol table
+	args := []string{"crs", opts.Output}
+	args = append(args, opts.Objects...)
 
 	// Execute the archiver using toolchain AR
 	result, err := l.executor.RunCommand(ctx, l.toolchain.AR(), args...)
@@ -170,10 +292,67 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 	}, nil
 }
 
-// LinkSharedLibrary links object files into a shared library (.so on Linux, .dylib on macOS)
+// createStaticLibraryMSVC creates a static library using lib.exe
+func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOptions, start time.Time) (*LinkResult, error) {
+	// Build lib.exe command: lib.exe /nologo /OUT:output.lib objects...
+	var args []string
+
+	// Add /nologo to suppress banner
+	args = append(args, "/nologo")
+
+	// Add output flag
+	args = append(args, "/OUT:"+opts.Output)
+
+	// Add all object files
+	args = append(args, opts.Objects...)
+
+	// Use response file for many objects
+	finalArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer os.Remove(cleanupPath)
+	}
+
+	// Execute lib.exe
+	result, err := l.executor.RunCommand(ctx, getMSVCLib(), finalArgs...)
+	if err != nil {
+		return &LinkResult{
+			Output:   opts.Output,
+			Duration: time.Since(start),
+			Success:  false,
+		}, fmt.Errorf("archiver failed: %w", err)
+	}
+
+	return &LinkResult{
+		Output:   opts.Output,
+		Duration: result.Duration,
+		Success:  true,
+	}, nil
+}
+
+// LinkSharedLibrary links object files into a shared library (.so on Linux, .dylib on macOS, .dll on Windows)
 func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOptions) (*LinkResult, error) {
 	start := time.Now()
 
+	// Create output directory if needed
+	outputDir := filepath.Dir(opts.Output)
+	if outputDir != "" && outputDir != "." {
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create output directory: %w", err)
+		}
+	}
+
+	// Branch based on toolchain
+	if isMSVC(l.toolchain) {
+		return l.linkSharedLibraryMSVC(ctx, opts, start)
+	}
+	return l.linkSharedLibraryGCC(ctx, opts, start)
+}
+
+// linkSharedLibraryGCC links a shared library using GCC/Clang
+func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (*LinkResult, error) {
 	// Determine the linker command based on C++ requirement
 	linkerCmd := l.toolchain.CC()
 	if opts.UseCPlusPlus {
@@ -227,14 +406,6 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{})
 	args = append(args, linkerFlags...)
 
-	// Create output directory if needed
-	outputDir := filepath.Dir(opts.Output)
-	if outputDir != "" && outputDir != "." {
-		if err := os.MkdirAll(outputDir, 0o755); err != nil {
-			return nil, fmt.Errorf("failed to create output directory: %w", err)
-		}
-	}
-
 	// Execute the linker
 	result, err := l.executor.RunCommand(ctx, linkerCmd, args...)
 	if err != nil {
@@ -249,6 +420,79 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 		Output:   opts.Output,
 		Duration: result.Duration,
 		Success:  true,
+	}, nil
+}
+
+// linkSharedLibraryMSVC links a DLL using MSVC link.exe
+func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (*LinkResult, error) {
+	// Build MSVC-style command: link.exe /nologo /DLL objects... /OUT:output.dll /IMPLIB:output.lib
+	var args []string
+
+	// Get linker flags first (includes /nologo, /DEBUG, etc.)
+	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{})
+	args = append(args, linkerFlags...)
+
+	// Add /DLL flag to create DLL
+	args = append(args, "/DLL")
+
+	// Add all object files
+	args = append(args, opts.Objects...)
+
+	// Add output flag
+	args = append(args, "/OUT:"+opts.Output)
+
+	// Generate import library alongside DLL
+	// Replace .dll extension with .lib for import library
+	importLibPath := strings.TrimSuffix(opts.Output, filepath.Ext(opts.Output)) + ".lib"
+	args = append(args, "/IMPLIB:"+importLibPath)
+
+	// Add library search paths (MSVC style)
+	for _, path := range opts.LibPaths {
+		args = append(args, "/LIBPATH:"+path)
+	}
+
+	// Add additional libraries
+	for _, lib := range opts.Libs {
+		if strings.HasSuffix(lib, ".lib") {
+			args = append(args, lib)
+		} else {
+			args = append(args, lib+".lib")
+		}
+	}
+
+	// Add system libraries (translated to MSVC format)
+	for _, sysLib := range opts.SysLibs {
+		if translated := translateSysLibForMSVC(sysLib); translated != "" {
+			args = append(args, translated)
+		}
+	}
+
+	// Use response file for long command lines
+	finalArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer os.Remove(cleanupPath)
+	}
+
+	// Execute link.exe
+	result, err := l.executor.RunCommand(ctx, getMSVCLinker(), finalArgs...)
+	if err != nil {
+		// Show full command line on linker errors (per CONTEXT.md)
+		cmdLine := getMSVCLinker() + " " + strings.Join(args, " ")
+		return &LinkResult{
+			Output:   opts.Output,
+			Duration: time.Since(start),
+			Success:  false,
+		}, fmt.Errorf("linker failed: %w\nCommand: %s", err, cmdLine)
+	}
+
+	return &LinkResult{
+		Output:    opts.Output,
+		ImportLib: importLibPath,
+		Duration:  result.Duration,
+		Success:   true,
 	}, nil
 }
 
