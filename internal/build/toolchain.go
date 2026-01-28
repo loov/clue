@@ -27,6 +27,12 @@ type Toolchain interface {
 	Identity() (CompilerIdentity, error)
 }
 
+// Compile-time interface implementation checks
+var (
+	_ Toolchain = (*GCCToolchain)(nil)
+	_ Toolchain = (*ClangToolchain)(nil)
+)
+
 // NewToolchain creates a toolchain implementation based on the name
 func NewToolchain(name string, target Platform) (Toolchain, error) {
 	// Get cross-compilation prefix if needed
