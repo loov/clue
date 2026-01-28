@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 9 of 12 (Toolchain Abstraction)
-Plan: 2 of TBD in current phase
+Plan: 3 of TBD in current phase
 Status: In progress
-Last activity: 2026-01-28 - Completed 09-02-PLAN.md (Migrated consumers to Toolchain interface)
+Last activity: 2026-01-28 - Completed 09-03-PLAN.md (Migrated tests to interface)
 
 Progress: [--------------------] 0% (0/4 v0.2.0 phases)
 
@@ -25,15 +25,15 @@ Progress: [--------------------] 0% (0/4 v0.2.0 phases)
 - Total execution time: 3.77 hours
 
 **v0.2.0 Velocity:**
-- Total plans completed: 2
-- Average duration: 2.2min per plan
-- Total execution time: 4.4min (0.07 hours)
+- Total plans completed: 3
+- Average duration: 3.5min per plan
+- Total execution time: 10.4min (0.17 hours)
 
 **By Phase (v0.2.0):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 09 | 2/TBD | 4.4min | 2.2min |
+| 09 | 3/TBD | 10.4min | 3.5min |
 | 10 | 0/TBD | - | - |
 | 11 | 0/TBD | - | - |
 | 12 | 0/TBD | - | - |
@@ -54,6 +54,9 @@ Recent decisions affecting current work:
 - [09-02]: Migrated all build components from concrete *Toolchain to Toolchain interface
 - [09-02]: Builder uses NewToolchain factory instead of DiscoverToolchain for cleaner abstraction
 - [09-02]: Flag generation delegated to toolchain methods (CompilerFlags, LinkerFlags) instead of global functions
+- [09-03]: Tests use NewToolchain factory where possible, concrete types for edge cases needing specific values
+- [09-03]: All test functions renamed from TestDiscoverToolchain_* to TestNewToolchain_*
+- [09-03]: internal/generate/ninja.go updated to use interface (was blocking compilation)
 
 ### Pending Todos
 
@@ -74,10 +77,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-28 20:44 UTC
-Stopped at: Completed 09-02-PLAN.md (Consumer migration)
+Last session: 2026-01-28 20:53 UTC
+Stopped at: Completed 09-03-PLAN.md (Test migration)
 Resume file: None
-Next step: Execute 09-03-PLAN.md (Update tests)
+Next step: Continue phase 9 or move to next phase
 
 ## Milestone History
 
