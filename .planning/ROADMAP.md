@@ -38,10 +38,13 @@ See v0.1.0 documentation for completed phase details.
   2. Existing GCC/Clang builds work unchanged through the new abstraction
   3. All existing tests pass with the refactored toolchain code
   4. Toolchain selection is determined by platform and configuration, not hardcoded
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 09-01: TBD
+- [ ] 09-01-PLAN.md — Create Toolchain interface and GCC/Clang implementations
+- [ ] 09-02-PLAN.md — Update all toolchain consumers to use the new interface
+- [ ] 09-03-PLAN.md — Update all tests to work with the new Toolchain interface
+- [ ] 09-04-PLAN.md — Clean up deprecated code and finalize the refactoring
 
 ### Phase 10: Windows MSVC
 **Goal**: Users can build C/C++ projects on Windows using Visual Studio's MSVC toolchain
@@ -96,11 +99,11 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 9. Toolchain Abstraction | v0.2.0 | 0/TBD | Not started | - |
+| 9. Toolchain Abstraction | v0.2.0 | 0/4 | In progress | - |
 | 10. Windows MSVC | v0.2.0 | 0/TBD | Not started | - |
 | 11. Build Profiling | v0.2.0 | 0/TBD | Not started | - |
 | 12. Watch Mode | v0.2.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-24*
+*Last updated: 2026-01-28*
