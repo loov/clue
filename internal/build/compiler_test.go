@@ -11,7 +11,7 @@ import (
 
 func TestCompiler_isCPlusPlus(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	tests := []struct {
@@ -55,23 +55,23 @@ func TestCompiler_WithToolchain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.toolchainName+"_"+tt.source, func(t *testing.T) {
-			tc, err := DiscoverToolchain(tt.toolchainName, platform)
+			tc, err := NewToolchain(tt.toolchainName, platform)
 			if err != nil {
-				t.Fatalf("DiscoverToolchain failed: %v", err)
+				t.Fatalf("NewToolchain failed: %v", err)
 			}
 
 			compiler := NewCompiler(executor, tc)
 			result := compiler.compilerCmd(tt.source)
 
 			if tt.expectCC {
-				if result != tc.CC {
+				if result != tc.CC() {
 					t.Errorf("compilerCmd(%s) = %s, want CC=%s",
-						tt.source, result, tc.CC)
+						tt.source, result, tc.CC())
 				}
 			} else {
-				if result != tc.CXX {
+				if result != tc.CXX() {
 					t.Errorf("compilerCmd(%s) = %s, want CXX=%s",
-						tt.source, result, tc.CXX)
+						tt.source, result, tc.CXX())
 				}
 			}
 		})
@@ -96,7 +96,7 @@ func TestCompiler_CompileSource_Integration(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Compile
@@ -157,7 +157,7 @@ func TestCompiler_CompileSource_Error(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Attempt compilation
@@ -207,7 +207,7 @@ func TestCompiler_CompileSource_WithFlags(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Compile with semantic flags
@@ -274,7 +274,7 @@ int main() { return HEADER_LOADED; }`
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Compile with include path
@@ -344,7 +344,7 @@ int main() { return VERSION; }
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Compile
@@ -427,7 +427,7 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Compile sources
@@ -507,7 +507,7 @@ func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Compile with TargetType = "shared_library"
@@ -571,7 +571,7 @@ func TestCompiler_Executable_NoPIC(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 
 	// Compile with TargetType = "executable" (default, should not add -fPIC)

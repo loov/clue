@@ -22,13 +22,13 @@ func compilerAvailable(compiler string) bool {
 // crossCompilerAvailable checks if a cross-compiler is available for the target platform
 func crossCompilerAvailable(target Platform) bool {
 	// Discover what the cross-compiler would be named
-	toolchain, err := DiscoverToolchain("gcc", target)
+	toolchain, err := NewToolchain("gcc", target)
 	if err != nil {
 		return false
 	}
 
 	// Check if the C compiler exists
-	_, err = exec.LookPath(toolchain.CC)
+	_, err = exec.LookPath(toolchain.CC())
 	return err == nil
 }
 
@@ -194,9 +194,9 @@ func TestCrossCompilationTarget(t *testing.T) {
 	}
 
 	// Discover toolchain for cross-compilation
-	toolchain, err := DiscoverToolchain("gcc", targetPlatform)
+	toolchain, err := NewToolchain("gcc", targetPlatform)
 	if err != nil {
-		t.Fatalf("DiscoverToolchain failed: %v", err)
+		t.Fatalf("NewToolchain failed: %v", err)
 	}
 
 	// Verify toolchain has correct GNU triplet prefix
@@ -208,15 +208,15 @@ func TestCrossCompilationTarget(t *testing.T) {
 		expectedPrefix = "x86_64-linux-gnu"
 	}
 
-	if !strings.Contains(toolchain.CC, expectedPrefix) {
-		t.Errorf("CC compiler %s should contain %s for cross-compilation", toolchain.CC, expectedPrefix)
+	if !strings.Contains(toolchain.CC(), expectedPrefix) {
+		t.Errorf("CC compiler %s should contain %s for cross-compilation", toolchain.CC(), expectedPrefix)
 	}
-	if !strings.Contains(toolchain.AR, expectedPrefix) {
-		t.Errorf("AR archiver %s should contain %s for cross-compilation", toolchain.AR, expectedPrefix)
+	if !strings.Contains(toolchain.AR(), expectedPrefix) {
+		t.Errorf("AR archiver %s should contain %s for cross-compilation", toolchain.AR(), expectedPrefix)
 	}
 
 	t.Logf("Cross-compilation toolchain for %s: CC=%s, CXX=%s, AR=%s",
-		targetPlatform, toolchain.CC, toolchain.CXX, toolchain.AR)
+		targetPlatform, toolchain.CC(), toolchain.CXX(), toolchain.AR())
 }
 
 // TestCrossCompilationValidation verifies upfront validation of cross-compiler availability

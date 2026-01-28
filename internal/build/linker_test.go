@@ -38,7 +38,7 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Link main.o to executable
@@ -112,7 +112,7 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Archive add.o to libadd.a
@@ -193,7 +193,7 @@ int main() { return add(20, 22); }`
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Archive add.o to libadd.a
@@ -274,7 +274,7 @@ int main() {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Link with pthread
@@ -332,7 +332,7 @@ func TestLinker_OutputNaming(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Test executable has no extension on Linux
@@ -418,31 +418,31 @@ func TestLinker_WithToolchain(t *testing.T) {
 	platform := HostPlatform()
 
 	// Test with clang toolchain
-	clangTC, err := DiscoverToolchain("clang", platform)
+	clangTC, err := NewToolchain("clang", platform)
 	if err != nil {
-		t.Fatalf("DiscoverToolchain(clang) failed: %v", err)
+		t.Fatalf("NewToolchain(clang) failed: %v", err)
 	}
 
 	linker := NewLinker(executor, clangTC, platform)
-	if linker.toolchain.CC != clangTC.CC {
-		t.Errorf("Linker.toolchain.CC = %s, want %s", linker.toolchain.CC, clangTC.CC)
+	if linker.toolchain.CC() != clangTC.CC() {
+		t.Errorf("Linker.toolchain.CC() = %s, want %s", linker.toolchain.CC(), clangTC.CC())
 	}
-	if linker.toolchain.CXX != clangTC.CXX {
-		t.Errorf("Linker.toolchain.CXX = %s, want %s", linker.toolchain.CXX, clangTC.CXX)
+	if linker.toolchain.CXX() != clangTC.CXX() {
+		t.Errorf("Linker.toolchain.CXX() = %s, want %s", linker.toolchain.CXX(), clangTC.CXX())
 	}
 
 	// Test with gcc toolchain
-	gccTC, err := DiscoverToolchain("gcc", platform)
+	gccTC, err := NewToolchain("gcc", platform)
 	if err != nil {
-		t.Fatalf("DiscoverToolchain(gcc) failed: %v", err)
+		t.Fatalf("NewToolchain(gcc) failed: %v", err)
 	}
 
 	linker = NewLinker(executor, gccTC, platform)
-	if linker.toolchain.CC != gccTC.CC {
-		t.Errorf("Linker.toolchain.CC = %s, want %s", linker.toolchain.CC, gccTC.CC)
+	if linker.toolchain.CC() != gccTC.CC() {
+		t.Errorf("Linker.toolchain.CC() = %s, want %s", linker.toolchain.CC(), gccTC.CC())
 	}
-	if linker.toolchain.CXX != gccTC.CXX {
-		t.Errorf("Linker.toolchain.CXX = %s, want %s", linker.toolchain.CXX, gccTC.CXX)
+	if linker.toolchain.CXX() != gccTC.CXX() {
+		t.Errorf("Linker.toolchain.CXX() = %s, want %s", linker.toolchain.CXX(), gccTC.CXX())
 	}
 }
 
@@ -461,9 +461,9 @@ func TestLinker_CrossCompiler_AR(t *testing.T) {
 		crossTarget = Platform{OS: "linux", Arch: "amd64"}
 	}
 
-	tc, err := DiscoverToolchain("gcc", crossTarget)
+	tc, err := NewToolchain("gcc", crossTarget)
 	if err != nil {
-		t.Fatalf("DiscoverToolchain failed: %v", err)
+		t.Fatalf("NewToolchain failed: %v", err)
 	}
 
 	// For cross-compilation, AR should have GNU triplet prefix
@@ -475,8 +475,8 @@ func TestLinker_CrossCompiler_AR(t *testing.T) {
 			expectedPrefix = "x86_64-linux-gnu-ar"
 		}
 
-		if expectedPrefix != "" && tc.AR != expectedPrefix {
-			t.Errorf("Cross-compiler AR = %s, want %s", tc.AR, expectedPrefix)
+		if expectedPrefix != "" && tc.AR() != expectedPrefix {
+			t.Errorf("Cross-compiler AR() = %s, want %s", tc.AR(), expectedPrefix)
 		}
 	}
 }
@@ -511,7 +511,7 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Determine expected extension
@@ -582,7 +582,7 @@ func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Link shared library
@@ -645,7 +645,7 @@ func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Link shared library
@@ -713,7 +713,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	linker := NewLinker(executor, tc, HostPlatform())
 
 	// Link shared library

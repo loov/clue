@@ -40,7 +40,7 @@ int add(int a, int b) {
 	dep := deps.NewVendoredDependency("libfoo", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := DiscoverToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -124,7 +124,7 @@ targets: {
 	dep := deps.NewVendoredDependency("libbar", sourcePath, nil)
 
 	// Create builder components
-	toolchain, err := DiscoverToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 	dep := deps.NewVendoredDependency("libnone", sourcePath, nil)
 
 	// Create builder components
-	toolchain, err := DiscoverToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 	dep := deps.NewVendoredDependency("libglob", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := DiscoverToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -314,7 +314,7 @@ int test() { return 42; }
 	dep := deps.NewVendoredDependency("libinc", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := DiscoverToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}

@@ -34,7 +34,7 @@ func TestParallelCompiler_SingleFile(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
@@ -107,7 +107,7 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
@@ -189,7 +189,7 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 
 	// Setup compiler with limited concurrency
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	jobs := 2
 	parallel := NewParallelCompiler(compiler, tc, jobs, false, VerbosityNormal)
@@ -236,7 +236,7 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 
 	// Setup compiler with keepGoing=true
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, true, VerbosityNormal) // keepGoing=true
 
@@ -307,7 +307,7 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 
 	// Setup compiler with keepGoing=false (fail fast)
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 1, false, VerbosityNormal) // jobs=1 to ensure order
 
@@ -362,7 +362,7 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 
 	// Setup compiler with limited concurrency
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
@@ -403,7 +403,7 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 func TestParallelCompiler_EmptySources(t *testing.T) {
 	// Setup compiler
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
@@ -421,7 +421,7 @@ func TestParallelCompiler_EmptySources(t *testing.T) {
 func TestParallelCompiler_GetProgress(t *testing.T) {
 	// Unit test - no compilation needed
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
@@ -438,7 +438,7 @@ func TestParallelCompiler_GetProgress(t *testing.T) {
 func TestParallelCompiler_GetActive(t *testing.T) {
 	// Unit test - no compilation needed
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 2, false, VerbosityNormal)
 
@@ -486,7 +486,7 @@ func TestParallelCompiler_OutputNotInterleaved(t *testing.T) {
 
 	// Setup compiler with max concurrency
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false})
-	tc, _ := DiscoverToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
 	parallel := NewParallelCompiler(compiler, tc, 4, false, VerbosityNormal)
 
