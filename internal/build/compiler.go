@@ -33,11 +33,11 @@ type CompileResult struct {
 // Compiler handles source file compilation
 type Compiler struct {
 	executor  *Executor
-	toolchain *Toolchain
+	toolchain Toolchain
 }
 
 // NewCompiler creates a new Compiler instance
-func NewCompiler(executor *Executor, toolchain *Toolchain) *Compiler {
+func NewCompiler(executor *Executor, toolchain Toolchain) *Compiler {
 	return &Compiler{
 		executor:  executor,
 		toolchain: toolchain,
@@ -60,9 +60,9 @@ func (c *Compiler) compilerCmd(source string) string {
 	isCPP := c.isCPlusPlus(source)
 
 	if isCPP {
-		return c.toolchain.CXX
+		return c.toolchain.CXX()
 	}
-	return c.toolchain.CC
+	return c.toolchain.CC()
 }
 
 // CompileSource compiles a single source file to an object file
@@ -117,7 +117,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 	}
 
 	// 10. Semantic flags
-	semanticFlags := CompilerFlagsWithToolchain(opts.Flags, c.toolchain.Name)
+	semanticFlags := c.toolchain.CompilerFlags(opts.Flags)
 	args = append(args, semanticFlags...)
 
 	// 10. Raw compiler flags (already included in semantic flags via BuildCompilerFlags)
