@@ -343,7 +343,11 @@ func TestSemanticFlagMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := CompilerFlagsWithToolchain(tt.config, tt.toolchain)
+			tc, err := NewToolchain(tt.toolchain, HostPlatform())
+			if err != nil {
+				t.Fatalf("NewToolchain failed: %v", err)
+			}
+			flags := tc.CompilerFlags(tt.config)
 
 			// Verify all expected flags are present
 			for _, expectedFlag := range tt.expected {
@@ -392,7 +396,11 @@ func TestSemanticFlagMapping_Linker(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := LinkerFlagsWithToolchain(tt.config, []string{}, tt.toolchain)
+			tc, err := NewToolchain(tt.toolchain, HostPlatform())
+			if err != nil {
+				t.Fatalf("NewToolchain failed: %v", err)
+			}
+			flags := tc.LinkerFlags(tt.config, []string{})
 
 			// Verify all expected flags are present
 			for _, expectedFlag := range tt.expected {

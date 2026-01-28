@@ -104,7 +104,7 @@ func atomicWrite(path string, data []byte) error {
 // Returns (needsRebuild bool, reason RebuildReason, changedHeader string)
 func (cm *CacheManager) NeedsRebuild(
 	source string,
-	flags Config,
+	compilerFlags []string,
 	includes []string,
 	compilerPath string,
 	forceRebuild bool,
@@ -149,7 +149,7 @@ func (cm *CacheManager) NeedsRebuild(
 	}
 
 	// Compare flags
-	normalizedFlags := NormalizeFlags(CompilerFlags(flags))
+	normalizedFlags := NormalizeFlags(compilerFlags)
 	if !stringSlicesEqual(normalizedFlags, entry.Key.Flags) {
 		return true, ReasonFlagsChanged, ""
 	}
@@ -236,7 +236,7 @@ func (cm *CacheManager) StoreResult(
 	source string,
 	objectPath string,
 	depFilePath string,
-	flags Config,
+	compilerFlags []string,
 	includes []string,
 	compilerPath string,
 ) error {
@@ -289,7 +289,7 @@ func (cm *CacheManager) StoreResult(
 		SourceHash:   sourceHash,
 		HeaderHashes: headerHashes,
 		CompilerID:   compilerID,
-		Flags:        NormalizeFlags(CompilerFlags(flags)),
+		Flags:        NormalizeFlags(compilerFlags),
 		IncludePaths: normalizeIncludePaths(includes),
 	}
 

@@ -253,12 +253,15 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	var toCompile []CompileOptions
 	var preExistingObjects []string
 
+	// Compute compiler flags once for cache checks
+	compilerFlags := b.toolchain.CompilerFlags(buildCfg)
+
 	for _, source := range sourcesToCompile {
 		objName := filepath.Base(source) + ".o"
 		objPath := filepath.Join(objDir, objName)
 
 		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
-			source, buildCfg, includes, compilerPath, opts.ForceRebuild,
+			source, compilerFlags, includes, compilerPath, opts.ForceRebuild,
 		)
 
 		if !needsRebuild {
@@ -340,7 +343,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 							compiledModules[modName] = filepath.Join(bmiDir, modName+".pcm")
 						}
 						depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
-						err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, buildCfg, includes, compilerPath)
+						err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, compilerFlags, includes, compilerPath)
 						if err != nil && opts.Verbosity == VerbosityVerbose {
 							fmt.Printf("  Warning: failed to cache result: %v\n", err)
 						}
@@ -371,7 +374,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 					if r.Error == nil {
 						compiledObjects = append(compiledObjects, r.Object)
 						depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
-						err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, buildCfg, includes, compilerPath)
+						err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, compilerFlags, includes, compilerPath)
 						if err != nil && opts.Verbosity == VerbosityVerbose {
 							fmt.Printf("  Warning: failed to cache result: %v\n", err)
 						}
@@ -394,7 +397,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 					compiledObjects = append(compiledObjects, r.Object)
 					// Store in cache
 					depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
-					err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, buildCfg, includes, compilerPath)
+					err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, compilerFlags, includes, compilerPath)
 					if err != nil && opts.Verbosity == VerbosityVerbose {
 						fmt.Printf("  Warning: failed to cache result: %v\n", err)
 					}

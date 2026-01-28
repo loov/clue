@@ -120,6 +120,33 @@ func getEnvOr(key, fallback string) string {
 	return fallback
 }
 
+// Flag mapping variables (shared by toolchain implementations)
+
+// Optimization flag mapping
+var optimizationFlags = map[string]string{
+	"none":       "-O0",
+	"size":       "-Os",
+	"fast":       "-O2",
+	"aggressive": "-O3",
+}
+
+// Warning flag mapping
+var warningFlags = map[string][]string{
+	"off":      {},
+	"default":  {"-Wall"},
+	"strict":   {"-Wall", "-Wextra"},
+	"pedantic": {"-Wall", "-Wextra", "-Wpedantic"},
+}
+
+// Debug flag mapping
+var debugFlags = map[string]string{
+	"none":    "",
+	"minimal": "-g1",
+	"full":    "-g",
+}
+
+// Flag mapping helper functions
+
 // optimizationFlag returns the optimization flag for a given level
 func optimizationFlag(level string) string {
 	if flag, ok := optimizationFlags[level]; ok {

@@ -59,7 +59,7 @@ func TestNeedsRebuild_NotCached(t *testing.T) {
 	// Check if needs rebuild (should return true since not cached)
 	needsRebuild, reason, header := cm.NeedsRebuild(
 		srcPath,
-		Config{},
+		[]string{},
 		[]string{},
 		"/usr/bin/clang",
 		false,
@@ -100,7 +100,7 @@ func TestNeedsRebuild_Forced(t *testing.T) {
 	// Check with forceRebuild=true
 	needsRebuild, reason, header := cm.NeedsRebuild(
 		srcPath,
-		Config{},
+		[]string{},
 		[]string{},
 		"/usr/bin/clang",
 		true, // forceRebuild
@@ -159,12 +159,18 @@ func TestStoreResult_and_GetCached(t *testing.T) {
 	// Create fake compiler
 	compilerPath := "/usr/bin/clang"
 
+	// Create a toolchain to generate flags
+	tc, err := NewToolchain("gcc", HostPlatform())
+	if err != nil {
+		t.Fatalf("NewToolchain failed: %v", err)
+	}
+
 	// Store the result
 	err = cm.StoreResult(
 		srcPath,
 		objPath,
 		depPath,
-		Config{Optimize: "fast"},
+		tc.CompilerFlags(Config{Optimize: "fast"}),
 		[]string{srcDir},
 		compilerPath,
 	)
@@ -228,7 +234,7 @@ func TestNeedsRebuild_SourceChanged(t *testing.T) {
 	compilerPath := "/usr/bin/clang"
 
 	// Store the result
-	err = cm.StoreResult(srcPath, objPath, depPath, Config{}, []string{}, compilerPath)
+	err = cm.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
@@ -242,7 +248,7 @@ func TestNeedsRebuild_SourceChanged(t *testing.T) {
 	// Check if needs rebuild
 	needsRebuild, reason, _ := cm.NeedsRebuild(
 		srcPath,
-		Config{},
+		[]string{},
 		[]string{},
 		compilerPath,
 		false,
@@ -308,13 +314,13 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 	}
 
 	// Store the result
-	err = cm.StoreResult(srcPath, objPath, depPath, Config{}, []string{}, compilerPath)
+	err = cm.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
 
 	// First check - should not need rebuild
-	needsRebuild, reason1, header1 := cm.NeedsRebuild(srcPath, Config{}, []string{}, compilerPath, false)
+	needsRebuild, reason1, header1 := cm.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
 	if needsRebuild {
 		t.Errorf("expected needsRebuild=false before header change, got reason=%s, header=%s", reason1, header1)
 	}
@@ -328,7 +334,7 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 	// Check if needs rebuild
 	needsRebuild, reason, changedHeader := cm.NeedsRebuild(
 		srcPath,
-		Config{},
+		[]string{},
 		[]string{},
 		compilerPath,
 		false,
@@ -388,7 +394,7 @@ func TestManifestPersistence(t *testing.T) {
 		t.Fatalf("failed to write fake compiler: %v", err)
 	}
 
-	err = cm1.StoreResult(srcPath, objPath, depPath, Config{}, []string{}, compilerPath)
+	err = cm1.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
@@ -400,7 +406,7 @@ func TestManifestPersistence(t *testing.T) {
 	}
 
 	// Verify cache still works
-	needsRebuild, _, _ := cm2.NeedsRebuild(srcPath, Config{}, []string{}, compilerPath, false)
+	needsRebuild, _, _ := cm2.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
 	if needsRebuild {
 		t.Error("expected needsRebuild=false after loading persisted manifest")
 	}
@@ -500,7 +506,7 @@ func TestNeedsRebuild_ObjectMissing(t *testing.T) {
 	compilerPath := "/usr/bin/clang"
 
 	// Store result
-	err = cm.StoreResult(srcPath, objPath, depPath, Config{}, []string{}, compilerPath)
+	err = cm.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
@@ -509,7 +515,7 @@ func TestNeedsRebuild_ObjectMissing(t *testing.T) {
 	os.Remove(objPath)
 
 	// Check if needs rebuild
-	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, Config{}, []string{}, compilerPath, false)
+	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
 
 	if !needsRebuild {
 		t.Error("expected needsRebuild=true when object file missing")
@@ -558,7 +564,7 @@ func TestNeedsRebuild_DepFileMissing(t *testing.T) {
 	compilerPath := "/usr/bin/clang"
 
 	// Store result
-	err = cm.StoreResult(srcPath, objPath, depPath, Config{}, []string{}, compilerPath)
+	err = cm.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
@@ -567,7 +573,7 @@ func TestNeedsRebuild_DepFileMissing(t *testing.T) {
 	os.Remove(depPath)
 
 	// Check if needs rebuild
-	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, Config{}, []string{}, compilerPath, false)
+	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
 
 	if !needsRebuild {
 		t.Error("expected needsRebuild=true when dep file missing")
@@ -615,15 +621,21 @@ func TestNeedsRebuild_FlagsChanged(t *testing.T) {
 
 	compilerPath := "/usr/bin/clang"
 
+	// Create a toolchain to generate flags
+	tc, err := NewToolchain("gcc", HostPlatform())
+	if err != nil {
+		t.Fatalf("NewToolchain failed: %v", err)
+	}
+
 	// Store result with one set of flags
-	flags1 := Config{Optimize: "none"}
+	flags1 := tc.CompilerFlags(Config{Optimize: "none"})
 	err = cm.StoreResult(srcPath, objPath, depPath, flags1, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
 
 	// Check with different flags
-	flags2 := Config{Optimize: "fast"}
+	flags2 := tc.CompilerFlags(Config{Optimize: "fast"})
 	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, flags2, []string{}, compilerPath, false)
 
 	if !needsRebuild {
