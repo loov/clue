@@ -212,7 +212,12 @@ func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath
 	}
 
 	// 8. Semantic flags (using build package for consistency)
-	semanticFlags := build.CompilerFlagsWithToolchain(buildCfg, opts.Toolchain)
+	tc, err := build.NewToolchain(opts.Toolchain, build.HostPlatform())
+	if err != nil {
+		// Fallback to gcc if toolchain creation fails
+		tc, _ = build.NewToolchain("gcc", build.HostPlatform())
+	}
+	semanticFlags := tc.CompilerFlags(buildCfg)
 	args = append(args, semanticFlags...)
 
 	return args
@@ -252,7 +257,12 @@ func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, in
 	}
 
 	// 8. Semantic flags
-	semanticFlags := build.CompilerFlagsWithToolchain(buildCfg, opts.Toolchain)
+	tc, err := build.NewToolchain(opts.Toolchain, build.HostPlatform())
+	if err != nil {
+		// Fallback to gcc if toolchain creation fails
+		tc, _ = build.NewToolchain("gcc", build.HostPlatform())
+	}
+	semanticFlags := tc.CompilerFlags(buildCfg)
 	args = append(args, semanticFlags...)
 
 	return args

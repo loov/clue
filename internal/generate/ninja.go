@@ -191,8 +191,8 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	includes := target.Includes
 
 	// Build compiler flags
-	cflags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, false)
-	cxxflags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, true)
+	cflags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, false, opts.Toolchain, opts.Platform)
+	cxxflags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, true, opts.Toolchain, opts.Platform)
 
 	// Add -fPIC for shared libraries
 	if target.Type == "shared_library" {
@@ -234,7 +234,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	switch target.Type {
 	case "executable":
-		ldflags := buildLinkerFlagsForNinja(opts.Config, target, buildCfg, opts.BuildDir, variant, opts.Platform)
+		ldflags := buildLinkerFlagsForNinja(opts.Config, target, buildCfg, opts.BuildDir, variant, opts.Platform, opts.Toolchain)
 		*file = append(*file, ninja.Build{
 			Rule: "link",
 			In:   objects,
@@ -252,7 +252,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		})
 
 	case "shared_library":
-		ldflags := buildSharedLibLinkerFlags(opts.Config, target, buildCfg, opts.Platform)
+		ldflags := buildSharedLibLinkerFlags(opts.Config, target, buildCfg, opts.Platform, opts.Toolchain)
 		*file = append(*file, ninja.Build{
 			Rule: "link_shared",
 			In:   objects,
@@ -270,7 +270,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 // Note: objectPath is defined in compdb.go and shared between both generators
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output
-func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, includes []string, _ bool) []string {
+func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, includes []string, _ bool, toolchainName string, platform build.Platform) []string {
 	var flags []string
 
 	// Language standard
@@ -289,14 +289,19 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 	}
 
 	// Semantic flags from build package
-	semanticFlags := build.CompilerFlags(buildCfg)
+	tc, err := build.NewToolchain(toolchainName, platform)
+	if err != nil {
+		// Fallback to gcc if toolchain creation fails
+		tc, _ = build.NewToolchain("gcc", platform)
+	}
+	semanticFlags := tc.CompilerFlags(buildCfg)
 	flags = append(flags, semanticFlags...)
 
 	return flags
 }
 
 // buildLinkerFlagsForNinja builds linker flags for executables
-func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, buildDir, variant string, _ build.Platform) []string {
+func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, buildDir, variant string, platform build.Platform, toolchainName string) []string {
 	var flags []string
 
 	// Library search paths for dependencies
@@ -315,14 +320,19 @@ func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg
 	}
 
 	// Semantic linker flags
-	semanticFlags := build.LinkerFlags(buildCfg, []string{})
+	tc, err := build.NewToolchain(toolchainName, platform)
+	if err != nil {
+		// Fallback to gcc if toolchain creation fails
+		tc, _ = build.NewToolchain("gcc", platform)
+	}
+	semanticFlags := tc.LinkerFlags(buildCfg, []string{})
 	flags = append(flags, semanticFlags...)
 
 	return flags
 }
 
 // buildSharedLibLinkerFlags builds linker flags for shared libraries
-func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg build.Config, platform build.Platform) []string {
+func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg build.Config, platform build.Platform, toolchainName string) []string {
 	var flags []string
 
 	// Platform-specific shared library flags
@@ -341,7 +351,12 @@ func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg 
 	}
 
 	// Semantic linker flags
-	semanticFlags := build.LinkerFlags(buildCfg, []string{})
+	tc, err := build.NewToolchain(toolchainName, platform)
+	if err != nil {
+		// Fallback to gcc if toolchain creation fails
+		tc, _ = build.NewToolchain("gcc", platform)
+	}
+	semanticFlags := tc.LinkerFlags(buildCfg, []string{})
 	flags = append(flags, semanticFlags...)
 
 	return flags
