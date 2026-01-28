@@ -9,18 +9,18 @@ Requirements for v0.2.0 release. Each maps to roadmap phases.
 
 ### Windows MSVC Support
 
-- [ ] **MSVC-01**: Detect Visual Studio installations using vswhere.exe
-- [ ] **MSVC-02**: Execute vcvarsall.bat and capture MSVC environment variables
-- [ ] **MSVC-03**: Compile C/C++ files using cl.exe with MSVC flag syntax
-- [ ] **MSVC-04**: Link executables using link.exe with MSVC linker flags
-- [ ] **MSVC-05**: Create static libraries using lib.exe
-- [ ] **MSVC-06**: Create shared libraries (DLLs) using link.exe /DLL
-- [ ] **MSVC-07**: Generate debug symbols using /Zi or /Z7 flags
-- [ ] **MSVC-08**: Map debug/release variants to /Od and /O2 optimization flags
-- [ ] **MSVC-09**: Configure warning levels using /W3, /W4, /Wall flags
-- [ ] **MSVC-10**: Support response files (@file) for long command lines
-- [ ] **MSVC-11**: Add windows-amd64 to supported platforms
-- [ ] **MSVC-12**: Automatically detect and configure MSVC without manual paths
+- [x] **MSVC-01**: Detect Visual Studio installations using vswhere.exe
+- [x] **MSVC-02**: Execute vcvarsall.bat and capture MSVC environment variables
+- [x] **MSVC-03**: Compile C/C++ files using cl.exe with MSVC flag syntax
+- [x] **MSVC-04**: Link executables using link.exe with MSVC linker flags
+- [x] **MSVC-05**: Create static libraries using lib.exe
+- [x] **MSVC-06**: Create shared libraries (DLLs) using link.exe /DLL
+- [x] **MSVC-07**: Generate debug symbols using /Zi or /Z7 flags
+- [x] **MSVC-08**: Map debug/release variants to /Od and /O2 optimization flags
+- [x] **MSVC-09**: Configure warning levels using /W3, /W4, /Wall flags
+- [x] **MSVC-10**: Support response files (@file) for long command lines
+- [x] **MSVC-11**: Add windows-amd64 to supported platforms
+- [x] **MSVC-12**: Automatically detect and configure MSVC without manual paths
 
 ### Watch Mode
 
@@ -92,16 +92,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MSVC-01 | Phase 10 | Pending |
-| MSVC-02 | Phase 10 | Pending |
-| MSVC-03 | Phase 10 | Pending |
-| MSVC-04 | Phase 10 | Pending |
-| MSVC-05 | Phase 10 | Pending |
-| MSVC-06 | Phase 10 | Pending |
-| MSVC-07 | Phase 10 | Pending |
-| MSVC-08 | Phase 10 | Pending |
-| MSVC-09 | Phase 10 | Pending |
-| MSVC-10 | Phase 10 | Pending |
+| MSVC-01 | Phase 10 | Complete |
+| MSVC-02 | Phase 10 | Complete |
+| MSVC-03 | Phase 10 | Complete |
+| MSVC-04 | Phase 10 | Complete |
+| MSVC-05 | Phase 10 | Complete |
+| MSVC-06 | Phase 10 | Complete |
+| MSVC-07 | Phase 10 | Complete |
+| MSVC-08 | Phase 10 | Complete |
+| MSVC-09 | Phase 10 | Complete |
+| MSVC-10 | Phase 10 | Complete |
 | MSVC-11 | Phase 9 | Complete |
 | MSVC-12 | Phase 9 | Complete |
 | WATCH-01 | Phase 12 | Pending |
@@ -124,4 +124,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-24 after roadmap creation*
+*Last updated: 2026-01-28 after Phase 10 completion*
