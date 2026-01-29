@@ -73,6 +73,7 @@ All v0.1.0, v0.2.0, and v0.3.0 decisions logged in PROJECT.md Key Decisions tabl
 | 019 | Fix C++20 module compilation | 2026-01-24 | 403e441 | [019-fix-module-test-build](./quick/019-fix-module-test-build/) |
 | 020 | Create OS-specific sysLibs sample project | 2026-01-24 | 4715d34 | [020-create-a-testdata-sample-project-that-sh](./quick/020-create-a-testdata-sample-project-that-sh/) |
 | 021 | Add minimal README with installation and quick start | 2026-01-25 | 2e9f7ce | [021-add-minimal-readme-that-explains-basic-u](./quick/021-add-minimal-readme-that-explains-basic-u/) |
+| 022 | Move vendor CUE configs to parent inline build blocks | 2026-01-29 | 4dd9185 | [022-move-vendor-cue-to-parent-config](./quick/022-move-vendor-cue-to-parent-config/) |
 
 ## Session Continuity
 
