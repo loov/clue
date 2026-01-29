@@ -4,10 +4,17 @@ dependencies: {
 	simplemath: {
 		type: "vendored"
 		path: "vendor/simplemath"
+		build: {
+			sources: ["math.cpp"]
+		}
 	}
 	stringutils: {
 		type: "vendored"
 		path: "vendor/stringutils"
+		build: {
+			sources:  ["utils.cpp"]
+			includes: [".."]
+		}
 	}
 }
 
