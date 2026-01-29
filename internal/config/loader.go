@@ -481,6 +481,7 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 
 	config.Includes = extractStringList(val, "includes")
 	config.Defines = extractStringList(val, "defines")
+	config.Depends = extractStringList(val, "depends")
 
 	config.Type = "static_library" // Default
 	if typeVal := val.LookupPath(cue.ParsePath("targetType")); typeVal.Exists() {

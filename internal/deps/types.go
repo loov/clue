@@ -21,6 +21,7 @@ type InlineConfig struct {
 	Sources  []string
 	Includes []string
 	Defines  []string
+	Depends  []string
 	Type     string // "static_library" or "shared_library"
 }
 

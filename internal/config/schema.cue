@@ -72,6 +72,7 @@ package config
 	sources: [...string] & [_, ...]  // At least one source
 	includes?: [...string]
 	defines?: [...string]
+	depends?: [...string]  // Other dependency names
 	targetType?: "static_library" | "shared_library" | *"static_library"
 }
 

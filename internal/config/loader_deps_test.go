@@ -159,6 +159,74 @@ dependencies: {
 	}
 }
 
+func TestDependencyExtraction_InlineDepends(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configContent := `name: "test-inline-depends"
+version: "0.1.0"
+
+targets: {
+	myapp: {
+		name: "myapp"
+		type: "executable"
+		sources: ["main.cpp"]
+	}
+}
+
+dependencies: {
+	first: {
+		type: "vendored"
+		path: "vendor/first"
+		build: {
+			sources: ["first.cpp"]
+		}
+	}
+
+	second: {
+		type: "vendored"
+		path: "vendor/second"
+		build: {
+			sources: ["second.cpp"]
+			depends: ["first"]
+		}
+	}
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(configContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	// Load config
+	loader := NewLoader()
+	cfg, err := loader.Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Verify second dependency has depends field populated
+	secondDep, ok := cfg.Dependencies["second"]
+	if !ok {
+		t.Fatalf("Expected 'second' dependency")
+	}
+	vendoredDep := secondDep.(*deps.VendoredDependency)
+	if vendoredDep.BuildConfig == nil {
+		t.Fatal("Expected build config for second dependency")
+	}
+	if len(vendoredDep.BuildConfig.Depends) != 1 {
+		t.Errorf("Expected 1 dependency, got %d", len(vendoredDep.BuildConfig.Depends))
+	}
+	if len(vendoredDep.BuildConfig.Depends) > 0 && vendoredDep.BuildConfig.Depends[0] != "first" {
+		t.Errorf("Expected depends on 'first', got %s", vendoredDep.BuildConfig.Depends[0])
+	}
+
+	// Verify first dependency has no depends
+	firstDep := cfg.Dependencies["first"].(*deps.VendoredDependency)
+	if len(firstDep.BuildConfig.Depends) != 0 {
+		t.Errorf("Expected no dependencies for first, got %d", len(firstDep.BuildConfig.Depends))
+	}
+}
+
 func TestDependencyValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -241,6 +309,22 @@ dependencies: {
 }`,
 			expectError: "incomplete value",
 		},
+		{
+			name: "inline config with depends (valid)",
+			config: `name: "test"
+targets: { app: { name: "app", type: "executable", sources: ["main.cpp"] } }
+dependencies: {
+	dep: {
+		type: "vendored"
+		path: "vendor/dep"
+		build: {
+			sources: ["x.cpp"]
+			depends: ["y"]
+		}
+	}
+}`,
+			expectError: "", // Should succeed (empty error means no error expected)
+		},
 	}
 
 	for _, tt := range tests {
@@ -258,10 +342,18 @@ dependencies: {
 
 			loader := NewLoader()
 			_, err = loader.Load(testDir)
-			if err == nil {
-				t.Errorf("Expected error containing %q, but got none", tt.expectError)
-			} else if !containsIgnoreCase(err.Error(), tt.expectError) {
-				t.Errorf("Expected error containing %q, got: %v", tt.expectError, err)
+			if tt.expectError == "" {
+				// This test expects success
+				if err != nil {
+					t.Errorf("Expected no error, but got: %v", err)
+				}
+			} else {
+				// This test expects an error
+				if err == nil {
+					t.Errorf("Expected error containing %q, but got none", tt.expectError)
+				} else if !containsIgnoreCase(err.Error(), tt.expectError) {
+					t.Errorf("Expected error containing %q, got: %v", tt.expectError, err)
+				}
 			}
 		})
 	}

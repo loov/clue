@@ -12,8 +12,8 @@ dependencies: {
 		type: "vendored"
 		path: "vendor/stringutils"
 		build: {
-			sources:  ["utils.cpp"]
-			includes: [".."]
+			sources: ["utils.cpp"]
+			depends: ["simplemath"]
 		}
 	}
 }
