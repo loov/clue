@@ -32,7 +32,7 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md`
 
 - [x] **Phase 13: Toolchain Interface** - Extract shared interface and utilities to internal/toolchain
 - [x] **Phase 14: Toolchain Implementations** - Extract GCC, Clang, MSVC to subpackages
-- [ ] **Phase 15: Supporting Extractions** - Extract cache, profile, watch to separate packages
+- [x] **Phase 15: Supporting Extractions** - Extract cache, profile, watch to separate packages
 - [ ] **Phase 16: Build Consolidation** - Reduce internal/build to core orchestration
 - [ ] **Phase 17: Testdata Projects** - Add real-world external library examples
 
@@ -84,10 +84,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — Extract cache package with hashing and invalidation
-- [ ] 15-02-PLAN.md — Extract profile package with timing and Chrome Trace
-- [ ] 15-03-PLAN.md — Extract watch package with file monitoring
-- [ ] 15-04-PLAN.md — Update internal/build imports and remove duplicates
+- [x] 15-01-PLAN.md — Extract cache package with hashing and invalidation
+- [x] 15-02-PLAN.md — Extract profile package with timing and Chrome Trace
+- [x] 15-03-PLAN.md — Extract watch package with file monitoring
+- [x] 15-04-PLAN.md — Update internal/build imports and remove duplicates
 
 ### Phase 16: Build Consolidation
 **Goal**: Reduce internal/build to core orchestration: Builder, Compiler, Linker, Executor, Parallel
@@ -128,10 +128,10 @@ Plans:
 | 9-12 | v0.2.0 | 14/14 | Complete | 2026-01-29 |
 | 13. Toolchain Interface | v0.3.0 | 2/2 | Complete | 2026-01-29 |
 | 14. Toolchain Implementations | v0.3.0 | 4/4 | Complete | 2026-01-29 |
-| 15. Supporting Extractions | v0.3.0 | 0/4 | Planned | - |
+| 15. Supporting Extractions | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 16. Build Consolidation | v0.3.0 | 0/TBD | Not started | - |
 | 17. Testdata Projects | v0.3.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 15 planning*
+*Last updated: 2026-01-29 after Phase 15 complete*
