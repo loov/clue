@@ -9,7 +9,7 @@ Code quality milestone: refactoring internal/build and adding comprehensive test
 
 ### Refactoring
 
-- [ ] **REFAC-01**: Extract toolchain interface and shared utilities to internal/toolchain
+- [x] **REFAC-01**: Extract toolchain interface and shared utilities to internal/toolchain
 - [ ] **REFAC-02**: Extract GCC toolchain implementation to internal/toolchain/gcc
 - [ ] **REFAC-03**: Extract Clang toolchain implementation to internal/toolchain/clang
 - [ ] **REFAC-04**: Extract MSVC toolchain and discovery to internal/toolchain/msvc
@@ -53,7 +53,7 @@ Deferred to later milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REFAC-01 | Phase 13 | Pending |
+| REFAC-01 | Phase 13 | Complete |
 | REFAC-02 | Phase 14 | Pending |
 | REFAC-03 | Phase 14 | Pending |
 | REFAC-04 | Phase 14 | Pending |

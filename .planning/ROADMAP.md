@@ -30,7 +30,7 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md`
 
 **Milestone Goal:** Refactor internal/build into focused packages and add comprehensive testdata with external library examples.
 
-- [ ] **Phase 13: Toolchain Interface** - Extract shared interface and utilities to internal/toolchain
+- [x] **Phase 13: Toolchain Interface** - Extract shared interface and utilities to internal/toolchain
 - [ ] **Phase 14: Toolchain Implementations** - Extract GCC, Clang, MSVC to subpackages
 - [ ] **Phase 15: Supporting Extractions** - Extract cache, profile, watch to separate packages
 - [ ] **Phase 16: Build Consolidation** - Reduce internal/build to core orchestration
@@ -50,8 +50,8 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md`
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md - Create toolchain package with interface, types, and utilities
-- [ ] 13-02-PLAN.md - Update internal/build to import from toolchain package
+- [x] 13-01-PLAN.md - Create toolchain package with interface, types, and utilities
+- [x] 13-02-PLAN.md - Update internal/build to import from toolchain package
 
 ### Phase 14: Toolchain Implementations
 **Goal**: Move GCC, Clang, and MSVC implementations to separate subpackages under internal/toolchain
@@ -124,7 +124,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1-8 | v0.1.0 | 50/50 | Complete | 2026-01-24 |
 | 9-12 | v0.2.0 | 14/14 | Complete | 2026-01-29 |
-| 13. Toolchain Interface | v0.3.0 | 0/2 | Planned | - |
+| 13. Toolchain Interface | v0.3.0 | 2/2 | Complete | 2026-01-29 |
 | 14. Toolchain Implementations | v0.3.0 | 0/TBD | Not started | - |
 | 15. Supporting Extractions | v0.3.0 | 0/TBD | Not started | - |
 | 16. Build Consolidation | v0.3.0 | 0/TBD | Not started | - |
@@ -132,4 +132,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29*
+*Last updated: 2026-01-29 after Phase 13 completion*
