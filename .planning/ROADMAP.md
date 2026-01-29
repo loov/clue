@@ -99,10 +99,12 @@ Plans:
   3. No code duplication between internal/build and extracted packages
   4. Package dependencies flow one direction (build imports others, not vice versa)
   5. All integration tests pass demonstrating end-to-end build functionality
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 16-01: TBD
+- [ ] 16-01-PLAN.md — Add doc.go files to extracted packages
+- [ ] 16-02-PLAN.md — Remove type aliases and update callers
+- [ ] 16-03-PLAN.md — Create testclue package for shared test helpers
 
 ### Phase 17: Testdata Projects
 **Goal**: Add comprehensive testdata projects demonstrating real-world external library usage
@@ -129,9 +131,9 @@ Plans:
 | 13. Toolchain Interface | v0.3.0 | 2/2 | Complete | 2026-01-29 |
 | 14. Toolchain Implementations | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 15. Supporting Extractions | v0.3.0 | 4/4 | Complete | 2026-01-29 |
-| 16. Build Consolidation | v0.3.0 | 0/TBD | Not started | - |
+| 16. Build Consolidation | v0.3.0 | 0/3 | Not started | - |
 | 17. Testdata Projects | v0.3.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 15 complete*
+*Last updated: 2026-01-29 after Phase 16 planning*
