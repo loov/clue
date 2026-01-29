@@ -20,6 +20,7 @@ import (
 	"github.com/loov/clue/internal/deps"
 	clerrors "github.com/loov/clue/internal/errors"
 	"github.com/loov/clue/internal/generate"
+	"github.com/loov/clue/internal/watch"
 )
 
 var version = "0.1.0-dev"
@@ -704,7 +705,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	doBuild("initial build", false)
 
 	// Setup watcher
-	watcher, err := build.NewWatcher(build.WatchConfig{
+	watcher, err := watch.NewWatcher(watch.Config{
 		SourceDirs:   sourceDirs,
 		BuildCuePath: buildCuePath,
 		DebounceDur:  300 * time.Millisecond,

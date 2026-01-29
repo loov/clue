@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/loov/clue/internal/profile"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -35,7 +36,7 @@ type ParallelCompiler struct {
 	jobs      int
 	keepGoing bool
 	verbosity Verbosity
-	profiler  *Profiler
+	profiler  *profile.Profiler
 
 	// Progress tracking
 	completed atomic.Int64

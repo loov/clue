@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/errors"
 )
 
@@ -117,7 +118,7 @@ func (p *Progress) Complete(artifact string, fileCount, cachedCount int, duratio
 }
 
 // Skip reports that a file was skipped due to cache hit
-func (p *Progress) Skip(target, filename string, _ RebuildReason) {
+func (p *Progress) Skip(target, filename string, _ cache.RebuildReason) {
 	p.current.Add(1)
 	p.cached.Add(1)
 

@@ -12,8 +12,10 @@ import (
 	"sort"
 	"time"
 
+	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/profile"
 )
 
 // Options holds options for a build operation
@@ -54,12 +56,12 @@ type Builder struct {
 	executor         *Executor
 	compiler         *Compiler
 	linker           *Linker
-	cacheManager     *CacheManager
+	cacheManager     *cache.Manager
 	parallelCompiler *ParallelCompiler
 	toolchain        Toolchain
 	target           Platform
 	depResults       map[string]*DepBuildResult // Built dependencies
-	profiler         *Profiler
+	profiler         *profile.Profiler
 }
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
@@ -580,7 +582,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	start := time.Now()
 
 	// Initialize profiler
-	b.profiler = NewProfiler(opts.Profile)
+	b.profiler = profile.NewProfiler(opts.Profile)
 	b.profiler.Start()
 	b.parallelCompiler.profiler = b.profiler
 
@@ -594,7 +596,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 
 	// Initialize cache manager
 	var err error
-	b.cacheManager, err = NewCacheManager(opts.BuildDir, opts.Verbosity)
+	b.cacheManager, err = cache.NewManager(opts.BuildDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize cache manager: %w", err)
 	}
