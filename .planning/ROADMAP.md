@@ -111,16 +111,18 @@ Plans:
 **Depends on**: Phase 16
 **Requirements**: TEST-01, TEST-02, TEST-03, TEST-04
 **Success Criteria** (what must be TRUE):
-  1. testdata/json-example/ builds using nlohmann/json as git dependency
-  2. testdata/catch2-example/ builds using Catch2 as header-only dependency
-  3. testdata/multi-deps-example/ builds with multiple interdependent external libraries
+  1. testdata/json-example/ builds using nlohmann/json as vendored header-only dependency
+  2. testdata/catch2-example/ builds using Catch2 v2.x as vendored header-only dependency
+  3. testdata/multi-deps-example/ builds with multiple interdependent external libraries (chained dependencies)
   4. Integration tests in internal/build verify each testdata project compiles and links correctly
-  5. All testdata projects work offline with vendored/mocked dependencies
-**Plans**: TBD
+  5. All testdata projects work offline with vendored dependencies
+**Plans**: 4 plans
 
 Plans:
-- [ ] 17-01: TBD
-- [ ] 17-02: TBD
+- [ ] 17-01-PLAN.md — Create json-example with vendored nlohmann/json
+- [ ] 17-02-PLAN.md — Create catch2-example with vendored Catch2 v2.x
+- [ ] 17-03-PLAN.md — Create multi-deps-example with chained dependencies
+- [ ] 17-04-PLAN.md — Add integration tests for all testdata projects
 
 ## Progress
 
@@ -132,8 +134,8 @@ Plans:
 | 14. Toolchain Implementations | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 15. Supporting Extractions | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 16. Build Consolidation | v0.3.0 | 3/3 | Complete | 2026-01-29 |
-| 17. Testdata Projects | v0.3.0 | 0/TBD | Not started | - |
+| 17. Testdata Projects | v0.3.0 | 0/4 | Planned | - |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 16 execution*
+*Last updated: 2026-01-29 after Phase 17 planning*
