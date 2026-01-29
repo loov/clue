@@ -27,6 +27,9 @@ type Options struct {
 	Jobs         int       // Number of parallel jobs
 	KeepGoing    bool      // Continue building despite errors
 	SkipDeps     bool      // Skip dependency building (for `clue deps build`)
+	Profile      bool      // Enable detailed per-file profiling
+	SaveProfile  bool      // Save profile.json to build directory
+	TopN         int       // Number of slowest files to show
 }
 
 // TargetResult holds the result of building a single target
@@ -56,6 +59,7 @@ type Builder struct {
 	toolchain        Toolchain
 	target           Platform
 	depResults       map[string]*DepBuildResult // Built dependencies
+	profiler         *Profiler
 }
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
@@ -575,6 +579,11 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	start := time.Now()
 
+	// Initialize profiler
+	b.profiler = NewProfiler(opts.Profile)
+	b.profiler.Start()
+	b.parallelCompiler.profiler = b.profiler
+
 	// Print platform and toolchain information (skip in quiet mode)
 	if opts.Verbosity >= VerbosityNormal {
 		fmt.Printf("Building for %s\n", b.target)
@@ -654,6 +663,23 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 
 	// Print summary
 	progress.Summary()
+
+	// Print profiling results if enabled
+	if opts.Profile && opts.Verbosity >= VerbosityVerbose {
+		b.profiler.PrintSlowestFiles(opts.TopN, os.Stdout)
+	}
+
+	// Save profile.json if requested
+	if opts.SaveProfile {
+		profilePath := filepath.Join(opts.BuildDir, opts.Variant, "profile.json")
+		if err := b.profiler.WriteTrace(profilePath); err != nil {
+			if opts.Verbosity >= VerbosityNormal {
+				fmt.Printf("Warning: failed to save profile: %v\n", err)
+			}
+		} else if opts.Verbosity >= VerbosityNormal {
+			fmt.Printf("Profile saved to: %s\n", profilePath)
+		}
+	}
 
 	// Show total build time (not in quiet mode)
 	if opts.Verbosity >= VerbosityNormal {

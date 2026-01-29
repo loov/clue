@@ -35,6 +35,7 @@ type ParallelCompiler struct {
 	jobs      int
 	keepGoing bool
 	verbosity Verbosity
+	profiler  *Profiler
 
 	// Progress tracking
 	completed atomic.Int64
@@ -131,13 +132,18 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	// Get current count and increment
 	completed := p.completed.Add(1)
 
+	// Record timing in profiler (use completed as threadID for simplicity)
+	if p.profiler != nil {
+		p.profiler.RecordCompilation(opts.Source, start, duration, int(completed%int64(p.jobs)))
+	}
+
 	// Build progress message for buffer
 	// Skip all output in quiet mode
 	if p.verbosity != VerbosityQuiet {
-		// In verbose mode, show timing
+		// In verbose mode, show timing with adaptive precision
 		if p.verbosity == VerbosityVerbose {
-			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s (%s)\n",
-				completed, p.total, filepath.Base(opts.Source), duration.String())
+			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s %s\n",
+				completed, p.total, filepath.Base(opts.Source), formatDuration(duration))
 		} else {
 			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
 				completed, p.total, filepath.Base(opts.Source))
