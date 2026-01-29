@@ -479,6 +479,7 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 		return nil, fmt.Errorf("inline build config: sources field is required")
 	}
 
+	config.Headers = extractStringList(val, "headers")
 	config.Includes = extractStringList(val, "includes")
 	config.Defines = extractStringList(val, "defines")
 	config.Depends = extractStringList(val, "depends")

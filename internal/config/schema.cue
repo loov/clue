@@ -70,6 +70,7 @@ package config
 // Inline build configuration for dependencies without clue.cue
 #InlineBuildConfig: {
 	sources: [...string] & [_, ...]  // At least one source
+	headers?: [...string]
 	includes?: [...string]
 	defines?: [...string]
 	depends?: [...string]  // Other dependency names

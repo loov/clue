@@ -19,6 +19,7 @@ type Dependency interface {
 // InlineConfig defines build configuration for dependencies without clue.cue
 type InlineConfig struct {
 	Sources  []string
+	Headers  []string
 	Includes []string
 	Defines  []string
 	Depends  []string
