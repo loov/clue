@@ -44,13 +44,14 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md`
 **Requirements**: REFAC-01
 **Success Criteria** (what must be TRUE):
   1. internal/toolchain package exists with Toolchain interface definition
-  2. Shared types (CompileArgs, LinkArgs, response file utilities) live in internal/toolchain
+  2. Shared types (Config, Platform, CompilerIdentity, response file utilities) live in internal/toolchain
   3. internal/build imports internal/toolchain for interface types
   4. All existing tests pass without modification
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md - Create toolchain package with interface, types, and utilities
+- [ ] 13-02-PLAN.md - Update internal/build to import from toolchain package
 
 ### Phase 14: Toolchain Implementations
 **Goal**: Move GCC, Clang, and MSVC implementations to separate subpackages under internal/toolchain
@@ -123,7 +124,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1-8 | v0.1.0 | 50/50 | Complete | 2026-01-24 |
 | 9-12 | v0.2.0 | 14/14 | Complete | 2026-01-29 |
-| 13. Toolchain Interface | v0.3.0 | 0/TBD | Not started | - |
+| 13. Toolchain Interface | v0.3.0 | 0/2 | Planned | - |
 | 14. Toolchain Implementations | v0.3.0 | 0/TBD | Not started | - |
 | 15. Supporting Extractions | v0.3.0 | 0/TBD | Not started | - |
 | 16. Build Consolidation | v0.3.0 | 0/TBD | Not started | - |
