@@ -81,12 +81,13 @@ Plans:
   3. internal/watch package handles fsnotify file watching, debouncing, and rebuild triggering
   4. Each package has focused responsibility with clear public API
   5. All existing tests pass, with test files moved to appropriate packages
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
-- [ ] 15-03: TBD
+- [ ] 15-01-PLAN.md — Extract cache package with hashing and invalidation
+- [ ] 15-02-PLAN.md — Extract profile package with timing and Chrome Trace
+- [ ] 15-03-PLAN.md — Extract watch package with file monitoring
+- [ ] 15-04-PLAN.md — Update internal/build imports and remove duplicates
 
 ### Phase 16: Build Consolidation
 **Goal**: Reduce internal/build to core orchestration: Builder, Compiler, Linker, Executor, Parallel
@@ -127,10 +128,10 @@ Plans:
 | 9-12 | v0.2.0 | 14/14 | Complete | 2026-01-29 |
 | 13. Toolchain Interface | v0.3.0 | 2/2 | Complete | 2026-01-29 |
 | 14. Toolchain Implementations | v0.3.0 | 4/4 | Complete | 2026-01-29 |
-| 15. Supporting Extractions | v0.3.0 | 0/TBD | Not started | - |
+| 15. Supporting Extractions | v0.3.0 | 0/4 | Planned | - |
 | 16. Build Consolidation | v0.3.0 | 0/TBD | Not started | - |
 | 17. Testdata Projects | v0.3.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 14 execution*
+*Last updated: 2026-01-29 after Phase 15 planning*
