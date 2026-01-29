@@ -20,10 +20,10 @@ Code quality milestone: refactoring internal/build and adding comprehensive test
 
 ### Testdata
 
-- [ ] **TEST-01**: Add testdata project using nlohmann/json as git dependency
-- [ ] **TEST-02**: Add testdata project using Catch2 as header-only dependency
-- [ ] **TEST-03**: Add testdata project with multiple interdependent external libraries
-- [ ] **TEST-04**: Add integration tests exercising the new testdata projects
+- [x] **TEST-01**: Add testdata project using nlohmann/json as git dependency
+- [x] **TEST-02**: Add testdata project using Catch2 as header-only dependency
+- [x] **TEST-03**: Add testdata project with multiple interdependent external libraries
+- [x] **TEST-04**: Add integration tests exercising the new testdata projects
 
 ## Future Requirements
 
@@ -61,10 +61,10 @@ Deferred to later milestones.
 | REFAC-06 | Phase 15 | Complete |
 | REFAC-07 | Phase 15 | Complete |
 | REFAC-08 | Phase 16 | Complete |
-| TEST-01 | Phase 17 | Pending |
-| TEST-02 | Phase 17 | Pending |
-| TEST-03 | Phase 17 | Pending |
-| TEST-04 | Phase 17 | Pending |
+| TEST-01 | Phase 17 | Complete |
+| TEST-02 | Phase 17 | Complete |
+| TEST-03 | Phase 17 | Complete |
+| TEST-04 | Phase 17 | Complete |
 
 **Coverage:**
 - v0.3.0 requirements: 12 total
@@ -73,4 +73,4 @@ Deferred to later milestones.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 16 execution*
+*Last updated: 2026-01-29 after Phase 17 execution*

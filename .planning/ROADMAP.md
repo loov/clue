@@ -34,7 +34,7 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md`
 - [x] **Phase 14: Toolchain Implementations** - Extract GCC, Clang, MSVC to subpackages
 - [x] **Phase 15: Supporting Extractions** - Extract cache, profile, watch to separate packages
 - [x] **Phase 16: Build Consolidation** - Reduce internal/build to core orchestration
-- [ ] **Phase 17: Testdata Projects** - Add real-world external library examples
+- [x] **Phase 17: Testdata Projects** - Add real-world external library examples
 
 ## Phase Details
 
@@ -119,10 +119,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 17-01-PLAN.md — Create json-example with vendored nlohmann/json
-- [ ] 17-02-PLAN.md — Create catch2-example with vendored Catch2 v2.x
-- [ ] 17-03-PLAN.md — Create multi-deps-example with chained dependencies
-- [ ] 17-04-PLAN.md — Add integration tests for all testdata projects
+- [x] 17-01-PLAN.md — Create json-example with vendored nlohmann/json
+- [x] 17-02-PLAN.md — Create catch2-example with vendored Catch2 v2.x
+- [x] 17-03-PLAN.md — Create multi-deps-example with chained dependencies
+- [x] 17-04-PLAN.md — Add integration tests for all testdata projects
 
 ## Progress
 
@@ -134,8 +134,8 @@ Plans:
 | 14. Toolchain Implementations | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 15. Supporting Extractions | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 16. Build Consolidation | v0.3.0 | 3/3 | Complete | 2026-01-29 |
-| 17. Testdata Projects | v0.3.0 | 0/4 | Planned | - |
+| 17. Testdata Projects | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 17 planning*
+*Last updated: 2026-01-29 after Phase 17 execution*
