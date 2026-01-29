@@ -20,6 +20,7 @@ import (
 	"github.com/loov/clue/internal/deps"
 	clerrors "github.com/loov/clue/internal/errors"
 	"github.com/loov/clue/internal/generate"
+	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/watch"
 )
 
@@ -231,12 +232,12 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 	}
 
 	// Determine target platform
-	var targetPlatform build.Platform
+	var targetPlatform toolchain.Platform
 	if target == "" {
-		targetPlatform = build.HostPlatform()
+		targetPlatform = toolchain.HostPlatform()
 	} else {
 		var err error
-		targetPlatform, err = build.ParseTarget(target)
+		targetPlatform, err = toolchain.ParseTarget(target)
 		if err != nil {
 			printError(err)
 			return 1
@@ -245,7 +246,7 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 
 	// Show platform info before build (skip in quiet mode)
 	if verbosity >= build.VerbosityNormal {
-		if target == "" || targetPlatform == build.HostPlatform() {
+		if target == "" || targetPlatform == toolchain.HostPlatform() {
 			fmt.Printf("Building for %s\n", targetPlatform)
 		} else {
 			fmt.Printf("Cross-compiling for %s\n", targetPlatform)
@@ -459,11 +460,11 @@ func runGenerate(dir, variant, target string, args []string) int {
 	selectedVariant := selector.Select()
 
 	// Determine target platform
-	var targetPlatform build.Platform
+	var targetPlatform toolchain.Platform
 	if target == "" {
-		targetPlatform = build.HostPlatform()
+		targetPlatform = toolchain.HostPlatform()
 	} else {
-		targetPlatform, err = build.ParseTarget(target)
+		targetPlatform, err = toolchain.ParseTarget(target)
 		if err != nil {
 			printError(err)
 			return 1
@@ -498,7 +499,7 @@ func printError(err error) {
 	}
 }
 
-func generateNinja(dir string, cfg *config.Config, platform build.Platform) int {
+func generateNinja(dir string, cfg *config.Config, platform toolchain.Platform) int {
 	// Collect all variant names
 	variants := make([]string, 0, len(cfg.Variants))
 	for name := range cfg.Variants {
@@ -529,7 +530,7 @@ func generateNinja(dir string, cfg *config.Config, platform build.Platform) int 
 	return 0
 }
 
-func generateCompileCommands(dir string, cfg *config.Config, variant string, _ build.Platform) int {
+func generateCompileCommands(dir string, cfg *config.Config, variant string, _ toolchain.Platform) int {
 	outputPath := filepath.Join(dir, "compile_commands.json")
 	err := generate.CompileCommands(generate.CompDBOptions{
 		Config:     cfg,
@@ -617,12 +618,12 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	}
 
 	// Determine target platform (same as runBuild)
-	var targetPlatform build.Platform
+	var targetPlatform toolchain.Platform
 	if target == "" {
-		targetPlatform = build.HostPlatform()
+		targetPlatform = toolchain.HostPlatform()
 	} else {
 		var err error
-		targetPlatform, err = build.ParseTarget(target)
+		targetPlatform, err = toolchain.ParseTarget(target)
 		if err != nil {
 			printError(err)
 			return 1
