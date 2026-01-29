@@ -56,7 +56,8 @@ All v0.1.0, v0.2.0, and v0.3.0 decisions logged in PROJECT.md Key Decisions tabl
 
 ### Pending Todos
 
-None.
+1 pending todo(s):
+- **Add support for automatic and partial unity builds** (area: build)
 
 ### Blockers/Concerns
 
