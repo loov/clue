@@ -24,7 +24,7 @@ See v0.1.0 documentation for completed phase details.
 
 - [x] **Phase 9: Toolchain Abstraction** - Extract compiler interface for multi-toolchain support
 - [x] **Phase 10: Windows MSVC** - MSVC toolchain with auto-detection and compilation
-- [ ] **Phase 11: Build Profiling** - Timing collection and performance reporting
+- [x] **Phase 11: Build Profiling** - Timing collection and performance reporting
 - [ ] **Phase 12: Watch Mode** - File watching with debounced incremental rebuilds
 
 ## Phase Details
@@ -76,9 +76,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Profiler core with timing collection and Chrome Trace export
-- [ ] 11-02-PLAN.md — CLI flags and builder integration for profiling
-- [ ] 11-03-PLAN.md — Comprehensive tests for profiler and Chrome Trace
+- [x] 11-01-PLAN.md — Profiler core with timing collection and Chrome Trace export
+- [x] 11-02-PLAN.md — CLI flags and builder integration for profiling
+- [x] 11-03-PLAN.md — Comprehensive tests for profiler and Chrome Trace
 
 ### Phase 12: Watch Mode
 **Goal**: Users can automatically rebuild when source files change
@@ -104,9 +104,9 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12
 |-------|-----------|----------------|--------|-----------|
 | 9. Toolchain Abstraction | v0.2.0 | 4/4 | Complete | 2026-01-28 |
 | 10. Windows MSVC | v0.2.0 | 4/4 | Complete | 2026-01-28 |
-| 11. Build Profiling | v0.2.0 | 0/3 | Planned | - |
+| 11. Build Profiling | v0.2.0 | 3/3 | Complete | 2026-01-29 |
 | 12. Watch Mode | v0.2.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-29 after Phase 11 planning*
+*Last updated: 2026-01-29 after Phase 11 completion*

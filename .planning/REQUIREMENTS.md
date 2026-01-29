@@ -34,11 +34,11 @@ Requirements for v0.2.0 release. Each maps to roadmap phases.
 
 ### Build Profiling
 
-- [ ] **PROF-01**: Record compilation duration for each source file
-- [ ] **PROF-02**: Report total build time at completion
-- [ ] **PROF-03**: List the N slowest compilation units
-- [ ] **PROF-04**: Persist timing data to file for analysis
-- [ ] **PROF-05**: Print human-readable timing summary at build end
+- [x] **PROF-01**: Record compilation duration for each source file
+- [x] **PROF-02**: Report total build time at completion
+- [x] **PROF-03**: List the N slowest compilation units
+- [x] **PROF-04**: Persist timing data to file for analysis
+- [x] **PROF-05**: Print human-readable timing summary at build end
 
 ## Future Requirements
 
@@ -111,11 +111,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WATCH-05 | Phase 12 | Pending |
 | WATCH-06 | Phase 12 | Pending |
 | WATCH-07 | Phase 12 | Pending |
-| PROF-01 | Phase 11 | Pending |
-| PROF-02 | Phase 11 | Pending |
-| PROF-03 | Phase 11 | Pending |
-| PROF-04 | Phase 11 | Pending |
-| PROF-05 | Phase 11 | Pending |
+| PROF-01 | Phase 11 | Complete |
+| PROF-02 | Phase 11 | Complete |
+| PROF-03 | Phase 11 | Complete |
+| PROF-04 | Phase 11 | Complete |
+| PROF-05 | Phase 11 | Complete |
 
 **Coverage:**
 - v0.2.0 requirements: 24 total
@@ -124,4 +124,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-28 after Phase 10 completion*
+*Last updated: 2026-01-29 after Phase 11 completion*
