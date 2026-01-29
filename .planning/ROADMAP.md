@@ -73,10 +73,12 @@ Plans:
   2. User sees total build duration at completion
   3. User can identify the N slowest compilation units via summary output
   4. Timing data persists to file for later analysis
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Profiler core with timing collection and Chrome Trace export
+- [ ] 11-02-PLAN.md — CLI flags and builder integration for profiling
+- [ ] 11-03-PLAN.md — Comprehensive tests for profiler and Chrome Trace
 
 ### Phase 12: Watch Mode
 **Goal**: Users can automatically rebuild when source files change
@@ -102,9 +104,9 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12
 |-------|-----------|----------------|--------|-----------|
 | 9. Toolchain Abstraction | v0.2.0 | 4/4 | Complete | 2026-01-28 |
 | 10. Windows MSVC | v0.2.0 | 4/4 | Complete | 2026-01-28 |
-| 11. Build Profiling | v0.2.0 | 0/TBD | Not started | - |
+| 11. Build Profiling | v0.2.0 | 0/3 | Planned | - |
 | 12. Watch Mode | v0.2.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-28 after Phase 10 completion*
+*Last updated: 2026-01-29 after Phase 11 planning*
