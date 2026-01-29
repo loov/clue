@@ -50,11 +50,11 @@ func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain Toolchain, verb
 }
 
 // BuildDep builds a single dependency to a static library
-func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourcePath string, opts DepBuildOptions) (*DepBuildResult, error) {
+func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourcePath string, opts DepBuildOptions, builtDeps map[string]*DepBuildResult) (*DepBuildResult, error) {
 	start := time.Now()
 
 	// Determine sources, includes, and defines
-	cfg, err := db.determineConfig(dep, sourcePath)
+	cfg, err := db.determineConfig(dep, sourcePath, builtDeps)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ type depConfig struct {
 }
 
 // determineConfig determines sources, includes, and defines for a dependency
-func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string) (*depConfig, error) {
+func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, builtDeps map[string]*DepBuildResult) (*depConfig, error) {
 	// Check for inline config first
 	var inlineConfig *deps.InlineConfig
 
@@ -170,6 +170,15 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string) (*
 		var includes []string
 		for _, inc := range inlineConfig.Includes {
 			includes = append(includes, filepath.Join(sourcePath, inc))
+		}
+
+		// Add include paths from depended-on dependencies
+		if len(inlineConfig.Depends) > 0 && builtDeps != nil {
+			for _, depName := range inlineConfig.Depends {
+				if builtDep, exists := builtDeps[depName]; exists {
+					includes = append(includes, builtDep.IncludePath)
+				}
+			}
 		}
 
 		return &depConfig{

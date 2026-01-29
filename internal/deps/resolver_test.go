@@ -46,12 +46,13 @@ func TestBuildOrder_Independent(t *testing.T) {
 }
 
 func TestBuildOrder_WithDependencies(t *testing.T) {
-	// Note: For Phase 6, dependencies don't have interdependencies yet
-	// This test verifies current behavior (alphabetical ordering)
-	// When we add clue.cue parsing for dependencies, this test will be updated
+	// libB depends on libA, so libA should be built first
 	deps := map[string]Dependency{
 		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", nil),
-		"libB": NewGitDependency("libB", "https://github.com/example/b.git", "main", nil),
+		"libB": NewGitDependency("libB", "https://github.com/example/b.git", "main", &InlineConfig{
+			Sources: []string{"b.cpp"},
+			Depends: []string{"libA"},
+		}),
 	}
 
 	resolver := NewResolver(deps)
@@ -60,7 +61,7 @@ func TestBuildOrder_WithDependencies(t *testing.T) {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	// For now, should return alphabetical order
+	// libA should come before libB
 	expected := []string{"libA", "libB"}
 	if len(order) != len(expected) {
 		t.Fatalf("Expected %d items, got %d", len(expected), len(order))
@@ -73,31 +74,110 @@ func TestBuildOrder_WithDependencies(t *testing.T) {
 	}
 }
 
-func TestBuildOrder_CycleDetected(t *testing.T) {
-	// Note: Cycle detection will be tested when we implement dependency interdependencies
-	// For now, we verify that the graph library is set up with PreventCycles()
-	// This is tested by attempting to add a cycle manually
-
+func TestBuildOrder_WithDependencies_ReverseName(t *testing.T) {
+	// alpha depends on zeta, so zeta should be built first (reverse of alphabetical)
 	deps := map[string]Dependency{
-		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", nil),
-		"libB": NewGitDependency("libB", "https://github.com/example/b.git", "main", nil),
+		"alpha": NewVendoredDependency("alpha", "vendor/alpha", &InlineConfig{
+			Sources: []string{"alpha.cpp"},
+			Depends: []string{"zeta"},
+		}),
+		"zeta": NewVendoredDependency("zeta", "vendor/zeta", &InlineConfig{
+			Sources: []string{"zeta.cpp"},
+		}),
+	}
+
+	resolver := NewResolver(deps)
+	order, err := resolver.BuildOrder()
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	// zeta should come before alpha (reverse of alphabetical)
+	expected := []string{"zeta", "alpha"}
+	if len(order) != len(expected) {
+		t.Fatalf("Expected %d items, got %d", len(expected), len(order))
+	}
+
+	for i, name := range expected {
+		if order[i] != name {
+			t.Errorf("Expected order[%d] = %s, got %s", i, name, order[i])
+		}
+	}
+}
+
+func TestBuildOrder_UnknownDependency(t *testing.T) {
+	// A dependency declares depends on a nonexistent dependency
+	deps := map[string]Dependency{
+		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", &InlineConfig{
+			Sources: []string{"a.cpp"},
+			Depends: []string{"nonexistent"},
+		}),
+	}
+
+	resolver := NewResolver(deps)
+	_, err := resolver.BuildOrder()
+	if err == nil {
+		t.Error("Expected error for unknown dependency")
+	}
+
+	if !strings.Contains(err.Error(), "unknown") {
+		t.Errorf("Expected error to mention 'unknown', got: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "nonexistent") {
+		t.Errorf("Expected error to mention 'nonexistent', got: %v", err)
+	}
+}
+
+func TestBuildOrder_CyclicDependency(t *testing.T) {
+	// Two dependencies that depend on each other create a cycle
+	deps := map[string]Dependency{
+		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", &InlineConfig{
+			Sources: []string{"a.cpp"},
+			Depends: []string{"libB"},
+		}),
+		"libB": NewGitDependency("libB", "https://github.com/example/b.git", "main", &InlineConfig{
+			Sources: []string{"b.cpp"},
+			Depends: []string{"libA"},
+		}),
+	}
+
+	resolver := NewResolver(deps)
+	_, err := resolver.BuildOrder()
+	if err == nil {
+		t.Error("Expected error for cyclic dependency")
+	}
+
+	// Error should mention cycle or circular
+	if !strings.Contains(err.Error(), "cycle") && !strings.Contains(err.Error(), "circular") {
+		t.Errorf("Expected error to mention 'cycle' or 'circular', got: %v", err)
+	}
+}
+
+func TestBuildOrder_CycleDetected(t *testing.T) {
+	// Cycle detection is now functional - test with explicit cycle
+	deps := map[string]Dependency{
+		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", &InlineConfig{
+			Sources: []string{"a.cpp"},
+			Depends: []string{"libB"},
+		}),
+		"libB": NewGitDependency("libB", "https://github.com/example/b.git", "main", &InlineConfig{
+			Sources: []string{"b.cpp"},
+			Depends: []string{"libA"},
+		}),
 	}
 
 	resolver := NewResolver(deps)
 
-	// Current implementation doesn't have inter-dependency edges yet
-	// So no cycles can occur. This test documents intended behavior.
-	order, err := resolver.BuildOrder()
-	if err != nil {
-		// If we get an error, it should mention cycle
-		if !strings.Contains(err.Error(), "cycle") && !strings.Contains(err.Error(), "circular") {
-			t.Errorf("Expected cycle-related error, got: %v", err)
-		}
-	} else {
-		// No error is expected for current implementation
-		if len(order) != 2 {
-			t.Errorf("Expected 2 dependencies, got %d", len(order))
-		}
+	// Cycle detection is now functional
+	_, err := resolver.BuildOrder()
+	if err == nil {
+		t.Error("Expected error for cycle detection")
+	}
+
+	// If we get an error, it should mention cycle
+	if !strings.Contains(err.Error(), "cycle") && !strings.Contains(err.Error(), "circular") {
+		t.Errorf("Expected cycle-related error, got: %v", err)
 	}
 }
 

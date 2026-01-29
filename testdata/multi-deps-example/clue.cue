@@ -6,6 +6,7 @@ dependencies: {
 		path: "vendor/simplemath"
 		build: {
 			sources: ["math.cpp"]
+			includes: [".."]
 		}
 	}
 	stringutils: {

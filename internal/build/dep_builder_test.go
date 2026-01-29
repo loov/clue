@@ -60,7 +60,7 @@ int add(int a, int b) {
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
+	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}
@@ -144,7 +144,7 @@ targets: {
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
+	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 	}
 
 	// Should fail with error about missing configuration
-	_, err = depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
+	_, err = depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
 	if err == nil {
 		t.Fatal("expected error for missing configuration, got nil")
 	}
@@ -266,7 +266,7 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
+	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}
@@ -334,7 +334,7 @@ int test() { return 42; }
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts)
+	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}

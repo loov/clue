@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
 	"time"
 
 	"github.com/loov/clue/internal/cache"
@@ -725,13 +724,12 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 		return nil, fmt.Errorf("failed to fetch dependencies: %w", err)
 	}
 
-	// Get build order
-	buildOrder := []string{}
-	for name := range opts.Config.Dependencies {
-		buildOrder = append(buildOrder, name)
+	// Get build order using resolver (respects inter-dependency order)
+	resolver := deps.NewResolver(opts.Config.Dependencies)
+	buildOrder, err := resolver.BuildOrder()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve dependency build order: %w", err)
 	}
-	// Sort alphabetically for deterministic builds
-	sort.Strings(buildOrder)
 
 	// Create dependency builder
 	depBuilder := NewDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbosity)
@@ -758,7 +756,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 			Verbosity: opts.Verbosity,
 		}
 
-		result, err := depBuilder.BuildDep(ctx, dep, sourcePath, buildOpts)
+		result, err := depBuilder.BuildDep(ctx, dep, sourcePath, buildOpts, results)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build dependency %q: %w", depName, err)
 		}

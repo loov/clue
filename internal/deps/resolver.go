@@ -26,8 +26,8 @@ func (r *Resolver) BuildOrder() ([]string, error) {
 		return []string{}, nil
 	}
 
-	// Create graph with cycle prevention
-	g := graph.New(graph.StringHash, graph.PreventCycles())
+	// Create directed graph with cycle prevention
+	g := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
 
 	// Add vertex for each dependency
 	for name := range r.dependencies {
@@ -36,16 +36,37 @@ func (r *Resolver) BuildOrder() ([]string, error) {
 		}
 	}
 
-	// Check for interdependencies by examining each dependency's clue.cue
+	// Check for interdependencies using InlineConfig.Depends field
 	// Note: For Phase 6, we don't recursively resolve transitive dependencies.
 	// Dependencies can only depend on other *configured* dependencies.
 	hasEdges := false
 	for name, dep := range r.dependencies {
-		// TODO: Parse clue.cue from dep.CachePath() to find depends field
-		// For now, dependencies don't depend on each other (most common case)
-		// This will be implemented when we add clue.cue parsing to dependencies
-		_ = name
-		_ = dep
+		// Extract InlineConfig from dependency
+		var inlineConfig *InlineConfig
+		switch d := dep.(type) {
+		case *GitDependency:
+			inlineConfig = d.BuildConfig
+		case *TarballDependency:
+			inlineConfig = d.BuildConfig
+		case *VendoredDependency:
+			inlineConfig = d.BuildConfig
+		}
+
+		// If dependency has depends field, add edges
+		if inlineConfig != nil && len(inlineConfig.Depends) > 0 {
+			for _, depName := range inlineConfig.Depends {
+				// Verify the dependency exists
+				if _, exists := r.dependencies[depName]; !exists {
+					return nil, fmt.Errorf("dependency %q depends on unknown dependency %q", name, depName)
+				}
+				// Add edge from depended-on dependency to current dependency
+				// (depName must be built before name)
+				if err := g.AddEdge(depName, name); err != nil {
+					return nil, fmt.Errorf("failed to add dependency edge from %q to %q: %w", depName, name, err)
+				}
+				hasEdges = true
+			}
+		}
 	}
 
 	// If no edges (no interdependencies), return alphabetical order
