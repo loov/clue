@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 12 of 12 (Watch Mode)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase (12-01 and 12-03 complete)
 Status: In progress
-Last activity: 2026-01-29 - Completed 12-01-PLAN.md (File Watcher Infrastructure)
+Last activity: 2026-01-29 - Completed 12-03-PLAN.md (Watcher Unit Tests)
 
-Progress: [████████████████----] 80% (12/15 v0.2.0 plans)
+Progress: [█████████████████---] 87% (13/15 v0.2.0 plans)
 
 ## Performance Metrics
 
@@ -25,9 +25,9 @@ Progress: [████████████████----] 80% (12/15 v0.2
 - Total execution time: 3.77 hours
 
 **v0.2.0 Velocity:**
-- Total plans completed: 11
-- Average duration: 3.8min per plan
-- Total execution time: 41.6min (0.69 hours)
+- Total plans completed: 12
+- Average duration: 3.6min per plan
+- Total execution time: 43.6min (0.73 hours)
 
 **By Phase (v0.2.0):**
 
@@ -36,7 +36,7 @@ Progress: [████████████████----] 80% (12/15 v0.2
 | 09 | 4/4 | 21.4min | 5.4min |
 | 10 | 4/4 | 11.3min | 2.8min |
 | 11 | 3/3 | 9min | 3.0min |
-| 12 | 1/3 | 2min | 2.0min |
+| 12 | 2/3 | 4min | 2.0min |
 
 ## Accumulated Context
 
@@ -82,6 +82,8 @@ Recent decisions affecting current work:
 - [12-01]: 300ms default debounce duration (per CONTEXT.md 300-500ms range)
 - [12-01]: All .cue files treated as config changes (not just build.cue)
 - [12-01]: Chmod events ignored (only Create/Write/Remove/Rename processed)
+- [12-03]: IsRelevantFile exported for direct unit testing
+- [12-03]: HandleEventPath helper enables testing without real fsnotify events
 
 ### Pending Todos
 
@@ -102,8 +104,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-29T02:43:37Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-01-29T02:47:34Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None
 Next step: Execute 12-02-PLAN.md (Watch Command)
 
