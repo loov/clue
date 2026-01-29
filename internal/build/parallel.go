@@ -295,3 +295,11 @@ func (p *ParallelCompiler) GetActive() []string {
 func (p *ParallelCompiler) GetProgress() (int64, int) {
 	return p.completed.Load(), p.total
 }
+
+// formatDuration formats a duration with adaptive precision
+func formatDuration(d time.Duration) string {
+	if d >= time.Second {
+		return fmt.Sprintf("[%.1fs]", d.Seconds())
+	}
+	return fmt.Sprintf("[%dms]", d.Milliseconds())
+}
