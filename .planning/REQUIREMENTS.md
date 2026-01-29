@@ -16,7 +16,7 @@ Code quality milestone: refactoring internal/build and adding comprehensive test
 - [x] **REFAC-05**: Extract caching code to internal/cache package
 - [x] **REFAC-06**: Extract profiling code to internal/profile package
 - [x] **REFAC-07**: Extract watch mode code to internal/watch package
-- [ ] **REFAC-08**: Reduce internal/build to core orchestration (Builder, Compiler, Linker, Executor, Parallel)
+- [x] **REFAC-08**: Reduce internal/build to core orchestration (Builder, Compiler, Linker, Executor, Parallel)
 
 ### Testdata
 
@@ -60,7 +60,7 @@ Deferred to later milestones.
 | REFAC-05 | Phase 15 | Complete |
 | REFAC-06 | Phase 15 | Complete |
 | REFAC-07 | Phase 15 | Complete |
-| REFAC-08 | Phase 16 | Pending |
+| REFAC-08 | Phase 16 | Complete |
 | TEST-01 | Phase 17 | Pending |
 | TEST-02 | Phase 17 | Pending |
 | TEST-03 | Phase 17 | Pending |
@@ -73,4 +73,4 @@ Deferred to later milestones.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 15 execution*
+*Last updated: 2026-01-29 after Phase 16 execution*

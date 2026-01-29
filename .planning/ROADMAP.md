@@ -33,7 +33,7 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md`
 - [x] **Phase 13: Toolchain Interface** - Extract shared interface and utilities to internal/toolchain
 - [x] **Phase 14: Toolchain Implementations** - Extract GCC, Clang, MSVC to subpackages
 - [x] **Phase 15: Supporting Extractions** - Extract cache, profile, watch to separate packages
-- [ ] **Phase 16: Build Consolidation** - Reduce internal/build to core orchestration
+- [x] **Phase 16: Build Consolidation** - Reduce internal/build to core orchestration
 - [ ] **Phase 17: Testdata Projects** - Add real-world external library examples
 
 ## Phase Details
@@ -102,9 +102,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Add doc.go files to extracted packages
-- [ ] 16-02-PLAN.md — Remove type aliases and update callers
-- [ ] 16-03-PLAN.md — Create testclue package for shared test helpers
+- [x] 16-01-PLAN.md — Add doc.go files to extracted packages
+- [x] 16-02-PLAN.md — Remove type aliases and update callers
+- [x] 16-03-PLAN.md — Create testclue package for shared test helpers
 
 ### Phase 17: Testdata Projects
 **Goal**: Add comprehensive testdata projects demonstrating real-world external library usage
@@ -131,9 +131,9 @@ Plans:
 | 13. Toolchain Interface | v0.3.0 | 2/2 | Complete | 2026-01-29 |
 | 14. Toolchain Implementations | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 15. Supporting Extractions | v0.3.0 | 4/4 | Complete | 2026-01-29 |
-| 16. Build Consolidation | v0.3.0 | 0/3 | Not started | - |
+| 16. Build Consolidation | v0.3.0 | 3/3 | Complete | 2026-01-29 |
 | 17. Testdata Projects | v0.3.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 16 planning*
+*Last updated: 2026-01-29 after Phase 16 execution*
