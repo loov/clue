@@ -4,114 +4,20 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/testclue"
 )
-
-// skipIfNoClangPP skips the test if clang++ is not available
-func skipIfNoClangPP(t *testing.T) {
-	if _, err := exec.LookPath("clang++"); err != nil {
-		t.Skip("clang++ not available, skipping integration test")
-	}
-}
-
-// formatCueArray formats a slice of strings as a CUE array literal
-func formatCueArray(items []string) string {
-	var b strings.Builder
-	b.WriteString("[")
-	for i, item := range items {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(fmt.Sprintf("%q", item))
-	}
-	b.WriteString("]")
-	return b.String()
-}
-
-// createLargeTestProject creates a 20-file C++ project for parallel testing
-func createLargeTestProject(t *testing.T) (projectDir string, cleanup func()) {
-	t.Helper()
-
-	dir := t.TempDir()
-
-	// Create 20 source files
-	for i := 1; i <= 20; i++ {
-		source := fmt.Sprintf(`#include <iostream>
-
-void func%d() {
-    std::cout << "Function %d" << std::endl;
-}
-`, i, i)
-		filename := filepath.Join(dir, fmt.Sprintf("file%02d.cpp", i))
-		err := os.WriteFile(filename, []byte(source), 0o644)
-		if err != nil {
-			t.Fatalf("failed to write source file %s: %v", filename, err)
-		}
-	}
-
-	// Create main.cpp that calls all functions
-	var mainSource strings.Builder
-	mainSource.WriteString("#include <iostream>\n\n")
-	for i := 1; i <= 20; i++ {
-		mainSource.WriteString(fmt.Sprintf("void func%d();\n", i))
-	}
-	mainSource.WriteString("\nint main() {\n")
-	for i := 1; i <= 20; i++ {
-		mainSource.WriteString(fmt.Sprintf("    func%d();\n", i))
-	}
-	mainSource.WriteString("    return 0;\n}\n")
-	mainPath := filepath.Join(dir, "main.cpp")
-	err := os.WriteFile(mainPath, []byte(mainSource.String()), 0o644)
-	if err != nil {
-		t.Fatalf("failed to write main.cpp: %v", err)
-	}
-
-	// Create clue.cue config with absolute paths
-	sources := []string{filepath.Join(dir, "main.cpp")}
-	for i := 1; i <= 20; i++ {
-		sources = append(sources, filepath.Join(dir, fmt.Sprintf("file%02d.cpp", i)))
-	}
-	cueConfig := fmt.Sprintf(`name: "paralleltest"
-version: "1.0.0"
-
-toolchain: {
-    compiler: "clang"
-    std: "c++17"
-}
-
-targets: {
-    paralleltest: {
-        name: "paralleltest"
-        type: "executable"
-        sources: %s
-    }
-}
-`, formatCueArray(sources))
-
-	configPath := filepath.Join(dir, "clue.cue")
-	err = os.WriteFile(configPath, []byte(cueConfig), 0o644)
-	if err != nil {
-		t.Fatalf("failed to write clue.cue: %v", err)
-	}
-
-	cleanup = func() {
-		// No-op: t.TempDir() handles cleanup automatically
-	}
-
-	return dir, cleanup
-}
 
 // TestParallelBuild_20Files tests that a 20-file project builds successfully with parallel compilation
 func TestParallelBuild_20Files(t *testing.T) {
-	skipIfNoClangPP(t)
+	testclue.SkipIfNoClangPP(t)
 
-	projectDir, cleanup := createLargeTestProject(t)
+	projectDir, cleanup := testclue.CreateLargeTestProject(t)
 	defer cleanup()
 
 	// Load config
@@ -171,9 +77,9 @@ func TestParallelBuild_20Files(t *testing.T) {
 
 // TestParallelBuild_ScalingComparison tests that parallel builds are faster than sequential
 func TestParallelBuild_ScalingComparison(t *testing.T) {
-	skipIfNoClangPP(t)
+	testclue.SkipIfNoClangPP(t)
 
-	projectDir, cleanup := createLargeTestProject(t)
+	projectDir, cleanup := testclue.CreateLargeTestProject(t)
 	defer cleanup()
 
 	loader := config.NewLoader()
@@ -241,9 +147,9 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 
 // TestParallelBuild_EndToEnd tests full parallel build pipeline
 func TestParallelBuild_EndToEnd(t *testing.T) {
-	skipIfNoClangPP(t)
+	testclue.SkipIfNoClangPP(t)
 
-	projectDir, cleanup := createLargeTestProject(t)
+	projectDir, cleanup := testclue.CreateLargeTestProject(t)
 	defer cleanup()
 
 	loader := config.NewLoader()
@@ -297,9 +203,9 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 
 // TestParallelBuild_Cancellation tests that context cancellation terminates build cleanly
 func TestParallelBuild_Cancellation(t *testing.T) {
-	skipIfNoClangPP(t)
+	testclue.SkipIfNoClangPP(t)
 
-	projectDir, cleanup := createLargeTestProject(t)
+	projectDir, cleanup := testclue.CreateLargeTestProject(t)
 	defer cleanup()
 
 	loader := config.NewLoader()
@@ -360,7 +266,7 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 
 // TestParallelBuild_KeepGoing tests that keep-going mode continues despite errors
 func TestParallelBuild_KeepGoing(t *testing.T) {
-	skipIfNoClangPP(t)
+	testclue.SkipIfNoClangPP(t)
 
 	dir := t.TempDir()
 

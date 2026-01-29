@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/testclue"
 )
 
 // TestSharedLibraryBuildAndLink verifies SC1:
@@ -19,7 +20,7 @@ func TestSharedLibraryBuildAndLink(t *testing.T) {
 		t.Skip("Shared library test only runs on Linux and macOS")
 	}
 
-	skipIfNoClangPP(t)
+	testclue.SkipIfNoClangPP(t)
 
 	tmpDir := t.TempDir()
 

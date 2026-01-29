@@ -3,91 +3,12 @@ package build
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/testclue"
 )
-
-// skipIfNoClang skips the test if clang is not available
-func skipIfNoClang(t *testing.T) {
-	if _, err := exec.LookPath("clang"); err != nil {
-		t.Skip("clang not available in PATH")
-	}
-}
-
-// createTestProject creates a minimal C++ project for testing incremental builds
-func createTestProject(t *testing.T, tmpDir string) (string, *config.Config) {
-	t.Helper()
-
-	// Create directory structure
-	srcDir := filepath.Join(tmpDir, "src")
-	buildDir := filepath.Join(tmpDir, ".build")
-	if err := os.MkdirAll(srcDir, 0o755); err != nil {
-		t.Fatalf("failed to create src dir: %v", err)
-	}
-
-	// Create config.h header
-	headerPath := filepath.Join(srcDir, "config.h")
-	headerContent := `#ifndef CONFIG_H
-#define CONFIG_H
-#define VERSION 1
-#endif
-`
-	if err := os.WriteFile(headerPath, []byte(headerContent), 0o644); err != nil {
-		t.Fatalf("failed to write config.h: %v", err)
-	}
-
-	// Create main.cpp that includes config.h
-	mainPath := filepath.Join(srcDir, "main.cpp")
-	mainContent := `#include "config.h"
-#include <iostream>
-
-int main() {
-    std::cout << "Version " << VERSION << std::endl;
-    return 0;
-}
-`
-	if err := os.WriteFile(mainPath, []byte(mainContent), 0o644); err != nil {
-		t.Fatalf("failed to write main.cpp: %v", err)
-	}
-
-	// Create utils.cpp that includes config.h
-	utilsPath := filepath.Join(srcDir, "utils.cpp")
-	utilsContent := `#include "config.h"
-
-int get_version() {
-    return VERSION;
-}
-`
-	if err := os.WriteFile(utilsPath, []byte(utilsContent), 0o644); err != nil {
-		t.Fatalf("failed to write utils.cpp: %v", err)
-	}
-
-	// Create config
-	cfg := &config.Config{
-		Toolchain: config.Toolchain{
-			Compiler: "clang",
-			Std:      "c++17",
-		},
-		Targets: map[string]config.Target{
-			"testapp": {
-				Name:     "testapp",
-				Type:     "executable",
-				Sources:  []string{mainPath, utilsPath},
-				Includes: []string{srcDir},
-			},
-		},
-		ActiveVariant: config.Variant{
-			Optimization: "none",
-			DebugInfo:    false,
-		},
-	}
-
-	return buildDir, cfg
-}
 
 // getObjectMtimes returns the modification times of object files
 func getObjectMtimes(t *testing.T, buildDir, variant, target string, sources []string) map[string]time.Time {
@@ -111,10 +32,10 @@ func getObjectMtimes(t *testing.T, buildDir, variant, target string, sources []s
 }
 
 func TestIncremental_FirstBuild(t *testing.T) {
-	skipIfNoClang(t)
+	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
-	buildDir, cfg := createTestProject(t, tmpDir)
+	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
 	// Create builder
 	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
@@ -165,10 +86,10 @@ func TestIncremental_FirstBuild(t *testing.T) {
 }
 
 func TestIncremental_NoChanges(t *testing.T) {
-	skipIfNoClang(t)
+	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
-	buildDir, cfg := createTestProject(t, tmpDir)
+	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
 	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
@@ -213,10 +134,10 @@ func TestIncremental_NoChanges(t *testing.T) {
 }
 
 func TestIncremental_SourceChange(t *testing.T) {
-	skipIfNoClang(t)
+	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
-	buildDir, cfg := createTestProject(t, tmpDir)
+	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
 	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
@@ -277,10 +198,10 @@ int get_version() {
 }
 
 func TestIncremental_HeaderChange(t *testing.T) {
-	skipIfNoClang(t)
+	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
-	buildDir, cfg := createTestProject(t, tmpDir)
+	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
 	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
@@ -336,10 +257,10 @@ func TestIncremental_HeaderChange(t *testing.T) {
 }
 
 func TestIncremental_ForceRebuild(t *testing.T) {
-	skipIfNoClang(t)
+	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
-	buildDir, cfg := createTestProject(t, tmpDir)
+	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
 	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
@@ -385,10 +306,10 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 }
 
 func TestIncremental_ContentRevert(t *testing.T) {
-	skipIfNoClang(t)
+	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
-	buildDir, cfg := createTestProject(t, tmpDir)
+	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
 	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
