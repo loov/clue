@@ -33,6 +33,9 @@ func main() {
 	jobsFlag := flag.Int("j", 0, "Number of parallel jobs (0 = half of CPU cores, -1 = unlimited)")
 	keepGoingFlag := flag.Bool("keep-going", false, "Continue building despite errors")
 	targetFlag := flag.String("target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64)")
+	profileFlag := flag.Bool("profile", false, "Enable build profiling")
+	saveProfileFlag := flag.Bool("save-profile", false, "Save profile to profile.json in build directory")
+	topFlag := flag.Int("top", 10, "Number of slowest files to show (used with -v)")
 	flag.Parse()
 
 	if *versionFlag {
@@ -70,7 +73,7 @@ func main() {
 	case "validate":
 		os.Exit(runValidate(*dirFlag, *variantFlag, verbosity))
 	case "build":
-		os.Exit(runBuild(*dirFlag, *variantFlag, *targetFlag, verbosity, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, flag.Args()[1:]))
+		os.Exit(runBuild(*dirFlag, *variantFlag, *targetFlag, verbosity, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, *profileFlag, *saveProfileFlag, *topFlag, flag.Args()[1:]))
 	case "clean":
 		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag, verbosity))
 	case "deps":
@@ -84,6 +87,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, run")
 		os.Exit(1)
 	}
+}
+
+// isProfilingEnabled checks if profiling should be enabled (precedence: flag > env)
+func isProfilingEnabled(flagValue bool) bool {
+	if flagValue {
+		return true
+	}
+	if env := os.Getenv("CLUE_PROFILE"); env != "" {
+		return env == "1" || strings.EqualFold(env, "true")
+	}
+	return false
 }
 
 // loadConfig loads and prepares configuration with variant and environment variables
@@ -189,7 +203,7 @@ func runValidate(dir, variant string, verbosity build.Verbosity) int {
 	return 0
 }
 
-func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll bool, jobs int, keepGoing bool, targets []string) int {
+func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll bool, jobs int, keepGoing bool, profile, saveProfile bool, topN int, targets []string) int {
 	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
 	if err != nil {
 		printError(err)
@@ -248,6 +262,9 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 		ForceRebuild: rebuildAll,
 		Jobs:         actualJobs,
 		KeepGoing:    keepGoing,
+		Profile:      isProfilingEnabled(profile),
+		SaveProfile:  saveProfile,
+		TopN:         topN,
 	}
 
 	// Setup signal handling
