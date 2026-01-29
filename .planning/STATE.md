@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 16 of 17 (Build Consolidation)
-Plan: 02 of ~TBD
+Plan: 03 of ~TBD
 Status: In progress
-Last activity: 2026-01-29 - Completed 16-02-PLAN.md
+Last activity: 2026-01-29 - Completed 16-03-PLAN.md
 
-Progress: [████████████████████████░░░░░░░░░░░░░░░░] 62% (76/~TBD plans across v0.1.0-v0.3.0)
+Progress: [████████████████████████░░░░░░░░░░░░░░░░] 63% (77/~TBD plans across v0.1.0-v0.3.0)
 
 ## Performance Metrics
 
@@ -45,7 +45,7 @@ Progress: [███████████████████████
 | 13 | 2/2 | 6.9min | 3.5min |
 | 14 | 4/4 | 13.5min | 3.4min |
 | 15 | 4/4 | 13min | 3.3min |
-| 16 | 2/~TBD | 15.3min | 7.7min |
+| 16 | 3/~TBD | 18.1min | 6.0min |
 
 ## Accumulated Context
 
@@ -80,6 +80,9 @@ v0.1.0 and v0.2.0 decisions logged in PROJECT.md Key Decisions table (16 decisio
 | 16 | 01 | Standard Go package documentation with package comment, key types, and examples | Follows Go conventions for package-level documentation | Good |
 | 16 | 02 | Direct imports from source packages, no re-exports | Callers (main.go, internal/generate) import directly from toolchain; clean break pattern | Good |
 | 16 | 02 | Internal type aliases in build/toolchain.go | Build package uses internal aliases for its own implementation; not for external callers | Good |
+| 16 | 03 | Use testing.TB interface instead of *testing.T | Allows helpers to work with both Test and Benchmark functions | Good |
+| 16 | 03 | Mark all helpers with t.Helper() | Ensures test failures report correct line number in calling test | Good |
+| 16 | 03 | Keep formatCueArray as internal helper | Only used by CreateLargeTestProject, not general purpose | Good |
 
 ### Pending Todos
 
@@ -102,7 +105,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Completed 16-02-PLAN.md
+Stopped at: Completed 16-03-PLAN.md
 Resume file: None
 Next step: Continue Phase 16 planning/execution
 
