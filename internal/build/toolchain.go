@@ -13,6 +13,34 @@ import (
 // Toolchain is the interface for C/C++ compiler toolchains.
 type Toolchain = toolchain.Toolchain
 
+// Type aliases for internal build package use.
+// External callers should import directly from toolchain package.
+type (
+	Platform = toolchain.Platform
+	Config   = toolchain.Config
+)
+
+// Function aliases for internal build package use.
+// External callers should import directly from toolchain package.
+var (
+	HostPlatform         = toolchain.HostPlatform
+	ParseTarget          = toolchain.ParseTarget
+	IsSupportedTarget    = toolchain.IsSupportedTarget
+	MaybeUseResponseFile = toolchain.MaybeUseResponseFile
+)
+
+// Constant aliases for internal build package use.
+const (
+	ResponseFileThreshold = toolchain.ResponseFileThreshold
+)
+
+// Response file helper functions for internal build package use.
+var (
+	EstimateCommandLength = toolchain.EstimateCommandLength
+	WriteResponseFile     = toolchain.WriteResponseFile
+	QuoteResponseFileArg  = toolchain.QuoteResponseFileArg
+)
+
 // Type aliases for backward compatibility.
 // These allow existing code to use build.GCCToolchain, build.ClangToolchain, etc.
 type (
