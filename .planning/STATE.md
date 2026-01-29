@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time - not during.
 
-**Current focus:** Phase 12 - Watch Mode (next)
+**Current focus:** Phase 12 - Watch Mode (in progress)
 
 ## Current Position
 
 Phase: 12 of 12 (Watch Mode)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-01-29 - Completed Phase 11 (Build Profiling) - verified ✓
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-01-29 - Completed 12-01-PLAN.md (File Watcher Infrastructure)
 
-Progress: [███████████████-----] 75% (3/4 v0.2.0 phases)
+Progress: [████████████████----] 80% (12/15 v0.2.0 plans)
 
 ## Performance Metrics
 
@@ -36,7 +36,7 @@ Progress: [███████████████-----] 75% (3/4 v0.2.0 p
 | 09 | 4/4 | 21.4min | 5.4min |
 | 10 | 4/4 | 11.3min | 2.8min |
 | 11 | 3/3 | 9min | 3.0min |
-| 12 | 0/TBD | - | - |
+| 12 | 1/3 | 2min | 2.0min |
 
 ## Accumulated Context
 
@@ -79,6 +79,9 @@ Recent decisions affecting current work:
 - [11-02]: ThreadID derived from completed counter modulo jobs
 - [11-03]: Test microsecond timestamps explicitly to prevent regression
 - [11-03]: Test pretty-print output to ensure human-readable traces
+- [12-01]: 300ms default debounce duration (per CONTEXT.md 300-500ms range)
+- [12-01]: All .cue files treated as config changes (not just build.cue)
+- [12-01]: Chmod events ignored (only Create/Write/Remove/Rename processed)
 
 ### Pending Todos
 
@@ -99,10 +102,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-29
-Stopped at: Phase 11 complete, verified ✓
+Last session: 2026-01-29T02:43:37Z
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None
-Next step: `/gsd:discuss-phase 12` or `/gsd:plan-phase 12`
+Next step: Execute 12-02-PLAN.md (Watch Command)
 
 ## Milestone History
 
