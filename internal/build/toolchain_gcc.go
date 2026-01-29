@@ -3,6 +3,8 @@ package build
 import (
 	"fmt"
 	"os"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // GCCToolchain implements the Toolchain interface for GCC
@@ -10,7 +12,7 @@ type GCCToolchain struct {
 	cc     string
 	cxx    string
 	ar     string
-	target Platform
+	target toolchain.Platform
 }
 
 // CC returns the C compiler path
@@ -51,12 +53,12 @@ func (t *GCCToolchain) CompilerFlags(config Config) []string {
 	var flags []string
 
 	// Add optimization flag
-	if opt := optimizationFlag(config.Optimize); opt != "" {
+	if opt := toolchain.OptimizationFlag(config.Optimize); opt != "" {
 		flags = append(flags, opt)
 	}
 
 	// Add warning flags
-	flags = append(flags, warningFlagsForLevel(config.Warnings)...)
+	flags = append(flags, toolchain.WarningFlagsForLevel(config.Warnings)...)
 
 	// Add warnings-as-errors flag
 	if config.WarningsAsErrors {
@@ -64,7 +66,7 @@ func (t *GCCToolchain) CompilerFlags(config Config) []string {
 	}
 
 	// Add debug flag
-	if dbg := debugFlag(config.Debug); dbg != "" {
+	if dbg := toolchain.DebugFlag(config.Debug); dbg != "" {
 		flags = append(flags, dbg)
 	}
 
@@ -110,7 +112,7 @@ func (t *GCCToolchain) LinkerFlags(config Config, sysLibs []string) []string {
 	}
 
 	// Add debug flag (linker may need it for debug symbols)
-	if dbg := debugFlag(config.Debug); dbg != "" {
+	if dbg := toolchain.DebugFlag(config.Debug); dbg != "" {
 		flags = append(flags, dbg)
 	}
 

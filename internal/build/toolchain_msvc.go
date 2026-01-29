@@ -6,12 +6,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // MSVCToolchain implements the Toolchain interface for MSVC (cl.exe)
 type MSVCToolchain struct {
 	installation *MSVCInstallation
-	target       Platform
+	target       toolchain.Platform
 }
 
 // Compile-time interface check
