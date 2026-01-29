@@ -31,7 +31,7 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md`
 **Milestone Goal:** Refactor internal/build into focused packages and add comprehensive testdata with external library examples.
 
 - [x] **Phase 13: Toolchain Interface** - Extract shared interface and utilities to internal/toolchain
-- [ ] **Phase 14: Toolchain Implementations** - Extract GCC, Clang, MSVC to subpackages
+- [x] **Phase 14: Toolchain Implementations** - Extract GCC, Clang, MSVC to subpackages
 - [ ] **Phase 15: Supporting Extractions** - Extract cache, profile, watch to separate packages
 - [ ] **Phase 16: Build Consolidation** - Reduce internal/build to core orchestration
 - [ ] **Phase 17: Testdata Projects** - Add real-world external library examples
@@ -66,10 +66,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 14-01-PLAN.md - Create gccish package with shared GCC/Clang behavior
-- [ ] 14-02-PLAN.md - Extract GCC and Clang implementations to subpackages
-- [ ] 14-03-PLAN.md - Extract MSVC implementation and discovery to subpackage
-- [ ] 14-04-PLAN.md - Create factory package and update internal/build
+- [x] 14-01-PLAN.md - Create gccish package with shared GCC/Clang behavior
+- [x] 14-02-PLAN.md - Extract GCC and Clang implementations to subpackages
+- [x] 14-03-PLAN.md - Extract MSVC implementation and discovery to subpackage
+- [x] 14-04-PLAN.md - Create factory package and update internal/build
 
 ### Phase 15: Supporting Extractions
 **Goal**: Extract caching, profiling, and watch mode code to dedicated packages
@@ -126,11 +126,11 @@ Plans:
 | 1-8 | v0.1.0 | 50/50 | Complete | 2026-01-24 |
 | 9-12 | v0.2.0 | 14/14 | Complete | 2026-01-29 |
 | 13. Toolchain Interface | v0.3.0 | 2/2 | Complete | 2026-01-29 |
-| 14. Toolchain Implementations | v0.3.0 | 0/4 | Not started | - |
+| 14. Toolchain Implementations | v0.3.0 | 4/4 | Complete | 2026-01-29 |
 | 15. Supporting Extractions | v0.3.0 | 0/TBD | Not started | - |
 | 16. Build Consolidation | v0.3.0 | 0/TBD | Not started | - |
 | 17. Testdata Projects | v0.3.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 14 planning*
+*Last updated: 2026-01-29 after Phase 14 execution*

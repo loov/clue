@@ -10,9 +10,9 @@ Code quality milestone: refactoring internal/build and adding comprehensive test
 ### Refactoring
 
 - [x] **REFAC-01**: Extract toolchain interface and shared utilities to internal/toolchain
-- [ ] **REFAC-02**: Extract GCC toolchain implementation to internal/toolchain/gcc
-- [ ] **REFAC-03**: Extract Clang toolchain implementation to internal/toolchain/clang
-- [ ] **REFAC-04**: Extract MSVC toolchain and discovery to internal/toolchain/msvc
+- [x] **REFAC-02**: Extract GCC toolchain implementation to internal/toolchain/gcc
+- [x] **REFAC-03**: Extract Clang toolchain implementation to internal/toolchain/clang
+- [x] **REFAC-04**: Extract MSVC toolchain and discovery to internal/toolchain/msvc
 - [ ] **REFAC-05**: Extract caching code to internal/cache package
 - [ ] **REFAC-06**: Extract profiling code to internal/profile package
 - [ ] **REFAC-07**: Extract watch mode code to internal/watch package
@@ -54,9 +54,9 @@ Deferred to later milestones.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | REFAC-01 | Phase 13 | Complete |
-| REFAC-02 | Phase 14 | Pending |
-| REFAC-03 | Phase 14 | Pending |
-| REFAC-04 | Phase 14 | Pending |
+| REFAC-02 | Phase 14 | Complete |
+| REFAC-03 | Phase 14 | Complete |
+| REFAC-04 | Phase 14 | Complete |
 | REFAC-05 | Phase 15 | Pending |
 | REFAC-06 | Phase 15 | Pending |
 | REFAC-07 | Phase 15 | Pending |
@@ -73,4 +73,4 @@ Deferred to later milestones.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after roadmap creation*
+*Last updated: 2026-01-29 after Phase 14 execution*
