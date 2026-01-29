@@ -5,6 +5,7 @@ go 1.25
 require (
 	github.com/Duncaen/go-ninja v0.0.0-20190726135315-8e5210064eb2
 	github.com/dominikbraun/graph v0.23.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/zeebo/xxh3 v1.0.2
 )
@@ -16,7 +17,6 @@ require (
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
