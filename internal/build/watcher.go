@@ -145,7 +145,7 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 	}
 
 	// Only process relevant file types
-	if !isRelevantFile(event.Name) {
+	if !IsRelevantFile(event.Name) {
 		return
 	}
 
@@ -171,6 +171,13 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 	})
 }
 
+// HandleEventPath processes a file change event by path.
+// This is exported for testing the debounce logic without real fsnotify events.
+// It simulates a Write event (content change) for the given path.
+func (w *Watcher) HandleEventPath(path string) {
+	w.handleEvent(fsnotify.Event{Name: path, Op: fsnotify.Write})
+}
+
 // fireRebuild triggers the OnRebuild callback and resets pending state.
 func (w *Watcher) fireRebuild() {
 	w.mu.Lock()
@@ -189,9 +196,9 @@ func (w *Watcher) fireRebuild() {
 	}
 }
 
-// isRelevantFile returns true if the file should trigger a rebuild.
-// Only C/C++ source files and CUE configuration files are relevant.
-func isRelevantFile(path string) bool {
+// IsRelevantFile returns true if the file should trigger a rebuild.
+// Matches: .c, .cpp, .h, .hpp, .cue (case insensitive)
+func IsRelevantFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".c", ".cpp", ".h", ".hpp", ".cue":
