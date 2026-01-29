@@ -65,7 +65,16 @@ Minimal configuration for common cases, with CUE's type system catching config e
 
 ### Active
 
-(None -- awaiting v0.3.0 milestone definition)
+#### v0.3.0 Code Quality
+- [ ] REFAC-01: Extract toolchain code from internal/build into internal/toolchain package
+- [ ] REFAC-02: Extract caching code from internal/build into internal/cache package
+- [ ] REFAC-03: Extract profiling code from internal/build into internal/profile package
+- [ ] REFAC-04: Extract watch mode code from internal/build into internal/watch package
+- [ ] REFAC-05: Reduce internal/build to core orchestration (builder, executor, parallel)
+- [ ] TEST-01: Add testdata project using nlohmann/json as git dependency
+- [ ] TEST-02: Add testdata project using Catch2 as header-only dependency
+- [ ] TEST-03: Add testdata project with multiple interdependent external libraries
+- [ ] TEST-04: Add integration tests exercising the new testdata projects
 
 ### Out of Scope
 
@@ -76,7 +85,7 @@ Minimal configuration for common cases, with CUE's type system catching config e
 
 ## Context
 
-**Current state:** Shipped v0.2.0 with 25,930 LOC Go across ~300 files.
+**Current state:** Shipped v0.2.0 with 25,930 LOC Go across ~300 files. internal/build has grown to 55 files and 14,295 lines with mixed responsibilities (compilation, linking, caching, toolchains, profiling, watch mode).
 
 **Tech stack:** Go 1.23, CUE for configuration, xxh3 for content hashing, errgroup for parallel compilation, fsnotify for watch mode.
 
@@ -125,4 +134,4 @@ Minimal configuration for common cases, with CUE's type system catching config e
 | Chrome Trace JSON for profiling | Standard format, works in chrome://tracing | ✓ Good |
 
 ---
-*Last updated: 2026-01-29 after v0.2.0 milestone*
+*Last updated: 2026-01-29 after v0.3.0 milestone start*
