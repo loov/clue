@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // createMinimalConfig creates a minimal config for testing
@@ -45,7 +45,7 @@ func TestNinja_BasicStructure(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -103,7 +103,7 @@ func TestNinja_Depfile(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -162,7 +162,7 @@ func TestNinja_MultiVariant(t *testing.T) {
 		Variants:  []string{"debug", "release"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -201,7 +201,7 @@ func TestNinja_StaticLibrary(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -234,7 +234,7 @@ func TestNinja_SharedLibrary(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -277,7 +277,7 @@ func TestNinja_SharedLibrary_Darwin(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "darwin", Arch: "arm64"},
+		Platform:  toolchain.Platform{OS: "darwin", Arch: "arm64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -324,7 +324,7 @@ func TestNinja_IncludesAndDefines(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -376,7 +376,7 @@ func TestNinja_ForwardSlashes(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -416,7 +416,7 @@ func TestNinja_WriteFile(t *testing.T) {
 		BuildDir:   ".build",
 		OutputPath: outputPath,
 		Toolchain:  "clang",
-		Platform:   build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:   toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("Ninja failed: %v", err)
@@ -449,7 +449,7 @@ func TestNinja_WriteIfChanged(t *testing.T) {
 		BuildDir:   ".build",
 		OutputPath: outputPath,
 		Toolchain:  "clang",
-		Platform:   build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:   toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}
 
 	// Generate first time
@@ -493,7 +493,7 @@ func TestNinja_CCompiler(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -539,7 +539,7 @@ func TestNinja_MixedSources(t *testing.T) {
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
 		Toolchain: "clang",
-		Platform:  build.Platform{OS: "linux", Arch: "amd64"},
+		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)

@@ -3,8 +3,8 @@ package generate
 import (
 	"path/filepath"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // AbsPath returns the absolute path, panicking on error (for generation where paths must be valid)
@@ -29,10 +29,10 @@ func objectPath(buildDir, variant, targetName, source string) string {
 	return filepath.Join(buildDir, variant, targetName, "obj", objName)
 }
 
-// targetToBuildConfig converts config.Target and config.Variant to build.Config
+// targetToBuildConfig converts config.Target and config.Variant to toolchain.Config
 // Shared between compdb.go and ninja.go generators
-func targetToBuildConfig(target config.Target, variant config.Variant) build.Config {
-	cfg := build.Config{
+func targetToBuildConfig(target config.Target, variant config.Variant) toolchain.Config {
+	cfg := toolchain.Config{
 		Optimize:         variant.Optimization,
 		Warnings:         "default",
 		WarningsAsErrors: true,

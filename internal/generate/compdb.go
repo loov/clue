@@ -10,6 +10,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // CompileCommand represents a single entry in compile_commands.json
@@ -92,7 +93,7 @@ func CompileCommands(opts CompDBOptions) error {
 func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant) ([]CompileCommand, error) {
 	var commands []CompileCommand
 
-	// Build BuildConfig from target and variant
+	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
 
 	for _, source := range target.Sources {
@@ -150,7 +151,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 	}
 
 	// Build config for dependency (minimal defaults)
-	buildCfg := build.Config{
+	buildCfg := toolchain.Config{
 		Optimize:         "none",
 		Warnings:         "default",
 		WarningsAsErrors: false, // Don't treat warnings as errors for deps
@@ -180,7 +181,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 }
 
 // buildCompilerArgs constructs the full compiler command arguments
-func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath string, buildCfg build.Config) []string {
+func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath string, buildCfg toolchain.Config) []string {
 	var args []string
 
 	// 1. Compiler executable (based on file extension)
@@ -212,10 +213,10 @@ func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath
 	}
 
 	// 8. Semantic flags (using build package for consistency)
-	tc, err := build.NewToolchain(opts.Toolchain, build.HostPlatform())
+	tc, err := build.NewToolchain(opts.Toolchain, toolchain.HostPlatform())
 	if err != nil {
 		// Fallback to gcc if toolchain creation fails
-		tc, _ = build.NewToolchain("gcc", build.HostPlatform())
+		tc, _ = build.NewToolchain("gcc", toolchain.HostPlatform())
 	}
 	semanticFlags := tc.CompilerFlags(buildCfg)
 	args = append(args, semanticFlags...)
@@ -224,7 +225,7 @@ func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath
 }
 
 // buildDepCompilerArgs constructs compiler arguments for a dependency source
-func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, includePath, source, objPath string, buildCfg build.Config) []string {
+func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, includePath, source, objPath string, buildCfg toolchain.Config) []string {
 	var args []string
 
 	// 1. Compiler executable
@@ -257,10 +258,10 @@ func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, in
 	}
 
 	// 8. Semantic flags
-	tc, err := build.NewToolchain(opts.Toolchain, build.HostPlatform())
+	tc, err := build.NewToolchain(opts.Toolchain, toolchain.HostPlatform())
 	if err != nil {
 		// Fallback to gcc if toolchain creation fails
-		tc, _ = build.NewToolchain("gcc", build.HostPlatform())
+		tc, _ = build.NewToolchain("gcc", toolchain.HostPlatform())
 	}
 	semanticFlags := tc.CompilerFlags(buildCfg)
 	args = append(args, semanticFlags...)

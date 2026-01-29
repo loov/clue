@@ -13,16 +13,17 @@ import (
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // NinjaOptions holds options for generating build.ninja
 type NinjaOptions struct {
 	Config     *config.Config
-	Variants   []string       // Variants to include (e.g., ["debug", "release"])
-	BuildDir   string         // e.g., ".build"
-	OutputPath string         // Output file path (default: build.ninja)
-	Toolchain  string         // "clang" or "gcc"
-	Platform   build.Platform // Target platform
+	Variants   []string          // Variants to include (e.g., ["debug", "release"])
+	BuildDir   string            // e.g., ".build"
+	OutputPath string            // Output file path (default: build.ninja)
+	Toolchain  string            // "clang" or "gcc"
+	Platform   toolchain.Platform // Target platform
 }
 
 // defaultTarget is a custom Node for the ninja default statement
@@ -165,7 +166,7 @@ func Ninja(opts NinjaOptions) error {
 }
 
 // generateVariantBuilds generates build statements for a single variant
-func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, toolchain build.Toolchain) []string {
+func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain) []string {
 	var outputs []string
 
 	for _, targetName := range targetOrder {
@@ -175,7 +176,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 		}
 
 		// Generate build statements for this target
-		targetOutputs := generateTargetBuilds(file, opts, variant, variantConfig, target, toolchain)
+		targetOutputs := generateTargetBuilds(file, opts, variant, variantConfig, target, tc)
 		outputs = append(outputs, targetOutputs...)
 	}
 
@@ -183,7 +184,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, _ build.Toolchain) []string {
+func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, _ toolchain.Toolchain) []string {
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 
@@ -270,7 +271,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 // Note: objectPath is defined in compdb.go and shared between both generators
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output
-func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, includes []string, _ bool, toolchainName string, platform build.Platform) []string {
+func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, includes []string, _ bool, toolchainName string, platform toolchain.Platform) []string {
 	var flags []string
 
 	// Language standard
@@ -301,7 +302,7 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 }
 
 // buildLinkerFlagsForNinja builds linker flags for executables
-func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg build.Config, buildDir, variant string, platform build.Platform, toolchainName string) []string {
+func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, buildDir, variant string, platform toolchain.Platform, toolchainName string) []string {
 	var flags []string
 
 	// Library search paths for dependencies
@@ -332,7 +333,7 @@ func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg
 }
 
 // buildSharedLibLinkerFlags builds linker flags for shared libraries
-func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg build.Config, platform build.Platform, toolchainName string) []string {
+func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg toolchain.Config, platform toolchain.Platform, toolchainName string) []string {
 	var flags []string
 
 	// Platform-specific shared library flags
@@ -371,7 +372,7 @@ func ninjaPathLocal(path string) string {
 }
 
 // outputPathForTarget returns the output path for a target
-func outputPathForTarget(buildDir, variant, target, targetType string, platform build.Platform) string {
+func outputPathForTarget(buildDir, variant, target, targetType string, platform toolchain.Platform) string {
 	switch targetType {
 	case "executable":
 		return filepath.Join(buildDir, variant, "bin", target)

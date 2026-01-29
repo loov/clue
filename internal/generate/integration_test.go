@@ -13,6 +13,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // TestNinjaIdenticalOutput verifies SC2:
@@ -75,7 +76,7 @@ variants: {
 	buildDir := filepath.Join(tmpDir, ".build")
 
 	// Build with clue
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
+	builder, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -120,7 +121,7 @@ variants: {
 		BuildDir:   buildDir,
 		OutputPath: ninjaPath,
 		Toolchain:  "clang",
-		Platform:   build.HostPlatform(),
+		Platform:   toolchain.HostPlatform(),
 	})
 	if err != nil {
 		t.Fatalf("Ninja failed: %v", err)
@@ -391,7 +392,7 @@ variants: {
 		BuildDir:   buildDir,
 		OutputPath: ninjaPath,
 		Toolchain:  "clang",
-		Platform:   build.HostPlatform(),
+		Platform:   toolchain.HostPlatform(),
 	})
 	if err != nil {
 		t.Fatalf("Ninja failed: %v", err)
