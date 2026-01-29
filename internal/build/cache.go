@@ -8,25 +8,22 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/xxh3"
 )
 
 // CacheKey contains all inputs that affect compilation output
 type CacheKey struct {
-	SourceHash   string            `json:"source_hash"`   // xxHash of source file content
-	DepsHash     string            `json:"deps_hash"`     // Combined hash of all header dependencies
-	HeaderHashes map[string]string `json:"header_hashes"` // path -> hash for all headers
-	CompilerID   CompilerIdentity  `json:"compiler_id"`   // Compiler identity (path + mtime + size)
-	Flags        []string          `json:"flags"`         // Normalized compiler flags
-	IncludePaths []string          `json:"include_paths"` // Include directories (order preserved)
+	SourceHash   string                     `json:"source_hash"`   // xxHash of source file content
+	DepsHash     string                     `json:"deps_hash"`     // Combined hash of all header dependencies
+	HeaderHashes map[string]string          `json:"header_hashes"` // path -> hash for all headers
+	CompilerID   toolchain.CompilerIdentity `json:"compiler_id"`   // Compiler identity (path + mtime + size)
+	Flags        []string                   `json:"flags"`         // Normalized compiler flags
+	IncludePaths []string                   `json:"include_paths"` // Include directories (order preserved)
 }
 
 // CompilerIdentity uniquely identifies a compiler binary
-type CompilerIdentity struct {
-	Path  string `json:"path"`  // Absolute path to compiler
-	Mtime int64  `json:"mtime"` // File modification time as unix timestamp
-	Size  int64  `json:"size"`  // File size in bytes
-}
+type CompilerIdentity = toolchain.CompilerIdentity
 
 // ComputeFileHash reads a file and returns its xxh3 hash as a hex string
 func ComputeFileHash(path string) (string, error) {
@@ -110,15 +107,4 @@ func NormalizeFlags(flags []string) []string {
 }
 
 // GetCompilerIdentity returns the identity of a compiler binary
-func GetCompilerIdentity(compilerPath string) (CompilerIdentity, error) {
-	info, err := os.Stat(compilerPath)
-	if err != nil {
-		return CompilerIdentity{}, fmt.Errorf("failed to stat compiler %s: %w", compilerPath, err)
-	}
-
-	return CompilerIdentity{
-		Path:  compilerPath,
-		Mtime: info.ModTime().Unix(),
-		Size:  info.Size(),
-	}, nil
-}
+var GetCompilerIdentity = toolchain.GetCompilerIdentity

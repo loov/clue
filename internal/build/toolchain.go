@@ -3,29 +3,13 @@ package build
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // Toolchain is the interface for C/C++ compiler toolchains
-type Toolchain interface {
-	// Compiler paths
-	CC() string
-	CXX() string
-	AR() string
-
-	// Toolchain identification
-	Name() string
-	IsCrossCompiler() bool
-	String() string
-
-	// Flag generation
-	CompilerFlags(config Config) []string
-	LinkerFlags(config Config, sysLibs []string) []string
-
-	// Compiler identity for cache keys
-	Identity() (CompilerIdentity, error)
-}
+type Toolchain = toolchain.Toolchain
 
 // Compile-time interface implementation checks
 var (
@@ -35,7 +19,7 @@ var (
 )
 
 // NewToolchain creates a toolchain implementation based on the name
-func NewToolchain(name string, target Platform) (Toolchain, error) {
+func NewToolchain(name string, target toolchain.Platform) (Toolchain, error) {
 	// Get cross-compilation prefix if needed
 	prefix := crossPrefix(target)
 
@@ -83,9 +67,9 @@ func NewToolchain(name string, target Platform) (Toolchain, error) {
 
 // crossPrefix returns the GNU triplet prefix for cross-compilation
 // Returns empty string if target matches host (native compilation)
-func crossPrefix(target Platform) string {
+func crossPrefix(target toolchain.Platform) string {
 	// If target matches host, no prefix needed (native compilation)
-	host := HostPlatform()
+	host := toolchain.HostPlatform()
 	if target.OS == host.OS && target.Arch == host.Arch {
 		return ""
 	}
@@ -96,7 +80,7 @@ func crossPrefix(target Platform) string {
 
 // gnuTripletPrefix returns the GNU triplet prefix for a given platform
 // This is the raw mapping without host comparison
-func gnuTripletPrefix(target Platform) string {
+func gnuTripletPrefix(target toolchain.Platform) string {
 	switch target.String() {
 	case "linux-arm64":
 		return "aarch64-linux-gnu-"
@@ -111,24 +95,7 @@ func gnuTripletPrefix(target Platform) string {
 }
 
 // ValidateToolchain validates that all toolchain components exist in PATH
-func ValidateToolchain(tc Toolchain) error {
-	// Validate C compiler
-	if _, err := exec.LookPath(tc.CC()); err != nil {
-		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CC())
-	}
-
-	// Validate C++ compiler
-	if _, err := exec.LookPath(tc.CXX()); err != nil {
-		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CXX())
-	}
-
-	// Validate archiver
-	if _, err := exec.LookPath(tc.AR()); err != nil {
-		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.AR())
-	}
-
-	return nil
-}
+var ValidateToolchain = toolchain.ValidateToolchain
 
 // getEnvOr returns the value of an environment variable or a fallback value
 func getEnvOr(key, fallback string) string {
@@ -136,57 +103,6 @@ func getEnvOr(key, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-// Flag mapping variables (shared by toolchain implementations)
-
-// Optimization flag mapping
-var optimizationFlags = map[string]string{
-	"none":       "-O0",
-	"size":       "-Os",
-	"fast":       "-O2",
-	"aggressive": "-O3",
-}
-
-// Warning flag mapping
-var warningFlags = map[string][]string{
-	"off":      {},
-	"default":  {"-Wall"},
-	"strict":   {"-Wall", "-Wextra"},
-	"pedantic": {"-Wall", "-Wextra", "-Wpedantic"},
-}
-
-// Debug flag mapping
-var debugFlags = map[string]string{
-	"none":    "",
-	"minimal": "-g1",
-	"full":    "-g",
-}
-
-// Flag mapping helper functions
-
-// optimizationFlag returns the optimization flag for a given level
-func optimizationFlag(level string) string {
-	if flag, ok := optimizationFlags[level]; ok {
-		return flag
-	}
-	return ""
-}
-
-// warningFlagsForLevel returns warning flags for a given level
-func warningFlagsForLevel(level string) []string {
-	if flags, ok := warningFlags[level]; ok {
-		return flags
-	}
-	return []string{}
-}
-
-// debugFlag returns the debug flag for a given level
-func debugFlag(level string) string {
-	if flag, ok := debugFlags[level]; ok {
-		return flag
-	}
-	return ""
 }
 
 // isCrossCompiler checks if a compiler path contains GNU triplet prefix
