@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 16 of 17 (Build Consolidation)
-Plan: 01 of ~TBD
+Plan: 02 of ~TBD
 Status: In progress
-Last activity: 2026-01-29 - Completed 16-01-PLAN.md
+Last activity: 2026-01-29 - Completed 16-02-PLAN.md
 
-Progress: [████████████████████████░░░░░░░░░░░░░░░░] 61% (75/~TBD plans across v0.1.0-v0.3.0)
+Progress: [████████████████████████░░░░░░░░░░░░░░░░] 62% (76/~TBD plans across v0.1.0-v0.3.0)
 
 ## Performance Metrics
 
@@ -45,7 +45,7 @@ Progress: [███████████████████████
 | 13 | 2/2 | 6.9min | 3.5min |
 | 14 | 4/4 | 13.5min | 3.4min |
 | 15 | 4/4 | 13min | 3.3min |
-| 16 | 1/~TBD | 2min | 2.0min |
+| 16 | 2/~TBD | 15.3min | 7.7min |
 
 ## Accumulated Context
 
@@ -78,6 +78,8 @@ v0.1.0 and v0.2.0 decisions logged in PROJECT.md Key Decisions table (16 decisio
 | 15 | 04 | Add local formatDuration to parallel.go | Small utility function duplicated rather than exporting from profile package | Good |
 | 15 | 04 | Direct imports from extracted packages | No type aliases in build package; callers import directly from cache/profile/watch | Good |
 | 16 | 01 | Standard Go package documentation with package comment, key types, and examples | Follows Go conventions for package-level documentation | Good |
+| 16 | 02 | Direct imports from source packages, no re-exports | Callers (main.go, internal/generate) import directly from toolchain; clean break pattern | Good |
+| 16 | 02 | Internal type aliases in build/toolchain.go | Build package uses internal aliases for its own implementation; not for external callers | Good |
 
 ### Pending Todos
 
@@ -100,7 +102,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Completed 16-01-PLAN.md
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
 Next step: Continue Phase 16 planning/execution
 
