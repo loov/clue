@@ -90,10 +90,12 @@ Plans:
   3. Rapid successive saves result in a single rebuild (debouncing works)
   4. User can stop watching gracefully with Ctrl+C
   5. Initial full build runs before watch loop starts
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — Watcher core with fsnotify and debounce logic
+- [ ] 12-02-PLAN.md — CLI watch command with screen clearing and status output
+- [ ] 12-03-PLAN.md — Watcher unit tests for filtering and debounce
 
 ## Progress
 
@@ -105,8 +107,8 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12
 | 9. Toolchain Abstraction | v0.2.0 | 4/4 | Complete | 2026-01-28 |
 | 10. Windows MSVC | v0.2.0 | 4/4 | Complete | 2026-01-28 |
 | 11. Build Profiling | v0.2.0 | 3/3 | Complete | 2026-01-29 |
-| 12. Watch Mode | v0.2.0 | 0/TBD | Not started | - |
+| 12. Watch Mode | v0.2.0 | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-29 after Phase 11 completion*
+*Last updated: 2026-01-29 after Phase 12 planning*
