@@ -723,7 +723,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	}
 
 	// Show watching status with directory count
-	fmt.Printf("\nWatching %d directories for changes (Ctrl+C to stop)...\n", len(sourceDirs))
+	fmt.Printf("\nWatching %d directories for changes (Ctrl+C to stop)...\n", watcher.WatchCount())
 
 	// Wait for Ctrl+C
 	sigChan := make(chan os.Signal, 1)

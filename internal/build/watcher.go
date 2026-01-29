@@ -100,6 +100,11 @@ func (w *Watcher) Start() error {
 	return nil
 }
 
+// WatchCount returns the number of watched directories.
+func (w *Watcher) WatchCount() int {
+	return len(w.config.SourceDirs)
+}
+
 // Stop stops the watcher and cleans up resources.
 func (w *Watcher) Stop() {
 	close(w.done)
