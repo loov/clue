@@ -24,13 +24,13 @@ Requirements for v0.2.0 release. Each maps to roadmap phases.
 
 ### Watch Mode
 
-- [ ] **WATCH-01**: Monitor source directories for file changes using fsnotify
-- [ ] **WATCH-02**: Detect Create, Write, Remove, and Rename file events
-- [ ] **WATCH-03**: Debounce rapid file changes (100-200ms window)
-- [ ] **WATCH-04**: Trigger incremental rebuild when source files change
-- [ ] **WATCH-05**: Handle Ctrl+C gracefully to stop watching
-- [ ] **WATCH-06**: Run initial full build before starting watch loop
-- [ ] **WATCH-07**: Filter events to only .c, .cpp, .h, .hpp files
+- [x] **WATCH-01**: Monitor source directories for file changes using fsnotify
+- [x] **WATCH-02**: Detect Create, Write, Remove, and Rename file events
+- [x] **WATCH-03**: Debounce rapid file changes (100-200ms window)
+- [x] **WATCH-04**: Trigger incremental rebuild when source files change
+- [x] **WATCH-05**: Handle Ctrl+C gracefully to stop watching
+- [x] **WATCH-06**: Run initial full build before starting watch loop
+- [x] **WATCH-07**: Filter events to only .c, .cpp, .h, .hpp files
 
 ### Build Profiling
 
@@ -104,13 +104,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MSVC-10 | Phase 10 | Complete |
 | MSVC-11 | Phase 9 | Complete |
 | MSVC-12 | Phase 9 | Complete |
-| WATCH-01 | Phase 12 | Pending |
-| WATCH-02 | Phase 12 | Pending |
-| WATCH-03 | Phase 12 | Pending |
-| WATCH-04 | Phase 12 | Pending |
-| WATCH-05 | Phase 12 | Pending |
-| WATCH-06 | Phase 12 | Pending |
-| WATCH-07 | Phase 12 | Pending |
+| WATCH-01 | Phase 12 | Complete |
+| WATCH-02 | Phase 12 | Complete |
+| WATCH-03 | Phase 12 | Complete |
+| WATCH-04 | Phase 12 | Complete |
+| WATCH-05 | Phase 12 | Complete |
+| WATCH-06 | Phase 12 | Complete |
+| WATCH-07 | Phase 12 | Complete |
 | PROF-01 | Phase 11 | Complete |
 | PROF-02 | Phase 11 | Complete |
 | PROF-03 | Phase 11 | Complete |
@@ -124,4 +124,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-29 after Phase 11 completion*
+*Last updated: 2026-01-29 after Phase 12 completion - all v0.2.0 requirements complete*

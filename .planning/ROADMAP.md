@@ -7,7 +7,7 @@ Clue v0.2.0 extends the build system with Windows MSVC support as the priority f
 ## Milestones
 
 - [x] **v0.1.0 MVP** - Phases 1-8 (shipped 2026-01-24)
-- [ ] **v0.2.0 Windows + DevEx** - Phases 9-12 (in progress)
+- [x] **v0.2.0 Windows + DevEx** - Phases 9-12 (complete)
 
 ## Phases
 
@@ -25,7 +25,7 @@ See v0.1.0 documentation for completed phase details.
 - [x] **Phase 9: Toolchain Abstraction** - Extract compiler interface for multi-toolchain support
 - [x] **Phase 10: Windows MSVC** - MSVC toolchain with auto-detection and compilation
 - [x] **Phase 11: Build Profiling** - Timing collection and performance reporting
-- [ ] **Phase 12: Watch Mode** - File watching with debounced incremental rebuilds
+- [x] **Phase 12: Watch Mode** - File watching with debounced incremental rebuilds
 
 ## Phase Details
 
@@ -93,9 +93,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Watcher core with fsnotify and debounce logic
-- [ ] 12-02-PLAN.md — CLI watch command with screen clearing and status output
-- [ ] 12-03-PLAN.md — Watcher unit tests for filtering and debounce
+- [x] 12-01-PLAN.md — Watcher core with fsnotify and debounce logic
+- [x] 12-02-PLAN.md — CLI watch command with screen clearing and status output
+- [x] 12-03-PLAN.md — Watcher unit tests for filtering and debounce
 
 ## Progress
 
@@ -107,8 +107,8 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12
 | 9. Toolchain Abstraction | v0.2.0 | 4/4 | Complete | 2026-01-28 |
 | 10. Windows MSVC | v0.2.0 | 4/4 | Complete | 2026-01-28 |
 | 11. Build Profiling | v0.2.0 | 3/3 | Complete | 2026-01-29 |
-| 12. Watch Mode | v0.2.0 | 0/3 | Not started | - |
+| 12. Watch Mode | v0.2.0 | 3/3 | Complete | 2026-01-29 |
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-29 after Phase 12 planning*
+*Last updated: 2026-01-29 after Phase 12 execution complete*
