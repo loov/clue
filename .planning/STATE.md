@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 15 of 17 (Supporting Extractions)
-Plan: 3 of 4 complete
+Plan: 2 of 4 complete (02-profile, 03-watch)
 Status: In progress
-Last activity: 2026-01-29 - Completed 15-03-PLAN.md (watch extraction)
+Last activity: 2026-01-29 - Completed 15-02-PLAN.md (profile extraction)
 
-Progress: [██████████████████████░░░░░░░░░░░░░░░░░░] 57% (73/~TBD plans across v0.1.0-v0.3.0)
+Progress: [██████████████████████░░░░░░░░░░░░░░░░░░] 56% (72/~TBD plans across v0.1.0-v0.3.0)
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ v0.1.0 and v0.2.0 decisions logged in PROJECT.md Key Decisions table (16 decisio
 | 14 | 03 | Use build tags for Windows-specific discovery code | Enables cross-compilation and Linux CI while containing Windows-specific vswhere/vcvarsall logic | Good |
 | 14 | 04 | Type aliases for backward compatibility | build.GCCToolchain = gcc.Toolchain preserves API while delegating to new packages | Good |
 | 14 | 04 | Factory delegation | NewToolchain delegates entirely to all.NewToolchain for single source of truth | Good |
+| 15 | 02 | Pure extraction with no signature changes | Preserves API compatibility during extraction | Good |
 | 15 | 03 | Rename WatchConfig to Config | Cleaner API as watch.Config vs build.WatchConfig | Good |
 
 ### Pending Todos
@@ -92,9 +93,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Completed 15-03-PLAN.md
+Stopped at: Completed 15-02-PLAN.md (profile extraction)
 Resume file: None
-Next step: Execute 15-04-PLAN.md (build integration)
+Next step: Execute 15-01-PLAN.md (cache extraction) or 15-04-PLAN.md (build integration)
 
 ## Milestone History
 
