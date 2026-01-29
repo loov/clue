@@ -1,0 +1,8 @@
+{
+	"name": "example-project",
+	"version": 1,
+	"items": [
+		{"key": "first", "value": 100},
+		{"key": "second", "value": 200}
+	]
+}
