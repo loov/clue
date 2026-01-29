@@ -1,5 +1,34 @@
 # Project Milestones: Clue
 
+## v0.3.0 Code Quality (Shipped: 2026-01-29)
+
+**Delivered:** Refactored internal/build into focused packages (toolchain, cache, profile, watch) and added comprehensive testdata with real-world external library examples.
+
+**Phases completed:** 13-17 (17 plans total)
+
+**Key accomplishments:**
+
+- Toolchain architecture extracted to internal/toolchain with shared interface, GCC/Clang/MSVC subpackages, and factory pattern
+- Supporting packages extracted: caching (internal/cache), profiling (internal/profile), file watching (internal/watch)
+- internal/build reduced to core orchestration: Builder, Compiler, Linker, Executor, Parallel
+- Test infrastructure improved with internal/testclue shared helpers, eliminating 197 lines of duplicate code
+- Three testdata projects (json-example, catch2-example, multi-deps-example) demonstrating external library patterns
+- Integration tests validating all testdata projects compile, link, and produce correct output
+
+**Stats:**
+
+- 125 files modified
+- 27,833 lines of Go (up from 25,930 in v0.2.0)
+- 5 phases, 17 plans
+- 76 commits
+- Single day execution (2026-01-29)
+
+**Git range:** `docs(13)` → `docs(17)`
+
+**What's next:** v0.4.0 -- TBD (MinGW toolchain, Clang-cl, cross-arch MSVC)
+
+---
+
 ## v0.2.0 Windows + DevEx (Shipped: 2026-01-29)
 
 **Delivered:** Windows MSVC support with auto-detection, build profiling with Chrome Trace export, and watch mode for automatic rebuilds.

@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 **Core value:** Minimal configuration for common cases, with CUE's type system catching config errors before build time - not during.
 
-**Current focus:** v0.3.0 Code Quality - Phase 17: Testdata Projects
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 17 of 17 (Testdata Projects)
-Plan: 04 of 04
-Status: Phase complete
-Last activity: 2026-01-29 - Completed 17-04-PLAN.md (integration tests)
+Phase: Ready for v0.4.0
+Plan: Not started
+Status: v0.3.0 complete, ready to plan
+Last activity: 2026-01-29 - v0.3.0 Code Quality milestone complete
 
-Progress: [████████████████████████████████░░░░░░░░░] 78% (81/~104 plans across v0.1.0-v0.3.0)
+Progress: [████████████████████████████████████████] 100% (81 plans across v0.1.0-v0.3.0)
 
 ## Performance Metrics
 
@@ -52,42 +52,7 @@ Progress: [███████████████████████
 
 ### Decisions
 
-v0.1.0 and v0.2.0 decisions logged in PROJECT.md Key Decisions table (16 decisions, all marked Good).
-
-**v0.3.0 Decisions:**
-
-| Phase | Plan | Decision | Rationale | Status |
-|-------|------|----------|-----------|--------|
-| 13 | 01 | Move Config, Platform, CompilerIdentity to internal/toolchain | Types used by Toolchain interface methods, establishing correct dependency direction | Good |
-| 13 | 01 | Export flag mapping helpers (OptimizationFlag, WarningFlagsForLevel, DebugFlag) | Prevents duplication, ensures consistent flag generation across implementations | Good |
-| 13 | 01 | Create empty gcc/, clang/, msvc/ subpackages now | Shows architectural intent for Phase 14, prevents confusion | Good |
-| 13 | 02 | Use type aliases (type T = pkg.T) for API compatibility | Preserves API compatibility during refactoring, transparent to existing code | Good |
-| 13 | 02 | Use function aliases (var F = pkg.F) for backward compatibility | Clean delegation to toolchain package while maintaining build package API | Good |
-| 13 | 02 | Keep isCrossCompiler in build package | Used by toolchain construction logic, not part of interface | Good |
-| 13 | 02 | Remove all flag maps from build package | Single source in toolchain package eliminates 280 lines of duplication | Good |
-| 14 | 01 | Sanitizers excluded from base flags | GCC and Clang handle sanitizers differently; callers use SanitizerFlags helper | Good |
-| 14 | 01 | Coverage excluded from base flags | GCC and Clang use different coverage flags; left to specific implementations | Good |
-| 14 | 02 | GCC/Clang override only CompilerFlags/LinkerFlags | All other methods delegate via struct embedding; minimizes code duplication | Good |
-| 14 | 02 | Compile-time interface check pattern | `var _ toolchain.Toolchain = (*Toolchain)(nil)` ensures interface compliance at compile time | Good |
-| 14 | 03 | Use build tags for Windows-specific discovery code | Enables cross-compilation and Linux CI while containing Windows-specific vswhere/vcvarsall logic | Good |
-| 14 | 04 | Type aliases for backward compatibility | build.GCCToolchain = gcc.Toolchain preserves API while delegating to new packages | Good |
-| 14 | 04 | Factory delegation | NewToolchain delegates entirely to all.NewToolchain for single source of truth | Good |
-| 15 | 01 | Rename CacheEntry to Entry, CacheManager to Manager | Cleaner API avoiding stutter (cache.CacheEntry -> cache.Entry) | Good |
-| 15 | 01 | Remove unused verbosity parameter from NewManager | Field stored but never used; simplifies API | Good |
-| 15 | 02 | Pure extraction with no signature changes | Preserves API compatibility during extraction | Good |
-| 15 | 03 | Rename WatchConfig to Config | Cleaner API as watch.Config vs build.WatchConfig | Good |
-| 15 | 04 | Add local formatDuration to parallel.go | Small utility function duplicated rather than exporting from profile package | Good |
-| 15 | 04 | Direct imports from extracted packages | No type aliases in build package; callers import directly from cache/profile/watch | Good |
-| 16 | 01 | Standard Go package documentation with package comment, key types, and examples | Follows Go conventions for package-level documentation | Good |
-| 16 | 02 | Direct imports from source packages, no re-exports | Callers (main.go, internal/generate) import directly from toolchain; clean break pattern | Good |
-| 16 | 02 | Internal type aliases in build/toolchain.go | Build package uses internal aliases for its own implementation; not for external callers | Good |
-| 16 | 03 | Use testing.TB interface instead of *testing.T | Allows helpers to work with both Test and Benchmark functions | Good |
-| 16 | 03 | Mark all helpers with t.Helper() | Ensures test failures report correct line number in calling test | Good |
-| 16 | 03 | Keep formatCueArray as internal helper | Only used by CreateLargeTestProject, not general purpose | Good |
-| 17 | 02 | Created mock Catch2 v2.x header instead of downloading | Network isolation prevents external downloads; mock provides sufficient API | Good |
-| 17 | 02 | Mock provides TEST_CASE, SECTION, REQUIRE, and Approx | Sufficient for testdata validation, 267 lines vs 18,000 in real header | Good |
-| 17 | 04 | Fixed multi-deps-example to explicitly list simplemath dependency | Build system requires explicit dependency listing for linking; transitive deps not auto-linked | Good |
-| 17 | 04 | Used filepath with quotes for executable paths | Build system creates executables with quotes in filename (.build/debug/bin/"name") | Good |
+All v0.1.0, v0.2.0, and v0.3.0 decisions logged in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
@@ -96,7 +61,6 @@ None.
 ### Blockers/Concerns
 
 - **Network isolation:** Environment has no external network access. Use `go test -mod=mod` with locally cached modules.
-- **Testdata constraint:** Testdata projects must work offline; use vendored or mocked dependencies.
 
 ### Quick Tasks Completed
 
@@ -110,11 +74,15 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Completed 17-04-PLAN.md (Phase 17 complete)
+Stopped at: v0.3.0 milestone complete
 Resume file: None
-Next step: Phase 17 complete - v0.3.0 Code Quality milestone complete
+Next step: Run `/gsd:new-milestone` to start v0.4.0
 
 ## Milestone History
+
+- **v0.3.0 Code Quality** - Shipped 2026-01-29 (5 phases, 17 plans)
+  - See: `.planning/milestones/v0.3.0-ROADMAP.md`
+  - See: `.planning/milestones/v0.3.0-REQUIREMENTS.md`
 
 - **v0.2.0 Windows + DevEx** - Shipped 2026-01-29 (4 phases, 14 plans)
   - See: `.planning/milestones/v0.2.0-ROADMAP.md`

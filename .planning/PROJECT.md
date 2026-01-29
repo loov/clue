@@ -63,18 +63,23 @@ Minimal configuration for common cases, with CUE's type system catching config e
 - ✓ PROF-04: Persist timing data to file for analysis -- v0.2.0
 - ✓ PROF-05: Print human-readable timing summary at build end -- v0.2.0
 
+#### v0.3.0 Code Quality
+- ✓ REFAC-01: Extract toolchain interface and shared utilities to internal/toolchain -- v0.3.0
+- ✓ REFAC-02: Extract GCC toolchain implementation to internal/toolchain/gcc -- v0.3.0
+- ✓ REFAC-03: Extract Clang toolchain implementation to internal/toolchain/clang -- v0.3.0
+- ✓ REFAC-04: Extract MSVC toolchain and discovery to internal/toolchain/msvc -- v0.3.0
+- ✓ REFAC-05: Extract caching code to internal/cache package -- v0.3.0
+- ✓ REFAC-06: Extract profiling code to internal/profile package -- v0.3.0
+- ✓ REFAC-07: Extract watch mode code to internal/watch package -- v0.3.0
+- ✓ REFAC-08: Reduce internal/build to core orchestration -- v0.3.0
+- ✓ TEST-01: Add testdata project using nlohmann/json -- v0.3.0
+- ✓ TEST-02: Add testdata project using Catch2 -- v0.3.0
+- ✓ TEST-03: Add testdata project with chained dependencies -- v0.3.0
+- ✓ TEST-04: Add integration tests for testdata projects -- v0.3.0
+
 ### Active
 
-#### v0.3.0 Code Quality
-- [ ] REFAC-01: Extract toolchain code from internal/build into internal/toolchain package
-- [ ] REFAC-02: Extract caching code from internal/build into internal/cache package
-- [ ] REFAC-03: Extract profiling code from internal/build into internal/profile package
-- [ ] REFAC-04: Extract watch mode code from internal/build into internal/watch package
-- [ ] REFAC-05: Reduce internal/build to core orchestration (builder, executor, parallel)
-- [ ] TEST-01: Add testdata project using nlohmann/json as git dependency
-- [ ] TEST-02: Add testdata project using Catch2 as header-only dependency
-- [ ] TEST-03: Add testdata project with multiple interdependent external libraries
-- [ ] TEST-04: Add integration tests exercising the new testdata projects
+(None - ready for next milestone)
 
 ### Out of Scope
 
@@ -85,7 +90,7 @@ Minimal configuration for common cases, with CUE's type system catching config e
 
 ## Context
 
-**Current state:** Shipped v0.2.0 with 25,930 LOC Go across ~300 files. internal/build has grown to 55 files and 14,295 lines with mixed responsibilities (compilation, linking, caching, toolchains, profiling, watch mode).
+**Current state:** Shipped v0.3.0 with 27,833 LOC Go across 17 packages. internal/build refactored to core orchestration (~3,500 lines); toolchain, cache, profile, watch extracted to focused packages.
 
 **Tech stack:** Go 1.23, CUE for configuration, xxh3 for content hashing, errgroup for parallel compilation, fsnotify for watch mode.
 
@@ -99,6 +104,15 @@ Minimal configuration for common cases, with CUE's type system catching config e
 - C++20 module detection and dependency scanning infrastructure
 - Build profiling with Chrome Trace export
 - Watch mode for automatic rebuilds
+
+**Package structure after v0.3.0:**
+- internal/build: Core orchestration (builder, compiler, linker, executor, parallel)
+- internal/toolchain: Shared interface and types
+- internal/toolchain/{gcc,clang,msvc,gccish,all}: Toolchain implementations and factory
+- internal/cache: Content hashing and cache invalidation
+- internal/profile: Build timing and Chrome Trace export
+- internal/watch: File monitoring and rebuild triggers
+- internal/testclue: Shared test helpers
 
 **Known tech debt:**
 - 9 orphaned test call sites using old Verbose bool API (test maintenance)
@@ -132,6 +146,13 @@ Minimal configuration for common cases, with CUE's type system catching config e
 | fsnotify for watch mode | Standard Go library, cross-platform support | ✓ Good |
 | 300ms debounce for watch | Balances responsiveness with preventing duplicate builds | ✓ Good |
 | Chrome Trace JSON for profiling | Standard format, works in chrome://tracing | ✓ Good |
+| Toolchain package with shared interface | Clean abstraction enabling GCC/Clang/MSVC subpackages | ✓ Good |
+| Type aliases for refactoring compatibility | Preserves API during gradual extraction | ✓ Good |
+| gccish package for shared GCC/Clang behavior | Avoids duplication, only flags differ | ✓ Good |
+| Factory pattern for toolchain creation | Single source of truth in toolchain/all | ✓ Good |
+| Package extraction to cache/profile/watch | Focused responsibilities, no circular deps | ✓ Good |
+| internal/testclue for shared test helpers | testing.TB interface, t.Helper() for proper reporting | ✓ Good |
+| Mock Catch2 header for testdata | Network isolation, 267 lines vs 18,000 | ✓ Good |
 
 ---
-*Last updated: 2026-01-29 after v0.3.0 milestone start*
+*Last updated: 2026-01-29 after v0.3.0 milestone*
