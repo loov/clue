@@ -53,24 +53,24 @@ Deferred to later milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REFAC-01 | TBD | Pending |
-| REFAC-02 | TBD | Pending |
-| REFAC-03 | TBD | Pending |
-| REFAC-04 | TBD | Pending |
-| REFAC-05 | TBD | Pending |
-| REFAC-06 | TBD | Pending |
-| REFAC-07 | TBD | Pending |
-| REFAC-08 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
-| TEST-03 | TBD | Pending |
-| TEST-04 | TBD | Pending |
+| REFAC-01 | Phase 13 | Pending |
+| REFAC-02 | Phase 14 | Pending |
+| REFAC-03 | Phase 14 | Pending |
+| REFAC-04 | Phase 14 | Pending |
+| REFAC-05 | Phase 15 | Pending |
+| REFAC-06 | Phase 15 | Pending |
+| REFAC-07 | Phase 15 | Pending |
+| REFAC-08 | Phase 16 | Pending |
+| TEST-01 | Phase 17 | Pending |
+| TEST-02 | Phase 17 | Pending |
+| TEST-03 | Phase 17 | Pending |
+| TEST-04 | Phase 17 | Pending |
 
 **Coverage:**
 - v0.3.0 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after initial definition*
+*Last updated: 2026-01-29 after roadmap creation*
