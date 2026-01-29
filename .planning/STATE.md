@@ -75,6 +75,8 @@ Recent decisions affecting current work:
 - [10-04]: Response file tests verify 8000-char threshold with exclusive boundary
 - [11-01]: Microseconds for Chrome Trace ts/dur fields (spec requirement)
 - [11-01]: formatDuration uses adaptive precision: [2.3s] for >= 1s, [450ms] otherwise
+- [11-02]: Flag precedence: --profile flag > CLUE_PROFILE env var
+- [11-02]: ThreadID derived from completed counter modulo jobs
 - [11-03]: Test microsecond timestamps explicitly to prevent regression
 - [11-03]: Test pretty-print output to ensure human-readable traces
 
