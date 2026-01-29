@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 15 of 17 (Supporting Extractions)
-Plan: 3 of 4 complete (01-cache, 02-profile, 03-watch)
-Status: In progress
-Last activity: 2026-01-29 - Completed 15-01-PLAN.md (cache extraction)
+Plan: 4 of 4 complete
+Status: Phase complete
+Last activity: 2026-01-29 - Completed 15-04-PLAN.md (build integration)
 
-Progress: [███████████████████████░░░░░░░░░░░░░░░░░] 58% (73/~TBD plans across v0.1.0-v0.3.0)
+Progress: [████████████████████████░░░░░░░░░░░░░░░░] 60% (74/~TBD plans across v0.1.0-v0.3.0)
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: [███████████████████████
 |-------|-------|-------|----------|
 | 13 | 2/2 | 6.9min | 3.5min |
 | 14 | 4/4 | 13.5min | 3.4min |
+| 15 | 4/4 | 13min | 3.3min |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ v0.1.0 and v0.2.0 decisions logged in PROJECT.md Key Decisions table (16 decisio
 | 15 | 01 | Remove unused verbosity parameter from NewManager | Field stored but never used; simplifies API | Good |
 | 15 | 02 | Pure extraction with no signature changes | Preserves API compatibility during extraction | Good |
 | 15 | 03 | Rename WatchConfig to Config | Cleaner API as watch.Config vs build.WatchConfig | Good |
+| 15 | 04 | Add local formatDuration to parallel.go | Small utility function duplicated rather than exporting from profile package | Good |
+| 15 | 04 | Direct imports from extracted packages | No type aliases in build package; callers import directly from cache/profile/watch | Good |
 
 ### Pending Todos
 
@@ -95,9 +98,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Completed 15-01-PLAN.md (cache extraction)
+Stopped at: Completed 15-04-PLAN.md (build integration)
 Resume file: None
-Next step: Execute 15-04-PLAN.md (build integration - final plan)
+Next step: Phase 16 (Error Presentation)
 
 ## Milestone History
 
