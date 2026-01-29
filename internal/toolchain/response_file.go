@@ -1,0 +1,108 @@
+package toolchain
+
+import (
+	"os"
+	"strings"
+)
+
+// ResponseFileThreshold is the command line length (in characters) above which
+// response files should be used. Windows has a 32,767 character limit, but we
+// use 8000 as a conservative safety margin to account for environment variables
+// and shell overhead. This matches the approach documented in RESEARCH.md.
+const ResponseFileThreshold = 8000
+
+// WriteResponseFile creates a temporary response file containing the given arguments.
+// Each argument is written on its own line (one-per-line format).
+// The caller is responsible for removing the file after use (defer os.Remove(path)).
+//
+// Response files work with cl.exe, link.exe, and lib.exe using the same syntax:
+//
+//	tool.exe @response.rsp
+func WriteResponseFile(args []string) (string, error) {
+	// Create temp file with .rsp extension (standard for MSVC response files)
+	tmpfile, err := os.CreateTemp("", "clue-*.rsp")
+	if err != nil {
+		return "", err
+	}
+
+	// Write each argument on its own line
+	// This avoids the 16,383 character per-line limit in some link.exe versions
+	for _, arg := range args {
+		if _, err := tmpfile.WriteString(arg + "\n"); err != nil {
+			tmpfile.Close()
+			os.Remove(tmpfile.Name())
+			return "", err
+		}
+	}
+
+	if err := tmpfile.Close(); err != nil {
+		os.Remove(tmpfile.Name())
+		return "", err
+	}
+
+	return tmpfile.Name(), nil
+}
+
+// MaybeUseResponseFile checks if the command line length exceeds the threshold
+// and creates a response file if needed.
+//
+// Returns:
+//   - args: The arguments to pass to the command (either original or ["@path"])
+//   - cleanupPath: Path to response file if created (empty if not needed)
+//   - error: Any error that occurred
+//
+// Usage:
+//
+//	args, cleanup, err := MaybeUseResponseFile(args)
+//	if err != nil { return err }
+//	if cleanup != "" { defer os.Remove(cleanup) }
+//	exec.Command(tool, args...)
+func MaybeUseResponseFile(args []string) ([]string, string, error) {
+	// Calculate total command line length
+	cmdLen := EstimateCommandLength(args)
+
+	// If under threshold, return unchanged
+	if cmdLen <= ResponseFileThreshold {
+		return args, "", nil
+	}
+
+	// Create response file
+	rspPath, err := WriteResponseFile(args)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Return @file syntax
+	return []string{"@" + rspPath}, rspPath, nil
+}
+
+// EstimateCommandLength calculates the approximate command line length.
+// This includes the length of each argument plus a space separator.
+func EstimateCommandLength(args []string) int {
+	if len(args) == 0 {
+		return 0
+	}
+
+	total := 0
+	for _, arg := range args {
+		total += len(arg) + 1 // +1 for space separator
+	}
+
+	// Subtract 1 because last arg doesn't need trailing space
+	return total - 1
+}
+
+// QuoteResponseFileArg quotes an argument for use in a response file if needed.
+// Arguments containing spaces or special characters are wrapped in double quotes.
+// This is used for compatibility with MSVC response file parsing.
+func QuoteResponseFileArg(arg string) string {
+	// Check if quoting is needed
+	needsQuoting := strings.ContainsAny(arg, " \t\n\"")
+	if !needsQuoting {
+		return arg
+	}
+
+	// Escape embedded quotes and wrap in double quotes
+	escaped := strings.ReplaceAll(arg, `"`, `\"`)
+	return `"` + escaped + `"`
+}
