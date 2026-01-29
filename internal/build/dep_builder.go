@@ -313,7 +313,7 @@ func (db *DepBuilder) expandSourceGlobs(patterns []string, sourcePath string) ([
 
 // determineIncludePath determines the include path for a dependency
 func (db *DepBuilder) determineIncludePath(dep deps.Dependency, sourcePath string, _ []string) string {
-	// If inline config specifies includes, use the first one
+	// If inline config specifies headers, use parent directory of sourcePath
 	var inlineConfig *deps.InlineConfig
 
 	switch d := dep.(type) {
@@ -323,6 +323,10 @@ func (db *DepBuilder) determineIncludePath(dep deps.Dependency, sourcePath strin
 		inlineConfig = d.BuildConfig
 	case *deps.VendoredDependency:
 		inlineConfig = d.BuildConfig
+	}
+
+	if inlineConfig != nil && len(inlineConfig.Headers) > 0 {
+		return filepath.Dir(sourcePath)
 	}
 
 	if inlineConfig != nil && len(inlineConfig.Includes) > 0 {

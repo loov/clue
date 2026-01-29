@@ -345,6 +345,75 @@ int test() { return 42; }
 	}
 }
 
+// TestDepBuilder_HeadersIncludePath tests include path determination with headers field
+func TestDepBuilder_HeadersIncludePath(t *testing.T) {
+	tests := []struct {
+		name           string
+		inlineConfig   *deps.InlineConfig
+		sourcePath     string
+		expectedPath   string
+		description    string
+	}{
+		{
+			name: "headers_set",
+			inlineConfig: &deps.InlineConfig{
+				Sources: []string{"math.cpp"},
+				Headers: []string{"math.h"},
+			},
+			sourcePath:   "/tmp/test/vendor/simplemath",
+			expectedPath: "/tmp/test/vendor",
+			description:  "When headers is set, include path should be parent directory",
+		},
+		{
+			name: "headers_empty_includes_set",
+			inlineConfig: &deps.InlineConfig{
+				Sources:  []string{"math.cpp"},
+				Headers:  []string{},
+				Includes: []string{"custom"},
+			},
+			sourcePath:   "/tmp/test/vendor/simplemath",
+			expectedPath: "/tmp/test/vendor/simplemath/custom",
+			description:  "When headers is empty but includes is set, use includes",
+		},
+		{
+			name: "headers_nil_includes_set",
+			inlineConfig: &deps.InlineConfig{
+				Sources:  []string{"math.cpp"},
+				Includes: []string{".."},
+			},
+			sourcePath:   "/tmp/test/vendor/simplemath",
+			expectedPath: "/tmp/test/vendor",
+			description:  "When headers is nil but includes is set, use includes (filepath.Join cleans ..)",
+		},
+		{
+			name: "both_empty",
+			inlineConfig: &deps.InlineConfig{
+				Sources: []string{"math.cpp"},
+			},
+			sourcePath:   "/tmp/test/vendor/simplemath",
+			expectedPath: "/tmp/test/vendor/simplemath",
+			description:  "When neither is set, fallback to sourcePath",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create minimal DepBuilder (determineIncludePath doesn't use any fields)
+			db := &DepBuilder{}
+
+			// Create vendored dependency with the test inline config
+			dep := deps.NewVendoredDependency("testdep", tt.sourcePath, tt.inlineConfig)
+
+			// Call determineIncludePath
+			result := db.determineIncludePath(dep, tt.sourcePath, nil)
+
+			if result != tt.expectedPath {
+				t.Errorf("%s: expected include path %q, got %q", tt.description, tt.expectedPath, result)
+			}
+		})
+	}
+}
+
 // Helper function to check if a string contains a substring
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && findSubstring(s, substr))
