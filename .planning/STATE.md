@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 Phase: Ready for v0.4.0
 Plan: Not started
 Status: v0.3.0 complete, ready to plan
-Last activity: 2026-01-29 - Completed quick task 022: Move vendor CUE configs to parent inline build blocks
+Last activity: 2026-01-29 - Completed quick task 023: Add depends field to InlineBuildConfig
 
 Progress: [████████████████████████████████████████] 100% (81 plans across v0.1.0-v0.3.0)
 
@@ -74,11 +74,12 @@ All v0.1.0, v0.2.0, and v0.3.0 decisions logged in PROJECT.md Key Decisions tabl
 | 020 | Create OS-specific sysLibs sample project | 2026-01-24 | 4715d34 | [020-create-a-testdata-sample-project-that-sh](./quick/020-create-a-testdata-sample-project-that-sh/) |
 | 021 | Add minimal README with installation and quick start | 2026-01-25 | 2e9f7ce | [021-add-minimal-readme-that-explains-basic-u](./quick/021-add-minimal-readme-that-explains-basic-u/) |
 | 022 | Move vendor CUE configs to parent inline build blocks | 2026-01-29 | 4dd9185 | [022-move-vendor-cue-to-parent-config](./quick/022-move-vendor-cue-to-parent-config/) |
+| 023 | Add depends field to InlineBuildConfig | 2026-01-29 | 2458c74 | [023-add-a-depends-field-to-inlinebuildconfig](./quick/023-add-a-depends-field-to-inlinebuildconfig/) |
 
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: v0.3.0 milestone complete
+Stopped at: Completed quick task 023
 Resume file: None
 Next step: Run `/gsd:new-milestone` to start v0.4.0
 
