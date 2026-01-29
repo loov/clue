@@ -22,6 +22,6 @@ targets: {
 		type: "executable"
 		sources: ["main.cpp"]
 		includes: ["vendor"]
-		depends: ["stringutils"]
+		depends: ["stringutils", "simplemath"]
 	}
 }
