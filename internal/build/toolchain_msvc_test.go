@@ -3,14 +3,17 @@ package build
 import (
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
 // newTestMSVCToolchain creates an MSVCToolchain for testing without requiring
 // actual Visual Studio installation. This allows flag generation tests to run
 // on any platform (including Linux CI).
 func newTestMSVCToolchain() *MSVCToolchain {
-	return &MSVCToolchain{
-		installation: &MSVCInstallation{
+	tc, _ := msvc.New(
+		&msvc.Installation{
 			InstallPath: `C:\Program Files\Microsoft Visual Studio\2022\Community`,
 			Version:     "17.9.0",
 			VCToolsPath: `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807`,
@@ -20,8 +23,9 @@ func newTestMSVCToolchain() *MSVCToolchain {
 				"LIB":     `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\lib\x64`,
 			},
 		},
-		target: Platform{OS: "windows", Arch: "amd64"},
-	}
+		toolchain.Platform{OS: "windows", Arch: "amd64"},
+	)
+	return tc
 }
 
 func TestMSVCToolchain_Name(t *testing.T) {
@@ -280,61 +284,6 @@ func TestMSVCToolchain_LinkerFlags(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestMSVCToolchain_FlagMappings(t *testing.T) {
-	// Test that flag mapping tables are properly defined
-	t.Run("optimization flags", func(t *testing.T) {
-		expected := map[string]string{
-			"none":       "/Od",
-			"size":       "/O1",
-			"fast":       "/O2",
-			"aggressive": "/O2",
-		}
-		for level, want := range expected {
-			got, ok := msvcOptimizationFlags[level]
-			if !ok {
-				t.Errorf("msvcOptimizationFlags missing level %q", level)
-				continue
-			}
-			if got != want {
-				t.Errorf("msvcOptimizationFlags[%q] = %q, want %q", level, got, want)
-			}
-		}
-	})
-
-	t.Run("warning flags", func(t *testing.T) {
-		if _, ok := msvcWarningFlags["off"]; !ok {
-			t.Error("msvcWarningFlags missing 'off'")
-		}
-		if _, ok := msvcWarningFlags["default"]; !ok {
-			t.Error("msvcWarningFlags missing 'default'")
-		}
-		if _, ok := msvcWarningFlags["strict"]; !ok {
-			t.Error("msvcWarningFlags missing 'strict'")
-		}
-		if _, ok := msvcWarningFlags["pedantic"]; !ok {
-			t.Error("msvcWarningFlags missing 'pedantic'")
-		}
-	})
-
-	t.Run("debug flags", func(t *testing.T) {
-		expected := map[string]string{
-			"none":    "",
-			"minimal": "/Z7",
-			"full":    "/Zi",
-		}
-		for level, want := range expected {
-			got, ok := msvcDebugFlags[level]
-			if !ok {
-				t.Errorf("msvcDebugFlags missing level %q", level)
-				continue
-			}
-			if got != want {
-				t.Errorf("msvcDebugFlags[%q] = %q, want %q", level, got, want)
-			}
-		}
-	})
 }
 
 // containsFlag checks if a flag is present in the flags slice

@@ -4,6 +4,10 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/clang"
+	"github.com/loov/clue/internal/toolchain/gcc"
 )
 
 func TestNewToolchain_Native(t *testing.T) {
@@ -241,14 +245,13 @@ func TestCrossPrefix(t *testing.T) {
 }
 
 func TestValidateToolchain_MissingCompiler(t *testing.T) {
-	// Create a test toolchain with nonexistent paths
-	// Using concrete type directly for testing
-	tc := &GCCToolchain{
-		cc:     "nonexistent-gcc",
-		cxx:    "nonexistent-g++",
-		ar:     "nonexistent-ar",
-		target: HostPlatform(),
-	}
+	// Create a test toolchain with nonexistent paths using factory
+	tc := gcc.New(
+		"nonexistent-gcc",
+		"nonexistent-g++",
+		"nonexistent-ar",
+		toolchain.HostPlatform(),
+	)
 
 	err := ValidateToolchain(tc)
 	if err == nil {
@@ -290,49 +293,41 @@ func TestValidateToolchain_RealCompiler(t *testing.T) {
 }
 
 func TestToolchainString(t *testing.T) {
+	host := toolchain.HostPlatform()
+
 	tests := []struct {
 		name       string
 		toolchain  Toolchain
 		wantSuffix string
 	}{
 		{
-			name: "native clang",
-			toolchain: &ClangToolchain{
-				cc:     "clang",
-				cxx:    "clang++",
-				ar:     "ar",
-				target: HostPlatform(),
-			},
+			name:       "native clang",
+			toolchain:  clang.New("clang", "clang++", "ar", host),
 			wantSuffix: "(native)",
 		},
 		{
-			name: "native gcc",
-			toolchain: &GCCToolchain{
-				cc:     "gcc",
-				cxx:    "g++",
-				ar:     "ar",
-				target: HostPlatform(),
-			},
+			name:       "native gcc",
+			toolchain:  gcc.New("gcc", "g++", "ar", host),
 			wantSuffix: "(native)",
 		},
 		{
 			name: "cross arm64 gcc",
-			toolchain: &GCCToolchain{
-				cc:     "aarch64-linux-gnu-gcc",
-				cxx:    "aarch64-linux-gnu-g++",
-				ar:     "aarch64-linux-gnu-ar",
-				target: Platform{OS: "linux", Arch: "arm64"},
-			},
+			toolchain: gcc.New(
+				"aarch64-linux-gnu-gcc",
+				"aarch64-linux-gnu-g++",
+				"aarch64-linux-gnu-ar",
+				toolchain.Platform{OS: "linux", Arch: "arm64"},
+			),
 			wantSuffix: "(cross)",
 		},
 		{
 			name: "cross amd64 clang",
-			toolchain: &ClangToolchain{
-				cc:     "x86_64-linux-gnu-clang",
-				cxx:    "x86_64-linux-gnu-clang++",
-				ar:     "x86_64-linux-gnu-ar",
-				target: Platform{OS: "linux", Arch: "amd64"},
-			},
+			toolchain: clang.New(
+				"x86_64-linux-gnu-clang",
+				"x86_64-linux-gnu-clang++",
+				"x86_64-linux-gnu-ar",
+				toolchain.Platform{OS: "linux", Arch: "amd64"},
+			),
 			wantSuffix: "(cross)",
 		},
 	}

@@ -1,7 +1,6 @@
 package build
 
 import (
-	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -21,84 +20,6 @@ func TestMSVCDiscovery_NotFoundError_OnNonWindows(t *testing.T) {
 	// Error message should indicate Windows-only
 	if !strings.Contains(err.Error(), "Windows") && !strings.Contains(err.Error(), "windows") {
 		t.Errorf("error should mention Windows: %v", err)
-	}
-}
-
-func TestMSVCError_Error(t *testing.T) {
-	err := &MSVCError{
-		Type:        "not_found",
-		Message:     "MSVC not found. Install Visual Studio: https://visualstudio.microsoft.com/downloads/",
-		InstallLink: "https://visualstudio.microsoft.com/downloads/",
-	}
-
-	// Error() should return the message
-	got := err.Error()
-	if got != err.Message {
-		t.Errorf("Error() = %q, want %q", got, err.Message)
-	}
-}
-
-func TestMSVCError_NotFound(t *testing.T) {
-	err := newMSVCNotFoundError()
-
-	// Verify error type
-	if err.Type != "not_found" {
-		t.Errorf("Type = %q, want %q", err.Type, "not_found")
-	}
-
-	// Verify message includes install link
-	if !strings.Contains(err.Message, msvcInstallLink) {
-		t.Errorf("Message should contain install link: %v", err.Message)
-	}
-
-	// Verify message is user-friendly
-	if !strings.Contains(err.Message, "MSVC not found") {
-		t.Errorf("Message should indicate MSVC not found: %v", err.Message)
-	}
-
-	// Verify InstallLink field is set
-	if err.InstallLink != msvcInstallLink {
-		t.Errorf("InstallLink = %q, want %q", err.InstallLink, msvcInstallLink)
-	}
-}
-
-func TestMSVCError_VCVarsFailed(t *testing.T) {
-	details := "exit code 1"
-	err := newMSVCVCVarsError(details)
-
-	// Verify error type
-	if err.Type != "vcvars_failed" {
-		t.Errorf("Type = %q, want %q", err.Type, "vcvars_failed")
-	}
-
-	// Verify message includes details
-	if !strings.Contains(err.Message, details) {
-		t.Errorf("Message should contain details: %v", err.Message)
-	}
-
-	// Verify message mentions vcvarsall
-	if !strings.Contains(err.Message, "vcvarsall") {
-		t.Errorf("Message should mention vcvarsall: %v", err.Message)
-	}
-}
-
-func TestMSVCError_ToolsNotFound(t *testing.T) {
-	vsPath := `C:\Program Files\Microsoft Visual Studio\2022\Community`
-	err := newMSVCToolsNotFoundError(vsPath)
-
-	// Verify error type
-	if err.Type != "tools_not_found" {
-		t.Errorf("Type = %q, want %q", err.Type, "tools_not_found")
-	}
-
-	// Verify message includes VS path
-	if !strings.Contains(err.Message, vsPath) {
-		t.Errorf("Message should contain VS path: %v", err.Message)
-	}
-
-	// Verify message mentions VC tools
-	if !strings.Contains(err.Message, "VC tools") {
-		t.Errorf("Message should mention VC tools: %v", err.Message)
 	}
 }
 
@@ -195,34 +116,5 @@ func TestNewToolchain_MSVC_WindowsPlatform(t *testing.T) {
 	// Should still fail (no MSVC installed on Linux)
 	if err == nil {
 		t.Fatal("NewToolchain(msvc) should fail on Linux even with Windows target")
-	}
-}
-
-func TestMSVCError_IsErrorInterface(t *testing.T) {
-	var err error = &MSVCError{
-		Type:    "test",
-		Message: "test error",
-	}
-
-	// Should satisfy error interface
-	if err.Error() != "test error" {
-		t.Errorf("Error() = %q, want %q", err.Error(), "test error")
-	}
-
-	// Should be able to unwrap with errors.As
-	var msvcErr *MSVCError
-	if !errors.As(err, &msvcErr) {
-		t.Error("should be able to unwrap MSVCError")
-	}
-
-	if msvcErr.Type != "test" {
-		t.Errorf("unwrapped error Type = %q, want %q", msvcErr.Type, "test")
-	}
-}
-
-func TestMSVCInstallLink_Constant(t *testing.T) {
-	// Verify the install link constant is set correctly
-	if msvcInstallLink != "https://visualstudio.microsoft.com/downloads/" {
-		t.Errorf("msvcInstallLink = %q, want Visual Studio download URL", msvcInstallLink)
 	}
 }
