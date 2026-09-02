@@ -96,6 +96,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 
 	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
+	target.Defines = append(append([]string(nil), target.Defines...), variant.Defines...)
 	objectNames := buildpath.ObjectNames(target.Sources)
 
 	for _, source := range target.Sources {

@@ -129,6 +129,16 @@ func (b *Builder) targetToConfig(target config.Target, variant config.Variant) C
 		Debug:            "none",    // Default if not specified
 		RawCompiler:      target.Flags.Compiler,
 		RawLinker:        target.Flags.Linker,
+		Sanitizers:       append([]string(nil), target.Sanitizers...),
+	}
+	if target.LTO != nil {
+		cfg.LTO = *target.LTO
+	}
+	if target.PIC != nil {
+		cfg.PIC = *target.PIC
+	}
+	if target.Coverage != nil {
+		cfg.Coverage = *target.Coverage
 	}
 
 	// Apply target-specific semantic flags (override defaults)
@@ -146,8 +156,24 @@ func (b *Builder) targetToConfig(target config.Target, variant config.Variant) C
 	}
 
 	// Apply variant debug info (overrides target)
-	if variant.DebugInfo {
-		cfg.Debug = "full"
+	if variant.DebugInfoSet || variant.DebugInfo {
+		if variant.DebugInfo {
+			cfg.Debug = "full"
+		} else {
+			cfg.Debug = "none"
+		}
+	}
+	if variant.Sanitizers != nil {
+		cfg.Sanitizers = append([]string(nil), variant.Sanitizers...)
+	}
+	if variant.LTO != nil {
+		cfg.LTO = *variant.LTO
+	}
+	if variant.PIC != nil {
+		cfg.PIC = *variant.PIC
+	}
+	if variant.Coverage != nil {
+		cfg.Coverage = *variant.Coverage
 	}
 
 	// Merge variant raw flags
@@ -267,6 +293,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	cacheInputs := make(map[string]sourceCacheInputs, len(target.Sources))
 
 	objectNames := buildpath.ObjectNames(target.Sources)
+	defines := append(append([]string(nil), target.Defines...), opts.Config.ActiveVariant.Defines...)
 
 	for _, source := range sourcesToCompile {
 		objPath := filepath.Join(objDir, objectNames[source])
@@ -274,7 +301,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Source:     source,
 			Output:     objPath,
 			Includes:   includes,
-			Defines:    target.Defines,
+			Defines:    defines,
 			Flags:      buildCfg,
 			Std:        opts.Config.Toolchain.Std,
 			TargetType: target.Type,

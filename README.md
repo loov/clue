@@ -96,11 +96,11 @@ targets: {
 variants: {
     debug: {
         optimization: "none"
-        debugInfo:    true
+        debug_info:   true
     }
     release: {
         optimization: "aggressive"
-        debugInfo:    false
+        debug_info:   false
     }
 }
 ```

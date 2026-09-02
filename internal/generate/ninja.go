@@ -188,6 +188,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, _ toolchain.Toolchain) []string {
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
+	target.Defines = append(append([]string(nil), target.Defines...), variantConfig.Defines...)
 
 	// Collect include paths
 	includes := target.Includes

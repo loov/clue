@@ -66,6 +66,10 @@ type Target struct {
 	WarningsAsErrors *bool // Pointer to distinguish unset from false
 	Debug            string
 	SysLibs          []string
+	Sanitizers       []string
+	LTO              *bool
+	PIC              *bool
+	Coverage         *bool
 }
 
 // Flags for compiler and linker
@@ -79,8 +83,13 @@ type Variant struct {
 	Name         string
 	Optimization string
 	DebugInfo    bool
+	DebugInfoSet bool
 	Defines      []string
 	Flags        Flags
+	Sanitizers   []string
+	LTO          *bool
+	PIC          *bool
+	Coverage     *bool
 }
 
 // Loader loads and validates CUE configurations
@@ -306,28 +315,28 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 		t.Debug, _ = v.String()
 	}
 	t.SysLibs = extractStringList(val, "sysLibs")
+	t.Sanitizers = extractStringList(val, "sanitizers")
+	t.LTO = extractOptionalBool(val, "lto")
+	t.PIC = extractOptionalBool(val, "pic")
+	t.Coverage = extractOptionalBool(val, "coverage")
 
 	return t, nil
 }
 
 func (l *Loader) extractVariant(name string, val cue.Value) (Variant, error) {
-	v := Variant{Name: name}
+	return extractVariantDetails(val, name)
+}
 
-	if opt := val.LookupPath(cue.ParsePath("optimization")); opt.Exists() {
-		v.Optimization, _ = opt.String()
+func extractOptionalBool(val cue.Value, field string) *bool {
+	value := val.LookupPath(cue.ParsePath(field))
+	if !value.Exists() {
+		return nil
 	}
-	if dbg := val.LookupPath(cue.ParsePath("debug_info")); dbg.Exists() {
-		v.DebugInfo, _ = dbg.Bool()
+	result, err := value.Bool()
+	if err != nil {
+		return nil
 	}
-
-	v.Defines = extractStringList(val, "defines")
-
-	if flags := val.LookupPath(cue.ParsePath("flags")); flags.Exists() {
-		v.Flags.Compiler = extractStringList(flags, "compiler")
-		v.Flags.Linker = extractStringList(flags, "linker")
-	}
-
-	return v, nil
+	return &result
 }
 
 func extractStringList(val cue.Value, field string) []string {

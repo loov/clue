@@ -33,7 +33,7 @@ package config
 // Build variant (debug, release, custom)
 #Variant: {
 	name?: string  // Optional - derived from map key if not specified
-	optimization?: "O0" | "O1" | "O2" | "O3" | "Os" | "Oz"
+	optimization?: "none" | "size" | "fast" | "aggressive"
 	debug_info?: bool
 	defines?: [...string]
 

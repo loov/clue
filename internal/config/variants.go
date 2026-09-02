@@ -106,9 +106,14 @@ func extractVariantDetails(val cue.Value, name string) (Variant, error) {
 	}
 	if dbg := val.LookupPath(cue.ParsePath("debug_info")); dbg.Exists() {
 		v.DebugInfo, _ = dbg.Bool()
+		v.DebugInfoSet = true
 	}
 
 	v.Defines = extractStringList(val, "defines")
+	v.Sanitizers = extractStringList(val, "sanitizers")
+	v.LTO = extractOptionalBool(val, "lto")
+	v.PIC = extractOptionalBool(val, "pic")
+	v.Coverage = extractOptionalBool(val, "coverage")
 
 	if flags := val.LookupPath(cue.ParsePath("flags")); flags.Exists() {
 		v.Flags.Compiler = extractStringList(flags, "compiler")

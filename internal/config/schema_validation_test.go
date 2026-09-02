@@ -153,12 +153,12 @@ targets: {
 variants: {
     debug: {
         name: "debug"
-        optimization: "O0"
+        optimization: "none"
         debug_info: true
     }
     release: {
         name: "release"
-        optimization: "O3"
+        optimization: "aggressive"
         debug_info: false
     }
 }
@@ -212,7 +212,7 @@ targets: {
 }
 
 func TestSchemaValidation_AllValidOptimizations(t *testing.T) {
-	validOpts := []string{"O0", "O1", "O2", "O3", "Os", "Oz"}
+	validOpts := []string{"none", "size", "fast", "aggressive"}
 
 	for _, opt := range validOpts {
 		t.Run(opt, func(t *testing.T) {

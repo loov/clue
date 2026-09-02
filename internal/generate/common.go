@@ -38,6 +38,16 @@ func targetToBuildConfig(target config.Target, variant config.Variant) toolchain
 		Debug:            "none",
 		RawCompiler:      target.Flags.Compiler,
 		RawLinker:        target.Flags.Linker,
+		Sanitizers:       append([]string(nil), target.Sanitizers...),
+	}
+	if target.LTO != nil {
+		cfg.LTO = *target.LTO
+	}
+	if target.PIC != nil {
+		cfg.PIC = *target.PIC
+	}
+	if target.Coverage != nil {
+		cfg.Coverage = *target.Coverage
 	}
 
 	// Apply target-specific semantic flags
@@ -55,8 +65,24 @@ func targetToBuildConfig(target config.Target, variant config.Variant) toolchain
 	}
 
 	// Apply variant debug info
-	if variant.DebugInfo {
-		cfg.Debug = "full"
+	if variant.DebugInfoSet || variant.DebugInfo {
+		if variant.DebugInfo {
+			cfg.Debug = "full"
+		} else {
+			cfg.Debug = "none"
+		}
+	}
+	if variant.Sanitizers != nil {
+		cfg.Sanitizers = append([]string(nil), variant.Sanitizers...)
+	}
+	if variant.LTO != nil {
+		cfg.LTO = *variant.LTO
+	}
+	if variant.PIC != nil {
+		cfg.PIC = *variant.PIC
+	}
+	if variant.Coverage != nil {
+		cfg.Coverage = *variant.Coverage
 	}
 
 	// Merge variant raw flags

@@ -87,7 +87,7 @@ func TestTargetExtraction(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
-	config := `{"name": "multilib", "targets": {"util": {"name": "util", "type": "static_library", "sources": ["util.cpp"], "headers": ["util.h"], "includes": ["include/"]}, "app": {"name": "app", "type": "executable", "sources": ["main.cpp"], "depends": ["util"], "flags": {"compiler": ["-Wall", "-Wextra"]}}}}`
+	config := `{"name": "multilib", "targets": {"util": {"name": "util", "type": "static_library", "sources": ["util.cpp"], "headers": ["util.h"], "includes": ["include/"], "sanitizers": ["address"], "lto": true, "pic": true, "coverage": true}, "app": {"name": "app", "type": "executable", "sources": ["main.cpp"], "depends": ["util"], "flags": {"compiler": ["-Wall", "-Wextra"]}}}}`
 	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -115,6 +115,11 @@ func TestTargetExtraction(t *testing.T) {
 	}
 	if len(util.Includes) != 1 || util.Includes[0] != "include/" {
 		t.Errorf("Expected util includes ['include/'], got %v", util.Includes)
+	}
+	if len(util.Sanitizers) != 1 || util.Sanitizers[0] != "address" ||
+		util.LTO == nil || !*util.LTO || util.PIC == nil || !*util.PIC ||
+		util.Coverage == nil || !*util.Coverage {
+		t.Errorf("advanced target flags were not extracted: %+v", util)
 	}
 
 	// Check app target
@@ -188,7 +193,7 @@ func TestVariantExtraction(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
-	config := `{"name": "project", "targets": {"app": {"name": "app", "type": "executable", "sources": ["main.cpp"]}}, "variants": {"debug": {"name": "debug", "optimization": "O0", "debug_info": true, "defines": ["DEBUG"]}, "release": {"name": "release", "optimization": "O2", "debug_info": false}}}`
+	config := `{"name": "project", "targets": {"app": {"name": "app", "type": "executable", "sources": ["main.cpp"]}}, "variants": {"debug": {"name": "debug", "optimization": "none", "debug_info": true, "defines": ["DEBUG"], "sanitizers": ["address"], "lto": true, "pic": true, "coverage": true}, "release": {"name": "release", "optimization": "fast", "debug_info": false}}}`
 	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -204,8 +209,8 @@ func TestVariantExtraction(t *testing.T) {
 	}
 
 	debug := cfg.Variants["debug"]
-	if debug.Optimization != "O0" {
-		t.Errorf("Expected debug optimization 'O0', got '%s'", debug.Optimization)
+	if debug.Optimization != "none" {
+		t.Errorf("Expected debug optimization 'none', got '%s'", debug.Optimization)
 	}
 	if !debug.DebugInfo {
 		t.Error("Expected debug.debug_info to be true")
@@ -213,13 +218,21 @@ func TestVariantExtraction(t *testing.T) {
 	if len(debug.Defines) != 1 || debug.Defines[0] != "DEBUG" {
 		t.Errorf("Expected debug defines ['DEBUG'], got %v", debug.Defines)
 	}
+	if len(debug.Sanitizers) != 1 || debug.Sanitizers[0] != "address" ||
+		debug.LTO == nil || !*debug.LTO || debug.PIC == nil || !*debug.PIC ||
+		debug.Coverage == nil || !*debug.Coverage {
+		t.Errorf("advanced variant flags were not extracted: %+v", debug)
+	}
 
 	release := cfg.Variants["release"]
-	if release.Optimization != "O2" {
-		t.Errorf("Expected release optimization 'O2', got '%s'", release.Optimization)
+	if release.Optimization != "fast" {
+		t.Errorf("Expected release optimization 'fast', got '%s'", release.Optimization)
 	}
 	if release.DebugInfo {
 		t.Error("Expected release.debug_info to be false")
+	}
+	if !release.DebugInfoSet {
+		t.Error("Expected explicit release.debug_info to be tracked")
 	}
 }
 
@@ -311,13 +324,13 @@ targets: {
 variants: {
     debug: {
         name: "debug"
-        optimization: "O0"
+        optimization: "none"
         debug_info: true
         defines: ["DEBUG"]
     }
     release: {
         name: "release"
-        optimization: "O2"
+        optimization: "fast"
         debug_info: false
         defines: ["NDEBUG"]
     }

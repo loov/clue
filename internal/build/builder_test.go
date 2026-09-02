@@ -73,6 +73,30 @@ func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
 	}
 }
 
+func TestTargetToBuildConfig_AdvancedVariantFlags(t *testing.T) {
+	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	if err != nil {
+		t.Fatalf("NewBuilder failed: %v", err)
+	}
+	enabled, disabled := true, false
+	target := config.Target{
+		Sanitizers: []string{"address"}, LTO: &enabled, PIC: &disabled, Coverage: &disabled,
+		Debug: "full",
+	}
+	variant := config.Variant{
+		Sanitizers: []string{"undefined"}, LTO: &disabled, PIC: &enabled, Coverage: &enabled,
+		DebugInfoSet: true, DebugInfo: false,
+	}
+
+	cfg := b.targetToConfig(target, variant)
+	if len(cfg.Sanitizers) != 1 || cfg.Sanitizers[0] != "undefined" || cfg.LTO || !cfg.PIC || !cfg.Coverage {
+		t.Errorf("advanced variant flags not applied: %+v", cfg)
+	}
+	if cfg.Debug != "none" {
+		t.Errorf("explicit debug_info: false did not disable target debug: %q", cfg.Debug)
+	}
+}
+
 func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {

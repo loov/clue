@@ -33,7 +33,7 @@ targets: {
 }
 variants: {
 	debug: {
-		optimization: "O0"
+		optimization: "none"
 		debug_info:   true
 		defines:      ["DEBUG", "_DEBUG"]
 		flags: {
@@ -41,7 +41,7 @@ variants: {
 		}
 	}
 	release: {
-		optimization: "O2"
+		optimization: "fast"
 		debug_info:   false
 		defines:      ["NDEBUG"]
 		flags: {
@@ -50,7 +50,7 @@ variants: {
 		}
 	}
 	asan: {
-		optimization: "O1"
+		optimization: "fast"
 		debug_info:   true
 		defines:      ["DEBUG", "ASAN_ENABLED"]
 		flags: {

@@ -31,8 +31,8 @@ func TestSchemaConstraints(t *testing.T) {
 		`"executable"`,     // Target type enum
 		`"static_library"`, // Target type enum
 		`"shared_library"`, // Target type enum
-		`"O0"`,             // Optimization level
-		`"O2"`,             // Optimization level
+		`"none"`,           // Optimization level
+		`"aggressive"`,     // Optimization level
 		`=~"^[a-zA-Z]`,     // Name regex constraint
 		`[_, ...]`,         // At least one source
 	}
