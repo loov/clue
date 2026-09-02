@@ -111,6 +111,11 @@ func TestIncremental_NoChanges(t *testing.T) {
 	// Get object file mtimes after first build
 	target := cfg.Targets["testapp"]
 	mtimesBefore := getObjectMtimes(t, buildDir, "debug", "testapp", target.Sources)
+	exePath := filepath.Join(buildDir, "debug", "bin", "testapp")
+	exeBefore, err := os.Stat(exePath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Wait a moment to ensure mtimes would differ if files were rebuilt
 	time.Sleep(100 * time.Millisecond)
@@ -130,6 +135,13 @@ func TestIncremental_NoChanges(t *testing.T) {
 		if !mtimeAfter.Equal(mtimeBefore) {
 			t.Errorf("object file %s was rebuilt (mtime changed), expected to be cached", objPath)
 		}
+	}
+	exeAfter, err := os.Stat(exePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exeAfter.ModTime().Equal(exeBefore.ModTime()) {
+		t.Error("executable was relinked despite unchanged inputs")
 	}
 }
 

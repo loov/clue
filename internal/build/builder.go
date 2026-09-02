@@ -183,7 +183,7 @@ func (b *Builder) targetToConfig(target config.Target, variant config.Variant) C
 	return cfg
 }
 
-func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libPaths, libs, sysLibs, sharedLibPaths []string, err error) {
+func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libPaths, libs, sysLibs, sharedLibPaths, artifacts []string, err error) {
 	seen := make(map[string]bool)
 	seenPaths := make(map[string]bool)
 	seenSharedPaths := make(map[string]bool)
@@ -196,6 +196,7 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 		seen[name] = true
 
 		if result, external := b.depResults[name]; external {
+			artifacts = append(artifacts, result.LibPath)
 			path := filepath.Dir(result.LibPath)
 			if !seenPaths[path] {
 				seenPaths[path] = true
@@ -223,6 +224,7 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 			return fmt.Errorf("unknown dependency or target: %q", name)
 		}
 		if dependency.Type == "static_library" || dependency.Type == "shared_library" {
+			artifacts = append(artifacts, b.OutputPath(opts.BuildDir, opts.Variant, name, dependency.Type))
 			path := filepath.Join(opts.BuildDir, opts.Variant, "lib")
 			if !seenPaths[path] {
 				seenPaths[path] = true
@@ -250,10 +252,10 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 
 	for _, dependency := range target.Depends {
 		if err := visit(dependency); err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, nil, nil, err
 		}
 	}
-	return libPaths, libs, sysLibs, sharedLibPaths, nil
+	return libPaths, libs, sysLibs, sharedLibPaths, artifacts, nil
 }
 
 func (b *Builder) addRuntimeLibraryPaths(cfg *Config, output string, paths []string) error {
@@ -532,9 +534,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	// Link or archive based on target type
 	switch target.Type {
 	case "executable":
-		progress.Linking(target.Name)
-
-		libPaths, libs, dependencySysLibs, sharedLibPaths, err := b.dependencyLinkInputs(opts, target)
+		libPaths, libs, dependencySysLibs, sharedLibPaths, artifacts, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
 			return nil, err
 		}
@@ -552,6 +552,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Libs:     libs,
 			Flags:    buildCfg,
 		}
+		fingerprint, err := linkFingerprint(b.toolchain.CXX(), linkOpts, append(objectFiles, artifacts...))
+		if err != nil {
+			return nil, err
+		}
+		if !opts.ForceRebuild && linkIsCurrent(outputPath, fingerprint) {
+			break
+		}
+		progress.Linking(target.Name)
 
 		_, err = b.linker.LinkExecutable(ctx, linkOpts)
 		if err != nil {
@@ -564,16 +572,25 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				Success:  false,
 			}, err
 		}
+		if err := storeLinkFingerprint(outputPath, fingerprint); err != nil && opts.Verbosity == VerbosityVerbose {
+			fmt.Printf("  Warning: failed to cache link result: %v\n", err)
+		}
 
 	case "static_library":
-		progress.Archiving(target.Name)
-
 		archiveOpts := ArchiveOptions{
 			Objects: objectFiles,
 			Output:  outputPath,
 		}
+		fingerprint, err := linkFingerprint(b.toolchain.AR(), archiveOpts, objectFiles)
+		if err != nil {
+			return nil, err
+		}
+		if !opts.ForceRebuild && linkIsCurrent(outputPath, fingerprint) {
+			break
+		}
+		progress.Archiving(target.Name)
 
-		_, err := b.linker.CreateStaticLibrary(ctx, archiveOpts)
+		_, err = b.linker.CreateStaticLibrary(ctx, archiveOpts)
 		if err != nil {
 			return &TargetResult{
 				Name:     target.Name,
@@ -584,11 +601,12 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				Success:  false,
 			}, err
 		}
+		if err := storeLinkFingerprint(outputPath, fingerprint); err != nil && opts.Verbosity == VerbosityVerbose {
+			fmt.Printf("  Warning: failed to cache archive result: %v\n", err)
+		}
 
 	case "shared_library":
-		progress.Linking(target.Name)
-
-		libPaths, libs, dependencySysLibs, sharedLibPaths, err := b.dependencyLinkInputs(opts, target)
+		libPaths, libs, dependencySysLibs, sharedLibPaths, artifacts, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
 			return nil, err
 		}
@@ -605,6 +623,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Flags:            buildCfg,
 			SymbolVisibility: "default", // Could be configurable via target config later
 		}
+		fingerprint, err := linkFingerprint(b.toolchain.CXX(), sharedOpts, append(objectFiles, artifacts...))
+		if err != nil {
+			return nil, err
+		}
+		if !opts.ForceRebuild && linkIsCurrent(outputPath, fingerprint) {
+			break
+		}
+		progress.Linking(target.Name)
 
 		_, err = b.linker.LinkSharedLibrary(ctx, sharedOpts)
 		if err != nil {
@@ -616,6 +642,9 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				Duration: time.Since(start),
 				Success:  false,
 			}, err
+		}
+		if err := storeLinkFingerprint(outputPath, fingerprint); err != nil && opts.Verbosity == VerbosityVerbose {
+			fmt.Printf("  Warning: failed to cache link result: %v\n", err)
 		}
 
 	default:
