@@ -573,7 +573,7 @@ func generateNinja(dir string, cfg *config.Config, platform toolchain.Platform) 
 	return 0
 }
 
-func generateCompileCommands(dir string, cfg *config.Config, variant string, _ toolchain.Platform) int {
+func generateCompileCommands(dir string, cfg *config.Config, variant string, platform toolchain.Platform) int {
 	outputPath := filepath.Join(dir, "compile_commands.json")
 	err := generate.CompileCommands(generate.CompDBOptions{
 		Config:     cfg,
@@ -581,6 +581,7 @@ func generateCompileCommands(dir string, cfg *config.Config, variant string, _ t
 		BuildDir:   cfg.BuildDir,
 		OutputPath: outputPath,
 		Toolchain:  cfg.Toolchain.Compiler,
+		Platform:   platform,
 	})
 	if err != nil {
 		printError(err)

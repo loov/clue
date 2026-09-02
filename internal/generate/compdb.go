@@ -29,6 +29,7 @@ type CompDBOptions struct {
 	BuildDir   string // e.g., ".build"
 	OutputPath string // Output file path (default: compile_commands.json)
 	Toolchain  string // "clang" or "gcc"
+	Platform   toolchain.Platform
 }
 
 // CompileCommands creates a compile_commands.json file
@@ -52,6 +53,13 @@ func CompileCommands(opts CompDBOptions) error {
 	if opts.Variant == "" {
 		opts.Variant = "debug"
 	}
+	if opts.Platform.OS == "" {
+		opts.Platform = toolchain.HostPlatform()
+	}
+	tc, err := build.NewToolchain(opts.Toolchain, opts.Platform)
+	if err != nil {
+		return err
+	}
 
 	// Get variant config
 	variant, ok := opts.Config.Variants[opts.Variant]
@@ -64,7 +72,7 @@ func CompileCommands(opts CompDBOptions) error {
 
 	// Add commands for all project targets
 	for _, target := range opts.Config.Targets {
-		targetCommands, err := buildTargetCommands(workDir, opts, target, variant)
+		targetCommands, err := buildTargetCommands(workDir, opts, target, variant, tc)
 		if err != nil {
 			return err
 		}
@@ -73,7 +81,7 @@ func CompileCommands(opts CompDBOptions) error {
 
 	// Add commands for all dependencies with build config
 	for _, dep := range opts.Config.Dependencies {
-		depCommands, err := buildDependencyCommands(workDir, opts, dep)
+		depCommands, err := buildDependencyCommands(workDir, opts, dep, variant, tc)
 		if err != nil {
 			return err
 		}
@@ -91,12 +99,13 @@ func CompileCommands(opts CompDBOptions) error {
 }
 
 // buildTargetCommands creates compile commands for a target's sources
-func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant) ([]CompileCommand, error) {
+func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain) ([]CompileCommand, error) {
 	var commands []CompileCommand
 
 	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
 	target.Defines = append(append([]string(nil), target.Defines...), variant.Defines...)
+	target.Includes = append(append([]string(nil), target.Includes...), targetDependencyIncludes(opts.Config, target)...)
 	objectNames := buildpath.ObjectNames(target.Sources)
 
 	for _, source := range target.Sources {
@@ -104,7 +113,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		objPath := objectPath(opts.BuildDir, opts.Variant, target.Name, objectNames[source])
 
 		// Build compiler arguments
-		args := buildCompilerArgs(opts, target, source, objPath, buildCfg)
+		args := buildCompilerArgs(tc, opts.Config.Toolchain.Std, target.Includes, target.Defines, source, objPath, buildCfg)
 
 		// Make paths absolute for IDE compatibility
 		srcAbs := AbsPath(source)
@@ -123,41 +132,34 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 }
 
 // buildDependencyCommands creates compile commands for a dependency's sources
-func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Dependency) ([]CompileCommand, error) {
-	buildConfig := dep.InlineBuild()
-
-	// Skip dependencies without build config
-	if buildConfig == nil {
-		return nil, nil
-	}
-
+func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Dependency, variant config.Variant, tc toolchain.Toolchain) ([]CompileCommand, error) {
 	var commands []CompileCommand
-	objectNames := buildpath.ObjectNames(buildConfig.Sources)
 
 	// Get dependency source path
 	depPath := dep.CachePath(".")
-
-	// Determine include path (per include path auto-detection pattern)
-	includePath := depPath
-	if len(buildConfig.Includes) > 0 {
-		includePath = filepath.Join(depPath, buildConfig.Includes[0])
-	} else if info, err := os.Stat(filepath.Join(depPath, "include")); err == nil && info.IsDir() {
-		includePath = filepath.Join(depPath, "include")
+	resolved, err := build.ResolveDepConfig(dep, depPath)
+	if err != nil {
+		return nil, err
 	}
+	objectNames := buildpath.ObjectNames(resolved.Sources)
+	includes := append(append([]string(nil), resolved.Includes...), dependencyIncludePath(dep))
 
-	// Build config for dependency (minimal defaults)
+	optimization := variant.Optimization
+	if optimization == "" {
+		optimization = "none"
+	}
 	buildCfg := toolchain.Config{
-		Optimize:         "none",
+		Optimize:         optimization,
 		Warnings:         "default",
 		WarningsAsErrors: false, // Don't treat warnings as errors for deps
 	}
 
-	for _, source := range buildConfig.Sources {
+	for _, source := range resolved.Sources {
 		srcPath := filepath.Join(depPath, source)
 		objPath := depObjectPath(opts.BuildDir, opts.Variant, dep.Name(), objectNames[source])
 
 		// Build arguments
-		args := buildDepCompilerArgs(opts, buildConfig, includePath, srcPath, objPath, buildCfg)
+		args := buildCompilerArgs(tc, opts.Config.Toolchain.Std, includes, resolved.Defines, srcPath, objPath, buildCfg)
 
 		// Make paths absolute
 		srcAbs := AbsPath(srcPath)
@@ -176,88 +178,64 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 }
 
 // buildCompilerArgs constructs the full compiler command arguments
-func buildCompilerArgs(opts CompDBOptions, target config.Target, source, objPath string, buildCfg toolchain.Config) []string {
+func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, defines []string, source, objPath string, buildCfg toolchain.Config) []string {
 	var args []string
+	msvc := tc.Name() == "msvc"
 
 	// 1. Compiler executable (based on file extension)
-	compiler := compilerForSource(opts.Toolchain, source)
+	compiler := compilerForSource(tc, source)
 	args = append(args, compiler)
 
 	// 2. Compile-only flag
-	args = append(args, "-c")
+	if msvc {
+		args = append(args, "/c")
+	} else {
+		args = append(args, "-c")
+	}
 
 	// 3. Source file (absolute path)
 	args = append(args, AbsPath(source))
 
 	// 4. Output file
-	args = append(args, "-o", AbsPath(objPath))
+	if msvc {
+		args = append(args, "/Fo"+AbsPath(objPath))
+	} else {
+		args = append(args, "-o", AbsPath(objPath))
+	}
 
 	// 5. Include paths
-	for _, include := range target.Includes {
-		args = append(args, "-I"+AbsPath(include))
+	for _, include := range includes {
+		prefix := "-I"
+		if msvc {
+			prefix = "/I"
+		}
+		args = append(args, prefix+AbsPath(include))
+	}
+	if msvc {
+		for _, include := range toolchainEnvironmentPaths(tc, "INCLUDE") {
+			args = append(args, "/I"+include)
+		}
 	}
 
 	// 6. Defines
-	for _, define := range target.Defines {
-		args = append(args, "-D"+define)
+	for _, define := range defines {
+		prefix := "-D"
+		if msvc {
+			prefix = "/D"
+		}
+		args = append(args, prefix+define)
 	}
 
 	// 7. Language standard
-	if opts.Config.Toolchain.Std != "" {
-		args = append(args, "-std="+opts.Config.Toolchain.Std)
+	if std != "" {
+		if msvc {
+			args = append(args, "/std:"+build.TranslateStdForMSVC(std))
+		} else {
+			args = append(args, "-std="+std)
+		}
 	}
 
 	// 8. Semantic flags (using build package for consistency)
-	tc, err := build.NewToolchain(opts.Toolchain, toolchain.HostPlatform())
-	if err != nil {
-		// Fallback to gcc if toolchain creation fails
-		tc, _ = build.NewToolchain("gcc", toolchain.HostPlatform())
-	}
-	semanticFlags := tc.CompilerFlags(buildCfg)
-	args = append(args, semanticFlags...)
-
-	return args
-}
-
-// buildDepCompilerArgs constructs compiler arguments for a dependency source
-func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, includePath, source, objPath string, buildCfg toolchain.Config) []string {
-	var args []string
-
-	// 1. Compiler executable
-	compiler := compilerForSource(opts.Toolchain, source)
-	args = append(args, compiler)
-
-	// 2. Compile-only flag
-	args = append(args, "-c")
-
-	// 3. Source file
-	args = append(args, AbsPath(source))
-
-	// 4. Output file
-	args = append(args, "-o", AbsPath(objPath))
-
-	// 5. Include paths
-	args = append(args, "-I"+AbsPath(includePath))
-	for _, include := range buildConfig.Includes {
-		args = append(args, "-I"+AbsPath(include))
-	}
-
-	// 6. Defines
-	for _, define := range buildConfig.Defines {
-		args = append(args, "-D"+define)
-	}
-
-	// 7. Language standard
-	if opts.Config.Toolchain.Std != "" {
-		args = append(args, "-std="+opts.Config.Toolchain.Std)
-	}
-
-	// 8. Semantic flags
-	tc, err := build.NewToolchain(opts.Toolchain, toolchain.HostPlatform())
-	if err != nil {
-		// Fallback to gcc if toolchain creation fails
-		tc, _ = build.NewToolchain("gcc", toolchain.HostPlatform())
-	}
 	semanticFlags := tc.CompilerFlags(buildCfg)
 	args = append(args, semanticFlags...)
 
@@ -265,19 +243,11 @@ func buildDepCompilerArgs(opts CompDBOptions, buildConfig *deps.InlineConfig, in
 }
 
 // compilerForSource returns the appropriate compiler for a source file
-func compilerForSource(toolchain, source string) string {
-	isCPP := isCPlusPlusFile(source)
-	if toolchain == "gcc" {
-		if isCPP {
-			return "g++"
-		}
-		return "gcc"
+func compilerForSource(tc toolchain.Toolchain, source string) string {
+	if isCPlusPlusFile(source) {
+		return tc.CXX()
 	}
-	// Default to clang
-	if isCPP {
-		return "clang++"
-	}
-	return "clang"
+	return tc.CC()
 }
 
 // isCPlusPlusFile detects if a file is C++ based on extension

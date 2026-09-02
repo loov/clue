@@ -8,8 +8,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/gcc"
+	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
 func TestCompileCommands_Basic(t *testing.T) {
@@ -619,11 +623,46 @@ func TestCompilerForSource(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := compilerForSource(tc.toolchain, tc.source)
+		compiler, err := build.NewToolchain(tc.toolchain, toolchain.HostPlatform())
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := compilerForSource(compiler, tc.source)
 		if result != tc.expected {
 			t.Errorf("compilerForSource(%q, %q) = %q, expected %q",
 				tc.toolchain, tc.source, result, tc.expected)
 		}
+	}
+
+	cross := gcc.New("aarch64-linux-gnu-gcc", "aarch64-linux-gnu-g++", "aarch64-linux-gnu-ar", toolchain.Platform{OS: "linux", Arch: "arm64"})
+	if got := compilerForSource(cross, "main.cpp"); got != "aarch64-linux-gnu-g++" {
+		t.Errorf("compilerForSource() = %q, expected cross-compiler path", got)
+	}
+}
+
+func TestBuildCompilerArgs_MSVC(t *testing.T) {
+	tc, err := msvc.New(&msvc.Installation{Environment: map[string]string{
+		"INCLUDE": `C:\VS Include;C:\SDK`,
+	}}, toolchain.Platform{OS: "windows", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := buildCompilerArgs(tc, "c++20", []string{"include"}, []string{"DEBUG"}, "main.cpp", "main.obj", toolchain.Config{})
+
+	if args[0] != "cl.exe" {
+		t.Fatalf("expected MSVC compiler, got %v", args)
+	}
+	if !containsArg(args, "/c") || containsArg(args, "-c") {
+		t.Fatalf("expected MSVC compile syntax, got %v", args)
+	}
+	if !containsArg(args, "/std:c++20") || !containsArg(args, "/DDEBUG") {
+		t.Fatalf("expected MSVC flags, got %v", args)
+	}
+	if !slices.ContainsFunc(args, func(arg string) bool { return strings.HasPrefix(arg, "/Fo") }) {
+		t.Fatalf("expected MSVC output flag, got %v", args)
+	}
+	if !containsArg(args, `/IC:\VS Include`) || !containsArg(args, `/IC:\SDK`) {
+		t.Fatalf("expected captured MSVC includes, got %v", args)
 	}
 }
 
