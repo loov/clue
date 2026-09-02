@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -47,13 +46,8 @@ func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) 
 		fmt.Printf("[exec] %s %s\n", name, strings.Join(args, " "))
 	}
 
-	// Create command with context for cancellation support
-	cmd := exec.CommandContext(ctx, name, args...)
-
-	// Set up process group for clean termination
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true, // Create new process group
-	}
+	cmd := exec.Command(name, args...)
+	configureProcess(cmd)
 
 	// Set working directory if specified
 	if e.config.WorkDir != "" {
@@ -61,53 +55,44 @@ func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) 
 	}
 
 	var stdout, stderr bytes.Buffer
-	var err error
-
 	if e.config.StreamOutput {
 		// Stream output directly to terminal
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		err = cmd.Run()
 	} else {
 		// Capture output
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
-		err = cmd.Run()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
 	}
 
-	duration := time.Since(start)
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
 
-	// Extract exit code
-	exitCode := 0
-	if err != nil {
-		// Check if it's an exit error
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			// Extract exit code from wait status
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				exitCode = status.ExitStatus()
-			} else {
-				// Fallback: try to get from ExitCode() method
-				exitCode = exitErr.ExitCode()
+	select {
+	case err := <-done:
+		result := e.buildResult(err, stdout, stderr, start)
+		return result, e.checkError(err)
+	case <-ctx.Done():
+		terminateProcess(cmd.Process)
+		select {
+		case <-done:
+		case <-time.After(100 * time.Millisecond):
+			killProcess(cmd.Process)
+			select {
+			case <-done:
+			case <-time.After(time.Second):
 			}
-		} else {
-			// Command didn't start or other error - return error immediately
-			return nil, err
 		}
+		return nil, ctx.Err()
 	}
-
-	result := &CommandResult{
-		ExitCode: exitCode,
-		Stdout:   stdout.String(),
-		Stderr:   stderr.String(),
-		Duration: duration,
-	}
-
-	// If non-zero exit code, include it in the error
-	if exitCode != 0 {
-		return result, fmt.Errorf("command exited with code %d", exitCode)
-	}
-
-	return result, nil
 }
 
 // ToolExists checks if a tool is available in PATH
@@ -120,68 +105,7 @@ func (e *Executor) ToolExists(name string) bool {
 // On context cancellation, it sends SIGTERM first for graceful shutdown, then SIGKILL if
 // the process doesn't exit within 100ms.
 func (e *Executor) RunCommandWithCleanup(ctx context.Context, name string, args ...string) (*CommandResult, error) {
-	start := time.Now()
-
-	if e.config.Verbose {
-		fmt.Printf("[exec] %s %s\n", name, strings.Join(args, " "))
-	}
-
-	cmd := exec.CommandContext(ctx, name, args...)
-
-	// Set working directory if specified
-	if e.config.WorkDir != "" {
-		cmd.Dir = e.config.WorkDir
-	}
-
-	// Create process group for clean termination
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-
-	var stdout, stderr bytes.Buffer
-	if e.config.StreamOutput {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	} else {
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-	}
-
-	// Start process
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-
-	// Wait with cleanup on cancellation
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	select {
-	case err := <-done:
-		// Normal completion
-		return e.buildResult(err, stdout, stderr, start), e.checkError(err)
-	case <-ctx.Done():
-		// Context cancelled - cleanup process group
-		if cmd.Process != nil {
-			pgid, err := syscall.Getpgid(cmd.Process.Pid)
-			if err == nil {
-				// Graceful termination first (ignore error - process may have already exited)
-				_ = syscall.Kill(-pgid, syscall.SIGTERM)
-
-				// Wait briefly for graceful exit
-				select {
-				case <-done:
-					// Process exited gracefully
-				case <-time.After(100 * time.Millisecond):
-					// Force kill (ignore error - process may have already exited)
-					_ = syscall.Kill(-pgid, syscall.SIGKILL)
-				}
-			}
-		}
-		return nil, ctx.Err()
-	}
+	return e.RunCommand(ctx, name, args...)
 }
 
 // buildResult creates a CommandResult from command execution
@@ -189,11 +113,7 @@ func (e *Executor) buildResult(err error, stdout, stderr bytes.Buffer, start tim
 	exitCode := 0
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				exitCode = status.ExitStatus()
-			} else {
-				exitCode = exitErr.ExitCode()
-			}
+			exitCode = exitErr.ExitCode()
 		}
 	}
 	return &CommandResult{
@@ -210,11 +130,7 @@ func (e *Executor) checkError(err error) error {
 		return nil
 	}
 	if exitErr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-			if status.ExitStatus() != 0 {
-				return fmt.Errorf("command exited with code %d", status.ExitStatus())
-			}
-		}
+		return fmt.Errorf("command exited with code %d", exitErr.ExitCode())
 	}
 	return err
 }
