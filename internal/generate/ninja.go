@@ -12,6 +12,7 @@ import (
 	"github.com/Duncaen/go-ninja"
 
 	"github.com/loov/clue/internal/build"
+	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -19,10 +20,10 @@ import (
 // NinjaOptions holds options for generating build.ninja
 type NinjaOptions struct {
 	Config     *config.Config
-	Variants   []string          // Variants to include (e.g., ["debug", "release"])
-	BuildDir   string            // e.g., ".build"
-	OutputPath string            // Output file path (default: build.ninja)
-	Toolchain  string            // "clang" or "gcc"
+	Variants   []string           // Variants to include (e.g., ["debug", "release"])
+	BuildDir   string             // e.g., ".build"
+	OutputPath string             // Output file path (default: build.ninja)
+	Toolchain  string             // "clang" or "gcc"
 	Platform   toolchain.Platform // Target platform
 }
 
@@ -202,10 +203,11 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	}
 
 	var objects []string
+	objectNames := buildpath.ObjectNames(target.Sources)
 
 	for _, source := range target.Sources {
 		// Determine object path
-		objPath := ninjaPathLocal(objectPath(opts.BuildDir, variant, target.Name, source))
+		objPath := ninjaPathLocal(objectPath(opts.BuildDir, variant, target.Name, objectNames[source]))
 		srcPath := ninjaPathLocal(source)
 
 		objects = append(objects, objPath)

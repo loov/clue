@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
@@ -260,10 +261,10 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 
 	// Compute compiler flags once for cache checks
 	compilerFlags := b.toolchain.CompilerFlags(buildCfg)
+	objectNames := buildpath.ObjectNames(target.Sources)
 
 	for _, source := range sourcesToCompile {
-		objName := filepath.Base(source) + ".o"
-		objPath := filepath.Join(objDir, objName)
+		objPath := filepath.Join(objDir, objectNames[source])
 
 		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
 			source, compilerFlags, includes, compilerPath, opts.ForceRebuild,
@@ -351,8 +352,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 						if modName := sourceToModule[r.Source]; modName != "" {
 							compiledModules[modName] = filepath.Join(bmiDir, modName+".pcm")
 						}
-						depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
-						err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, compilerFlags, includes, compilerPath)
+						err := b.cacheManager.StoreResult(r.Source, r.Object, r.DepFile, compilerFlags, includes, compilerPath)
 						if err != nil && opts.Verbosity == VerbosityVerbose {
 							fmt.Printf("  Warning: failed to cache result: %v\n", err)
 						}
@@ -385,8 +385,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				for _, r := range results {
 					if r.Error == nil {
 						compiledObjects = append(compiledObjects, r.Object)
-						depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
-						err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, compilerFlags, includes, compilerPath)
+						err := b.cacheManager.StoreResult(r.Source, r.Object, r.DepFile, compilerFlags, includes, compilerPath)
 						if err != nil && opts.Verbosity == VerbosityVerbose {
 							fmt.Printf("  Warning: failed to cache result: %v\n", err)
 						}
@@ -408,8 +407,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				if r.Error == nil {
 					compiledObjects = append(compiledObjects, r.Object)
 					// Store in cache
-					depPath := filepath.Join(objDir, filepath.Base(r.Source)+".d")
-					err := b.cacheManager.StoreResult(r.Source, r.Object, depPath, compilerFlags, includes, compilerPath)
+					err := b.cacheManager.StoreResult(r.Source, r.Object, r.DepFile, compilerFlags, includes, compilerPath)
 					if err != nil && opts.Verbosity == VerbosityVerbose {
 						fmt.Printf("  Warning: failed to cache result: %v\n", err)
 					}

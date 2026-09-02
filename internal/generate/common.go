@@ -22,11 +22,10 @@ func NinjaPath(path string) string {
 	return filepath.ToSlash(filepath.Clean(path))
 }
 
-// objectPath returns the path for an object file
+// objectPath returns the path for a named object file
 // Shared between compdb.go and ninja.go generators
-func objectPath(buildDir, variant, targetName, source string) string {
-	objName := filepath.Base(source) + ".o"
-	return filepath.Join(buildDir, variant, targetName, "obj", objName)
+func objectPath(buildDir, variant, targetName, objectName string) string {
+	return filepath.Join(buildDir, variant, targetName, "obj", objectName)
 }
 
 // targetToBuildConfig converts config.Target and config.Variant to toolchain.Config

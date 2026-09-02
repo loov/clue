@@ -11,6 +11,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 
+	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -81,10 +82,10 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 
 	// Compile each source file to object file
 	var objectFiles []string
+	objectNames := buildpath.ObjectNames(cfg.Sources)
 	for _, src := range cfg.Sources {
 		absPath := filepath.Join(sourcePath, src)
-		objName := filepath.Base(src) + ".o"
-		objPath := filepath.Join(objDir, objName)
+		objPath := filepath.Join(objDir, objectNames[src])
 
 		// Compile source
 		compileOpts := CompileOptions{

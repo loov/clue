@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/loov/clue/internal/build"
+	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
@@ -95,10 +96,11 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 
 	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
+	objectNames := buildpath.ObjectNames(target.Sources)
 
 	for _, source := range target.Sources {
 		// Determine object path
-		objPath := objectPath(opts.BuildDir, opts.Variant, target.Name, source)
+		objPath := objectPath(opts.BuildDir, opts.Variant, target.Name, objectNames[source])
 
 		// Build compiler arguments
 		args := buildCompilerArgs(opts, target, source, objPath, buildCfg)
@@ -138,6 +140,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 	}
 
 	var commands []CompileCommand
+	objectNames := buildpath.ObjectNames(buildConfig.Sources)
 
 	// Get dependency source path
 	depPath := dep.CachePath(".")
@@ -159,7 +162,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 
 	for _, source := range buildConfig.Sources {
 		srcPath := filepath.Join(depPath, source)
-		objPath := depObjectPath(opts.BuildDir, opts.Variant, dep.Name(), source)
+		objPath := depObjectPath(opts.BuildDir, opts.Variant, dep.Name(), objectNames[source])
 
 		// Build arguments
 		args := buildDepCompilerArgs(opts, buildConfig, includePath, srcPath, objPath, buildCfg)
@@ -302,9 +305,8 @@ func isCPlusPlusFile(source string) bool {
 }
 
 // depObjectPath returns the object file path for a dependency source
-func depObjectPath(buildDir, variant, depName, source string) string {
-	objName := filepath.Base(source) + ".o"
-	return filepath.Join(buildDir, variant, "deps", depName, "obj", objName)
+func depObjectPath(buildDir, variant, depName, objectName string) string {
+	return filepath.Join(buildDir, variant, "deps", depName, "obj", objectName)
 }
 
 // Note: objectPath and targetToBuildConfig are defined in common.go

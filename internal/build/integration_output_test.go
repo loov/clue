@@ -140,3 +140,54 @@ targets: {
 
 	t.Logf("Shared library test passed: %s linked with %s", exePath, sharedLibPath)
 }
+
+func TestBuildDisambiguatesDuplicateSourceBasenames(t *testing.T) {
+	testclue.SkipIfNoClangPP(t)
+
+	tmpDir := t.TempDir()
+	firstDir := filepath.Join(tmpDir, "first")
+	secondDir := filepath.Join(tmpDir, "second")
+	if err := os.MkdirAll(firstDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(secondDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	first := filepath.Join(firstDir, "same.cpp")
+	second := filepath.Join(secondDir, "same.cpp")
+	if err := os.WriteFile(first, []byte("int first() { return 1; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(second, []byte("int second() { return 2; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		Toolchain: config.Toolchain{Compiler: "clang", Std: "c++17"},
+		Targets: map[string]config.Target{
+			"library": {
+				Name:    "library",
+				Type:    "static_library",
+				Sources: []string{first, second},
+			},
+		},
+	}
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityQuiet, 2, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildDir := filepath.Join(tmpDir, ".build")
+	if _, err := builder.Build(context.Background(), Options{
+		Config: cfg, Variant: "debug", BuildDir: buildDir, Verbosity: VerbosityQuiet, Jobs: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	objects, err := filepath.Glob(filepath.Join(buildDir, "debug", "library", "obj", "*.o"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objects) != 2 || objects[0] == objects[1] {
+		t.Fatalf("expected two distinct objects, got %v", objects)
+	}
+}
