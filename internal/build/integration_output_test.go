@@ -91,6 +91,7 @@ targets: {
 		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 		Jobs:      1,
+		Targets:   []string{"myapp"},
 	}
 
 	// Build

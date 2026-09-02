@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"time"
 
 	"github.com/loov/clue/internal/cache"
@@ -634,16 +633,31 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine build order: %w", err)
 	}
+	var selected map[string]bool
+	if len(opts.Targets) > 0 {
+		selected = make(map[string]bool)
+		var include func(string)
+		include = func(name string) {
+			if selected[name] {
+				return
+			}
+			selected[name] = true
+			for _, dependency := range opts.Config.Targets[name].Depends {
+				if _, internal := opts.Config.Targets[dependency]; internal {
+					include(dependency)
+				}
+			}
+		}
+		for _, target := range opts.Targets {
+			include(target)
+		}
+	}
 
 	// Count total source files for progress
 	totalSources := 0
 	for _, targetName := range buildOrder {
-		// Skip if specific targets requested and this isn't one
-		if len(opts.Targets) > 0 {
-			found := slices.Contains(opts.Targets, targetName)
-			if !found {
-				continue
-			}
+		if selected != nil && !selected[targetName] {
+			continue
 		}
 
 		target := opts.Config.Targets[targetName]
@@ -656,12 +670,8 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	// Build each target in order
 	var results []TargetResult
 	for _, targetName := range buildOrder {
-		// Skip if specific targets requested and this isn't one
-		if len(opts.Targets) > 0 {
-			found := slices.Contains(opts.Targets, targetName)
-			if !found {
-				continue
-			}
+		if selected != nil && !selected[targetName] {
+			continue
 		}
 
 		target := opts.Config.Targets[targetName]
