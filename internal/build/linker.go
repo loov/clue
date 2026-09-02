@@ -21,6 +21,30 @@ func SharedLibraryExtension(target Platform) string {
 	}
 }
 
+// ExecutableName returns the platform-specific executable filename.
+func ExecutableName(name string, target Platform) string {
+	if target.OS == "windows" {
+		return name + ".exe"
+	}
+	return name
+}
+
+// StaticLibraryName returns the platform-specific static library filename.
+func StaticLibraryName(name string, target Platform) string {
+	if target.OS == "windows" {
+		return name + ".lib"
+	}
+	return "lib" + name + ".a"
+}
+
+// SharedLibraryName returns the platform-specific shared library filename.
+func SharedLibraryName(name string, target Platform) string {
+	if target.OS == "windows" {
+		return name + ".dll"
+	}
+	return "lib" + name + SharedLibraryExtension(target)
+}
+
 // LinkOptions holds options for linking an executable
 type LinkOptions struct {
 	Objects  []string // Object files to link

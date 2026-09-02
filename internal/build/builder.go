@@ -109,14 +109,13 @@ func (b *Builder) ObjectDir(buildDir, variant, target string) string {
 func (b *Builder) OutputPath(buildDir, variant, target, targetType string) string {
 	switch targetType {
 	case "executable":
-		return filepath.Join(buildDir, variant, "bin", target)
+		return filepath.Join(buildDir, variant, "bin", ExecutableName(target, b.target))
 	case "static_library":
-		return filepath.Join(buildDir, variant, "lib", "lib"+target+".a")
+		return filepath.Join(buildDir, variant, "lib", StaticLibraryName(target, b.target))
 	case "shared_library":
-		ext := SharedLibraryExtension(b.target)
-		return filepath.Join(buildDir, variant, "lib", "lib"+target+ext)
+		return filepath.Join(buildDir, variant, "lib", SharedLibraryName(target, b.target))
 	default:
-		return filepath.Join(buildDir, variant, "bin", target)
+		return filepath.Join(buildDir, variant, "bin", ExecutableName(target, b.target))
 	}
 }
 

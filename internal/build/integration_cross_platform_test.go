@@ -482,18 +482,32 @@ func TestOutputPathExtensions(t *testing.T) {
 			expectedExt:  "",
 			expectedPath: "bin/mylib",
 		},
+		{
+			name:         "windows shared library",
+			platform:     Platform{OS: "windows", Arch: "amd64"},
+			targetType:   "shared_library",
+			expectedExt:  ".dll",
+			expectedPath: "lib/mylib.dll",
+		},
+		{
+			name:         "windows static library",
+			platform:     Platform{OS: "windows", Arch: "amd64"},
+			targetType:   "static_library",
+			expectedExt:  ".lib",
+			expectedPath: "lib/mylib.lib",
+		},
+		{
+			name:         "windows executable",
+			platform:     Platform{OS: "windows", Arch: "amd64"},
+			targetType:   "executable",
+			expectedExt:  ".exe",
+			expectedPath: "bin/mylib.exe",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create builder with target platform
-			builder, err := NewBuilder("clang", tt.platform, VerbosityNormal, 1, false)
-			if err != nil {
-				// If toolchain discovery fails, skip (cross-compiler may not be available)
-				t.Skipf("toolchain not available for %s: %v", tt.platform, err)
-			}
-
-			// Get output path
+			builder := &Builder{target: tt.platform}
 			outputPath := builder.OutputPath("/build", "debug", "mylib", tt.targetType)
 
 			// Verify extension

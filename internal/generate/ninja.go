@@ -177,11 +177,8 @@ func dependencyDepends(dep deps.Dependency) []string {
 }
 
 func dependencyOutputPath(buildDir, variant string, dep deps.Dependency, platform toolchain.Platform) string {
-	name := "lib" + dep.Name() + ".a"
-	if dependencyTargetType(dep) == "shared_library" {
-		name = "lib" + dep.Name() + build.SharedLibraryExtension(platform)
-	}
-	return filepath.Join(buildDir, variant, "deps", dep.Name(), "lib", name)
+	return filepath.Join(buildDir, variant, "deps", dep.Name(), "lib",
+		outputNameForTarget(dep.Name(), dependencyTargetType(dep), platform))
 }
 
 func dependencyIncludePath(dep deps.Dependency) string {
@@ -523,16 +520,26 @@ func ninjaPathLocal(path string) string {
 
 // outputPathForTarget returns the output path for a target
 func outputPathForTarget(buildDir, variant, target, targetType string, platform toolchain.Platform) string {
+	return filepath.Join(buildDir, variant, outputDirectoryForTarget(targetType), outputNameForTarget(target, targetType, platform))
+}
+
+func outputDirectoryForTarget(targetType string) string {
+	if targetType == "executable" {
+		return "bin"
+	}
+	return "lib"
+}
+
+func outputNameForTarget(target, targetType string, platform toolchain.Platform) string {
 	switch targetType {
 	case "executable":
-		return filepath.Join(buildDir, variant, "bin", target)
+		return build.ExecutableName(target, platform)
 	case "static_library":
-		return filepath.Join(buildDir, variant, "lib", "lib"+target+".a")
+		return build.StaticLibraryName(target, platform)
 	case "shared_library":
-		ext := build.SharedLibraryExtension(platform)
-		return filepath.Join(buildDir, variant, "lib", "lib"+target+ext)
+		return build.SharedLibraryName(target, platform)
 	default:
-		return filepath.Join(buildDir, variant, "bin", target)
+		return target
 	}
 }
 

@@ -438,6 +438,20 @@ func TestNinja_SharedLibrary_Darwin(t *testing.T) {
 	}
 }
 
+func TestOutputNameForTarget_Windows(t *testing.T) {
+	platform := toolchain.Platform{OS: "windows", Arch: "amd64"}
+	tests := map[string]string{
+		"executable":     "app.exe",
+		"static_library": "app.lib",
+		"shared_library": "app.dll",
+	}
+	for targetType, want := range tests {
+		if got := outputNameForTarget("app", targetType, platform); got != want {
+			t.Errorf("outputNameForTarget(%q) = %q, want %q", targetType, got, want)
+		}
+	}
+}
+
 func TestNinja_IncludesAndDefines(t *testing.T) {
 	cfg := &config.Config{
 		Name:     "test-project",

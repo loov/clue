@@ -53,6 +53,11 @@ func TestPlatformString(t *testing.T) {
 			p:    Platform{OS: "darwin", Arch: "arm64"},
 			want: "darwin-arm64",
 		},
+		{
+			name: "windows-amd64",
+			p:    Platform{OS: "windows", Arch: "amd64"},
+			want: "windows-amd64",
+		},
 	}
 
 	for _, tt := range tests {
@@ -90,6 +95,11 @@ func TestParseTarget_Valid(t *testing.T) {
 			name:  "darwin-arm64",
 			input: "darwin-arm64",
 			want:  Platform{OS: "darwin", Arch: "arm64"},
+		},
+		{
+			name:  "windows-amd64",
+			input: "windows-amd64",
+			want:  Platform{OS: "windows", Arch: "amd64"},
 		},
 	}
 
@@ -136,11 +146,6 @@ func TestParseTarget_Invalid(t *testing.T) {
 			name:       "empty string",
 			input:      "",
 			wantErrMsg: "invalid target format",
-		},
-		{
-			name:       "unsupported - windows",
-			input:      "windows-amd64",
-			wantErrMsg: "unsupported target",
 		},
 		{
 			name:       "unsupported - freebsd",
@@ -192,9 +197,9 @@ func TestIsSupportedTarget(t *testing.T) {
 		},
 		// Unsupported platforms
 		{
-			name:      "windows-amd64 unsupported",
+			name:      "windows-amd64 supported",
 			platform:  Platform{OS: "windows", Arch: "amd64"},
-			supported: false,
+			supported: true,
 		},
 		{
 			name:      "freebsd-amd64 unsupported",

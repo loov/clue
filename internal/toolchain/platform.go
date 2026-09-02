@@ -8,7 +8,7 @@ import (
 
 // Platform represents an OS-architecture combination for cross-platform builds.
 type Platform struct {
-	OS   string // "linux", "darwin"
+	OS   string // "linux", "darwin", "windows"
 	Arch string // "amd64", "arm64"
 }
 
@@ -33,10 +33,11 @@ func (p Platform) IsCrossCompile() bool {
 
 // supportedPlatforms defines the platforms supported for building.
 var supportedPlatforms = map[string]bool{
-	"linux-amd64":  true,
-	"linux-arm64":  true,
-	"darwin-amd64": true,
-	"darwin-arm64": true,
+	"linux-amd64":   true,
+	"linux-arm64":   true,
+	"darwin-amd64":  true,
+	"darwin-arm64":  true,
+	"windows-amd64": true,
 }
 
 // IsSupportedTarget checks if a platform is supported for building.
@@ -46,7 +47,7 @@ func IsSupportedTarget(p Platform) bool {
 
 // SupportedTargetsList returns a list of supported target platforms for error messages.
 func SupportedTargetsList() []string {
-	return []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64"}
+	return []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64", "windows-amd64"}
 }
 
 // ParseTarget parses a target flag in "os-arch" format into a Platform.
