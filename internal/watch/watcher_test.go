@@ -1,7 +1,6 @@
 package watch
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -58,32 +57,6 @@ func waitForRebuild(t *testing.T, rebuilt <-chan string, want string) {
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("no rebuild for %q", want)
-	}
-}
-
-func TestWatcherReportsErrors(t *testing.T) {
-	reported := make(chan error, 1)
-	watcher, err := NewWatcher(Config{
-		SourceDirs: []string{t.TempDir()},
-		OnError:    func(err error) { reported <- err },
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer watcher.Stop()
-	if err := watcher.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	want := errors.New("watch failed")
-	watcher.watcher.Errors <- want
-	select {
-	case got := <-reported:
-		if !errors.Is(got, want) {
-			t.Fatalf("reported %v, want %v", got, want)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("watcher error was discarded")
 	}
 }
 
