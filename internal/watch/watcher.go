@@ -27,6 +27,8 @@ type Config struct {
 	// trigger is the path of the first file that triggered the rebuild.
 	// isConfigChange is true if a .cue file changed (requires config reload).
 	OnRebuild func(trigger string, isConfigChange bool)
+	// OnError receives asynchronous filesystem watcher failures.
+	OnError func(error)
 }
 
 // Watcher monitors source directories for file changes and triggers
@@ -132,12 +134,13 @@ func (w *Watcher) eventLoop() {
 			}
 			w.handleEvent(event)
 
-		case _, ok := <-w.watcher.Errors:
+		case err, ok := <-w.watcher.Errors:
 			if !ok {
 				return
 			}
-			// Log errors but continue watching
-			// In production, this could be logged via a logger interface
+			if w.config.OnError != nil {
+				w.config.OnError(err)
+			}
 		}
 	}
 }

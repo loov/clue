@@ -754,6 +754,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		BuildCuePath: buildCuePath,
 		DebounceDur:  300 * time.Millisecond,
 		OnRebuild:    doBuild,
+		OnError:      printError,
 	})
 	if err != nil {
 		printError(err)

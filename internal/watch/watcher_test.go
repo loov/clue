@@ -1,12 +1,39 @@
 package watch
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
+
+func TestWatcherReportsErrors(t *testing.T) {
+	reported := make(chan error, 1)
+	watcher, err := NewWatcher(Config{
+		SourceDirs: []string{t.TempDir()},
+		OnError:    func(err error) { reported <- err },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer watcher.Stop()
+	if err := watcher.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	want := errors.New("watch failed")
+	watcher.watcher.Errors <- want
+	select {
+	case got := <-reported:
+		if !errors.Is(got, want) {
+			t.Fatalf("reported %v, want %v", got, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("watcher error was discarded")
+	}
+}
 
 func TestIsRelevantFile(t *testing.T) {
 	tests := []struct {
