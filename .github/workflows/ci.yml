@@ -17,10 +17,11 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
-      - name: Install Clang module tools
+      - name: Install Clang 22
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends clang-tools-18
-          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+          wget --quiet https://apt.llvm.org/llvm.sh
+          sudo bash llvm.sh 22
+          sudo apt-get install --yes --no-install-recommends clang-tools-22
+          echo /usr/lib/llvm-22/bin >> "$GITHUB_PATH"
       - run: make lint
       - run: make test
