@@ -2,6 +2,7 @@ package profile
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,12 +54,12 @@ func (p *Profiler) buildChromeTrace() ChromeTrace {
 }
 
 // WriteTrace exports the profiler data to a Chrome Trace JSON file
-func (p *Profiler) WriteTrace(path string) error {
+func (p *Profiler) WriteTrace(path string) (resultErr error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create trace file: %w", err)
 	}
-	defer f.Close()
+	defer func() { resultErr = errors.Join(resultErr, f.Close()) }()
 
 	trace := p.buildChromeTrace()
 
