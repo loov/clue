@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -47,6 +48,10 @@ func TestBuildEnvCUE(t *testing.T) {
 	}
 	if !contains(cue, "WITH_SPECIAL:") {
 		t.Error("Generated CUE should contain WITH_SPECIAL key")
+	}
+	if strings.Index(cue, "SIMPLE:") > strings.Index(cue, "WITH_BACKSLASH:") ||
+		strings.Index(cue, "WITH_BACKSLASH:") > strings.Index(cue, "WITH_SPECIAL:") {
+		t.Errorf("Generated CUE keys are not sorted:\n%s", cue)
 	}
 }
 

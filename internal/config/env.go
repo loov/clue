@@ -3,8 +3,10 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -243,7 +245,8 @@ func buildEnvCUE(envVars map[string]string) string {
 	var buf bytes.Buffer
 	buf.WriteString("// Injected environment variables\n")
 	buf.WriteString("_env: {\n")
-	for k, v := range envVars {
+	for _, k := range slices.Sorted(maps.Keys(envVars)) {
+		v := envVars[k]
 		// Escape special characters in value
 		escaped := escapeString(v)
 		_, _ = fmt.Fprintf(&buf, "\t%s: %q\n", sanitizeKey(k), escaped)
