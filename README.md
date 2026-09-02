@@ -43,6 +43,8 @@ clue validate    # Check configuration
 clue build       # Build project
 ```
 
+`clue.cue` may use a CUE package and split configuration across other `.cue` files in the same directory.
+
 ## Commands
 
 - `clue validate` - Validate configuration and check dependencies

@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
+	"cuelang.org/go/cue/parser"
 
 	clerrors "github.com/loov/clue/internal/errors"
 )
@@ -181,63 +181,16 @@ func (l *LoaderWithEnv) Load(dir string) (*Config, error) {
 
 	// Build CUE content with environment variables
 	envCUE := buildEnvCUE(l.envVars)
+	if entry, parseErr := parser.ParseFile(filepath.Join(absDir, "clue.cue"), nil); parseErr == nil && entry.PackageName() != "" {
+		envCUE = "package " + entry.PackageName() + "\n\n" + envCUE
+	}
 
 	// Create overlay to inject env vars
-	envFile := filepath.Join(absDir, "_clue_env.cue")
-	cfg := &load.Config{
-		Dir: absDir,
-		Overlay: map[string]load.Source{
-			envFile: load.FromBytes([]byte(envCUE)),
-		},
+	envFile := filepath.Join(absDir, "clue_env.cue")
+	overlay := map[string]load.Source{
+		envFile: load.FromBytes([]byte(envCUE)),
 	}
-
-	instances := load.Instances([]string{"."}, cfg)
-	if len(instances) == 0 {
-		return nil, &clerrors.RichError{
-			File:       filepath.Join(absDir, "clue.cue"),
-			Message:    "no CUE configuration files found",
-			Suggestion: "create a clue.cue file in this directory",
-		}
-	}
-
-	inst := instances[0]
-	if inst.Err != nil {
-		return nil, l.convertCUEError(inst.Err, absDir)
-	}
-
-	// Compile embedded schema
-	ctx := cuecontext.New()
-	schema := ctx.CompileString(Schema, cue.Filename("schema.cue"))
-	if err := schema.Err(); err != nil {
-		return nil, fmt.Errorf("internal error: invalid schema: %w", err)
-	}
-
-	// Build the instance
-	val := ctx.BuildInstance(inst)
-	if err := val.Err(); err != nil {
-		return nil, l.convertCUEError(err, absDir)
-	}
-
-	// Unify with schema
-	configSchema := schema.LookupPath(cue.ParsePath("#Config"))
-	unified := configSchema.Unify(val)
-
-	// Validate for concreteness
-	if err := unified.Validate(cue.Concrete(true)); err != nil {
-		return nil, l.convertCUEError(err, absDir)
-	}
-
-	// Extract config and inject env vars into the Raw value
-	config, err := l.extractConfig(unified)
-	if err != nil {
-		return nil, err
-	}
-
-	// Inject env vars into a custom field for access
-	envVal := ctx.CompileString(envCUE, cue.Filename("_env.cue"))
-	config.Raw = config.Raw.Unify(envVal)
-
-	return config, nil
+	return l.Loader.load(absDir, overlay)
 }
 
 // buildEnvCUE generates CUE content to inject environment variables

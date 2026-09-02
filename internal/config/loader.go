@@ -9,6 +9,8 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cueerrors "cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/load"
+	"cuelang.org/go/cue/parser"
 
 	"github.com/loov/clue/internal/deps"
 	clerrors "github.com/loov/clue/internal/errors"
@@ -140,22 +142,18 @@ func NewLoader() *Loader {
 
 // Load reads and validates a CUE configuration from a directory
 func (l *Loader) Load(dir string) (*Config, error) {
+	return l.load(dir, nil)
+}
+
+func (l *Loader) load(dir string, overlay map[string]load.Source) (*Config, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("invalid directory: %w", err)
 	}
 
-	// Compile embedded schema
-	schema := l.ctx.CompileString(Schema, cue.Filename("schema.cue"))
-	if err := schema.Err(); err != nil {
-		return nil, fmt.Errorf("internal error: invalid schema: %w", err)
-	}
-
-	// Load user configuration from clue.cue file
-	// We compile it directly to allow JSON/CUE data without package declarations
+	// clue.cue is the project entry point; the CUE loader evaluates its package.
 	configPath := filepath.Join(absDir, "clue.cue")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
+	if _, err := os.Stat(configPath); err != nil {
 		if os.IsNotExist(err) {
 			return nil, &clerrors.RichError{
 				File:       configPath,
@@ -165,11 +163,31 @@ func (l *Loader) Load(dir string) (*Config, error) {
 		}
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
+	entry, err := parser.ParseFile(configPath, nil)
+	if err != nil {
+		return nil, l.convertCUEError(err, absDir)
+	}
+	packageName := entry.PackageName()
+	if packageName == "" {
+		packageName = "_"
+	}
 
-	// Compile the bytes directly as data (no package declaration needed)
-	val := l.ctx.CompileBytes(data, cue.Filename(configPath))
+	instances := load.Instances([]string{"."}, &load.Config{Dir: absDir, Package: packageName, Overlay: overlay})
+	if len(instances) == 0 {
+		return nil, fmt.Errorf("failed to load CUE package from %s", absDir)
+	}
+	if instances[0].Err != nil {
+		return nil, l.convertCUEError(instances[0].Err, absDir)
+	}
+	val := l.ctx.BuildInstance(instances[0])
 	if err := val.Err(); err != nil {
 		return nil, l.convertCUEError(err, absDir)
+	}
+
+	// Compile embedded schema
+	schema := l.ctx.CompileString(Schema, cue.Filename("schema.cue"))
+	if err := schema.Err(); err != nil {
+		return nil, fmt.Errorf("internal error: invalid schema: %w", err)
 	}
 
 	// Unify with schema's #Config definition

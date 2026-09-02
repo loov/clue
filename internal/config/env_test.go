@@ -28,6 +28,24 @@ func TestEnvInjection(t *testing.T) {
 	}
 }
 
+func TestLoaderWithEnvLoadsPackageOverlay(t *testing.T) {
+	dir := t.TempDir()
+	contents := `package project
+name: _env.PROJECT_NAME
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoaderWithEnv(map[string]string{"PROJECT_NAME": "from-env"}).Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Name != "from-env" {
+		t.Fatalf("name = %q", cfg.Name)
+	}
+}
+
 func TestBuildEnvCUE(t *testing.T) {
 	envVars := map[string]string{
 		"SIMPLE":         "value",

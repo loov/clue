@@ -62,6 +62,32 @@ targets: app: {name: "app", type: "executable", sources: ["main.c", "main.cpp"]}
 	}
 }
 
+func TestLoaderLoadsWholeCUEPackage(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"clue.cue": `package project
+name: "split"
+toolchain: _toolchain
+`,
+		"targets.cue": `package project
+_toolchain: {compiler: "clang", cxxStd: "c++23"}
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+`,
+	}
+	for name, contents := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Name != "split" || cfg.Toolchain.CXXStd != "c++23" || cfg.Targets["app"].Name != "app" {
+		t.Fatalf("config = %+v", cfg)
+	}
+}
+
 func TestLoaderExtractsCustomTarget(t *testing.T) {
 	dir := t.TempDir()
 	config := `name: "generated"
