@@ -27,6 +27,26 @@ func TestCacheTarballRequiresCompletionMarker(t *testing.T) {
 	}
 }
 
+func TestCacheGitRequiresCompletionMarker(t *testing.T) {
+	cache, err := NewCache(t.TempDir(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dep := NewGitDependency("repo", "https://example.com/repo.git", "main", nil)
+	if err := os.MkdirAll(filepath.Join(cache.Path(dep), ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if cache.Has(dep) {
+		t.Fatal("partial Git cache was reported as complete")
+	}
+	if err := cache.MarkFetched(dep); err != nil {
+		t.Fatal(err)
+	}
+	if !cache.Has(dep) {
+		t.Fatal("completed Git cache was reported as missing")
+	}
+}
+
 func TestCacheCleanDepIgnoresShortUnrelatedNames(t *testing.T) {
 	cache, err := NewCache(t.TempDir(), false)
 	if err != nil {

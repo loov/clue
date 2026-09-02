@@ -50,13 +50,12 @@ func (c *Cache) Has(dep Dependency) bool {
 
 	switch dep.Type() {
 	case "git":
-		// For git deps, check if cache directory exists and has .git directory
-		gitDir := filepath.Join(cachePath, ".git")
-		info, err := os.Stat(gitDir)
+		gitInfo, err := os.Stat(filepath.Join(cachePath, ".git"))
 		if err != nil {
 			return false
 		}
-		return info.IsDir()
+		markerInfo, err := os.Stat(filepath.Join(cachePath, ".clue-dep"))
+		return err == nil && gitInfo.IsDir() && !markerInfo.IsDir()
 
 	case "tarball":
 		// The directory may be left behind by an interrupted extraction.
