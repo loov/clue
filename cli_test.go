@@ -106,6 +106,40 @@ func TestCLI_FlagsAfterCommand(t *testing.T) {
 	}
 }
 
+func TestCLI_DirBuildsFromProjectDirectory(t *testing.T) {
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+
+	projectDir := t.TempDir()
+	config := `name: "dir-test"
+version: "1.0.0"
+toolchain: {
+	compiler: "clang"
+	std: "c++17"
+}
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["main.cpp"]
+}
+`
+	if err := os.WriteFile(filepath.Join(projectDir, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "main.cpp"), []byte("int main() { return 0; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, exitCode := runClue(t, t.TempDir(), "-dir", projectDir, "build")
+	if exitCode != 0 {
+		t.Fatalf("build failed with exit code %d: %s", exitCode, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, ".build", "debug", "bin", "app")); err != nil {
+		t.Errorf("artifact was not written below the project directory: %v", err)
+	}
+}
+
 func TestCLI_BuildRejectsUnknownTarget(t *testing.T) {
 	testDir := filepath.Join("testdata", "sample")
 

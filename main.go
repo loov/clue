@@ -92,6 +92,11 @@ func main() {
 		fmt.Printf("clue version %s\n", version)
 		os.Exit(0)
 	}
+	if err := os.Chdir(opts.dir); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to enter project directory %q: %v\n", opts.dir, err)
+		os.Exit(1)
+	}
+	opts.dir = "."
 
 	// Validate verbosity flags
 	if err := build.ValidateVerbosityFlags(opts.quiet, opts.verbose); err != nil {
