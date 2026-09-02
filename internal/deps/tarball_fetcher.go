@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,7 +28,7 @@ func NewTarballFetcher(verbose bool) *TarballFetcher {
 }
 
 // Fetch downloads, verifies, and extracts a tarball dependency
-func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targetPath string) error {
+func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targetPath string) (resultErr error) {
 	if err := dep.Validate(); err != nil {
 		return err
 	}
@@ -37,7 +38,13 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpFileName := tmpFile.Name()
-	defer os.Remove(tmpFileName)
+	tmpClosed := false
+	defer func() {
+		if !tmpClosed {
+			resultErr = errors.Join(resultErr, tmpFile.Close())
+		}
+		resultErr = errors.Join(resultErr, os.Remove(tmpFileName))
+	}()
 
 	// Download with checksum computation
 	if f.verbose {
@@ -46,24 +53,25 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 
 	req, err := http.NewRequestWithContext(ctx, "GET", dep.URL, nil)
 	if err != nil {
-		tmpFile.Close()
 		return fmt.Errorf("failed to create request for %s: %w", dep.URL, err)
 	}
 
 	resp, err := tarballHTTPClient.Do(req)
 	if err != nil {
-		tmpFile.Close()
 		return fmt.Errorf("failed to download %s: %w", dep.URL, err)
 	}
-	defer resp.Body.Close()
+	bodyClosed := false
+	defer func() {
+		if !bodyClosed {
+			resultErr = errors.Join(resultErr, resp.Body.Close())
+		}
+	}()
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		tmpFile.Close()
 		return fmt.Errorf("failed to download %s: HTTP %d", dep.URL, resp.StatusCode)
 	}
 	if resp.ContentLength > maxTarballBytes {
-		tmpFile.Close()
 		return fmt.Errorf("failed to download %s: archive exceeds %d byte limit", dep.URL, maxTarballBytes)
 	}
 
@@ -71,12 +79,17 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 	h := sha256.New()
 	w := io.MultiWriter(tmpFile, h)
 
-	bytesWritten, err := io.Copy(w, io.LimitReader(resp.Body, maxTarballBytes+1))
-	if err != nil {
-		tmpFile.Close()
+	bytesWritten, copyErr := io.Copy(w, io.LimitReader(resp.Body, maxTarballBytes+1))
+	bodyErr := resp.Body.Close()
+	bodyClosed = true
+	if err := errors.Join(copyErr, bodyErr); err != nil {
 		return fmt.Errorf("failed to download %s: %w", dep.URL, err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		tmpClosed = true
+		return fmt.Errorf("failed to close download for %s: %w", dep.URL, err)
+	}
+	tmpClosed = true
 	if bytesWritten > maxTarballBytes {
 		return fmt.Errorf("failed to download %s: archive exceeds %d byte limit", dep.URL, maxTarballBytes)
 	}
@@ -109,17 +122,14 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 	switch archiveType {
 	case "tar.gz":
 		if err := ExtractTarGz(tmpFileName, targetPath); err != nil {
-			os.RemoveAll(targetPath)
-			return fmt.Errorf("failed to extract tar.gz: %w", err)
+			return errors.Join(fmt.Errorf("failed to extract tar.gz: %w", err), os.RemoveAll(targetPath))
 		}
 	case "zip":
 		if err := ExtractZip(tmpFileName, targetPath); err != nil {
-			os.RemoveAll(targetPath)
-			return fmt.Errorf("failed to extract zip: %w", err)
+			return errors.Join(fmt.Errorf("failed to extract zip: %w", err), os.RemoveAll(targetPath))
 		}
 	default:
-		os.RemoveAll(targetPath)
-		return fmt.Errorf("unsupported archive format: %s", dep.URL)
+		return errors.Join(fmt.Errorf("unsupported archive format: %s", dep.URL), os.RemoveAll(targetPath))
 	}
 
 	// Handle stripPrefix if specified
@@ -128,8 +138,7 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 			fmt.Printf("Stripping prefix: %s\n", dep.StripPrefix)
 		}
 		if err := StripPrefix(targetPath, dep.StripPrefix); err != nil {
-			os.RemoveAll(targetPath)
-			return fmt.Errorf("failed to strip prefix %s: %w", dep.StripPrefix, err)
+			return errors.Join(fmt.Errorf("failed to strip prefix %s: %w", dep.StripPrefix, err), os.RemoveAll(targetPath))
 		}
 	}
 
