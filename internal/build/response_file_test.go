@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+func cleanupResponseFile(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		t.Errorf("remove response file: %v", err)
+	}
+}
+
 func TestEstimateCommandLength_Empty(t *testing.T) {
 	got := EstimateCommandLength(nil)
 	if got != 0 {
@@ -74,8 +81,8 @@ func TestMaybeUseResponseFile_BelowThreshold(t *testing.T) {
 
 	// Cleanup path should be empty (no response file created)
 	if cleanupPath != "" {
+		t.Cleanup(func() { cleanupResponseFile(t, cleanupPath) })
 		t.Errorf("cleanupPath = %q, want empty string", cleanupPath)
-		os.Remove(cleanupPath) // Clean up if test fails
 	}
 }
 
@@ -100,7 +107,7 @@ func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
 
 	// Should return single arg starting with "@"
 	if len(resultArgs) != 1 {
-		t.Errorf("expected single @file arg, got %d args", len(resultArgs))
+		t.Fatalf("expected single @file arg, got %d args", len(resultArgs))
 	}
 
 	if !strings.HasPrefix(resultArgs[0], "@") {
@@ -110,6 +117,8 @@ func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
 	// Cleanup path should be non-empty
 	if cleanupPath == "" {
 		t.Error("cleanupPath is empty, expected response file path")
+	} else {
+		t.Cleanup(func() { cleanupResponseFile(t, cleanupPath) })
 	}
 
 	// Response file should exist
@@ -135,9 +144,6 @@ func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
 			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
 	}
-
-	// Clean up
-	os.Remove(cleanupPath)
 }
 
 func TestMaybeUseResponseFile_ExactThreshold(t *testing.T) {
@@ -160,8 +166,8 @@ func TestMaybeUseResponseFile_ExactThreshold(t *testing.T) {
 
 	// At exactly threshold, should NOT create response file (threshold is exclusive)
 	if cleanupPath != "" {
+		t.Cleanup(func() { cleanupResponseFile(t, cleanupPath) })
 		t.Errorf("at exact threshold, should not create response file, but got: %s", cleanupPath)
-		os.Remove(cleanupPath)
 	}
 
 	// Should return original args
@@ -189,7 +195,7 @@ func TestMaybeUseResponseFile_JustAboveThreshold(t *testing.T) {
 	if cleanupPath == "" {
 		t.Error("above threshold, should create response file")
 	} else {
-		os.Remove(cleanupPath)
+		t.Cleanup(func() { cleanupResponseFile(t, cleanupPath) })
 	}
 
 	// Should return @file arg
@@ -205,7 +211,7 @@ func TestWriteResponseFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
-	defer os.Remove(path)
+	t.Cleanup(func() { cleanupResponseFile(t, path) })
 
 	// Verify file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -246,7 +252,7 @@ func TestWriteResponseFile_EmptyArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
-	defer os.Remove(path)
+	t.Cleanup(func() { cleanupResponseFile(t, path) })
 
 	// Verify file exists (even if empty)
 	content, err := os.ReadFile(path)
@@ -271,7 +277,7 @@ func TestResponseFileFormat_WindowsPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
-	defer os.Remove(path)
+	t.Cleanup(func() { cleanupResponseFile(t, path) })
 
 	// Read back and verify paths are preserved
 	content, err := os.ReadFile(path)
@@ -301,7 +307,7 @@ func TestResponseFileFormat_SpecialCharacters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
-	defer os.Remove(path)
+	t.Cleanup(func() { cleanupResponseFile(t, path) })
 
 	// Read back and verify
 	content, err := os.ReadFile(path)
