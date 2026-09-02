@@ -17,7 +17,7 @@
 //
 //	w, err := watch.NewWatcher(watch.Config{
 //	    SourceDirs: []string{"src", "include"},
-//	    BuildCuePath: "build.cue",
+//	    BuildCuePath: "clue.cue",
 //	    OnRebuild: func(trigger string, isConfigChange bool) {
 //	        // Trigger rebuild
 //	    },

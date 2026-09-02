@@ -673,11 +673,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		}
 	}
 
-	// Collect source directories from all targets
-	sourceDirs := collectSourceDirs(cfg)
-
-	// Build path to build.cue
-	buildCuePath := filepath.Join(dir, "build.cue")
+	buildCuePath := filepath.Join(dir, "clue.cue")
 
 	// Track current build cancel function
 	var currentCancel context.CancelFunc
@@ -750,7 +746,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 
 	// Setup watcher
 	watcher, err := watch.NewWatcher(watch.Config{
-		SourceDirs:   sourceDirs,
+		SourceDirs:   []string{"."},
 		BuildCuePath: buildCuePath,
 		DebounceDur:  300 * time.Millisecond,
 		OnRebuild:    doBuild,
@@ -778,28 +774,4 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 
 	fmt.Println("\nStopping watch mode...")
 	return 0
-}
-
-func collectSourceDirs(cfg *config.Config) []string {
-	dirSet := make(map[string]bool)
-	for _, target := range cfg.Targets {
-		for _, src := range target.Sources {
-			dir := filepath.Dir(src)
-			if dir == "" || dir == "." {
-				dir = "."
-			}
-			dirSet[dir] = true
-		}
-		// Also watch include directories
-		for _, inc := range target.Includes {
-			dirSet[inc] = true
-		}
-	}
-
-	dirs := make([]string, 0, len(dirSet))
-	for dir := range dirSet {
-		dirs = append(dirs, dir)
-	}
-	sort.Strings(dirs)
-	return dirs
 }

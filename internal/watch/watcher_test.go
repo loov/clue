@@ -2,12 +2,64 @@ package watch
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
+
+func TestWatcherWatchesNestedAndNewDirectories(t *testing.T) {
+	root := t.TempDir()
+	nested := filepath.Join(root, "include", "library")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rebuilt := make(chan string, 2)
+	watcher, err := NewWatcher(Config{
+		SourceDirs:  []string{root},
+		DebounceDur: 10 * time.Millisecond,
+		OnRebuild:   func(trigger string, _ bool) { rebuilt <- trigger },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer watcher.Stop()
+	if err := watcher.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	header := filepath.Join(nested, "api.hpp")
+	if err := os.WriteFile(header, []byte("// changed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitForRebuild(t, rebuilt, header)
+
+	created := filepath.Join(root, "new", "nested")
+	if err := os.MkdirAll(created, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	source := filepath.Join(created, "new.cpp")
+	if err := os.WriteFile(source, []byte("// new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitForRebuild(t, rebuilt, source)
+}
+
+func waitForRebuild(t *testing.T, rebuilt <-chan string, want string) {
+	t.Helper()
+	select {
+	case got := <-rebuilt:
+		if got != want {
+			t.Fatalf("rebuild triggered by %q, want %q", got, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("no rebuild for %q", want)
+	}
+}
 
 func TestWatcherReportsErrors(t *testing.T) {
 	reported := make(chan error, 1)

@@ -1,6 +1,8 @@
 package watch
 
 import (
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -17,7 +19,7 @@ const DefaultDebounceDuration = 300 * time.Millisecond
 type Config struct {
 	// SourceDirs are the directories to watch for source file changes.
 	SourceDirs []string
-	// BuildCuePath is the path to build.cue for config change detection.
+	// BuildCuePath is the path to clue.cue for config change detection.
 	// If set, changes to this file trigger a config reload flag.
 	BuildCuePath string
 	// DebounceDur is the debounce window duration.
@@ -41,6 +43,7 @@ type Watcher struct {
 	done           chan struct{}
 	pendingTrigger string // first file that triggered current debounce window
 	isConfigChange bool   // whether a config file changed in current window
+	watched        map[string]struct{}
 }
 
 // NewWatcher creates a new Watcher that monitors the specified directories.
@@ -62,32 +65,23 @@ func NewWatcher(cfg Config) (*Watcher, error) {
 		watcher: fsWatcher,
 		config:  cfg,
 		done:    make(chan struct{}),
+		watched: make(map[string]struct{}),
 	}
 
 	// Add source directories to watch
 	for _, dir := range cfg.SourceDirs {
-		if err := fsWatcher.Add(dir); err != nil {
+		if err := w.addTree(dir); err != nil {
 			fsWatcher.Close()
 			return nil, err
 		}
 	}
 
-	// Add build.cue parent directory if specified
+	// Add clue.cue parent directory if specified
 	if cfg.BuildCuePath != "" {
 		parentDir := filepath.Dir(cfg.BuildCuePath)
-		// Avoid duplicate adds if parent is already in SourceDirs
-		alreadyWatched := false
-		for _, dir := range cfg.SourceDirs {
-			if dir == parentDir {
-				alreadyWatched = true
-				break
-			}
-		}
-		if !alreadyWatched {
-			if err := fsWatcher.Add(parentDir); err != nil {
-				fsWatcher.Close()
-				return nil, err
-			}
+		if err := w.addWatch(parentDir); err != nil {
+			fsWatcher.Close()
+			return nil, err
 		}
 	}
 
@@ -104,7 +98,9 @@ func (w *Watcher) Start() error {
 
 // WatchCount returns the number of watched directories.
 func (w *Watcher) WatchCount() int {
-	return len(w.config.SourceDirs)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return len(w.watched)
 }
 
 // Stop stops the watcher and cleans up resources.
@@ -151,6 +147,19 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 	if event.Op == fsnotify.Chmod {
 		return
 	}
+	if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
+		w.mu.Lock()
+		delete(w.watched, filepath.Clean(event.Name))
+		w.mu.Unlock()
+	}
+	if event.Op&fsnotify.Create != 0 {
+		if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+			if err := w.addTree(event.Name); err != nil && w.config.OnError != nil {
+				w.config.OnError(err)
+			}
+			return
+		}
+	}
 
 	// Only process relevant file types
 	if !IsRelevantFile(event.Name) {
@@ -177,6 +186,38 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 	w.debounceTimer = time.AfterFunc(w.config.DebounceDur, func() {
 		w.fireRebuild()
 	})
+}
+
+func (w *Watcher) addTree(root string) error {
+	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		if path != root {
+			switch entry.Name() {
+			case ".git", ".deps", ".build":
+				return filepath.SkipDir
+			}
+		}
+		return w.addWatch(path)
+	})
+}
+
+func (w *Watcher) addWatch(dir string) error {
+	dir = filepath.Clean(dir)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, ok := w.watched[dir]; ok {
+		return nil
+	}
+	if err := w.watcher.Add(dir); err != nil {
+		return err
+	}
+	w.watched[dir] = struct{}{}
+	return nil
 }
 
 // HandleEventPath processes a file change event by path.
