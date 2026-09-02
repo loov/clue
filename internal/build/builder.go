@@ -289,6 +289,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 
 	// Build configuration from target and variant
 	buildCfg := b.targetToConfig(target, opts.Config.ActiveVariant)
+	defines := append(append([]string(nil), target.Defines...), opts.Config.ActiveVariant.Defines...)
 
 	// Collect include paths from dependencies
 	includes := append([]string{}, target.Includes...)
@@ -314,13 +315,13 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			fmt.Printf("Detected %d module source(s), scanning dependencies...\n", len(moduleSources))
 		}
 
-		// Check clang-scan-deps availability
-		if err := CheckScanDepsAvailable(); err != nil {
-			return nil, err
-		}
-
 		// Scan module dependencies
-		moduleDeps, err = ScanModuleDeps(moduleSources, opts.Config.Toolchain.Std, includes)
+		moduleDeps, err = b.compiler.scanModuleDeps(moduleSources, CompileOptions{
+			Includes: includes,
+			Defines:  defines,
+			Flags:    buildCfg,
+			Std:      opts.Config.Toolchain.Std,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("module dependency scan failed: %w", err)
 		}
@@ -384,8 +385,6 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	cacheInputs := make(map[string]sourceCacheInputs, len(target.Sources))
 
 	objectNames := buildpath.ObjectNames(target.Sources)
-	defines := append(append([]string(nil), target.Defines...), opts.Config.ActiveVariant.Defines...)
-
 	for _, source := range sourcesToCompile {
 		objPath := filepath.Join(objDir, objectNames[source])
 		compileOpts := CompileOptions{

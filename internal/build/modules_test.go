@@ -3,8 +3,30 @@ package build
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
+
+func TestModuleScanArgsMatchCompilerConfiguration(t *testing.T) {
+	t.Setenv("CXX", "configured-clang++")
+	tc, err := NewToolchain("clang", HostPlatform())
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler := NewCompiler(NewExecutor(ExecutorConfig{}), tc)
+	args := compiler.moduleScanArgs("hello.cppm", CompileOptions{
+		Includes: []string{"include"},
+		Defines:  []string{"FEATURE=1"},
+		Flags:    Config{RawCompiler: []string{"-fexperimental-library"}},
+		Std:      "c++23",
+	})
+
+	for _, want := range []string{"configured-clang++", "-Iinclude", "-DFEATURE=1", "-fexperimental-library", "-std=c++23"} {
+		if !slices.Contains(args, want) {
+			t.Errorf("module scan arguments %q missing %q", args, want)
+		}
+	}
+}
 
 func TestDetectModuleSources_ByExtension(t *testing.T) {
 	// Create temp files with module extensions

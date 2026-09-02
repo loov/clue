@@ -116,10 +116,8 @@ type p1689Require struct {
 	LogicalName string `json:"logical-name"`
 }
 
-// ScanModuleDeps scans a list of sources for module dependencies using clang-scan-deps
-// Returns dependency information for each module source, or error if scanning fails
-func ScanModuleDeps(sources []string, std string, includes []string) ([]ModuleDependency, error) {
-	// Check if clang-scan-deps is available
+// scanModuleDeps scans sources for module dependencies using clang-scan-deps.
+func (c *Compiler) scanModuleDeps(sources []string, opts CompileOptions) ([]ModuleDependency, error) {
 	scanDepsPath, err := exec.LookPath("clang-scan-deps")
 	if err != nil {
 		return nil, fmt.Errorf("clang-scan-deps not found: install Clang 16+ for C++20 module support")
@@ -128,7 +126,7 @@ func ScanModuleDeps(sources []string, std string, includes []string) ([]ModuleDe
 	var deps []ModuleDependency
 
 	for _, source := range sources {
-		dep, err := scanSource(scanDepsPath, source, std, includes)
+		dep, err := c.scanSource(scanDepsPath, source, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan %s: %w", source, err)
 		}
@@ -139,23 +137,8 @@ func ScanModuleDeps(sources []string, std string, includes []string) ([]ModuleDe
 }
 
 // scanSource runs clang-scan-deps on a single source file
-func scanSource(scanDepsPath, source, std string, includes []string) (*ModuleDependency, error) {
-	// Build command: clang-scan-deps -format=p1689 -- clang++ -std=c++20 file.cpp -c
-	args := []string{"-format=p1689", "--"}
-	args = append(args, "clang++")
-
-	if std != "" {
-		args = append(args, "-std="+std)
-	} else {
-		args = append(args, "-std=c++20")
-	}
-
-	for _, inc := range includes {
-		args = append(args, "-I"+inc)
-	}
-
-	args = append(args, source, "-c")
-
+func (c *Compiler) scanSource(scanDepsPath, source string, opts CompileOptions) (*ModuleDependency, error) {
+	args := c.moduleScanArgs(source, opts)
 	cmd := exec.Command(scanDepsPath, args...)
 	output, err := cmd.Output()
 	if err != nil {
@@ -189,13 +172,24 @@ func scanSource(scanDepsPath, source, std string, includes []string) (*ModuleDep
 	return dep, nil
 }
 
-// CheckScanDepsAvailable returns nil if clang-scan-deps is available, error otherwise
-func CheckScanDepsAvailable() error {
-	_, err := exec.LookPath("clang-scan-deps")
-	if err != nil {
-		return fmt.Errorf("clang-scan-deps not found: install Clang 16+ for C++20 module support")
+func (c *Compiler) moduleScanArgs(source string, opts CompileOptions) []string {
+	args := []string{"-format=p1689", "--", c.compilerCmd(source)}
+
+	if opts.Std != "" {
+		args = append(args, "-std="+opts.Std)
+	} else {
+		args = append(args, "-std=c++20")
 	}
-	return nil
+
+	for _, inc := range opts.Includes {
+		args = append(args, "-I"+inc)
+	}
+	for _, define := range opts.Defines {
+		args = append(args, "-D"+define)
+	}
+	args = append(args, c.toolchain.CompilerFlags(opts.Flags)...)
+
+	return append(args, source, "-c")
 }
 
 // OrderModuleCompilation returns sources ordered so that modules are built before their dependents
