@@ -329,6 +329,8 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 		BuildDir: ".build",
 		Toolchain: config.Toolchain{
 			Compiler: "clang",
+			CStd:     "c17",
+			CXXStd:   "c++23",
 		},
 		Targets: map[string]config.Target{
 			"mixed": {
@@ -372,10 +374,17 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 		t.Fatalf("failed to parse JSON: %v", err)
 	}
 
-	// Map file to compiler
+	// Map files to their compiler and language standard.
 	compilers := make(map[string]string)
+	standards := make(map[string]string)
 	for _, cmd := range commands {
-		compilers[filepath.Base(cmd.File)] = cmd.Arguments[0]
+		file := filepath.Base(cmd.File)
+		compilers[file] = cmd.Arguments[0]
+		for _, arg := range cmd.Arguments {
+			if strings.HasPrefix(arg, "-std=") {
+				standards[file] = arg
+			}
+		}
 	}
 
 	// Verify correct compiler for each file
@@ -390,6 +399,9 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 		if compilers[file] != expectedCompiler {
 			t.Errorf("File %s: expected %s, got %s", file, expectedCompiler, compilers[file])
 		}
+	}
+	if standards["main.c"] != "-std=c17" || standards["util.cpp"] != "-std=c++23" {
+		t.Errorf("language standards = %v", standards)
 	}
 }
 

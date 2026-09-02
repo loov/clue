@@ -162,7 +162,8 @@ func loadConfig(dir, variant string, verbosity build.Verbosity) (*config.Config,
 	if verbosity >= build.VerbosityNormal {
 		fmt.Printf("Loaded configuration: %s\n", cfg.Name)
 		fmt.Printf("  Version: %s\n", cfg.Version)
-		fmt.Printf("  Toolchain: %s (std: %s)\n", cfg.Toolchain.Compiler, cfg.Toolchain.Std)
+		fmt.Printf("  Toolchain: %s (C: %s, C++: %s)\n", cfg.Toolchain.Compiler,
+			cfg.Toolchain.Standard("source.c"), cfg.Toolchain.Standard("source.cpp"))
 		fmt.Printf("  Targets: %d\n", len(cfg.Targets))
 		fmt.Printf("  Variants: %d\n", len(cfg.Variants))
 	}

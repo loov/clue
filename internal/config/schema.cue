@@ -119,7 +119,9 @@ package config
 	// Toolchain selection
 	toolchain?: {
 		compiler: string | *"clang"
-		std?: string  // e.g., "c++20", "c17"
+		std?: string     // Backward-compatible single-language standard
+		cStd?: string    // e.g., "c17"
+		cxxStd?: string  // e.g., "c++23"
 	}
 
 	// Build targets

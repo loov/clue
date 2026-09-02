@@ -116,7 +116,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		Includes: target.Includes,
 		Defines:  target.Defines,
 		Flags:    buildCfg,
-		Std:      opts.Config.Toolchain.Std,
+		Std:      opts.Config.Toolchain.Standard("module.cppm"),
 	}, filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules"))
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		objPath := objectPath(opts.BuildDir, opts.Variant, target.Name, objectNames[source])
 
 		// Build compiler arguments
-		args := buildCompilerArgs(tc, opts.Config.Toolchain.Std, target.Includes, target.Defines, source, objPath, buildCfg)
+		args := buildCompilerArgs(tc, opts.Config.Toolchain.Standard(source), target.Includes, target.Defines, source, objPath, buildCfg)
 		for _, flag := range modules.flags(source) {
 			if value, ok := strings.CutPrefix(flag, "-fmodule-output="); ok {
 				flag = "-fmodule-output=" + AbsPath(value)
@@ -184,7 +184,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 		objPath := depObjectPath(opts.BuildDir, opts.Variant, dep.Name(), objectNames[source])
 
 		// Build arguments
-		args := buildCompilerArgs(tc, opts.Config.Toolchain.Std, includes, resolved.Defines, srcPath, objPath, buildCfg)
+		args := buildCompilerArgs(tc, opts.Config.Toolchain.Standard(source), includes, resolved.Defines, srcPath, objPath, buildCfg)
 
 		// Make paths absolute
 		srcAbs := AbsPath(srcPath)
@@ -277,18 +277,7 @@ func compilerForSource(tc toolchain.Toolchain, source string) string {
 
 // isCPlusPlusFile detects if a file is C++ based on extension
 func isCPlusPlusFile(source string) bool {
-	ext := strings.ToLower(filepath.Ext(source))
-	switch ext {
-	case ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp":
-		return true
-	}
-	// Handle case-sensitive extensions
-	rawExt := filepath.Ext(source)
-	switch rawExt {
-	case ".C", ".CPP":
-		return true
-	}
-	return false
+	return toolchain.IsCXXSource(source)
 }
 
 // depObjectPath returns the object file path for a dependency source

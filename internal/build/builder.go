@@ -307,7 +307,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		Includes: includes,
 		Defines:  defines,
 		Flags:    buildCfg,
-		Std:      opts.Config.Toolchain.Std,
+		Std:      opts.Config.Toolchain.Standard("module.cppm"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("module dependency scan failed: %w", err)
@@ -385,7 +385,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Includes:   includes,
 			Defines:    defines,
 			Flags:      buildCfg,
-			Std:        opts.Config.Toolchain.Std,
+			Std:        opts.Config.Toolchain.Standard(source),
 			TargetType: target.Type,
 		}
 		if module, ok := moduleInfo[source]; ok {
@@ -858,6 +858,8 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 			Platform:     b.target,
 			BuildDir:     opts.BuildDir,
 			Std:          opts.Config.Toolchain.Std,
+			CStd:         opts.Config.Toolchain.CStd,
+			CXXStd:       opts.Config.Toolchain.CXXStd,
 			Optimization: opts.Config.ActiveVariant.Optimization,
 			Verbosity:    opts.Verbosity,
 			ForceRebuild: opts.ForceRebuild,

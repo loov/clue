@@ -12,6 +12,7 @@ import (
 
 	"github.com/loov/clue/internal/deps"
 	clerrors "github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // Config represents a parsed and validated build configuration
@@ -48,6 +49,29 @@ type Config struct {
 type Toolchain struct {
 	Compiler string
 	Std      string
+	CStd     string
+	CXXStd   string
+}
+
+// Standard returns the language standard applicable to source. The legacy Std
+// field applies only when it matches the source language.
+func (tc Toolchain) Standard(source string) string {
+	if toolchain.IsCXXSource(source) {
+		if tc.CXXStd != "" {
+			return tc.CXXStd
+		}
+		if strings.Contains(tc.Std, "++") {
+			return tc.Std
+		}
+		return ""
+	}
+	if tc.CStd != "" {
+		return tc.CStd
+	}
+	if !strings.Contains(tc.Std, "++") {
+		return tc.Std
+	}
+	return ""
 }
 
 // Target represents a buildable unit
@@ -248,6 +272,12 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		}
 		if std := tc.LookupPath(cue.ParsePath("std")); std.Exists() {
 			cfg.Toolchain.Std, _ = std.String()
+		}
+		if std := tc.LookupPath(cue.ParsePath("cStd")); std.Exists() {
+			cfg.Toolchain.CStd, _ = std.String()
+		}
+		if std := tc.LookupPath(cue.ParsePath("cxxStd")); std.Exists() {
+			cfg.Toolchain.CXXStd, _ = std.String()
 		}
 	}
 

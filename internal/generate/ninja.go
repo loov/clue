@@ -106,13 +106,6 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 		if buildCfg.Optimize == "" {
 			buildCfg.Optimize = "none"
 		}
-		compilerFlags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, tc)
-		if resolved.Type == "shared_library" {
-			if tc.Name() != "msvc" {
-				compilerFlags = append(compilerFlags, "-fPIC")
-			}
-		}
-
 		objectNames := buildpath.ObjectNames(sources)
 		objects := make([]string, 0, len(sources))
 		var dependencyOutputs []string
@@ -130,6 +123,10 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 			})
 		}
 		for _, source := range sources {
+			compilerFlags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, tc, source)
+			if resolved.Type == "shared_library" && tc.Name() != "msvc" {
+				compilerFlags = append(compilerFlags, "-fPIC")
+			}
 			srcPath := filepath.Join(depPath, source)
 			objPath := ninjaPathLocal(depObjectPath(opts.BuildDir, variant, name, objectNames[source]))
 			rule, flagKey := "cc", "cflags"
@@ -312,16 +309,6 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	// Collect include paths
 	includes := append(usage.Includes, targetDependencyIncludes(opts.Config, target)...)
 
-	// Build compiler flags
-	compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc)
-
-	// Add -fPIC for shared libraries
-	if target.Type == "shared_library" {
-		if tc.Name() != "msvc" {
-			compilerFlags = append(compilerFlags, "-fPIC")
-		}
-	}
-
 	var objects []string
 	objectNames := buildpath.ObjectNames(target.Sources)
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
@@ -329,13 +316,17 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		Includes: includes,
 		Defines:  target.Defines,
 		Flags:    buildCfg,
-		Std:      opts.Config.Toolchain.Std,
+		Std:      opts.Config.Toolchain.Standard("module.cppm"),
 	}, filepath.Join(opts.BuildDir, variant, target.Name, "modules"))
 	if err != nil {
 		return nil, err
 	}
 
 	for _, source := range modules.ordered {
+		compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc, source)
+		if target.Type == "shared_library" && tc.Name() != "msvc" {
+			compilerFlags = append(compilerFlags, "-fPIC")
+		}
 		// Determine object path
 		objPath := ninjaPathLocal(objectPath(opts.BuildDir, variant, target.Name, objectNames[source]))
 		srcPath := ninjaPathLocal(source)
@@ -415,16 +406,16 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 // Note: objectPath is defined in compdb.go and shared between both generators
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output
-func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, includes []string, tc toolchain.Toolchain) []string {
+func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, includes []string, tc toolchain.Toolchain, source string) []string {
 	var flags []string
 	msvc := tc.Name() == "msvc"
 
 	// Language standard
-	if cfg.Toolchain.Std != "" {
+	if std := cfg.Toolchain.Standard(source); std != "" {
 		if msvc {
-			flags = append(flags, "/std:"+build.TranslateStdForMSVC(cfg.Toolchain.Std))
+			flags = append(flags, "/std:"+build.TranslateStdForMSVC(std))
 		} else {
-			flags = append(flags, "-std="+cfg.Toolchain.Std)
+			flags = append(flags, "-std="+std)
 		}
 	}
 

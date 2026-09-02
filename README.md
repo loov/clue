@@ -25,7 +25,7 @@ name: "hello"
 version: "1.0.0"
 toolchain: {
     compiler: "clang"
-    std:      "c++17"
+    cxxStd:   "c++17"
 }
 targets: {
     hello: {
@@ -71,7 +71,7 @@ name: "calculator"
 version: "1.0.0"
 toolchain: {
     compiler: "clang"
-    std:      "c++17"
+    cxxStd:   "c++17"
 }
 targets: {
     mathlib: {

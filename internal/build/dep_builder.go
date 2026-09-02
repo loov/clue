@@ -14,6 +14,7 @@ import (
 
 	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/cache"
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -23,6 +24,8 @@ type DepBuildOptions struct {
 	Platform     Platform  // Target platform
 	BuildDir     string    // Build output root (default: ".build")
 	Std          string    // Project language standard
+	CStd         string    // C language standard
+	CXXStd       string    // C++ language standard
 	Optimization string    // Active variant optimization
 	Verbosity    Verbosity // Verbosity level (quiet/normal/verbose)
 	ForceRebuild bool      // Force dependency sources to rebuild
@@ -132,7 +135,9 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				Debug:            "none",
 				RawCompiler:      []string{},
 			},
-			Std:        opts.Std,
+			Std: config.Toolchain{
+				Std: opts.Std, CStd: opts.CStd, CXXStd: opts.CXXStd,
+			}.Standard(absPath),
 			TargetType: cfg.Type,
 		}
 		compilerPath, err := exec.LookPath(db.compiler.compilerCmd(absPath))

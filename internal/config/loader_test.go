@@ -44,6 +44,24 @@ func TestValidConfig(t *testing.T) {
 	}
 }
 
+func TestLoaderExtractsLanguageStandards(t *testing.T) {
+	dir := t.TempDir()
+	config := `name: "mixed"
+toolchain: {compiler: "clang", cStd: "c17", cxxStd: "c++23"}
+targets: app: {name: "app", type: "executable", sources: ["main.c", "main.cpp"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Toolchain.CStd != "c17" || cfg.Toolchain.CXXStd != "c++23" {
+		t.Fatalf("toolchain standards = %+v", cfg.Toolchain)
+	}
+}
+
 func TestInvalidConfig(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
