@@ -3,8 +3,10 @@ package generate
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/loov/clue/internal/build"
@@ -71,7 +73,8 @@ func CompileCommands(opts CompDBOptions) error {
 	var commands []CompileCommand
 
 	// Add commands for all project targets
-	for _, target := range opts.Config.Targets {
+	for _, name := range slices.Sorted(maps.Keys(opts.Config.Targets)) {
+		target := opts.Config.Targets[name]
 		targetCommands, err := buildTargetCommands(workDir, opts, target, variant, tc)
 		if err != nil {
 			return err
@@ -80,7 +83,8 @@ func CompileCommands(opts CompDBOptions) error {
 	}
 
 	// Add commands for all dependencies with build config
-	for _, dep := range opts.Config.Dependencies {
+	for _, name := range slices.Sorted(maps.Keys(opts.Config.Dependencies)) {
+		dep := opts.Config.Dependencies[name]
 		depCommands, err := buildDependencyCommands(workDir, opts, dep, variant, tc)
 		if err != nil {
 			return err

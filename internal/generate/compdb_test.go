@@ -297,6 +297,12 @@ func TestCompileCommands_MultipleTargets(t *testing.T) {
 	if len(commands) != 3 {
 		t.Errorf("Expected 3 commands, got %d", len(commands))
 	}
+	wantOrder := []string{"app.cpp", "lib.cpp", "util.cpp"}
+	for i, want := range wantOrder {
+		if got := filepath.Base(commands[i].File); got != want {
+			t.Errorf("commands[%d] = %q, want %q", i, got, want)
+		}
+	}
 
 	// Check that all sources appear
 	files := make(map[string]bool)
