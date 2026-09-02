@@ -124,7 +124,6 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
-
 	// Branch based on toolchain
 	if isMSVC(l.toolchain) {
 		return l.linkExecutableMSVC(ctx, opts, start)
@@ -259,6 +258,11 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 		if err := os.MkdirAll(outputDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
+	}
+	// Archivers update existing files in place, which would retain members for
+	// sources removed from the target.
+	if err := os.Remove(opts.Output); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to replace static library: %w", err)
 	}
 
 	// Branch based on toolchain

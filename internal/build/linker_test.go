@@ -105,6 +105,10 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to compile add.cpp: %v\nOutput: %s", err, output)
 	}
+	staleObj := filepath.Join(tmpDir, "stale.o")
+	if err := os.WriteFile(staleObj, []byte("stale archive member"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{
@@ -118,7 +122,7 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 	// Archive add.o to libadd.a
 	libPath := filepath.Join(tmpDir, "libadd.a")
 	result, err := linker.CreateStaticLibrary(context.Background(), ArchiveOptions{
-		Objects: []string{addObj},
+		Objects: []string{addObj, staleObj},
 		Output:  libPath,
 	})
 	if err != nil {
@@ -133,6 +137,12 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Fatalf("static library not created at %s", libPath)
 	}
+	if _, err := linker.CreateStaticLibrary(context.Background(), ArchiveOptions{
+		Objects: []string{addObj},
+		Output:  libPath,
+	}); err != nil {
+		t.Fatalf("failed to replace static library: %v", err)
+	}
 
 	// Verify it's a valid archive (run `ar -t libadd.a`)
 	cmd = exec.Command("ar", "-t", libPath)
@@ -144,6 +154,9 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 	// Check output contains add.o
 	if !strings.Contains(string(output), "add.o") {
 		t.Fatalf("archive does not contain add.o, got: %s", output)
+	}
+	if strings.Contains(string(output), "stale.o") {
+		t.Fatalf("recreated archive retained stale.o: %s", output)
 	}
 }
 
