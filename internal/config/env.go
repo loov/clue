@@ -196,7 +196,7 @@ func (l *LoaderWithEnv) LoadForTarget(dir string, target toolchain.Platform) (*C
 	overlay := map[string]load.Source{
 		envFile: load.FromBytes([]byte(envCUE)),
 	}
-	return l.Loader.load(absDir, overlay, target)
+	return l.load(absDir, overlay, target)
 }
 
 // buildEnvCUE generates CUE content to inject environment variables
