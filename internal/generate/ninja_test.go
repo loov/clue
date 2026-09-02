@@ -372,6 +372,34 @@ func TestNinja_BuildsExternalDependencies(t *testing.T) {
 	}
 }
 
+func TestNinja_HeaderOnlyDependencyAddsIncludesWithoutLibrary(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "headers")
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"headers"},
+	}
+	cfg.Dependencies = map[string]deps.Dependency{
+		"headers": deps.NewVendoredDependency("headers", root, &deps.InlineConfig{
+			Type: "header_only", Includes: []string{"include"},
+		}),
+	}
+
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	if !strings.Contains(content, "-I"+ninjaPathLocal(filepath.Join(root, "include"))) {
+		t.Fatalf("header include is missing:\n%s", content)
+	}
+	if strings.Contains(content, "libheaders") {
+		t.Fatalf("header-only dependency produced a library:\n%s", content)
+	}
+}
+
 func TestNinja_BuildsDependencyWithClueConfig(t *testing.T) {
 	depRoot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(depRoot, "lib.c"), nil, 0o644); err != nil {

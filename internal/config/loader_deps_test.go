@@ -231,6 +231,38 @@ dependencies: {
 	}
 }
 
+func TestHeaderOnlyDependencyNeedsNoSources(t *testing.T) {
+	dir := t.TempDir()
+	contents := `
+name: "headers"
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["main.cpp"]
+	depends: ["headers"]
+}
+dependencies: headers: {
+	type: "vendored"
+	path: "vendor/headers"
+	build: {
+		targetType: "header_only"
+		includes: ["include"]
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := cfg.Dependencies["headers"].InlineBuild()
+	if build == nil || build.Type != "header_only" || len(build.Sources) != 0 {
+		t.Fatalf("header-only build = %+v", build)
+	}
+}
+
 func TestDependencyValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 

@@ -135,3 +135,18 @@ targets: {
     }
 }
 ```
+
+### Header-only dependency
+
+Header-only Git, tarball, and vendored dependencies need only their include directory:
+
+```cue
+dependencies: json: {
+    type: "vendored"
+    path: "vendor/json"
+    build: {
+        targetType: "header_only"
+        includes:   ["include"]
+    }
+}
+```

@@ -543,10 +543,6 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 	config := &deps.InlineConfig{}
 
 	config.Sources = extractStringList(val, "sources")
-	if len(config.Sources) == 0 {
-		return nil, fmt.Errorf("inline build config: sources field is required")
-	}
-
 	config.Headers = extractStringList(val, "headers")
 	config.Includes = extractStringList(val, "includes")
 	config.Defines = extractStringList(val, "defines")
@@ -555,6 +551,9 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 	config.Type = "static_library" // Default
 	if typeVal := val.LookupPath(cue.ParsePath("targetType")); typeVal.Exists() {
 		config.Type, _ = typeVal.String()
+	}
+	if err := config.Validate(); err != nil {
+		return nil, err
 	}
 
 	return config, nil

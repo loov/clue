@@ -35,9 +35,10 @@ type DepBuildOptions struct {
 // DepBuildResult holds the result of building a dependency
 type DepBuildResult struct {
 	Name        string        // Dependency name
-	Type        string        // "static_library" or "shared_library"
+	Type        string        // "static_library", "shared_library", or "header_only"
 	LibPath     string        // Path to built library
 	IncludePath string        // Path to include headers
+	Depends     []string      // Other external dependencies
 	SourceCount int           // Number of source files compiled
 	Duration    time.Duration // Time taken to build
 }
@@ -91,6 +92,13 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	if err != nil {
 		return nil, err
 	}
+	includePath := db.determineIncludePath(dep, sourcePath, cfg.Includes)
+	if cfg.Type == "header_only" {
+		return &DepBuildResult{
+			Name: dep.Name(), Type: cfg.Type, IncludePath: includePath,
+			Depends: cfg.Depends, Duration: time.Since(start),
+		}, nil
+	}
 
 	// Print progress (collapsed output)
 	if opts.Verbosity != VerbosityVerbose {
@@ -109,7 +117,6 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}
 
 	// Determine include path for compilation
-	includePath := db.determineIncludePath(dep, sourcePath, cfg.Includes)
 	compilationIncludes := append(cfg.Includes, includePath)
 
 	// Compile each source file to object file
@@ -181,7 +188,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	libPath := filepath.Join(libDir, libName)
 	dependencyArtifacts := make([]string, 0, len(cfg.Depends))
 	for _, name := range cfg.Depends {
-		if result, ok := builtDeps[name]; ok {
+		if result, ok := builtDeps[name]; ok && result.LibPath != "" {
 			dependencyArtifacts = append(dependencyArtifacts, result.LibPath)
 		}
 	}
@@ -189,7 +196,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	if cfg.Type == "shared_library" {
 		var libPaths, libs []string
 		for _, name := range cfg.Depends {
-			if result, ok := builtDeps[name]; ok {
+			if result, ok := builtDeps[name]; ok && result.LibPath != "" {
 				libPaths = append(libPaths, filepath.Dir(result.LibPath))
 				libs = append(libs, result.Name)
 			}
@@ -234,6 +241,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		Type:        cfg.Type,
 		LibPath:     libPath,
 		IncludePath: includePath,
+		Depends:     cfg.Depends,
 		SourceCount: len(cfg.Sources),
 		Duration:    time.Since(start),
 	}, nil

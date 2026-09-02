@@ -196,22 +196,20 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 		seen[name] = true
 
 		if result, external := b.depResults[name]; external {
-			artifacts = append(artifacts, result.LibPath)
-			path := filepath.Dir(result.LibPath)
-			if !seenPaths[path] {
-				seenPaths[path] = true
-				libPaths = append(libPaths, path)
+			if result.LibPath != "" {
+				artifacts = append(artifacts, result.LibPath)
+				path := filepath.Dir(result.LibPath)
+				if !seenPaths[path] {
+					seenPaths[path] = true
+					libPaths = append(libPaths, path)
+				}
+				libs = append(libs, result.Name)
+				if result.Type == "shared_library" && !seenSharedPaths[path] {
+					seenSharedPaths[path] = true
+					sharedLibPaths = append(sharedLibPaths, path)
+				}
 			}
-			libs = append(libs, result.Name)
-			if result.Type == "shared_library" && !seenSharedPaths[path] {
-				seenSharedPaths[path] = true
-				sharedLibPaths = append(sharedLibPaths, path)
-			}
-			var dependencies []string
-			if buildConfig := opts.Config.Dependencies[name].InlineBuild(); buildConfig != nil {
-				dependencies = buildConfig.Depends
-			}
-			for _, dependency := range dependencies {
+			for _, dependency := range result.Depends {
 				if err := visit(dependency); err != nil {
 					return err
 				}
@@ -295,12 +293,30 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	usage := config.CompileUsage(opts.Config, target)
 	defines := append(usage.Defines, opts.Config.ActiveVariant.Defines...)
 
-	// Collect include paths from dependencies
+	// Collect include paths from external dependencies.
 	includes := usage.Includes
-	for _, dep := range target.Depends {
-		if depResult, isExternalDep := b.depResults[dep]; isExternalDep {
-			includes = append(includes, depResult.IncludePath)
+	seenIncludes := make(map[string]bool)
+	seenDependencies := make(map[string]bool)
+	var addDependencyIncludes func(string)
+	addDependencyIncludes = func(name string) {
+		if seenDependencies[name] {
+			return
 		}
+		seenDependencies[name] = true
+		result, ok := b.depResults[name]
+		if !ok {
+			return
+		}
+		if !seenIncludes[result.IncludePath] {
+			seenIncludes[result.IncludePath] = true
+			includes = append(includes, result.IncludePath)
+		}
+		for _, dependency := range result.Depends {
+			addDependencyIncludes(dependency)
+		}
+	}
+	for _, dependency := range target.Depends {
+		addDependencyIncludes(dependency)
 	}
 
 	// Module compilation setup

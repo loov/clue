@@ -96,6 +96,9 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
 		sources := resolved.Sources
+		if resolved.Type == "header_only" {
+			continue
+		}
 		if len(sources) == 0 {
 			return nil, fmt.Errorf("dependency %q has no source files; run 'clue deps fetch' before generating Ninja", name)
 		}
@@ -179,6 +182,9 @@ func dependencyDepends(dep deps.Dependency) []string {
 }
 
 func dependencyOutputPath(buildDir, variant string, dep deps.Dependency, platform toolchain.Platform) string {
+	if dependencyTargetType(dep) == "header_only" {
+		return ""
+	}
 	return filepath.Join(buildDir, variant, "deps", dep.Name(), "lib",
 		outputNameForTarget(dep.Name(), dependencyTargetType(dep), platform))
 }
@@ -215,25 +221,45 @@ func dependencyIncludePath(dep deps.Dependency) string {
 }
 
 func dependencyCompileIncludes(dep deps.Dependency, cfg *config.Config) []string {
-	buildConfig := dep.InlineBuild()
 	var includes []string
-	includes = append(includes, dependencyIncludePath(dep))
-	if buildConfig != nil {
-		for _, name := range buildConfig.Depends {
+	seen := make(map[string]bool)
+	var visit func(deps.Dependency)
+	visit = func(current deps.Dependency) {
+		if seen[current.Name()] {
+			return
+		}
+		seen[current.Name()] = true
+		includes = append(includes, dependencyIncludePath(current))
+		for _, name := range dependencyDepends(current) {
 			if child, ok := cfg.Dependencies[name]; ok {
-				includes = append(includes, dependencyIncludePath(child))
+				visit(child)
 			}
 		}
 	}
+	visit(dep)
 	return includes
 }
 
 func targetDependencyIncludes(cfg *config.Config, target config.Target) []string {
 	var includes []string
-	for _, name := range target.Depends {
-		if dep, ok := cfg.Dependencies[name]; ok {
-			includes = append(includes, dependencyIncludePath(dep))
+	seen := make(map[string]bool)
+	var visit func(string)
+	visit = func(name string) {
+		if seen[name] {
+			return
 		}
+		seen[name] = true
+		dep, ok := cfg.Dependencies[name]
+		if !ok {
+			return
+		}
+		includes = append(includes, dependencyIncludePath(dep))
+		for _, child := range dependencyDepends(dep) {
+			visit(child)
+		}
+	}
+	for _, name := range target.Depends {
+		visit(name)
 	}
 	return includes
 }
@@ -260,7 +286,9 @@ func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir,
 			continue
 		}
 		if dependency, ok := cfg.Dependencies[name]; ok {
-			outputs = append(outputs, dependencyOutputPath(buildDir, variant, dependency, platform))
+			if output := dependencyOutputPath(buildDir, variant, dependency, platform); output != "" {
+				outputs = append(outputs, output)
+			}
 		}
 	}
 	return outputs
@@ -270,7 +298,9 @@ func externalDependencyOutputs(cfg *config.Config, names []string, buildDir, var
 	var outputs []string
 	for _, name := range names {
 		if dep, ok := cfg.Dependencies[name]; ok {
-			outputs = append(outputs, ninjaPathLocal(dependencyOutputPath(buildDir, variant, dep, platform)))
+			if output := dependencyOutputPath(buildDir, variant, dep, platform); output != "" {
+				outputs = append(outputs, ninjaPathLocal(output))
+			}
 		}
 	}
 	return outputs
@@ -289,11 +319,13 @@ func externalDependencyLinkInputs(cfg *config.Config, names []string, buildDir, 
 		if !ok {
 			return
 		}
-		output := ninjaPathLocal(dependencyOutputPath(buildDir, variant, dep, platform))
 		targetType := dependencyTargetType(dep)
-		inputs = append(inputs, linkInputPath(output, targetType, platform))
-		if targetType == "shared_library" {
-			sharedPaths = append(sharedPaths, filepath.Dir(output))
+		if rawOutput := dependencyOutputPath(buildDir, variant, dep, platform); rawOutput != "" {
+			output := ninjaPathLocal(rawOutput)
+			inputs = append(inputs, linkInputPath(output, targetType, platform))
+			if targetType == "shared_library" {
+				sharedPaths = append(sharedPaths, filepath.Dir(output))
+			}
 		}
 		for _, child := range dependencyDepends(dep) {
 			visit(child)
@@ -546,11 +578,13 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 		dep, ok := cfg.Targets[name]
 		if !ok {
 			if external, ok := cfg.Dependencies[name]; ok {
-				output := ninjaPathLocal(dependencyOutputPath(buildDir, variant, external, platform))
 				targetType := dependencyTargetType(external)
-				inputs = append(inputs, linkInputPath(output, targetType, platform))
-				if targetType == "shared_library" {
-					sharedPaths = append(sharedPaths, filepath.Dir(output))
+				if rawOutput := dependencyOutputPath(buildDir, variant, external, platform); rawOutput != "" {
+					output := ninjaPathLocal(rawOutput)
+					inputs = append(inputs, linkInputPath(output, targetType, platform))
+					if targetType == "shared_library" {
+						sharedPaths = append(sharedPaths, filepath.Dir(output))
+					}
 				}
 				for _, child := range dependencyDepends(external) {
 					visit(child)

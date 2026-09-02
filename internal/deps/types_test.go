@@ -31,3 +31,9 @@ func TestTarballDependencyRequiresChecksum(t *testing.T) {
 		t.Fatal("tarball dependency accepted a missing checksum")
 	}
 }
+
+func TestInlineConfig_HeaderOnlyNeedsNoSources(t *testing.T) {
+	if err := (&InlineConfig{Type: "header_only", Includes: []string{"include"}}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

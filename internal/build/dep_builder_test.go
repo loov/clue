@@ -117,6 +117,24 @@ int add(int a, int b) {
 	}
 }
 
+func TestDepBuilder_HeaderOnlyDependencyNeedsNoCompiler(t *testing.T) {
+	root := t.TempDir()
+	include := filepath.Join(root, "include")
+	if err := os.Mkdir(include, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dep := deps.NewVendoredDependency("headers", root, &deps.InlineConfig{
+		Type: "header_only", Includes: []string{"include"},
+	})
+	result, err := (&DepBuilder{}).BuildDep(t.Context(), dep, root, DepBuildOptions{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Type != "header_only" || result.LibPath != "" || result.IncludePath != include {
+		t.Fatalf("header-only result = %+v", result)
+	}
+}
+
 func TestDepBuilder_SharedLibraryUsesProjectStandard(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "lib.cpp")

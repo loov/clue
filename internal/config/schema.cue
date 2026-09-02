@@ -82,12 +82,15 @@ package config
 
 // Inline build configuration for dependencies without clue.cue
 #InlineBuildConfig: {
-	sources: [...string] & [_, ...]  // At least one source
+	sources?: [...string]
 	headers?: [...string]
 	includes?: [...string]
 	defines?: [...string]
 	depends?: [...string]  // Other dependency names
-	targetType?: "static_library" | "shared_library" | *"static_library"
+	targetType: *"static_library" | "shared_library" | "header_only"
+	if targetType != "header_only" {
+		sources: [...string] & [_, ...]
+	}
 }
 
 // Git repository dependency
