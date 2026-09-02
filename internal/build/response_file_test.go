@@ -367,7 +367,7 @@ newline"`},
 
 func TestWriteResponseFileRejectsNewlines(t *testing.T) {
 	if path, err := WriteResponseFile([]string{"safe", "injected\n/flag"}); err == nil {
-		os.Remove(path)
+		cleanupResponseFile(t, path)
 		t.Fatal("expected newline argument to be rejected")
 	}
 }
