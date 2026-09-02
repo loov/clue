@@ -173,12 +173,6 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	// Build configuration from target and variant
 	buildCfg := b.targetToConfig(target, opts.Config.ActiveVariant)
 
-	// Get compiler path for cache key
-	compilerPath, err := exec.LookPath(opts.Config.Toolchain.Compiler)
-	if err != nil {
-		compilerPath = opts.Config.Toolchain.Compiler
-	}
-
 	// Collect include paths from dependencies
 	includes := append([]string{}, target.Includes...)
 	for _, dep := range target.Depends {
@@ -254,20 +248,57 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			fmt.Printf("Compilation order: %v\n", sourcesToCompile)
 		}
 	}
+	moduleInfo := make(map[string]ModuleDependency, len(moduleDeps))
+	moduleOutputs := make(map[string]string, len(moduleDeps))
+	for _, dependency := range moduleDeps {
+		moduleInfo[dependency.Source] = dependency
+		if dependency.Provides != "" {
+			moduleOutputs[dependency.Provides] = filepath.Join(bmiDir, dependency.Provides+".pcm")
+		}
+	}
 
 	// Collect compile options for all sources that need rebuilding
 	var toCompile []CompileOptions
 	var preExistingObjects []string
+	type sourceCacheInputs struct {
+		flags        []string
+		compilerPath string
+	}
+	cacheInputs := make(map[string]sourceCacheInputs, len(target.Sources))
 
-	// Compute compiler flags once for cache checks
-	compilerFlags := b.toolchain.CompilerFlags(buildCfg)
 	objectNames := buildpath.ObjectNames(target.Sources)
 
 	for _, source := range sourcesToCompile {
 		objPath := filepath.Join(objDir, objectNames[source])
+		compileOpts := CompileOptions{
+			Source:     source,
+			Output:     objPath,
+			Includes:   includes,
+			Defines:    target.Defines,
+			Flags:      buildCfg,
+			Std:        opts.Config.Toolchain.Std,
+			TargetType: target.Type,
+		}
+		if module, ok := moduleInfo[source]; ok {
+			compileOpts.ModuleOutput = moduleOutputs[module.Provides]
+			for _, required := range module.Requires {
+				if pcm, ok := moduleOutputs[required]; ok {
+					if compileOpts.ModuleFiles == nil {
+						compileOpts.ModuleFiles = make(map[string]string)
+					}
+					compileOpts.ModuleFiles[required] = pcm
+				}
+			}
+		}
+		compilerPath, err := exec.LookPath(b.compiler.compilerCmd(source))
+		if err != nil {
+			compilerPath = b.compiler.compilerCmd(source)
+		}
+		inputs := b.compiler.cacheInputs(compileOpts)
+		cacheInputs[source] = sourceCacheInputs{flags: inputs, compilerPath: compilerPath}
 
 		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
-			source, compilerFlags, includes, compilerPath, opts.ForceRebuild,
+			source, objPath, inputs, includes, compilerPath, opts.ForceRebuild,
 		)
 
 		if !needsRebuild {
@@ -280,15 +311,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			fmt.Printf("  Will compile: %s (reason: %s, changed: %s)\n", source, reason, changedFile)
 		}
 
-		toCompile = append(toCompile, CompileOptions{
-			Source:     source,
-			Output:     objPath,
-			Includes:   includes,
-			Defines:    target.Defines,
-			Flags:      buildCfg,
-			Std:        opts.Config.Toolchain.Std,
-			TargetType: target.Type,
-		})
+		toCompile = append(toCompile, compileOpts)
+	}
+	storeResult := func(result ParallelResult) {
+		inputs := cacheInputs[result.Source]
+		err := b.cacheManager.StoreResult(result.Source, result.Object, result.DepFile, inputs.flags, includes, inputs.compilerPath)
+		if err != nil && opts.Verbosity == VerbosityVerbose {
+			fmt.Printf("  Warning: failed to cache result: %v\n", err)
+		}
 	}
 
 	// Compilation - handle modules specially to ensure correct order
@@ -299,25 +329,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		if len(orderedModules) > 0 {
 			// Build maps for module compilation
 			moduleSet := make(map[string]bool)
-			sourceToModule := make(map[string]string) // source path -> module name
 			for _, dep := range moduleDeps {
 				moduleSet[dep.Source] = true
-				if dep.Provides != "" {
-					sourceToModule[dep.Source] = dep.Provides
-				}
 			}
-
-			// Track compiled module PCM paths for consumers
-			compiledModules := make(map[string]string) // module name -> pcm path
 
 			var moduleCompile []CompileOptions
 			var otherCompile []CompileOptions
 			for _, opt := range toCompile {
 				if moduleSet[opt.Source] {
-					// Set up module output path
-					if modName := sourceToModule[opt.Source]; modName != "" {
-						opt.ModuleOutput = filepath.Join(bmiDir, modName+".pcm")
-					}
 					moduleCompile = append(moduleCompile, opt)
 				} else {
 					otherCompile = append(otherCompile, opt)
@@ -327,14 +346,6 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			// Compile modules SEQUENTIALLY in dependency order
 			// This ensures each module interface is built before files that import it
 			for _, opt := range moduleCompile {
-				// Add already-compiled modules as dependencies
-				if len(compiledModules) > 0 {
-					opt.ModuleFiles = make(map[string]string)
-					for name, path := range compiledModules {
-						opt.ModuleFiles[name] = path
-					}
-				}
-
 				results, err := b.parallelCompiler.CompileParallel(ctx, []CompileOptions{opt})
 				if err != nil {
 					compileErr = errors.Join(compileErr, err)
@@ -348,30 +359,13 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				for _, r := range results {
 					if r.Error == nil {
 						compiledObjects = append(compiledObjects, r.Object)
-						// Track this module's PCM for later compilations
-						if modName := sourceToModule[r.Source]; modName != "" {
-							compiledModules[modName] = filepath.Join(bmiDir, modName+".pcm")
-						}
-						err := b.cacheManager.StoreResult(r.Source, r.Object, r.DepFile, compilerFlags, includes, compilerPath)
-						if err != nil && opts.Verbosity == VerbosityVerbose {
-							fmt.Printf("  Warning: failed to cache result: %v\n", err)
-						}
+						storeResult(r)
 					}
 				}
 			}
 
 			// Compile non-module sources with all module dependencies
 			if len(otherCompile) > 0 {
-				// Add all compiled modules to each consumer
-				for i := range otherCompile {
-					if len(compiledModules) > 0 {
-						otherCompile[i].ModuleFiles = make(map[string]string)
-						for name, path := range compiledModules {
-							otherCompile[i].ModuleFiles[name] = path
-						}
-					}
-				}
-
 				results, err := b.parallelCompiler.CompileParallel(ctx, otherCompile)
 				if err != nil {
 					compileErr = errors.Join(compileErr, err)
@@ -385,10 +379,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				for _, r := range results {
 					if r.Error == nil {
 						compiledObjects = append(compiledObjects, r.Object)
-						err := b.cacheManager.StoreResult(r.Source, r.Object, r.DepFile, compilerFlags, includes, compilerPath)
-						if err != nil && opts.Verbosity == VerbosityVerbose {
-							fmt.Printf("  Warning: failed to cache result: %v\n", err)
-						}
+						storeResult(r)
 					}
 				}
 			}
@@ -407,10 +398,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				if r.Error == nil {
 					compiledObjects = append(compiledObjects, r.Object)
 					// Store in cache
-					err := b.cacheManager.StoreResult(r.Source, r.Object, r.DepFile, compilerFlags, includes, compilerPath)
-					if err != nil && opts.Verbosity == VerbosityVerbose {
-						fmt.Printf("  Warning: failed to cache result: %v\n", err)
-					}
+					storeResult(r)
 				}
 			}
 		}

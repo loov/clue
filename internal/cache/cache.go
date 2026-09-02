@@ -4,9 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/xxh3"
@@ -15,10 +12,9 @@ import (
 // CacheKey contains all inputs that affect compilation output
 type CacheKey struct {
 	SourceHash   string                     `json:"source_hash"`   // xxHash of source file content
-	DepsHash     string                     `json:"deps_hash"`     // Combined hash of all header dependencies
 	HeaderHashes map[string]string          `json:"header_hashes"` // path -> hash for all headers
 	CompilerID   toolchain.CompilerIdentity `json:"compiler_id"`   // Compiler identity (path + mtime + size)
-	Flags        []string                   `json:"flags"`         // Normalized compiler flags
+	Flags        []string                   `json:"flags"`         // Ordered compilation inputs
 	IncludePaths []string                   `json:"include_paths"` // Include directories (order preserved)
 }
 
@@ -35,75 +31,6 @@ func ComputeFileHash(path string) (string, error) {
 	hash := xxh3.Hash128(data)
 	hashBytes := hash.Bytes()
 	return hex.EncodeToString(hashBytes[:]), nil
-}
-
-// ComputeCacheKey combines all fields into a single deterministic hash
-func ComputeCacheKey(key CacheKey) string {
-	h := xxh3.New()
-
-	// Write source hash (WriteString to hash never fails)
-	_, _ = h.WriteString(key.SourceHash)
-
-	// Write deps hash
-	_, _ = h.WriteString(key.DepsHash)
-
-	// Write compiler identity
-	_, _ = h.WriteString(key.CompilerID.Path)
-	fmt.Fprintf(h, "%d", key.CompilerID.Mtime)
-	fmt.Fprintf(h, "%d", key.CompilerID.Size)
-
-	// Write flags (order matters)
-	for _, flag := range key.Flags {
-		_, _ = h.WriteString(flag)
-	}
-
-	// Write include paths (order matters)
-	for _, path := range key.IncludePaths {
-		_, _ = h.WriteString(path)
-	}
-
-	hash := h.Sum128()
-	hashBytes := hash.Bytes()
-	return hex.EncodeToString(hashBytes[:])
-}
-
-// NormalizeFlags sorts and filters compiler flags, resolving relative paths
-func NormalizeFlags(flags []string) []string {
-	result := make([]string, 0, len(flags))
-
-	// Display-only flags to filter out
-	displayFlags := map[string]bool{
-		"--verbose":  true,
-		"--color":    true,
-		"--progress": true,
-		"-v":         true,
-	}
-
-	for _, flag := range flags {
-		// Skip display-only flags
-		if displayFlags[flag] {
-			continue
-		}
-
-		// Handle -I flags with relative paths
-		if after, ok := strings.CutPrefix(flag, "-I"); ok {
-			includePath := after
-			if !filepath.IsAbs(includePath) {
-				// Resolve relative path to absolute
-				absPath, err := filepath.Abs(includePath)
-				if err == nil {
-					flag = "-I" + absPath
-				}
-			}
-		}
-
-		result = append(result, flag)
-	}
-
-	// Sort flags for determinism
-	sort.Strings(result)
-
-	return result
 }
 
 // GetCompilerIdentity returns the identity of a compiler binary

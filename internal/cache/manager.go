@@ -35,7 +35,7 @@ const (
 type Manager struct {
 	cacheDir     string           // e.g., .build/cache
 	manifestPath string           // e.g., .build/cache/manifest.json
-	manifest     map[string]Entry // sourceHash -> entry
+	manifest     map[string]Entry // source and object path -> entry
 }
 
 // NewManager creates a cache manager for the given build directory
@@ -102,6 +102,7 @@ func atomicWrite(path string, data []byte) error {
 // Returns (needsRebuild bool, reason RebuildReason, changedHeader string)
 func (cm *Manager) NeedsRebuild(
 	source string,
+	objectPath string,
 	compilerFlags []string,
 	includes []string,
 	compilerPath string,
@@ -111,16 +112,16 @@ func (cm *Manager) NeedsRebuild(
 		return true, ReasonForced, ""
 	}
 
-	// Compute source hash
-	sourceHash, err := ComputeFileHash(source)
-	if err != nil {
-		return true, ReasonSourceChanged, ""
-	}
-
 	// Check if we have a cache entry
-	entry, exists := cm.manifest[sourceHash]
+	entry, exists := cm.manifest[cacheEntryID(source, objectPath)]
 	if !exists {
 		return true, ReasonNotCached, ""
+	}
+
+	// Check whether the source contents changed.
+	sourceHash, err := ComputeFileHash(source)
+	if err != nil || sourceHash != entry.Key.SourceHash {
+		return true, ReasonSourceChanged, ""
 	}
 
 	// Check if object file still exists
@@ -147,8 +148,7 @@ func (cm *Manager) NeedsRebuild(
 	}
 
 	// Compare flags
-	normalizedFlags := NormalizeFlags(compilerFlags)
-	if !stringSlicesEqual(normalizedFlags, entry.Key.Flags) {
+	if !stringSlicesEqual(compilerFlags, entry.Key.Flags) {
 		return true, ReasonFlagsChanged, ""
 	}
 
@@ -287,7 +287,7 @@ func (cm *Manager) StoreResult(
 		SourceHash:   sourceHash,
 		HeaderHashes: headerHashes,
 		CompilerID:   compilerID,
-		Flags:        NormalizeFlags(compilerFlags),
+		Flags:        append([]string(nil), compilerFlags...),
 		IncludePaths: normalizeIncludePaths(includes),
 	}
 
@@ -300,24 +300,18 @@ func (cm *Manager) StoreResult(
 	}
 
 	// Store in manifest
-	cm.manifest[sourceHash] = entry
+	cm.manifest[cacheEntryID(source, objectPath)] = entry
 
 	// Save manifest atomically
 	return cm.saveManifest()
 }
 
-// GetCached returns the cached object path if available and valid
-// Returns empty string if not cached or invalid
-func (cm *Manager) GetCached(sourceHash string) string {
-	entry, exists := cm.manifest[sourceHash]
-	if !exists {
-		return ""
+func cacheEntryID(source, objectPath string) string {
+	if absolute, err := filepath.Abs(source); err == nil {
+		source = absolute
 	}
-
-	// Verify object file exists
-	if _, err := os.Stat(entry.ObjectPath); err != nil {
-		return ""
+	if absolute, err := filepath.Abs(objectPath); err == nil {
+		objectPath = absolute
 	}
-
-	return entry.ObjectPath
+	return source + "\x00" + objectPath
 }

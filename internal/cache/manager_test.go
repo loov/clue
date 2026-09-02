@@ -61,6 +61,7 @@ func TestNeedsRebuild_NotCached(t *testing.T) {
 	// Check if needs rebuild (should return true since not cached)
 	needsRebuild, reason, header := cm.NeedsRebuild(
 		srcPath,
+		filepath.Join(buildDir, "test.o"),
 		[]string{},
 		[]string{},
 		"/usr/bin/clang",
@@ -102,6 +103,7 @@ func TestNeedsRebuild_Forced(t *testing.T) {
 	// Check with forceRebuild=true
 	needsRebuild, reason, header := cm.NeedsRebuild(
 		srcPath,
+		filepath.Join(buildDir, "test.o"),
 		[]string{},
 		[]string{},
 		"/usr/bin/clang",
@@ -121,7 +123,7 @@ func TestNeedsRebuild_Forced(t *testing.T) {
 	}
 }
 
-func TestStoreResult_and_GetCached(t *testing.T) {
+func TestStoreResult(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -177,21 +179,49 @@ func TestStoreResult_and_GetCached(t *testing.T) {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
 
-	// Compute source hash to use with GetCached
-	sourceHash, err := ComputeFileHash(srcPath)
-	if err != nil {
-		t.Fatalf("ComputeFileHash failed: %v", err)
-	}
-
-	// Get cached object path
-	cachedPath := cm.GetCached(sourceHash)
-	if cachedPath != objPath {
-		t.Errorf("GetCached = %s, want %s", cachedPath, objPath)
+	if _, ok := cm.manifest[cacheEntryID(srcPath, objPath)]; !ok {
+		t.Error("stored result is missing from the manifest")
 	}
 
 	// Verify manifest was saved
 	if _, err := os.Stat(cm.manifestPath); err != nil {
 		t.Errorf("manifest file not created: %v", err)
+	}
+}
+
+func TestCacheSeparatesOutputsForTheSameSource(t *testing.T) {
+	tmpDir := t.TempDir()
+	cm, err := NewManager(filepath.Join(tmpDir, "build"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(tmpDir, "same.cpp")
+	if err := os.WriteFile(source, []byte("int value() { return 1; }"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	compiler, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"first", "second"} {
+		object := filepath.Join(tmpDir, name+".o")
+		depfile := filepath.Join(tmpDir, name+".d")
+		if err := os.WriteFile(object, []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(depfile, []byte(object+": "+source+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := cm.StoreResult(source, object, depfile, []string{name}, nil, compiler); err != nil {
+			t.Fatal(err)
+		}
+		if rebuild, reason, _ := cm.NeedsRebuild(source, object, []string{name}, nil, compiler, false); rebuild {
+			t.Errorf("%s output unexpectedly needs rebuild: %s", name, reason)
+		}
+	}
+	if len(cm.manifest) != 2 {
+		t.Fatalf("same source outputs collided in manifest: %#v", cm.manifest)
 	}
 }
 
@@ -247,6 +277,7 @@ func TestNeedsRebuild_SourceChanged(t *testing.T) {
 	// Check if needs rebuild
 	needsRebuild, reason, _ := cm.NeedsRebuild(
 		srcPath,
+		objPath,
 		[]string{},
 		[]string{},
 		compilerPath,
@@ -319,7 +350,7 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 	}
 
 	// First check - should not need rebuild
-	needsRebuild, reason1, header1 := cm.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
+	needsRebuild, reason1, header1 := cm.NeedsRebuild(srcPath, objPath, []string{}, []string{}, compilerPath, false)
 	if needsRebuild {
 		t.Errorf("expected needsRebuild=false before header change, got reason=%s, header=%s", reason1, header1)
 	}
@@ -333,6 +364,7 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 	// Check if needs rebuild
 	needsRebuild, reason, changedHeader := cm.NeedsRebuild(
 		srcPath,
+		objPath,
 		[]string{},
 		[]string{},
 		compilerPath,
@@ -405,7 +437,7 @@ func TestManifestPersistence(t *testing.T) {
 	}
 
 	// Verify cache still works
-	needsRebuild, _, _ := cm2.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
+	needsRebuild, _, _ := cm2.NeedsRebuild(srcPath, objPath, []string{}, []string{}, compilerPath, false)
 	if needsRebuild {
 		t.Error("expected needsRebuild=false after loading persisted manifest")
 	}
@@ -514,7 +546,7 @@ func TestNeedsRebuild_ObjectMissing(t *testing.T) {
 	os.Remove(objPath)
 
 	// Check if needs rebuild
-	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
+	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, objPath, []string{}, []string{}, compilerPath, false)
 
 	if !needsRebuild {
 		t.Error("expected needsRebuild=true when object file missing")
@@ -572,7 +604,7 @@ func TestNeedsRebuild_DepFileMissing(t *testing.T) {
 	os.Remove(depPath)
 
 	// Check if needs rebuild
-	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, []string{}, []string{}, compilerPath, false)
+	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, objPath, []string{}, []string{}, compilerPath, false)
 
 	if !needsRebuild {
 		t.Error("expected needsRebuild=true when dep file missing")
@@ -621,15 +653,15 @@ func TestNeedsRebuild_FlagsChanged(t *testing.T) {
 	compilerPath := "/usr/bin/clang"
 
 	// Store result with one set of flags
-	flags1 := []string{toolchain.OptimizationFlag("none")}
+	flags1 := []string{"-DFIRST", "-DSECOND"}
 	err = cm.StoreResult(srcPath, objPath, depPath, flags1, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
 
 	// Check with different flags
-	flags2 := []string{toolchain.OptimizationFlag("fast")}
-	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, flags2, []string{}, compilerPath, false)
+	flags2 := []string{"-DSECOND", "-DFIRST"}
+	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, objPath, flags2, []string{}, compilerPath, false)
 
 	if !needsRebuild {
 		t.Error("expected needsRebuild=true when flags changed")
@@ -637,21 +669,5 @@ func TestNeedsRebuild_FlagsChanged(t *testing.T) {
 
 	if reason != ReasonFlagsChanged {
 		t.Errorf("reason = %s, want %s", reason, ReasonFlagsChanged)
-	}
-}
-
-func TestGetCached_NotExists(t *testing.T) {
-	tmpDir := t.TempDir()
-	buildDir := filepath.Join(tmpDir, "build")
-
-	cm, err := NewManager(buildDir)
-	if err != nil {
-		t.Fatalf("NewManager failed: %v", err)
-	}
-
-	// Try to get cached result for non-existent hash
-	cachedPath := cm.GetCached("nonexistenthash")
-	if cachedPath != "" {
-		t.Errorf("GetCached = %s, want empty string for non-existent hash", cachedPath)
 	}
 }

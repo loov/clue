@@ -78,6 +78,27 @@ func TestCompiler_WithToolchain(t *testing.T) {
 	}
 }
 
+func TestCompilerCacheInputsIncludeAllCompileOptions(t *testing.T) {
+	tc, _ := NewToolchain("clang", HostPlatform())
+	compiler := NewCompiler(NewExecutor(ExecutorConfig{}), tc)
+	base := CompileOptions{
+		Source: "main.cpp", Output: "main.o", Includes: []string{"include"},
+		Defines: []string{"MODE=1"}, Std: "c++17", TargetType: "executable",
+	}
+	baseline := compiler.cacheInputs(base)[0]
+
+	changes := []CompileOptions{base, base, base, base}
+	changes[0].Defines = []string{"MODE=2"}
+	changes[1].Std = "c++20"
+	changes[2].TargetType = "shared_library"
+	changes[3].ModuleFiles = map[string]string{"math": "math.pcm"}
+	for _, changed := range changes {
+		if compiler.cacheInputs(changed)[0] == baseline {
+			t.Errorf("cache input did not change for options: %+v", changed)
+		}
+	}
+}
+
 func TestCompiler_CompileSource_Integration(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {

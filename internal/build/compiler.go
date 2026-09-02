@@ -2,12 +2,18 @@ package build
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+func (c *Compiler) cacheInputs(opts CompileOptions) []string {
+	encoded, _ := json.Marshal(opts)
+	return append([]string{string(encoded)}, c.toolchain.CompilerFlags(opts.Flags)...)
+}
 
 // CompileOptions holds options for compiling a single source file
 type CompileOptions struct {
