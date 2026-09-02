@@ -260,6 +260,18 @@ dependencies: {
 			expectError: "out of bound",
 		},
 		{
+			name: "insecure git URL",
+			config: `name: "test"
+targets: { app: { name: "app", type: "executable", sources: ["main.cpp"] } }
+dependencies: {
+	dep: {
+		type: "git"
+		repo: "http://example.com/repo.git"
+	}
+}`,
+			expectError: "out of bound",
+		},
+		{
 			name: "missing tarball url",
 			config: `name: "test"
 targets: { app: { name: "app", type: "executable", sources: ["main.cpp"] } }
@@ -279,6 +291,18 @@ dependencies: {
 		type: "tarball"
 		url: "https://example.com/file.tar.gz"
 		checksum: "invalid"
+	}
+}`,
+			expectError: "out of bound",
+		},
+		{
+			name: "insecure tarball URL",
+			config: `name: "test"
+targets: { app: { name: "app", type: "executable", sources: ["main.cpp"] } }
+dependencies: {
+	dep: {
+		type: "tarball"
+		url: "http://example.com/file.tar.gz"
 	}
 }`,
 			expectError: "out of bound",

@@ -80,7 +80,7 @@ package config
 // Git repository dependency
 #GitDependency: {
 	type: "git"
-	repo: string & =~"^(https?://|git@)"  // Must be valid git URL
+	repo: string & =~"^(https://|git@)"  // Require authenticated transport
 	ref?: string | *"main"
 	build?: #InlineBuildConfig
 }
@@ -88,7 +88,7 @@ package config
 // Tarball dependency
 #TarballDependency: {
 	type: "tarball"
-	url: string & =~"^https?://"
+	url: string & =~"^https://"
 	checksum?: string & =~"^[a-f0-9]{64}$"  // SHA256 hex
 	stripPrefix?: string
 	build?: #InlineBuildConfig

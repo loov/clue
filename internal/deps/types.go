@@ -75,11 +75,10 @@ func (g *GitDependency) Validate() error {
 	if g.Repo == "" {
 		return fmt.Errorf("git dependency %q: repo is required", g.name)
 	}
-	// Basic validation: repo should start with http://, https://, or git@
-	if !strings.HasPrefix(g.Repo, "http://") &&
-		!strings.HasPrefix(g.Repo, "https://") &&
+	// Require an authenticated transport.
+	if !strings.HasPrefix(g.Repo, "https://") &&
 		!strings.HasPrefix(g.Repo, "git@") {
-		return fmt.Errorf("git dependency %q: repo must be a valid git URL (http://, https://, or git@)", g.name)
+		return fmt.Errorf("git dependency %q: repo must start with https:// or git@", g.name)
 	}
 	if g.BuildConfig != nil {
 		if err := g.BuildConfig.Validate(); err != nil {
@@ -143,9 +142,8 @@ func (t *TarballDependency) Validate() error {
 	if t.URL == "" {
 		return fmt.Errorf("tarball dependency %q: url is required", t.name)
 	}
-	// URL should start with http:// or https://
-	if !strings.HasPrefix(t.URL, "http://") && !strings.HasPrefix(t.URL, "https://") {
-		return fmt.Errorf("tarball dependency %q: url must start with http:// or https://", t.name)
+	if !strings.HasPrefix(t.URL, "https://") {
+		return fmt.Errorf("tarball dependency %q: url must start with https://", t.name)
 	}
 	// If checksum is provided, validate it's SHA256 hex (64 hex chars)
 	if t.Checksum != "" {
