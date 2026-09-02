@@ -3,6 +3,7 @@ package build
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -47,7 +48,7 @@ func DetectModuleSources(sources []string) ([]string, error) {
 }
 
 // isModuleSource checks if a source file contains module declarations
-func isModuleSource(path string) (bool, error) {
+func isModuleSource(path string) (_ bool, resultErr error) {
 	// First check by extension - .cppm, .ixx, .mpp are always modules
 	ext := filepath.Ext(path)
 	if ext == ".cppm" || ext == ".ixx" || ext == ".mpp" {
@@ -59,7 +60,7 @@ func isModuleSource(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer file.Close()
+	defer func() { resultErr = errors.Join(resultErr, file.Close()) }()
 
 	scanner := bufio.NewScanner(file)
 	lineCount := 0
