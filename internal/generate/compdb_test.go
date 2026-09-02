@@ -393,6 +393,14 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 	}
 }
 
+func TestIsCPlusPlusFile_ModuleInterfaces(t *testing.T) {
+	for _, source := range []string{"module.cppm", "module.ixx", "module.mpp"} {
+		if !isCPlusPlusFile(source) {
+			t.Errorf("isCPlusPlusFile(%q) = false, want true", source)
+		}
+	}
+}
+
 func TestCompileCommands_VariantFlags(t *testing.T) {
 	tmpDir := t.TempDir()
 

@@ -26,7 +26,7 @@ type ModuleDependency struct {
 var (
 	exportModulePattern = regexp.MustCompile(`^\s*export\s+module\s+([a-zA-Z_][a-zA-Z0-9_.:]*)\s*;`)
 	modulePattern       = regexp.MustCompile(`^\s*module\s+([a-zA-Z_][a-zA-Z0-9_.:]*)\s*;`)
-	importStdPattern    = regexp.MustCompile(`^\s*import\s+(std|std\.[a-zA-Z_][a-zA-Z0-9_.]*)\s*;`)
+	importModulePattern = regexp.MustCompile(`^\s*(?:export\s+)?import\s+([a-zA-Z_:][a-zA-Z0-9_.:]*)\s*;`)
 )
 
 // DetectModuleSources identifies which source files contain module declarations
@@ -82,7 +82,7 @@ func isModuleSource(path string) (_ bool, resultErr error) {
 		// Check for module patterns
 		if exportModulePattern.MatchString(line) ||
 			modulePattern.MatchString(line) ||
-			importStdPattern.MatchString(line) {
+			importModulePattern.MatchString(line) {
 			return true, nil
 		}
 	}
@@ -134,6 +134,24 @@ func (c *Compiler) scanModuleDeps(sources []string, opts CompileOptions) ([]Modu
 	}
 
 	return deps, nil
+}
+
+// ScanModuleDependencies detects and scans module-aware sources using the
+// configured compiler command.
+func ScanModuleDependencies(tc Toolchain, sources []string, opts CompileOptions) ([]ModuleDependency, error) {
+	moduleSources, err := DetectModuleSources(sources)
+	if err != nil || len(moduleSources) == 0 {
+		return nil, err
+	}
+	if tc.Name() != "clang" {
+		return nil, fmt.Errorf("C++20 modules require the clang toolchain, got %q", tc.Name())
+	}
+	return (&Compiler{toolchain: tc}).scanModuleDeps(moduleSources, opts)
+}
+
+// ModuleOutputPath returns a portable BMI path for a logical module name.
+func ModuleOutputPath(dir, name string) string {
+	return filepath.Join(dir, strings.ReplaceAll(name, ":", "@")+".pcm")
 }
 
 // scanSource runs clang-scan-deps on a single source file

@@ -70,7 +70,10 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 		}
 
 		// Generate build statements for this target
-		targetOutputs := generateTargetBuilds(file, opts, variant, variantConfig, target, tc)
+		targetOutputs, err := generateTargetBuilds(file, opts, variant, variantConfig, target, tc)
+		if err != nil {
+			return nil, err
+		}
 		outputs = append(outputs, targetOutputs...)
 	}
 
@@ -300,7 +303,7 @@ func runtimeLibraryFlags(output string, paths []string, platform toolchain.Platf
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain) []string {
+func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain) ([]string, error) {
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 	target.Defines = append(append([]string(nil), target.Defines...), variantConfig.Defines...)
@@ -321,8 +324,17 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	var objects []string
 	objectNames := buildpath.ObjectNames(target.Sources)
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
+	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
+		Includes: includes,
+		Defines:  target.Defines,
+		Flags:    buildCfg,
+		Std:      opts.Config.Toolchain.Std,
+	}, filepath.Join(opts.BuildDir, variant, target.Name, "modules"))
+	if err != nil {
+		return nil, err
+	}
 
-	for _, source := range target.Sources {
+	for _, source := range modules.ordered {
 		// Determine object path
 		objPath := ninjaPathLocal(objectPath(opts.BuildDir, variant, target.Name, objectNames[source]))
 		srcPath := ninjaPathLocal(source)
@@ -337,15 +349,22 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			flagKey = "cxxflags"
 		}
 
-		*file = append(*file, ninja.Build{
+		statement := ninja.Build{
 			Rule:        rule,
 			In:          []string{srcPath},
+			InImplicit:  modules.inputs(source),
 			InOrderOnly: externalDependencies,
 			Out:         []string{objPath},
 			Vars: ninja.Vars{
-				{Key: flagKey, Val: strings.Join(compilerFlags, " ")},
+				{Key: flagKey, Val: strings.Join(append(append([]string(nil), compilerFlags...), modules.flags(source)...), " ")},
 			},
-		})
+		}
+		if module, ok := modules.bySource[source]; ok {
+			if output := modules.outputs[module.Provides]; output != "" {
+				statement.OutImplicit = []string{output}
+			}
+		}
+		*file = append(*file, statement)
 	}
 
 	// Link or archive
@@ -388,7 +407,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		*file = append(*file, statement)
 	}
 
-	return []string{outputPath}
+	return []string{outputPath}, nil
 }
 
 // Note: targetToBuildConfig is defined in compdb.go and shared between both generators

@@ -79,6 +79,20 @@ func TestDetectModuleSources_ByContent(t *testing.T) {
 	}
 }
 
+func TestDetectModuleSources_NamedModuleConsumer(t *testing.T) {
+	moduleFile := filepath.Join(t.TempDir(), "main.cpp")
+	if err := os.WriteFile(moduleFile, []byte("import hello;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	moduleSources, err := DetectModuleSources([]string{moduleFile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moduleSources) != 1 || moduleSources[0] != moduleFile {
+		t.Fatalf("DetectModuleSources() = %v, want [%s]", moduleSources, moduleFile)
+	}
+}
+
 func TestOrderModuleCompilation(t *testing.T) {
 	// Module A provides "modA"
 	// Module B provides "modB", requires "modA"

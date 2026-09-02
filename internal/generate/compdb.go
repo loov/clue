@@ -111,13 +111,33 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	target.Defines = append(append([]string(nil), target.Defines...), variant.Defines...)
 	target.Includes = append(append([]string(nil), target.Includes...), targetDependencyIncludes(opts.Config, target)...)
 	objectNames := buildpath.ObjectNames(target.Sources)
+	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
+		Includes: target.Includes,
+		Defines:  target.Defines,
+		Flags:    buildCfg,
+		Std:      opts.Config.Toolchain.Std,
+	}, filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules"))
+	if err != nil {
+		return nil, err
+	}
 
-	for _, source := range target.Sources {
+	for _, source := range modules.ordered {
 		// Determine object path
 		objPath := objectPath(opts.BuildDir, opts.Variant, target.Name, objectNames[source])
 
 		// Build compiler arguments
 		args := buildCompilerArgs(tc, opts.Config.Toolchain.Std, target.Includes, target.Defines, source, objPath, buildCfg)
+		for _, flag := range modules.flags(source) {
+			if value, ok := strings.CutPrefix(flag, "-fmodule-output="); ok {
+				flag = "-fmodule-output=" + AbsPath(value)
+			} else if value, ok := strings.CutPrefix(flag, "-fmodule-file="); ok {
+				name, path, found := strings.Cut(value, "=")
+				if found {
+					flag = "-fmodule-file=" + name + "=" + AbsPath(path)
+				}
+			}
+			args = append(args, flag)
+		}
 
 		// Make paths absolute for IDE compatibility
 		srcAbs := AbsPath(source)
@@ -258,7 +278,7 @@ func compilerForSource(tc toolchain.Toolchain, source string) string {
 func isCPlusPlusFile(source string) bool {
 	ext := strings.ToLower(filepath.Ext(source))
 	switch ext {
-	case ".cpp", ".cc", ".cxx", ".c++":
+	case ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp":
 		return true
 	}
 	// Handle case-sensitive extensions

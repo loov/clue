@@ -9,6 +9,7 @@ import (
 
 	"github.com/Duncaen/go-ninja"
 
+	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
@@ -95,6 +96,22 @@ func TestNinja_BasicStructure(t *testing.T) {
 	// Verify default target
 	if !strings.Contains(content, "default debug") {
 		t.Errorf("Missing default target, got:\n%s", content)
+	}
+}
+
+func TestTargetModules_WiresProducedBMIsToConsumers(t *testing.T) {
+	modules := targetModules{
+		bySource: map[string]build.ModuleDependency{
+			"hello.cppm": {Source: "hello.cppm", Provides: "hello"},
+			"main.cpp":   {Source: "main.cpp", Requires: []string{"hello"}},
+		},
+		outputs: map[string]string{"hello": ".build/debug/app/modules/hello.pcm"},
+	}
+	if got := strings.Join(modules.flags("main.cpp"), " "); got != "-fmodule-file=hello=.build/debug/app/modules/hello.pcm" {
+		t.Fatalf("consumer flags = %q", got)
+	}
+	if got := modules.inputs("main.cpp"); len(got) != 1 || got[0] != ".build/debug/app/modules/hello.pcm" {
+		t.Fatalf("consumer inputs = %v", got)
 	}
 }
 

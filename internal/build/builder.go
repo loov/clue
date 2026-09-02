@@ -299,31 +299,22 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 	}
 
-	// Check for C++20 modules
-	moduleSources, err := DetectModuleSources(target.Sources)
+	// Module compilation setup
+	var orderedModules []string
+	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
+	moduleDeps, err := ScanModuleDependencies(b.toolchain, target.Sources, CompileOptions{
+		Includes: includes,
+		Defines:  defines,
+		Flags:    buildCfg,
+		Std:      opts.Config.Toolchain.Std,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("module detection failed: %w", err)
+		return nil, fmt.Errorf("module dependency scan failed: %w", err)
 	}
 
-	// Module compilation setup
-	var moduleDeps []ModuleDependency
-	var orderedModules []string
-	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, "modules")
-
-	if len(moduleSources) > 0 {
+	if len(moduleDeps) > 0 {
 		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("Detected %d module source(s), scanning dependencies...\n", len(moduleSources))
-		}
-
-		// Scan module dependencies
-		moduleDeps, err = b.compiler.scanModuleDeps(moduleSources, CompileOptions{
-			Includes: includes,
-			Defines:  defines,
-			Flags:    buildCfg,
-			Std:      opts.Config.Toolchain.Std,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("module dependency scan failed: %w", err)
+			fmt.Printf("Detected %d module source(s)\n", len(moduleDeps))
 		}
 
 		// Order module sources
@@ -371,7 +362,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	for _, dependency := range moduleDeps {
 		moduleInfo[dependency.Source] = dependency
 		if dependency.Provides != "" {
-			moduleOutputs[dependency.Provides] = filepath.Join(bmiDir, dependency.Provides+".pcm")
+			moduleOutputs[dependency.Provides] = ModuleOutputPath(bmiDir, dependency.Provides)
 		}
 	}
 
@@ -417,6 +408,12 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
 			source, objPath, inputs, includes, compilerPath, opts.ForceRebuild,
 		)
+		if !needsRebuild && compileOpts.ModuleOutput != "" {
+			if _, err := os.Stat(compileOpts.ModuleOutput); err != nil {
+				needsRebuild = true
+				reason = cache.ReasonObjectMissing
+			}
+		}
 
 		if !needsRebuild {
 			progress.Skip(target.Name, source, reason)
