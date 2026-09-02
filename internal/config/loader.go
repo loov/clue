@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -142,10 +143,15 @@ func NewLoader() *Loader {
 
 // Load reads and validates a CUE configuration from a directory
 func (l *Loader) Load(dir string) (*Config, error) {
-	return l.load(dir, nil)
+	return l.LoadForTarget(dir, toolchain.HostPlatform())
 }
 
-func (l *Loader) load(dir string, overlay map[string]load.Source) (*Config, error) {
+// LoadForTarget reads configuration with target platform values available as _target.
+func (l *Loader) LoadForTarget(dir string, target toolchain.Platform) (*Config, error) {
+	return l.load(dir, nil, target)
+}
+
+func (l *Loader) load(dir string, overlay map[string]load.Source, target toolchain.Platform) (*Config, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("invalid directory: %w", err)
@@ -153,7 +159,8 @@ func (l *Loader) load(dir string, overlay map[string]load.Source) (*Config, erro
 
 	// clue.cue is the project entry point; the CUE loader evaluates its package.
 	configPath := filepath.Join(absDir, "clue.cue")
-	if _, err := os.Stat(configPath); err != nil {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, &clerrors.RichError{
 				File:       configPath,
@@ -163,13 +170,23 @@ func (l *Loader) load(dir string, overlay map[string]load.Source) (*Config, erro
 		}
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
-	entry, err := parser.ParseFile(configPath, nil)
+	entry, err := parser.ParseFile(configPath, data)
 	if err != nil {
 		return nil, l.convertCUEError(err, absDir)
 	}
 	packageName := entry.PackageName()
 	if packageName == "" {
 		packageName = "_"
+	}
+	if target.OS == "" || target.Arch == "" {
+		target = toolchain.HostPlatform()
+	}
+	if overlay == nil {
+		overlay = make(map[string]load.Source)
+	}
+	if !json.Valid(data) {
+		data = append(data, []byte(fmt.Sprintf("\n_target: {os: %q, arch: %q}\n", target.OS, target.Arch))...)
+		overlay[configPath] = load.FromBytes(data)
 	}
 
 	instances := load.Instances([]string{"."}, &load.Config{Dir: absDir, Package: packageName, Overlay: overlay})

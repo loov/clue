@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -443,6 +444,27 @@ func TestTargetFlag_Empty(t *testing.T) {
 	outputStr := string(output)
 	if !strings.Contains(outputStr, "Building for") {
 		t.Errorf("Expected 'Building for' in output, got:\n%s", outputStr)
+	}
+}
+
+func TestLoadConfigUsesSelectedTarget(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "target-aware"
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["main.cpp"]
+	defines: [if _target.os == "windows" {"WINDOWS_BUILD"}]
+}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, platform, err := loadConfig(dir, "", "windows-amd64", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if platform.String() != "windows-amd64" || !slices.Contains(cfg.Targets["app"].Defines, "WINDOWS_BUILD") {
+		t.Fatalf("platform=%s defines=%v", platform, cfg.Targets["app"].Defines)
 	}
 }
 

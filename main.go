@@ -119,17 +119,17 @@ func main() {
 
 	switch command {
 	case "validate":
-		os.Exit(runValidate(opts.dir, opts.variant, verbosity))
+		os.Exit(runValidate(opts.dir, opts.variant, opts.target, verbosity))
 	case "build":
 		os.Exit(runBuild(opts.dir, opts.variant, opts.target, verbosity, opts.rebuildAll, opts.jobs, opts.keepGoing, opts.profile, opts.saveProfile, opts.top, args))
 	case "clean":
-		os.Exit(runClean(opts.dir, opts.variant, opts.all, verbosity))
+		os.Exit(runClean(opts.dir, opts.variant, opts.target, opts.all, verbosity))
 	case "deps":
-		os.Exit(runDeps(opts.dir, opts.verbose, args))
+		os.Exit(runDeps(opts.dir, opts.target, opts.verbose, args))
 	case "generate":
 		os.Exit(runGenerate(opts.dir, opts.variant, opts.target, args))
 	case "run":
-		os.Exit(runRun(opts.dir, opts.variant, verbosity, opts.jobs, args))
+		os.Exit(runRun(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, args))
 	case "watch":
 		os.Exit(runWatch(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, opts.keepGoing))
 	default:
@@ -150,13 +150,24 @@ func isProfilingEnabled(flagValue bool) bool {
 	return false
 }
 
-// loadConfig loads and prepares configuration with variant and environment variables
-func loadConfig(dir, variant string, verbosity build.Verbosity) (*config.Config, string, error) {
+func parseTargetPlatform(value string) (toolchain.Platform, error) {
+	if value == "" {
+		return toolchain.HostPlatform(), nil
+	}
+	return toolchain.ParseTarget(value)
+}
+
+// loadConfig loads and prepares configuration with variant and environment variables.
+func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config.Config, string, toolchain.Platform, error) {
+	platform, err := parseTargetPlatform(target)
+	if err != nil {
+		return nil, "", toolchain.Platform{}, err
+	}
 	// Load configuration
 	loader := config.NewLoader()
-	cfg, err := loader.Load(dir)
+	cfg, err := loader.LoadForTarget(dir, platform)
 	if err != nil {
-		return nil, "", err
+		return nil, "", toolchain.Platform{}, err
 	}
 
 	if verbosity >= build.VerbosityNormal {
@@ -179,7 +190,7 @@ func loadConfig(dir, variant string, verbosity build.Verbosity) (*config.Config,
 	if len(cfg.Variants) > 0 {
 		cfg, err = config.ApplyVariant(cfg, selectedVariant)
 		if err != nil {
-			return nil, "", err
+			return nil, "", toolchain.Platform{}, err
 		}
 		if verbosity >= build.VerbosityNormal {
 			fmt.Printf("Applied variant: %s\n", selectedVariant)
@@ -191,14 +202,14 @@ func loadConfig(dir, variant string, verbosity build.Verbosity) (*config.Config,
 	// Resolve environment variables
 	env, err := config.ResolveEnvVars(cfg)
 	if err != nil {
-		return nil, "", err
+		return nil, "", toolchain.Platform{}, err
 	}
 
 	// Apply environment-based conditionals to config
 	if len(env.Variables) > 0 {
 		cfg, err = config.ApplyEnvVars(cfg, env)
 		if err != nil {
-			return nil, "", err
+			return nil, "", toolchain.Platform{}, err
 		}
 	}
 
@@ -215,11 +226,11 @@ func loadConfig(dir, variant string, verbosity build.Verbosity) (*config.Config,
 		fmt.Printf("Environment variables configured: %s\n", strings.Join(names, ", "))
 	}
 
-	return cfg, selectedVariant, nil
+	return cfg, selectedVariant, platform, nil
 }
 
-func runValidate(dir, variant string, verbosity build.Verbosity) int {
-	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
+func runValidate(dir, variant, target string, verbosity build.Verbosity) int {
+	cfg, selectedVariant, _, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -257,7 +268,7 @@ func runValidate(dir, variant string, verbosity build.Verbosity) int {
 }
 
 func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll bool, jobs int, keepGoing bool, profile, saveProfile bool, topN int, targets []string) int {
-	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
+	cfg, selectedVariant, targetPlatform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -271,19 +282,6 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 	} else if actualJobs < 0 {
 		// Unlimited: use all cores
 		actualJobs = runtime.NumCPU()
-	}
-
-	// Determine target platform
-	var targetPlatform toolchain.Platform
-	if target == "" {
-		targetPlatform = toolchain.HostPlatform()
-	} else {
-		var err error
-		targetPlatform, err = toolchain.ParseTarget(target)
-		if err != nil {
-			printError(err)
-			return 1
-		}
 	}
 
 	// Show platform info before build (skip in quiet mode)
@@ -342,9 +340,14 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 	return 0
 }
 
-func runClean(dir, variant string, all bool, verbosity build.Verbosity) int {
+func runClean(dir, variant, target string, all bool, verbosity build.Verbosity) int {
 	buildDir := ".build"
-	cfg, configErr := config.NewLoader().Load(dir)
+	platform, err := parseTargetPlatform(target)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+	cfg, configErr := config.NewLoader().LoadForTarget(dir, platform)
 	if configErr == nil {
 		buildDir = cfg.BuildDir
 	}
@@ -383,7 +386,7 @@ func runClean(dir, variant string, all bool, verbosity build.Verbosity) int {
 	return 0
 }
 
-func runDeps(dir string, verbose bool, args []string) int {
+func runDeps(dir, target string, verbose bool, args []string) int {
 	// Parse deps subcommand
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "Usage: clue deps <list|fetch|clean|update> [options]")
@@ -402,7 +405,7 @@ func runDeps(dir string, verbose bool, args []string) int {
 	if verbose {
 		verbosity = build.VerbosityVerbose
 	}
-	cfg, _, err := loadConfig(dir, "", verbosity)
+	cfg, _, _, err := loadConfig(dir, "", target, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -472,10 +475,15 @@ func runGenerate(dir, variant, target string, args []string) int {
 	}
 
 	subCmd := args[0]
+	targetPlatform, err := parseTargetPlatform(target)
+	if err != nil {
+		printError(err)
+		return 1
+	}
 
 	// Load config without applying variant - generators handle variants internally
 	loader := config.NewLoader()
-	cfg, err := loader.Load(dir)
+	cfg, err := loader.LoadForTarget(dir, targetPlatform)
 	if err != nil {
 		printError(err)
 		return 1
@@ -501,18 +509,6 @@ func runGenerate(dir, variant, target string, args []string) int {
 		selector.SetCLIFlag(variant)
 	}
 	selectedVariant := selector.Select()
-
-	// Determine target platform
-	var targetPlatform toolchain.Platform
-	if target == "" {
-		targetPlatform = toolchain.HostPlatform()
-	} else {
-		targetPlatform, err = toolchain.ParseTarget(target)
-		if err != nil {
-			printError(err)
-			return 1
-		}
-	}
 
 	switch subCmd {
 	case "ninja":
@@ -592,7 +588,7 @@ func generateCompileCommands(dir string, cfg *config.Config, variant string, pla
 	return 0
 }
 
-func runRun(dir, variant string, verbosity build.Verbosity, jobs int, args []string) int {
+func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, args []string) int {
 	// Parse target name (first arg) and remaining args
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "Usage: clue run <target> [args...]")
@@ -604,9 +600,13 @@ func runRun(dir, variant string, verbosity build.Verbosity, jobs int, args []str
 	execArgs := args[1:]
 
 	// Load configuration
-	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
+	cfg, selectedVariant, platform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
 		printError(err)
+		return 1
+	}
+	if platform != toolchain.HostPlatform() {
+		printError(fmt.Errorf("cannot run executable for non-host target %s", platform))
 		return 1
 	}
 
@@ -647,7 +647,7 @@ func runRun(dir, variant string, verbosity build.Verbosity, jobs int, args []str
 
 func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, keepGoing bool) int {
 	// Load initial config
-	cfg, selectedVariant, err := loadConfig(dir, variant, verbosity)
+	cfg, selectedVariant, targetPlatform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -659,19 +659,6 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		actualJobs = max(runtime.NumCPU()/2, 1)
 	} else if actualJobs < 0 {
 		actualJobs = runtime.NumCPU()
-	}
-
-	// Determine target platform (same as runBuild)
-	var targetPlatform toolchain.Platform
-	if target == "" {
-		targetPlatform = toolchain.HostPlatform()
-	} else {
-		var err error
-		targetPlatform, err = toolchain.ParseTarget(target)
-		if err != nil {
-			printError(err)
-			return 1
-		}
 	}
 
 	buildCuePath := filepath.Join(dir, "clue.cue")
@@ -697,7 +684,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 			fmt.Printf("[%s] Config changed: %s - reloading...\n", now, trigger)
 			// Reload config
 			var err error
-			cfg, selectedVariant, err = loadConfig(dir, variant, verbosity)
+			cfg, selectedVariant, targetPlatform, err = loadConfig(dir, variant, target, verbosity)
 			if err != nil {
 				printError(err)
 				buildMu.Unlock()

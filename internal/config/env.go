@@ -14,6 +14,7 @@ import (
 	"cuelang.org/go/cue/parser"
 
 	clerrors "github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // EnvConfig holds environment variable configuration
@@ -174,6 +175,11 @@ func NewLoaderWithEnv(envVars map[string]string) *LoaderWithEnv {
 
 // Load reads and validates CUE configuration with injected env vars
 func (l *LoaderWithEnv) Load(dir string) (*Config, error) {
+	return l.LoadForTarget(dir, toolchain.HostPlatform())
+}
+
+// LoadForTarget reads configuration with injected environment and target values.
+func (l *LoaderWithEnv) LoadForTarget(dir string, target toolchain.Platform) (*Config, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("invalid directory: %w", err)
@@ -190,7 +196,7 @@ func (l *LoaderWithEnv) Load(dir string) (*Config, error) {
 	overlay := map[string]load.Source{
 		envFile: load.FromBytes([]byte(envCUE)),
 	}
-	return l.Loader.load(absDir, overlay)
+	return l.Loader.load(absDir, overlay, target)
 }
 
 // buildEnvCUE generates CUE content to inject environment variables

@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestValidConfig(t *testing.T) {
@@ -127,6 +129,27 @@ targets: app: {name: "app", type: "executable", sources: ["src/*.cpp"]}`
 	}
 	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "matched no files") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestLoaderInjectsTargetPlatform(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "platform"
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["main.cpp"]
+	defines: [if _target.os == "windows" {"ON_WINDOWS"}, if _target.arch == "arm64" {"ON_ARM64"}]
+}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().LoadForTarget(dir, toolchain.Platform{OS: "windows", Arch: "arm64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(cfg.Targets["app"].Defines, []string{"ON_WINDOWS", "ON_ARM64"}) {
+		t.Fatalf("defines = %v", cfg.Targets["app"].Defines)
 	}
 }
 
