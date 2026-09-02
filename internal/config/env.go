@@ -246,7 +246,7 @@ func buildEnvCUE(envVars map[string]string) string {
 	for k, v := range envVars {
 		// Escape special characters in value
 		escaped := escapeString(v)
-		buf.WriteString(fmt.Sprintf("\t%s: %q\n", sanitizeKey(k), escaped))
+		_, _ = fmt.Fprintf(&buf, "\t%s: %q\n", sanitizeKey(k), escaped)
 	}
 	buf.WriteString("}\n")
 	return buf.String()
