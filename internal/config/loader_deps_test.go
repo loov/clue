@@ -369,8 +369,6 @@ dependencies: {
 			if err := os.MkdirAll(testDir, 0o755); err != nil {
 				t.Fatalf("failed to create test dir: %v", err)
 			}
-			defer os.RemoveAll(testDir)
-
 			err := os.WriteFile(filepath.Join(testDir, "clue.cue"), []byte(tt.config), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to write test config: %v", err)
