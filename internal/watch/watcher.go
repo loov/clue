@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -71,8 +72,7 @@ func NewWatcher(cfg Config) (*Watcher, error) {
 	// Add source directories to watch
 	for _, dir := range cfg.SourceDirs {
 		if err := w.addTree(dir); err != nil {
-			fsWatcher.Close()
-			return nil, err
+			return nil, errors.Join(err, fsWatcher.Close())
 		}
 	}
 
@@ -80,8 +80,7 @@ func NewWatcher(cfg Config) (*Watcher, error) {
 	if cfg.BuildCuePath != "" {
 		parentDir := filepath.Dir(cfg.BuildCuePath)
 		if err := w.addWatch(parentDir); err != nil {
-			fsWatcher.Close()
-			return nil, err
+			return nil, errors.Join(err, fsWatcher.Close())
 		}
 	}
 
@@ -114,7 +113,9 @@ func (w *Watcher) Stop() {
 	}
 	w.mu.Unlock()
 
-	w.watcher.Close()
+	if err := w.watcher.Close(); err != nil && w.config.OnError != nil {
+		w.config.OnError(err)
+	}
 }
 
 // eventLoop processes file system events from fsnotify.
