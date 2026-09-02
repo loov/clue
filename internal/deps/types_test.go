@@ -46,3 +46,14 @@ func TestInlineConfig_PrebuiltNeedsLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInlineConfig_ExternalBuildNeedsCommands(t *testing.T) {
+	config := &InlineConfig{Type: "external_static", Library: "build/libfoo.a"}
+	if err := config.Validate(); err == nil {
+		t.Fatal("external build accepted missing commands")
+	}
+	config.Commands = [][]string{{"cmake", "--build", "build"}}
+	if err := config.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

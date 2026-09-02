@@ -88,12 +88,17 @@ package config
 	defines?: [...string]
 	depends?: [...string]  // Other dependency names
 	library?: string
-	targetType: *"static_library" | "shared_library" | "header_only" | "prebuilt_static" | "prebuilt_shared"
+	commands?: [...([...string] & [_, ...])]
+	targetType: *"static_library" | "shared_library" | "header_only" | "prebuilt_static" | "prebuilt_shared" | "external_static" | "external_shared"
 	if targetType == "static_library" || targetType == "shared_library" {
 		sources: [...string] & [_, ...]
 	}
 	if targetType == "prebuilt_static" || targetType == "prebuilt_shared" {
 		library: string
+	}
+	if targetType == "external_static" || targetType == "external_shared" {
+		library: string
+		commands: [...([...string] & [_, ...])] & [_, ...]
 	}
 }
 

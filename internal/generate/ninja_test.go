@@ -384,7 +384,6 @@ func TestNinja_HeaderOnlyDependencyAddsIncludesWithoutLibrary(t *testing.T) {
 			Type: "header_only", Includes: []string{"include"},
 		}),
 	}
-
 	var output bytes.Buffer
 	if err := WriteNinjaTo(&output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
@@ -423,6 +422,36 @@ func TestNinja_PrebuiltDependencyLinksExactLibrary(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o "+ninjaPathLocal(library)) {
 		t.Fatalf("prebuilt library is missing from link edge:\n%s", output.String())
+	}
+}
+
+func TestNinja_ExternalDependencyUsesClueBuilder(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "external")
+	library := filepath.Join(root, "build", "custom.a")
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"custom"},
+	}
+	cfg.Dependencies = map[string]deps.Dependency{
+		"custom": deps.NewVendoredDependency("custom", root, &deps.InlineConfig{
+			Type: "external_static", Library: filepath.Join("build", "custom.a"),
+			Commands: [][]string{{"cmake", "--build", "build"}},
+		}),
+	}
+	cfg.Variants["release"] = config.Variant{Name: "release", Optimization: "fast"}
+
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug", "release"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	if !strings.Contains(content, "rule external_dep") ||
+		!strings.Contains(content, "build "+ninjaPathLocal(library)+": external_dep || force_external") ||
+		strings.Count(content, ": external_dep ") != 1 {
+		t.Fatalf("external dependency edge is invalid:\n%s", content)
 	}
 }
 

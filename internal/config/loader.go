@@ -657,6 +657,19 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 	config.Includes = extractStringList(val, "includes")
 	config.Defines = extractStringList(val, "defines")
 	config.Depends = extractStringList(val, "depends")
+	if commands := val.LookupPath(cue.ParsePath("commands")); commands.Exists() {
+		outer, _ := commands.List()
+		for outer.Next() {
+			var command []string
+			inner, _ := outer.Value().List()
+			for inner.Next() {
+				if arg, err := inner.Value().String(); err == nil {
+					command = append(command, arg)
+				}
+			}
+			config.Commands = append(config.Commands, command)
+		}
+	}
 	if library := val.LookupPath(cue.ParsePath("library")); library.Exists() {
 		config.Library, _ = library.String()
 	}

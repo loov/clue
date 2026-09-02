@@ -59,7 +59,7 @@ if _target.os == "windows" {
 - `clue build` - Build all targets (use `-variant release` for optimized builds)
 - `clue clean` - Remove build artifacts (use `-all` to clean all variants)
 - `clue run <target>` - Build and run an executable target
-- `clue deps <list|fetch|clean|update>` - Manage external dependencies
+- `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
 
 ## Common Flags
@@ -182,5 +182,23 @@ dependencies: ssl: {
     type:    "pkg_config"
     package: "openssl" // defaults to the dependency name
     static:  false     // use pkg-config --static when true
+}
+```
+
+Dependencies driven by CMake, Meson, or another build tool can run an argument-vector command sequence and expose its output:
+
+```cue
+dependencies: foo: {
+    type: "vendored"
+    path: "vendor/foo"
+    build: {
+        targetType: "external_static" // or "external_shared"
+        commands: [
+            ["cmake", "-S", ".", "-B", "build"],
+            ["cmake", "--build", "build", "--target", "foo"],
+        ]
+        library:  "build/libfoo.a"
+        includes: ["include"]
+    }
 }
 ```

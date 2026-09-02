@@ -323,6 +323,34 @@ dependencies: ssl: {
 	}
 }
 
+func TestExternalBuildDependency(t *testing.T) {
+	dir := t.TempDir()
+	contents := `
+name: "external"
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+dependencies: foo: {
+	type: "vendored"
+	path: "vendor/foo"
+	build: {
+		targetType: "external_static"
+		commands: [["cmake", "-S", ".", "-B", "build"], ["cmake", "--build", "build"]]
+		library: "build/libfoo.a"
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := cfg.Dependencies["foo"].InlineBuild()
+	if build == nil || len(build.Commands) != 2 || build.Commands[1][1] != "--build" {
+		t.Fatalf("external build = %+v", build)
+	}
+}
+
 func TestDependencyValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 

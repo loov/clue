@@ -205,7 +205,8 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (depe
 			if result.LibPath != "" {
 				usage.artifacts = append(usage.artifacts, result.LibPath)
 				path := filepath.Dir(result.LibPath)
-				if result.Type == "prebuilt_static" || result.Type == "prebuilt_shared" {
+				if result.Type == "prebuilt_static" || result.Type == "prebuilt_shared" ||
+					result.Type == "external_static" || result.Type == "external_shared" {
 					usage.linkFiles = append(usage.linkFiles, result.LibPath)
 				} else {
 					if !seenPaths[path] {
@@ -214,7 +215,7 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (depe
 					}
 					usage.libs = append(usage.libs, result.Name)
 				}
-				if (result.Type == "shared_library" || result.Type == "prebuilt_shared") && !seenSharedPaths[path] {
+				if (result.Type == "shared_library" || result.Type == "prebuilt_shared" || result.Type == "external_shared") && !seenSharedPaths[path] {
 					seenSharedPaths[path] = true
 					usage.sharedLibPaths = append(usage.sharedLibPaths, path)
 				}
@@ -742,7 +743,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 
 	// Build dependencies first (unless skipped)
 	if !opts.SkipDeps {
-		b.depResults, err = b.buildDependencies(ctx, opts)
+		b.depResults, err = b.buildDependencies(ctx, opts, "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build dependencies: %w", err)
 		}
@@ -846,8 +847,21 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	}, nil
 }
 
-// buildDependencies builds all external dependencies before the main targets
-func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[string]*DepBuildResult, error) {
+// BuildDependency fetches and builds one external dependency and its prerequisites.
+func (b *Builder) BuildDependency(ctx context.Context, opts Options, name string) error {
+	if _, ok := opts.Config.Dependencies[name]; !ok {
+		return fmt.Errorf("dependency %q not found", name)
+	}
+	var err error
+	b.cacheManager, err = cache.NewManager(opts.BuildDir)
+	if err != nil {
+		return fmt.Errorf("failed to initialize cache manager: %w", err)
+	}
+	b.depResults, err = b.buildDependencies(ctx, opts, name)
+	return err
+}
+
+func (b *Builder) buildDependencies(ctx context.Context, opts Options, only string) (map[string]*DepBuildResult, error) {
 	// Check if there are any dependencies
 	if len(opts.Config.Dependencies) == 0 {
 		return make(map[string]*DepBuildResult), nil
@@ -869,16 +883,26 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 		return nil, fmt.Errorf("failed to create dependency manager: %w", err)
 	}
 
-	// Ensure dependencies are fetched
-	if err := mgr.FetchAll(ctx); err != nil {
-		return nil, fmt.Errorf("failed to fetch dependencies: %w", err)
-	}
-
 	// Get build order using resolver (respects inter-dependency order)
 	resolver := deps.NewResolver(opts.Config.Dependencies)
 	buildOrder, err := resolver.BuildOrder()
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve dependency build order: %w", err)
+	}
+	if only != "" {
+		for i, name := range buildOrder {
+			if name == only {
+				buildOrder = buildOrder[:i+1]
+				break
+			}
+		}
+		for _, name := range buildOrder {
+			if err := mgr.FetchOne(ctx, name); err != nil {
+				return nil, fmt.Errorf("failed to fetch dependency %q: %w", name, err)
+			}
+		}
+	} else if err := mgr.FetchAll(ctx); err != nil {
+		return nil, fmt.Errorf("failed to fetch dependencies: %w", err)
 	}
 
 	// Create dependency builder

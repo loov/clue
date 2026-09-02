@@ -100,6 +100,17 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
 		sources := resolved.Sources
+		if resolved.Type == "external_static" || resolved.Type == "external_shared" {
+			output := ninjaPathLocal(dependencyOutputPath(opts.BuildDir, variant, dep, opts.Platform))
+			if emitFetchRules {
+				*file = append(*file, ninja.Build{
+					Rule: "external_dep", Out: []string{output}, InOrderOnly: []string{"force_external"},
+					Vars: ninja.Vars{{Key: "dep", Val: name}, {Key: "variant", Val: variant}, {Key: "platform", Val: opts.Platform.String()}},
+				})
+			}
+			outputs = append(outputs, output)
+			continue
+		}
 		if resolved.Type == "header_only" || resolved.Type == "prebuilt_static" || resolved.Type == "prebuilt_shared" {
 			continue
 		}
@@ -178,6 +189,10 @@ func dependencyTargetType(dep deps.Dependency) string {
 		case "prebuilt_static":
 			return "static_library"
 		case "prebuilt_shared":
+			return "shared_library"
+		case "external_static":
+			return "static_library"
+		case "external_shared":
 			return "shared_library"
 		default:
 			return buildConfig.Type
@@ -836,6 +851,8 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	*file = append(*file, ninja.Rule{
 		Name: "fetch_dep", Command: "$clue deps fetch $dep", Description: "FETCH $dep",
 	}, ninja.Rule{
+		Name: "external_dep", Command: "$clue -quiet -variant $variant -target $platform deps build $dep", Description: "EXTERNAL $dep", Restat: true,
+	}, ninja.Rule{
 		Name: "custom", Command: "$clue -variant $variant -target $platform build $target", Description: "CUSTOM $target",
 	})
 }
@@ -891,6 +908,7 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	// Rules
 	file = append(file, ninja.Comment{Lines: []string{"Compilation rules"}})
 	addNinjaRules(&file, toolchain.Name() == "msvc")
+	file = append(file, ninja.Build{Rule: "phony", Out: []string{"force_external"}})
 
 	targetOrder := getSortedTargetNames(opts.Config)
 	variantOutputs := make(map[string][]string)

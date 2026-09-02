@@ -153,6 +153,30 @@ func TestDepBuilder_PrebuiltDependencyNeedsNoCompiler(t *testing.T) {
 	}
 }
 
+func TestDepBuilder_ExternalDependencyRunsCommands(t *testing.T) {
+	root := t.TempDir()
+	generator := `package main
+import "os"
+func main() {
+	if err := os.MkdirAll("build", 0755); err != nil { panic(err) }
+	if err := os.WriteFile("build/custom.a", nil, 0644); err != nil { panic(err) }
+}`
+	if err := os.WriteFile(filepath.Join(root, "generate.go"), []byte(generator), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dep := deps.NewVendoredDependency("custom", root, &deps.InlineConfig{
+		Type: "external_static", Library: filepath.Join("build", "custom.a"),
+		Commands: [][]string{{"go", "run", "generate.go"}},
+	})
+	result, err := (&DepBuilder{}).BuildDep(t.Context(), dep, root, DepBuildOptions{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Type != "external_static" || result.LibPath != filepath.Join(root, "build", "custom.a") {
+		t.Fatalf("external result = %+v", result)
+	}
+}
+
 func TestDepBuilder_SharedLibraryUsesProjectStandard(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "lib.cpp")

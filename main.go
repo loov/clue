@@ -393,6 +393,7 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 		fmt.Fprintln(os.Stderr, "\nSubcommands:")
 		fmt.Fprintln(os.Stderr, "  list       Show dependency status")
 		fmt.Fprintln(os.Stderr, "  fetch      Download dependencies")
+		fmt.Fprintln(os.Stderr, "  build      Build one dependency")
 		fmt.Fprintln(os.Stderr, "  clean      Remove dependency cache")
 		fmt.Fprintln(os.Stderr, "  update     Check for dependency updates (not yet implemented)")
 		return 1
@@ -405,7 +406,7 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 	if verbose {
 		verbosity = build.VerbosityVerbose
 	}
-	cfg, _, _, err := loadConfig(dir, "", target, verbosity)
+	cfg, variant, platform, err := loadConfig(dir, "", target, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -427,7 +428,6 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 		if len(args) > 1 {
 			name = args[1]
 		}
-
 		if err := deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
 			Verbose: verbose,
 			Name:    name,
@@ -436,6 +436,22 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 			return 1
 		}
 
+	case "build":
+		if len(args) != 2 {
+			fmt.Fprintln(os.Stderr, "Usage: clue deps build <name>")
+			return 1
+		}
+		builder, err := build.NewBuilder(cfg.Toolchain.Compiler, platform, verbosity, 1, false)
+		if err != nil {
+			printError(err)
+			return 1
+		}
+		if err := builder.BuildDependency(ctx, build.Options{
+			Config: cfg, Variant: variant, BuildDir: cfg.BuildDir, Verbosity: verbosity,
+		}, args[1]); err != nil {
+			printError(err)
+			return 1
+		}
 	case "clean":
 		// Parse clean options
 		name := ""
@@ -456,7 +472,7 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown deps subcommand: %s\n", subCmd)
-		fmt.Fprintln(os.Stderr, "Available subcommands: list, fetch, clean, update")
+		fmt.Fprintln(os.Stderr, "Available subcommands: list, fetch, build, clean, update")
 		return 1
 	}
 

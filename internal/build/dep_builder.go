@@ -51,6 +51,7 @@ type ResolvedDepConfig struct {
 	Defines  []string
 	Depends  []string
 	Library  string
+	Commands [][]string
 	Type     string
 }
 
@@ -62,7 +63,7 @@ func ResolveDepConfig(dep deps.Dependency, sourcePath string) (ResolvedDepConfig
 	}
 	return ResolvedDepConfig{
 		Sources: cfg.Sources, Includes: cfg.Includes, Defines: cfg.Defines,
-		Depends: cfg.Depends, Library: cfg.Library, Type: cfg.Type,
+		Depends: cfg.Depends, Library: cfg.Library, Commands: cfg.Commands, Type: cfg.Type,
 	}, nil
 }
 
@@ -109,6 +110,35 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("prebuilt library %q is not a regular file", library)
+		}
+		return &DepBuildResult{
+			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath,
+			Depends: cfg.Depends, Duration: time.Since(start),
+		}, nil
+	}
+	if cfg.Type == "external_static" || cfg.Type == "external_shared" {
+		executorConfig := ExecutorConfig{StreamOutput: true, WorkDir: sourcePath}
+		if db.compiler != nil {
+			executorConfig = db.compiler.executor.config
+			executorConfig.WorkDir = sourcePath
+		}
+		executor := NewExecutor(executorConfig)
+		for _, command := range cfg.Commands {
+			result, err := executor.RunCommand(ctx, command[0], command[1:]...)
+			if err != nil {
+				if result != nil && result.Stderr != "" {
+					return nil, fmt.Errorf("external build command %q failed: %w: %s", command[0], err, strings.TrimSpace(result.Stderr))
+				}
+				return nil, fmt.Errorf("external build command %q failed: %w", command[0], err)
+			}
+		}
+		library := filepath.Join(sourcePath, cfg.Library)
+		info, err := os.Stat(library)
+		if err != nil {
+			return nil, fmt.Errorf("external build did not produce library %q: %w", library, err)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("external build output %q is not a regular file", library)
 		}
 		return &DepBuildResult{
 			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath,
@@ -221,7 +251,8 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 					return
 				}
 				dependencyArtifacts = append(dependencyArtifacts, result.LibPath)
-				if result.Type == "prebuilt_static" || result.Type == "prebuilt_shared" {
+				if result.Type == "prebuilt_static" || result.Type == "prebuilt_shared" ||
+					result.Type == "external_static" || result.Type == "external_shared" {
 					linkFiles = append(linkFiles, result.LibPath)
 				} else {
 					libPaths = append(libPaths, filepath.Dir(result.LibPath))
@@ -288,6 +319,7 @@ type depConfig struct {
 	Defines       []string
 	Depends       []string
 	Library       string
+	Commands      [][]string
 	CompilerFlags []string
 	LinkerFlags   []string
 	Type          string
@@ -351,6 +383,7 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 			Defines:       defines,
 			Depends:       inlineConfig.Depends,
 			Library:       inlineConfig.Library,
+			Commands:      inlineConfig.Commands,
 			CompilerFlags: compilerFlags,
 			LinkerFlags:   linkerFlags,
 			Type:          targetType,

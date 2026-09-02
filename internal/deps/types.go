@@ -26,6 +26,7 @@ type InlineConfig struct {
 	Defines  []string
 	Depends  []string
 	Library  string
+	Commands [][]string
 	Type     string // built, header-only, or prebuilt library type
 }
 
@@ -247,14 +248,23 @@ func (v *VendoredDependency) Validate() error {
 // Validate checks that the inline config is valid
 func (ic *InlineConfig) Validate() error {
 	prebuilt := ic.Type == "prebuilt_static" || ic.Type == "prebuilt_shared"
-	if len(ic.Sources) == 0 && ic.Type != "header_only" && !prebuilt {
+	external := ic.Type == "external_static" || ic.Type == "external_shared"
+	if len(ic.Sources) == 0 && ic.Type != "header_only" && !prebuilt && !external {
 		return fmt.Errorf("inline build config: at least one source file is required")
 	}
-	if prebuilt && ic.Library == "" {
-		return fmt.Errorf("inline build config: prebuilt library path is required")
+	if (prebuilt || external) && ic.Library == "" {
+		return fmt.Errorf("inline build config: library path is required")
+	}
+	if external && len(ic.Commands) == 0 {
+		return fmt.Errorf("inline build config: external build commands are required")
+	}
+	for _, command := range ic.Commands {
+		if len(command) == 0 {
+			return fmt.Errorf("inline build config: external build command cannot be empty")
+		}
 	}
 	if ic.Type != "" && ic.Type != "static_library" && ic.Type != "shared_library" &&
-		ic.Type != "header_only" && !prebuilt {
+		ic.Type != "header_only" && !prebuilt && !external {
 		return fmt.Errorf("inline build config: unsupported target type %q", ic.Type)
 	}
 	return nil
