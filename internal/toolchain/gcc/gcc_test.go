@@ -1,12 +1,33 @@
 package gcc
 
 import (
-	"bytes"
+	"io"
 	"os"
 	"testing"
 
 	"github.com/loov/clue/internal/toolchain"
 )
+
+func captureStderr(t *testing.T, run func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStderr := os.Stderr
+	os.Stderr = w
+	run()
+	closeErr := w.Close()
+	os.Stderr = oldStderr
+	output, readErr := io.ReadAll(r)
+	rCloseErr := r.Close()
+	for _, err := range []error{closeErr, readErr, rCloseErr} {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	return string(output)
+}
 
 func TestGCCToolchain_Name(t *testing.T) {
 	tc := New("gcc", "g++", "ar", toolchain.Platform{})
@@ -17,24 +38,12 @@ func TestGCCToolchain_Name(t *testing.T) {
 
 func TestGCCToolchain_Sanitizers(t *testing.T) {
 	t.Run("memory sanitizer is skipped with warning", func(t *testing.T) {
-		// Capture stderr to verify warning
-		oldStderr := os.Stderr
-		r, w, _ := os.Pipe()
-		os.Stderr = w
-
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
 		config := toolchain.Config{
 			Sanitizers: []string{"address", "memory", "undefined"},
 		}
-		flags := tc.CompilerFlags(config)
-
-		// Restore stderr
-		w.Close()
-		os.Stderr = oldStderr
-
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
-		stderr := buf.String()
+		var flags []string
+		stderr := captureStderr(t, func() { flags = tc.CompilerFlags(config) })
 
 		// Verify memory sanitizer is NOT in flags
 		for _, f := range flags {
@@ -50,19 +59,12 @@ func TestGCCToolchain_Sanitizers(t *testing.T) {
 	})
 
 	t.Run("address, thread, undefined sanitizers are included", func(t *testing.T) {
-		// Suppress stderr for this test
-		oldStderr := os.Stderr
-		_, w, _ := os.Pipe()
-		os.Stderr = w
-
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
 		config := toolchain.Config{
 			Sanitizers: []string{"address", "thread", "undefined"},
 		}
-		flags := tc.CompilerFlags(config)
-
-		w.Close()
-		os.Stderr = oldStderr
+		var flags []string
+		captureStderr(t, func() { flags = tc.CompilerFlags(config) })
 
 		expected := []string{"-fsanitize=address", "-fsanitize=thread", "-fsanitize=undefined"}
 		for _, want := range expected {
@@ -102,19 +104,12 @@ func TestGCCToolchain_Coverage(t *testing.T) {
 }
 
 func TestGCCToolchain_LinkerSanitizers(t *testing.T) {
-	// Suppress stderr for this test
-	oldStderr := os.Stderr
-	_, w, _ := os.Pipe()
-	os.Stderr = w
-
 	tc := New("gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{
 		Sanitizers: []string{"address", "memory"},
 	}
-	flags := tc.LinkerFlags(config, nil)
-
-	w.Close()
-	os.Stderr = oldStderr
+	var flags []string
+	captureStderr(t, func() { flags = tc.LinkerFlags(config, nil) })
 
 	// Address sanitizer should be in linker flags
 	if !containsFlag(flags, "-fsanitize=address") {

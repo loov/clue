@@ -1,7 +1,7 @@
 package clang
 
 import (
-	"bytes"
+	"io"
 	"os"
 	"testing"
 
@@ -39,7 +39,10 @@ func TestClangToolchain_Sanitizers(t *testing.T) {
 	t.Run("no warning for memory sanitizer", func(t *testing.T) {
 		// Capture stderr to verify no warning
 		oldStderr := os.Stderr
-		r, w, _ := os.Pipe()
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
 		os.Stderr = w
 
 		tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
@@ -49,12 +52,16 @@ func TestClangToolchain_Sanitizers(t *testing.T) {
 		tc.CompilerFlags(config)
 
 		// Restore stderr
-		w.Close()
+		closeErr := w.Close()
 		os.Stderr = oldStderr
-
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
-		stderr := buf.String()
+		output, readErr := io.ReadAll(r)
+		rCloseErr := r.Close()
+		for _, err := range []error{closeErr, readErr, rCloseErr} {
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		stderr := string(output)
 
 		// Verify NO warning was printed
 		if containsSubstring(stderr, "MemorySanitizer") {

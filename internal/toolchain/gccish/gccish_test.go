@@ -1,7 +1,7 @@
 package gccish
 
 import (
-	"bytes"
+	"io"
 	"os"
 	"testing"
 
@@ -294,19 +294,26 @@ func TestSanitizerFlags_NoSkip(t *testing.T) {
 func TestSanitizerFlags_SkipMemory(t *testing.T) {
 	// Capture stderr to verify warning
 	oldStderr := os.Stderr
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	os.Stderr = w
 
 	sanitizers := []string{"address", "undefined", "memory", "thread"}
 	flags := SanitizerFlags(sanitizers, true)
 
 	// Restore stderr
-	w.Close()
+	closeErr := w.Close()
 	os.Stderr = oldStderr
-
-	var buf bytes.Buffer
-	buf.ReadFrom(r)
-	stderr := buf.String()
+	output, readErr := io.ReadAll(r)
+	rCloseErr := r.Close()
+	for _, err := range []error{closeErr, readErr, rCloseErr} {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	stderr := string(output)
 
 	// Verify memory is skipped
 	expected := []string{"-fsanitize=address", "-fsanitize=undefined", "-fsanitize=thread"}
