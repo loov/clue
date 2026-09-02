@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -271,6 +272,88 @@ func TestNinja_LinksTargetDependenciesInOrder(t *testing.T) {
 	}
 	if !strings.Contains(content, "ldflags = -lpthread") {
 		t.Errorf("transitive system libraries are missing:\n%s", content)
+	}
+}
+
+func TestNinja_BuildsExternalDependencies(t *testing.T) {
+	root := t.TempDir()
+	depRoot := filepath.Join(root, "vendor", "math")
+	if err := os.MkdirAll(filepath.Join(depRoot, "include"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(depRoot, "math.cpp"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"math"},
+	}
+	cfg.Dependencies = map[string]deps.Dependency{
+		"math": deps.NewVendoredDependency("math", depRoot, &deps.InlineConfig{
+			Sources: []string{"*.cpp"}, Includes: []string{"include"}, Defines: []string{"MATH_BUILD"},
+		}),
+	}
+	cfg.Variants["release"] = config.Variant{Name: "release", Optimization: "fast"}
+
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(&buf, NinjaOptions{
+		Config: cfg, Variants: []string{"debug", "release"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	content := buf.String()
+	checks := []string{
+		"rule fetch_dep",
+		"command = $clue deps fetch $dep",
+		"build .build/debug/deps/math/obj/math.cpp.o: cxx " + ninjaPathLocal(filepath.Join(depRoot, "math.cpp")),
+		"-I" + ninjaPathLocal(filepath.Join(depRoot, "include")),
+		"-DMATH_BUILD",
+		"build .build/debug/deps/math/lib/libmath.a: ar .build/debug/deps/math/obj/math.cpp.o",
+		"build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o .build/debug/deps/math/lib/libmath.a",
+	}
+	for _, check := range checks {
+		if !strings.Contains(content, check) {
+			t.Errorf("missing %q in Ninja output:\n%s", check, content)
+		}
+	}
+	if count := strings.Count(content, ": fetch_dep "); count != 1 {
+		t.Errorf("expected one fetch edge shared by variants, got %d:\n%s", count, content)
+	}
+}
+
+func TestNinja_BuildsDependencyWithClueConfig(t *testing.T) {
+	depRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(depRoot, "lib.c"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(depRoot, "clue.cue"), []byte(`
+targets: lib: {
+	type: "static_library"
+	sources: ["lib.c"]
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := createMinimalConfig("app", "executable", []string{"main.c"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.c"}, Depends: []string{"lib"},
+	}
+	cfg.Dependencies = map[string]deps.Dependency{
+		"lib": deps.NewVendoredDependency("lib", depRoot, nil),
+	}
+
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(&buf, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if want := ninjaPathLocal(filepath.Join(depRoot, "lib.c")); !strings.Contains(buf.String(), want) {
+		t.Errorf("dependency clue.cue source is missing from Ninja output:\n%s", buf.String())
 	}
 }
 

@@ -124,16 +124,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 
 // buildDependencyCommands creates compile commands for a dependency's sources
 func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Dependency) ([]CompileCommand, error) {
-	// Get inline build config from the dependency
-	var buildConfig *deps.InlineConfig
-	switch d := dep.(type) {
-	case *deps.GitDependency:
-		buildConfig = d.BuildConfig
-	case *deps.TarballDependency:
-		buildConfig = d.BuildConfig
-	case *deps.VendoredDependency:
-		buildConfig = d.BuildConfig
-	}
+	buildConfig := dep.InlineBuild()
 
 	// Skip dependencies without build config
 	if buildConfig == nil {

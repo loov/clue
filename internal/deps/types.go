@@ -13,6 +13,7 @@ type Dependency interface {
 	Name() string
 	Type() string
 	CachePath(baseDir string) string
+	InlineBuild() *InlineConfig
 	Validate() error
 }
 
@@ -63,6 +64,8 @@ func (g *GitDependency) CachePath(baseDir string) string {
 	shortRef := truncate(g.Ref, 12)
 	return filepath.Join(baseDir, ".deps", "git", fmt.Sprintf("%s-%s", sanitized, shortRef))
 }
+
+func (g *GitDependency) InlineBuild() *InlineConfig { return g.BuildConfig }
 
 // Validate checks that required fields are set
 func (g *GitDependency) Validate() error {
@@ -130,6 +133,8 @@ func (t *TarballDependency) CachePath(baseDir string) string {
 	return filepath.Join(baseDir, ".deps", "tarball", fmt.Sprintf("%s-%s", sanitized, checksumPrefix))
 }
 
+func (t *TarballDependency) InlineBuild() *InlineConfig { return t.BuildConfig }
+
 // Validate checks that required fields are set
 func (t *TarballDependency) Validate() error {
 	if t.name == "" {
@@ -187,6 +192,8 @@ func (v *VendoredDependency) Type() string {
 func (v *VendoredDependency) CachePath(_ string) string {
 	return v.Path
 }
+
+func (v *VendoredDependency) InlineBuild() *InlineConfig { return v.BuildConfig }
 
 // Validate checks that required fields are set
 func (v *VendoredDependency) Validate() error {

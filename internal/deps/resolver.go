@@ -41,16 +41,7 @@ func (r *Resolver) BuildOrder() ([]string, error) {
 	// Dependencies can only depend on other *configured* dependencies.
 	hasEdges := false
 	for name, dep := range r.dependencies {
-		// Extract InlineConfig from dependency
-		var inlineConfig *InlineConfig
-		switch d := dep.(type) {
-		case *GitDependency:
-			inlineConfig = d.BuildConfig
-		case *TarballDependency:
-			inlineConfig = d.BuildConfig
-		case *VendoredDependency:
-			inlineConfig = d.BuildConfig
-		}
+		inlineConfig := dep.InlineBuild()
 
 		// If dependency has depends field, add edges
 		if inlineConfig != nil && len(inlineConfig.Depends) > 0 {

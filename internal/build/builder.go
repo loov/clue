@@ -202,19 +202,8 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 			}
 			libs = append(libs, result.Name)
 			var dependencies []string
-			switch dependency := opts.Config.Dependencies[name].(type) {
-			case *deps.GitDependency:
-				if dependency.BuildConfig != nil {
-					dependencies = dependency.BuildConfig.Depends
-				}
-			case *deps.TarballDependency:
-				if dependency.BuildConfig != nil {
-					dependencies = dependency.BuildConfig.Depends
-				}
-			case *deps.VendoredDependency:
-				if dependency.BuildConfig != nil {
-					dependencies = dependency.BuildConfig.Depends
-				}
+			if buildConfig := opts.Config.Dependencies[name].InlineBuild(); buildConfig != nil {
+				dependencies = buildConfig.Depends
 			}
 			for _, dependency := range dependencies {
 				if err := visit(dependency); err != nil {

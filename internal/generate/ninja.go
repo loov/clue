@@ -15,6 +15,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -56,8 +57,11 @@ func Ninja(opts NinjaOptions) error {
 }
 
 // generateVariantBuilds generates build statements for a single variant
-func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain) []string {
-	var outputs []string
+func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
+	outputs, err := generateDependencyBuilds(file, opts, variant, emitFetchRules)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, targetName := range targetOrder {
 		target, exists := opts.Config.Targets[targetName]
@@ -70,6 +74,122 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 		outputs = append(outputs, targetOutputs...)
 	}
 
+	return outputs, nil
+}
+
+func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant string, emitFetchRules bool) ([]string, error) {
+	names := make([]string, 0, len(opts.Config.Dependencies))
+	for name := range opts.Config.Dependencies {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var outputs []string
+	for _, name := range names {
+		dep := opts.Config.Dependencies[name]
+		depPath := dep.CachePath(".")
+		resolved, err := build.ResolveDepConfig(dep, depPath)
+		if err != nil {
+			return nil, fmt.Errorf("dependency %q: %w", name, err)
+		}
+		sources := resolved.Sources
+		if len(sources) == 0 {
+			return nil, fmt.Errorf("dependency %q has no source files; run 'clue deps fetch' before generating Ninja", name)
+		}
+		includes := dependencyCompileIncludes(dep, opts.Config)
+		includes = append(resolved.Includes, includes...)
+		depTarget := config.Target{Name: name, Defines: resolved.Defines}
+		buildCfg := toolchain.Config{Optimize: "none", Warnings: "default"}
+		cflags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, false, opts.Toolchain, opts.Platform)
+		cxxflags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, true, opts.Toolchain, opts.Platform)
+
+		objectNames := buildpath.ObjectNames(sources)
+		objects := make([]string, 0, len(sources))
+		var dependencyOutputs []string
+		if buildConfig := dep.InlineBuild(); buildConfig != nil {
+			dependencyOutputs = externalDependencyOutputs(opts.Config, buildConfig.Depends, opts.BuildDir, variant)
+		}
+		sourcePaths := make([]string, 0, len(sources))
+		for _, source := range sources {
+			sourcePaths = append(sourcePaths, ninjaPathLocal(filepath.Join(depPath, source)))
+		}
+		if emitFetchRules {
+			*file = append(*file, ninja.Build{
+				Rule: "fetch_dep", Out: sourcePaths, InImplicit: []string{"clue.cue"},
+				Vars: ninja.Vars{{Key: "dep", Val: name}},
+			})
+		}
+		for _, source := range sources {
+			srcPath := filepath.Join(depPath, source)
+			objPath := ninjaPathLocal(depObjectPath(opts.BuildDir, variant, name, objectNames[source]))
+			rule, flagKey, flags := "cc", "cflags", cflags
+			if isCPlusPlusFile(source) {
+				rule, flagKey, flags = "cxx", "cxxflags", cxxflags
+			}
+			*file = append(*file, ninja.Build{
+				Rule: rule, In: []string{ninjaPathLocal(srcPath)}, InOrderOnly: dependencyOutputs, Out: []string{objPath},
+				Vars: ninja.Vars{{Key: flagKey, Val: strings.Join(flags, " ")}},
+			})
+			objects = append(objects, objPath)
+		}
+
+		output := ninjaPathLocal(dependencyOutputPath(opts.BuildDir, variant, name))
+		*file = append(*file, ninja.Build{Rule: "ar", In: objects, Out: []string{output}})
+		outputs = append(outputs, output)
+	}
+	return outputs, nil
+}
+
+func dependencyOutputPath(buildDir, variant, name string) string {
+	return filepath.Join(buildDir, variant, "deps", name, "lib", "lib"+name+".a")
+}
+
+func dependencyIncludePath(dep deps.Dependency) string {
+	root := dep.CachePath(".")
+	buildConfig := dep.InlineBuild()
+	if buildConfig != nil && len(buildConfig.Headers) > 0 {
+		return filepath.Dir(root)
+	}
+	if buildConfig != nil && len(buildConfig.Includes) > 0 {
+		return filepath.Join(root, buildConfig.Includes[0])
+	}
+	if info, err := os.Stat(filepath.Join(root, "include")); err == nil && info.IsDir() {
+		return filepath.Join(root, "include")
+	}
+	return root
+}
+
+func dependencyCompileIncludes(dep deps.Dependency, cfg *config.Config) []string {
+	buildConfig := dep.InlineBuild()
+	var includes []string
+	includes = append(includes, dependencyIncludePath(dep))
+	if buildConfig != nil {
+		for _, name := range buildConfig.Depends {
+			if child, ok := cfg.Dependencies[name]; ok {
+				includes = append(includes, dependencyIncludePath(child))
+			}
+		}
+	}
+	return includes
+}
+
+func targetDependencyIncludes(cfg *config.Config, target config.Target) []string {
+	var includes []string
+	for _, name := range target.Depends {
+		if dep, ok := cfg.Dependencies[name]; ok {
+			includes = append(includes, dependencyIncludePath(dep))
+		}
+	}
+	return includes
+}
+
+func externalDependencyOutputs(cfg *config.Config, names []string, buildDir, variant string) []string {
+	var outputs []string
+	for _, name := range names {
+		if _, ok := cfg.Dependencies[name]; ok {
+			outputs = append(outputs, ninjaPathLocal(dependencyOutputPath(buildDir, variant, name)))
+		}
+	}
 	return outputs
 }
 
@@ -80,7 +200,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	target.Defines = append(append([]string(nil), target.Defines...), variantConfig.Defines...)
 
 	// Collect include paths
-	includes := target.Includes
+	includes := append(append([]string(nil), target.Includes...), targetDependencyIncludes(opts.Config, target)...)
 
 	// Build compiler flags
 	cflags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, false, opts.Toolchain, opts.Platform)
@@ -94,6 +214,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	var objects []string
 	objectNames := buildpath.ObjectNames(target.Sources)
+	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant)
 
 	for _, source := range target.Sources {
 		// Determine object path
@@ -113,9 +234,10 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		}
 
 		*file = append(*file, ninja.Build{
-			Rule: rule,
-			In:   []string{srcPath},
-			Out:  []string{objPath},
+			Rule:        rule,
+			In:          []string{srcPath},
+			InOrderOnly: externalDependencies,
+			Out:         []string{objPath},
 			Vars: ninja.Vars{
 				{Key: flagKey, Val: flags},
 			},
@@ -212,6 +334,14 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 
 		dep, ok := cfg.Targets[name]
 		if !ok {
+			if external, ok := cfg.Dependencies[name]; ok {
+				inputs = append(inputs, ninjaPathLocal(dependencyOutputPath(buildDir, variant, name)))
+				if buildConfig := external.InlineBuild(); buildConfig != nil {
+					for _, child := range buildConfig.Depends {
+						visit(child)
+					}
+				}
+			}
 			return
 		}
 		if dep.Type == "static_library" || dep.Type == "shared_library" {
@@ -366,6 +496,7 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	file = append(file, ninja.Var{Key: "cc", Val: toolchain.CC()})
 	file = append(file, ninja.Var{Key: "cxx", Val: toolchain.CXX()})
 	file = append(file, ninja.Var{Key: "ar", Val: toolchain.AR()})
+	file = append(file, ninja.Var{Key: "clue", Val: "clue"})
 
 	// Rules
 	file = append(file, ninja.Comment{Lines: []string{"Compilation rules"}})
@@ -398,17 +529,25 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 		Command:     "$ar crs $out $in",
 		Description: "AR $out",
 	})
+	file = append(file, ninja.Rule{
+		Name:        "fetch_dep",
+		Command:     "$clue deps fetch $dep",
+		Description: "FETCH $dep",
+	})
 
 	targetOrder := getSortedTargetNames(opts.Config)
 	variantOutputs := make(map[string][]string)
 
-	for _, variant := range opts.Variants {
+	for variantIndex, variant := range opts.Variants {
 		variantConfig, exists := opts.Config.Variants[variant]
 		if !exists && len(opts.Config.Variants) > 0 {
 			return fmt.Errorf("variant %q not found", variant)
 		}
 		file = append(file, ninja.Comment{Lines: []string{"Variant: " + variant}})
-		outputs := generateVariantBuilds(&file, opts, variant, variantConfig, targetOrder, toolchain)
+		outputs, err := generateVariantBuilds(&file, opts, variant, variantConfig, targetOrder, toolchain, variantIndex == 0)
+		if err != nil {
+			return err
+		}
 		variantOutputs[variant] = outputs
 	}
 

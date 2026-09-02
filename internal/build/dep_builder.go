@@ -32,6 +32,22 @@ type DepBuildResult struct {
 	Duration    time.Duration // Time taken to build
 }
 
+// ResolvedDepConfig is the source-level build configuration used for a dependency.
+type ResolvedDepConfig struct {
+	Sources  []string
+	Includes []string
+	Defines  []string
+}
+
+// ResolveDepConfig resolves either an inline dependency build or its clue.cue file.
+func ResolveDepConfig(dep deps.Dependency, sourcePath string) (ResolvedDepConfig, error) {
+	cfg, err := (&DepBuilder{}).determineConfig(dep, sourcePath, nil)
+	if err != nil {
+		return ResolvedDepConfig{}, err
+	}
+	return ResolvedDepConfig{Sources: cfg.Sources, Includes: cfg.Includes, Defines: cfg.Defines}, nil
+}
+
 // DepBuilder builds individual dependencies
 type DepBuilder struct {
 	compiler  *Compiler
@@ -149,16 +165,7 @@ type depConfig struct {
 // determineConfig determines sources, includes, and defines for a dependency
 func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, builtDeps map[string]*DepBuildResult) (*depConfig, error) {
 	// Check for inline config first
-	var inlineConfig *deps.InlineConfig
-
-	switch d := dep.(type) {
-	case *deps.GitDependency:
-		inlineConfig = d.BuildConfig
-	case *deps.TarballDependency:
-		inlineConfig = d.BuildConfig
-	case *deps.VendoredDependency:
-		inlineConfig = d.BuildConfig
-	}
+	inlineConfig := dep.InlineBuild()
 
 	// If inline config exists, use it
 	if inlineConfig != nil {
@@ -315,16 +322,7 @@ func (db *DepBuilder) expandSourceGlobs(patterns []string, sourcePath string) ([
 // determineIncludePath determines the include path for a dependency
 func (db *DepBuilder) determineIncludePath(dep deps.Dependency, sourcePath string, _ []string) string {
 	// If inline config specifies headers, use parent directory of sourcePath
-	var inlineConfig *deps.InlineConfig
-
-	switch d := dep.(type) {
-	case *deps.GitDependency:
-		inlineConfig = d.BuildConfig
-	case *deps.TarballDependency:
-		inlineConfig = d.BuildConfig
-	case *deps.VendoredDependency:
-		inlineConfig = d.BuildConfig
-	}
+	inlineConfig := dep.InlineBuild()
 
 	if inlineConfig != nil && len(inlineConfig.Headers) > 0 {
 		return filepath.Dir(sourcePath)
