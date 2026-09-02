@@ -1,6 +1,7 @@
 package build
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/loov/clue/internal/toolchain"
@@ -9,6 +10,28 @@ import (
 	"github.com/loov/clue/internal/toolchain/gcc"
 	"github.com/loov/clue/internal/toolchain/msvc"
 )
+
+type environmentToolchain interface {
+	Environment() map[string]string
+}
+
+func toolchainEnvironment(tc Toolchain) []string {
+	provider, ok := tc.(environmentToolchain)
+	if !ok || provider.Environment() == nil {
+		return nil
+	}
+	environment := provider.Environment()
+	keys := make([]string, 0, len(environment))
+	for key := range environment {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	result := make([]string, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, key+"="+environment[key])
+	}
+	return result
+}
 
 // Toolchain is the interface for C/C++ compiler toolchains.
 type Toolchain = toolchain.Toolchain

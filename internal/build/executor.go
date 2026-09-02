@@ -23,6 +23,7 @@ type ExecutorConfig struct {
 	Verbose      bool   // If true, print commands before execution
 	StreamOutput bool   // If true, stream to os.Stdout/Stderr; if false, capture
 	WorkDir      string // Working directory for commands
+	Environment  []string
 }
 
 // Executor handles subprocess execution with configurable behavior
@@ -52,6 +53,9 @@ func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) 
 	// Set working directory if specified
 	if e.config.WorkDir != "" {
 		cmd.Dir = e.config.WorkDir
+	}
+	if e.config.Environment != nil {
+		cmd.Env = e.config.Environment
 	}
 
 	var stdout, stderr bytes.Buffer

@@ -83,6 +83,7 @@ func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs
 		Verbose:      verbose,
 		StreamOutput: true,
 		WorkDir:      "",
+		Environment:  toolchainEnvironment(toolchain),
 	})
 
 	compiler := NewCompiler(executor, toolchain)

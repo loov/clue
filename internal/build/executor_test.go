@@ -100,9 +100,28 @@ func TestExecutor_RunCommand_CaptureOutput(t *testing.T) {
 	}
 }
 
+func TestExecutor_RunCommand_Environment(t *testing.T) {
+	executor := NewExecutor(ExecutorConfig{
+		Environment: append(os.Environ(), "CLUE_EXECUTOR_TEST=configured"),
+	})
+	result, err := executor.RunCommand(
+		context.Background(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "env",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Stdout != "configured" {
+		t.Errorf("stdout = %q, want configured", result.Stdout)
+	}
+}
+
 func TestExecutorOutputHelper(t *testing.T) {
 	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "emit" {
 		fmt.Print("captured")
+		os.Exit(0)
+	}
+	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "env" {
+		fmt.Print(os.Getenv("CLUE_EXECUTOR_TEST"))
 		os.Exit(0)
 	}
 }

@@ -118,6 +118,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 		Verbose:      p.verbosity == VerbosityVerbose,
 		StreamOutput: false, // Capture, don't stream
 		WorkDir:      "",
+		Environment:  toolchainEnvironment(p.toolchain),
 	})
 
 	// Create temporary compiler with capturing executor

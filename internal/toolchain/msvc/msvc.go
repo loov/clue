@@ -199,8 +199,9 @@ func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
 // findTool returns the tool name for use with the MSVC environment.
 // The actual path resolution happens via the captured PATH environment.
 func (t *Toolchain) findTool(name string) string {
-	// For MSVC, we return just the tool name since the PATH will be set
-	// from the captured vcvarsall.bat environment when executing commands
+	if fullPath := t.findToolFullPath(name); fullPath != "" {
+		return fullPath
+	}
 	return name
 }
 
