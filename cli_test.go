@@ -297,22 +297,14 @@ func TestCLI_ModuleBuild(t *testing.T) {
 	// Clean first
 	runClue(t, testDir, "--all", "clean")
 
-	// Build with verbose to see module ordering
-	stdout, stderr, exitCode := runClue(t, testDir, "-v", "build")
-
-	// This may fail if the system doesn't have full module support
-	// The key is that detection and ordering work correctly
+	stdout, stderr, exitCode := runClue(t, testDir, "-v", "run", "moduletest")
 	if exitCode != 0 {
-		// Check if it's a module compilation error vs detection error
-		if strings.Contains(stderr, "module") && strings.Contains(stderr, "order") {
-			t.Logf("Module ordering worked but compilation failed: %s", stderr)
-		} else {
-			t.Logf("Build failed (may be expected without full module support): %s", stderr)
-		}
+		t.Fatalf("module build failed with exit code %d: %s", exitCode, stderr)
 	}
-
-	// In verbose mode, should see module-related output
-	if strings.Contains(stdout, "module") || strings.Contains(stdout, "Module") {
-		t.Logf("Module detection output present: %s", stdout)
+	if !strings.Contains(stdout, "Module compilation order:") {
+		t.Errorf("module compilation order missing from output: %s", stdout)
+	}
+	if !strings.Contains(stdout, "Hello from module!") {
+		t.Errorf("module executable output missing: %s", stdout)
 	}
 }
