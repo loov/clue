@@ -1,6 +1,6 @@
 #include <iostream>
 #include "stringutils/utils.h"
-#include "simplemath/math.h"
+#include "simplemath/arithmetic.h"
 
 int main() {
     std::cout << "=== Multi-Deps Example ===" << std::endl;

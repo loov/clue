@@ -9,7 +9,7 @@ targets: {
 		name:     "mathlib"
 		type:     "static_library"
 		sources:  ["lib/math.cpp"]
-		headers:  ["lib/math.h"]
+		headers:  ["lib/arithmetic.h"]
 		optimize: "fast"
 		warnings: "strict"
 	}

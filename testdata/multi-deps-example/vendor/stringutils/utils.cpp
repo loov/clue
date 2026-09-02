@@ -1,5 +1,5 @@
 #include "utils.h"
-#include "simplemath/math.h"
+#include "simplemath/arithmetic.h"
 #include <sstream>
 
 namespace stringutils {

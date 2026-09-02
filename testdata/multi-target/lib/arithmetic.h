@@ -1,5 +1,5 @@
-#ifndef MATH_H
-#define MATH_H
+#ifndef ARITHMETIC_H
+#define ARITHMETIC_H
 
 int add(int a, int b);
 int multiply(int a, int b);

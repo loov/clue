@@ -1,5 +1,5 @@
-#ifndef SIMPLEMATH_H
-#define SIMPLEMATH_H
+#ifndef SIMPLEMATH_ARITHMETIC_H
+#define SIMPLEMATH_ARITHMETIC_H
 
 namespace simplemath {
     int add(int a, int b);

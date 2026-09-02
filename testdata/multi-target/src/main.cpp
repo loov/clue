@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cmath>  // Uses system math library
-#include "math.h"
+#include "arithmetic.h"
 
 int main() {
     int result = add(2, 3);

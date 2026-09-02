@@ -1,4 +1,4 @@
-#include "math.h"
+#include "arithmetic.h"
 
 namespace simplemath {
     int add(int a, int b) {
