@@ -593,6 +593,11 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 // Build builds all targets in dependency order
 func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	start := time.Now()
+	for _, target := range opts.Targets {
+		if _, ok := opts.Config.Targets[target]; !ok {
+			return nil, fmt.Errorf("target %q not found", target)
+		}
+	}
 
 	// Initialize profiler
 	b.profiler = profile.NewProfiler(opts.Profile)

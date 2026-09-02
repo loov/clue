@@ -26,70 +26,107 @@ import (
 
 var version = "0.1.0-dev"
 
-func main() {
-	// Parse command line flags
-	variantFlag := flag.String("variant", "", "Build variant (debug, release, or custom)")
-	dirFlag := flag.String("dir", ".", "Directory containing clue.cue")
-	noColorFlag := flag.Bool("no-color", false, "Disable colored output")
-	quietFlag := flag.Bool("quiet", false, "Suppress all non-error output")
-	verboseFlag := flag.Bool("v", false, "Verbose output")
-	versionFlag := flag.Bool("version", false, "Print version and exit")
-	allFlag := flag.Bool("all", false, "Clean all build variants (for clean command)")
-	rebuildAllFlag := flag.Bool("rebuild-all", false, "Force rebuild of all files")
-	jobsFlag := flag.Int("j", 0, "Number of parallel jobs (0 = half of CPU cores, -1 = unlimited)")
-	keepGoingFlag := flag.Bool("keep-going", false, "Continue building despite errors")
-	targetFlag := flag.String("target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64)")
-	profileFlag := flag.Bool("profile", false, "Enable build profiling")
-	saveProfileFlag := flag.Bool("save-profile", false, "Save profile to profile.json in build directory")
-	topFlag := flag.Int("top", 10, "Number of slowest files to show (used with -v)")
-	flag.Parse()
+type cliOptions struct {
+	variant, dir, target                  string
+	noColor, quiet, verbose, version, all bool
+	rebuildAll, keepGoing                 bool
+	profile, saveProfile                  bool
+	jobs, top                             int
+}
 
-	if *versionFlag {
+func registerFlags(fs *flag.FlagSet, opts *cliOptions) {
+	fs.StringVar(&opts.variant, "variant", "", "Build variant (debug, release, or custom)")
+	fs.StringVar(&opts.dir, "dir", ".", "Directory containing clue.cue")
+	fs.BoolVar(&opts.noColor, "no-color", false, "Disable colored output")
+	fs.BoolVar(&opts.quiet, "quiet", false, "Suppress all non-error output")
+	fs.BoolVar(&opts.verbose, "v", false, "Verbose output")
+	fs.BoolVar(&opts.version, "version", false, "Print version and exit")
+	fs.BoolVar(&opts.all, "all", false, "Clean all build variants (for clean command)")
+	fs.BoolVar(&opts.rebuildAll, "rebuild-all", false, "Force rebuild of all files")
+	fs.IntVar(&opts.jobs, "j", 0, "Number of parallel jobs (0 = half of CPU cores, -1 = unlimited)")
+	fs.BoolVar(&opts.keepGoing, "keep-going", false, "Continue building despite errors")
+	fs.StringVar(&opts.target, "target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64)")
+	fs.BoolVar(&opts.profile, "profile", false, "Enable build profiling")
+	fs.BoolVar(&opts.saveProfile, "save-profile", false, "Save profile to profile.json in build directory")
+	fs.IntVar(&opts.top, "top", 10, "Number of slowest files to show (used with -v)")
+}
+
+func parseCLI(args []string) (cliOptions, string, []string, error) {
+	// Let flag parse the prefix to locate the command without guessing which
+	// arguments are flag values, then parse both sides of the command together.
+	var probeOptions cliOptions
+	probe := flag.NewFlagSet("clue", flag.ContinueOnError)
+	registerFlags(probe, &probeOptions)
+	if err := probe.Parse(args); err != nil {
+		return cliOptions{}, "", nil, err
+	}
+
+	command := "validate"
+	commandIndex := len(args)
+	if rest := probe.Args(); len(rest) > 0 {
+		command = rest[0]
+		commandIndex = len(args) - len(rest)
+	}
+
+	flagArgs := append([]string{}, args[:commandIndex]...)
+	if commandIndex < len(args) {
+		flagArgs = append(flagArgs, args[commandIndex+1:]...)
+	}
+
+	var opts cliOptions
+	fs := flag.NewFlagSet("clue", flag.ContinueOnError)
+	registerFlags(fs, &opts)
+	if err := fs.Parse(flagArgs); err != nil {
+		return cliOptions{}, "", nil, err
+	}
+	return opts, command, fs.Args(), nil
+}
+
+func main() {
+	opts, command, args, err := parseCLI(os.Args[1:])
+	if err != nil {
+		os.Exit(2)
+	}
+
+	if opts.version {
 		fmt.Printf("clue version %s\n", version)
 		os.Exit(0)
 	}
 
 	// Validate verbosity flags
-	if err := build.ValidateVerbosityFlags(*quietFlag, *verboseFlag); err != nil {
+	if err := build.ValidateVerbosityFlags(opts.quiet, opts.verbose); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	// Configure colors
-	if *noColorFlag {
+	if opts.noColor {
 		clerrors.SetNoColor(true)
-	}
-
-	// Get command (default to validate)
-	args := flag.Args()
-	command := "validate"
-	if len(args) > 0 {
-		command = args[0]
 	}
 
 	// Determine verbosity level
 	verbosity := build.VerbosityNormal
-	if *quietFlag {
+	if opts.quiet {
 		verbosity = build.VerbosityQuiet
-	} else if *verboseFlag {
+	} else if opts.verbose {
 		verbosity = build.VerbosityVerbose
 	}
 
 	switch command {
 	case "validate":
-		os.Exit(runValidate(*dirFlag, *variantFlag, verbosity))
+		os.Exit(runValidate(opts.dir, opts.variant, verbosity))
 	case "build":
-		os.Exit(runBuild(*dirFlag, *variantFlag, *targetFlag, verbosity, *rebuildAllFlag, *jobsFlag, *keepGoingFlag, *profileFlag, *saveProfileFlag, *topFlag, flag.Args()[1:]))
+		os.Exit(runBuild(opts.dir, opts.variant, opts.target, verbosity, opts.rebuildAll, opts.jobs, opts.keepGoing, opts.profile, opts.saveProfile, opts.top, args))
 	case "clean":
-		os.Exit(runClean(*dirFlag, *variantFlag, *allFlag, verbosity))
+		os.Exit(runClean(opts.dir, opts.variant, opts.all, verbosity))
 	case "deps":
-		os.Exit(runDeps(*dirFlag, *verboseFlag, flag.Args()[1:]))
+		os.Exit(runDeps(opts.dir, opts.verbose, args))
 	case "generate":
-		os.Exit(runGenerate(*dirFlag, *variantFlag, *targetFlag, flag.Args()[1:]))
+		os.Exit(runGenerate(opts.dir, opts.variant, opts.target, args))
 	case "run":
-		os.Exit(runRun(*dirFlag, *variantFlag, verbosity, *jobsFlag, flag.Args()[1:]))
+		os.Exit(runRun(opts.dir, opts.variant, verbosity, opts.jobs, args))
 	case "watch":
-		os.Exit(runWatch(*dirFlag, *variantFlag, *targetFlag, verbosity, *jobsFlag, *keepGoingFlag))
+		os.Exit(runWatch(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, opts.keepGoing))
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, run, watch")

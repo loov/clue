@@ -94,6 +94,30 @@ func TestCLI_MutuallyExclusiveFlags(t *testing.T) {
 	}
 }
 
+func TestCLI_FlagsAfterCommand(t *testing.T) {
+	testDir := filepath.Join("testdata", "sample")
+
+	stdout, stderr, exitCode := runClue(t, ".", "validate", "-dir", testDir, "-variant", "release")
+	if exitCode != 0 {
+		t.Fatalf("validate failed with exit code %d: %s", exitCode, stderr)
+	}
+	if !strings.Contains(stdout, "Applied variant: release") {
+		t.Errorf("post-command variant flag was not applied:\n%s", stdout)
+	}
+}
+
+func TestCLI_BuildRejectsUnknownTarget(t *testing.T) {
+	testDir := filepath.Join("testdata", "sample")
+
+	_, stderr, exitCode := runClue(t, testDir, "build", "missing")
+	if exitCode == 0 {
+		t.Fatal("build accepted an unknown target")
+	}
+	if !strings.Contains(stderr, `target "missing" not found`) {
+		t.Errorf("unexpected error: %s", stderr)
+	}
+}
+
 func TestCLI_TimingDisplay(t *testing.T) {
 	testDir := filepath.Join("testdata", "multi-target")
 
