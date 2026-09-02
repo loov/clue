@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -53,6 +55,10 @@ int add(int a, int b) {
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
+	depBuilder.cache, err = cache.NewManager(buildDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	opts := DepBuildOptions{
 		Variant:   "debug",
 		Platform:  HostPlatform(),
@@ -82,6 +88,30 @@ int add(int a, int b) {
 	expectedLibName := "liblibfoo.a"
 	if filepath.Base(result.LibPath) != expectedLibName {
 		t.Errorf("expected library name %q, got %q", expectedLibName, filepath.Base(result.LibPath))
+	}
+	objectPath := filepath.Join(buildDir, "debug", "deps", "libfoo", "obj", "main.cpp.o")
+	objectBefore, err := os.Stat(objectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	libraryBefore, err := os.Stat(result.LibPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil); err != nil {
+		t.Fatal(err)
+	}
+	objectAfter, err := os.Stat(objectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	libraryAfter, err := os.Stat(result.LibPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !objectAfter.ModTime().Equal(objectBefore.ModTime()) || !libraryAfter.ModTime().Equal(libraryBefore.ModTime()) {
+		t.Error("unchanged dependency was rebuilt")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 
 	"github.com/loov/clue/internal/buildpath"
+	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -23,6 +25,7 @@ type DepBuildOptions struct {
 	Std          string    // Project language standard
 	Optimization string    // Active variant optimization
 	Verbosity    Verbosity // Verbosity level (quiet/normal/verbose)
+	ForceRebuild bool      // Force dependency sources to rebuild
 }
 
 // DepBuildResult holds the result of building a dependency
@@ -62,6 +65,7 @@ type DepBuilder struct {
 	linker    *Linker
 	toolchain Toolchain
 	verbosity Verbosity
+	cache     *cache.Manager
 }
 
 // NewDepBuilder creates a new dependency builder
@@ -131,6 +135,20 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Std:        opts.Std,
 			TargetType: cfg.Type,
 		}
+		compilerPath, err := exec.LookPath(db.compiler.compilerCmd(absPath))
+		if err != nil {
+			compilerPath = db.compiler.compilerCmd(absPath)
+		}
+		cacheInputs := db.compiler.cacheInputs(compileOpts)
+		if db.cache != nil {
+			needsRebuild, _, _ := db.cache.NeedsRebuild(
+				absPath, objPath, cacheInputs, compilationIncludes, compilerPath, opts.ForceRebuild,
+			)
+			if !needsRebuild {
+				objectFiles = append(objectFiles, objPath)
+				continue
+			}
+		}
 
 		if opts.Verbosity == VerbosityVerbose {
 			fmt.Printf("    Compiling %s\n", src)
@@ -143,6 +161,11 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 
 		objectFiles = append(objectFiles, result.Object)
+		if db.cache != nil {
+			if err := db.cache.StoreResult(absPath, result.Object, result.DepFile, cacheInputs, compilationIncludes, compilerPath); err != nil && opts.Verbosity == VerbosityVerbose {
+				fmt.Printf("    Warning: failed to cache %s: %v\n", src, err)
+			}
+		}
 	}
 
 	libName := StaticLibraryName(dep.Name(), opts.Platform)
@@ -150,6 +173,12 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		libName = SharedLibraryName(dep.Name(), opts.Platform)
 	}
 	libPath := filepath.Join(libDir, libName)
+	dependencyArtifacts := make([]string, 0, len(cfg.Depends))
+	for _, name := range cfg.Depends {
+		if result, ok := builtDeps[name]; ok {
+			dependencyArtifacts = append(dependencyArtifacts, result.LibPath)
+		}
+	}
 
 	if cfg.Type == "shared_library" {
 		var libPaths, libs []string
@@ -159,12 +188,36 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				libs = append(libs, result.Name)
 			}
 		}
-		_, err = db.linker.LinkSharedLibrary(ctx, SharedLibraryOptions{
+		linkOpts := SharedLibraryOptions{
 			Objects: objectFiles, Output: libPath, LibPaths: libPaths, Libs: libs,
 			Flags: Config{Optimize: optimization, Warnings: "default"},
-		})
+		}
+		fingerprint, fingerprintErr := linkFingerprint(db.toolchain.CXX(), linkOpts, append(objectFiles, dependencyArtifacts...))
+		if fingerprintErr != nil {
+			return nil, fingerprintErr
+		}
+		if opts.ForceRebuild || !linkIsCurrent(libPath, fingerprint) {
+			_, err = db.linker.LinkSharedLibrary(ctx, linkOpts)
+			if err == nil {
+				if cacheErr := storeLinkFingerprint(libPath, fingerprint); cacheErr != nil && opts.Verbosity == VerbosityVerbose {
+					fmt.Printf("    Warning: failed to cache link result: %v\n", cacheErr)
+				}
+			}
+		}
 	} else {
-		_, err = db.linker.CreateStaticLibrary(ctx, ArchiveOptions{Objects: objectFiles, Output: libPath})
+		archiveOpts := ArchiveOptions{Objects: objectFiles, Output: libPath}
+		fingerprint, fingerprintErr := linkFingerprint(db.toolchain.AR(), archiveOpts, objectFiles)
+		if fingerprintErr != nil {
+			return nil, fingerprintErr
+		}
+		if opts.ForceRebuild || !linkIsCurrent(libPath, fingerprint) {
+			_, err = db.linker.CreateStaticLibrary(ctx, archiveOpts)
+			if err == nil {
+				if cacheErr := storeLinkFingerprint(libPath, fingerprint); cacheErr != nil && opts.Verbosity == VerbosityVerbose {
+					fmt.Printf("    Warning: failed to cache archive result: %v\n", cacheErr)
+				}
+			}
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create %s: %w", cfg.Type, err)

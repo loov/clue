@@ -839,6 +839,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 
 	// Create dependency builder
 	depBuilder := NewDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbosity)
+	depBuilder.cache = b.cacheManager
 
 	// Build each dependency
 	results := make(map[string]*DepBuildResult)
@@ -862,6 +863,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 			Std:          opts.Config.Toolchain.Std,
 			Optimization: opts.Config.ActiveVariant.Optimization,
 			Verbosity:    opts.Verbosity,
+			ForceRebuild: opts.ForceRebuild,
 		}
 
 		result, err := depBuilder.BuildDep(ctx, dep, sourcePath, buildOpts, results)
