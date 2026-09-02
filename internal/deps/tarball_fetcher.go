@@ -9,7 +9,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
+
+const maxTarballBytes int64 = 1 << 30
+
+var tarballHTTPClient = &http.Client{Timeout: 5 * time.Minute}
 
 // TarballFetcher downloads and extracts tarball dependencies
 type TarballFetcher struct {
@@ -46,7 +51,7 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 		return fmt.Errorf("failed to create request for %s: %w", dep.URL, err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := tarballHTTPClient.Do(req)
 	if err != nil {
 		tmpFile.Close()
 		return fmt.Errorf("failed to download %s: %w", dep.URL, err)
@@ -58,17 +63,24 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 		tmpFile.Close()
 		return fmt.Errorf("failed to download %s: HTTP %d", dep.URL, resp.StatusCode)
 	}
+	if resp.ContentLength > maxTarballBytes {
+		tmpFile.Close()
+		return fmt.Errorf("failed to download %s: archive exceeds %d byte limit", dep.URL, maxTarballBytes)
+	}
 
 	// Compute checksum while downloading
 	h := sha256.New()
 	w := io.MultiWriter(tmpFile, h)
 
-	bytesWritten, err := io.Copy(w, resp.Body)
+	bytesWritten, err := io.Copy(w, io.LimitReader(resp.Body, maxTarballBytes+1))
 	if err != nil {
 		tmpFile.Close()
 		return fmt.Errorf("failed to download %s: %w", dep.URL, err)
 	}
 	tmpFile.Close()
+	if bytesWritten > maxTarballBytes {
+		return fmt.Errorf("failed to download %s: archive exceeds %d byte limit", dep.URL, maxTarballBytes)
+	}
 
 	actualChecksum := hex.EncodeToString(h.Sum(nil))
 
