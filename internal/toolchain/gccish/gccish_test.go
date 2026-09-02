@@ -27,9 +27,9 @@ func TestToolchain_AccessorMethods(t *testing.T) {
 
 func TestToolchain_IsCrossCompiler(t *testing.T) {
 	tests := []struct {
-		name   string
-		cc     string
-		want   bool
+		name string
+		cc   string
+		want bool
 	}{
 		{
 			name: "native gcc",

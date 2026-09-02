@@ -138,9 +138,11 @@ func TestIsRelevantFile(t *testing.T) {
 func TestIsRelevantFileExtensions(t *testing.T) {
 	// Exhaustive extension test
 	relevantExts := []string{".c", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp", ".h", ".hpp", ".hh", ".hxx", ".h++", ".cue"}
-	irrelevantExts := []string{".o", ".a", ".so", ".dylib", ".dll", ".exe",
+	irrelevantExts := []string{
+		".o", ".a", ".so", ".dylib", ".dll", ".exe",
 		".s", ".asm", ".txt", ".md", ".py", ".go", ".rs", ".java",
-		".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg"}
+		".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg",
+	}
 
 	for _, ext := range relevantExts {
 		t.Run("relevant"+ext, func(t *testing.T) {
