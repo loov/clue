@@ -94,6 +94,25 @@ func TestNinja_BasicStructure(t *testing.T) {
 	}
 }
 
+func TestNinja_DefaultVariantWithoutConfiguration(t *testing.T) {
+	cfg := createMinimalConfig("myapp", "executable", []string{"main.cpp"})
+	cfg.Variants = nil
+
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(&buf, NinjaOptions{
+		Config: cfg, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := buf.String()
+	if !strings.Contains(content, "build .build/debug/bin/myapp") ||
+		!strings.Contains(content, "build debug: phony") ||
+		!strings.Contains(content, "default debug") {
+		t.Errorf("default variant has incomplete Ninja output:\n%s", content)
+	}
+}
+
 func TestNinja_Depfile(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.c"})
 
