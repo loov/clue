@@ -14,13 +14,11 @@ import (
 func createTestTarGz(t *testing.T, files map[string]string) string {
 	t.Helper()
 
-	// Create temp file for archive
-	tmpFile, err := os.CreateTemp("", "test-*.tar.gz")
+	tmpName := filepath.Join(t.TempDir(), "test.tar.gz")
+	tmpFile, err := os.Create(tmpName)
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	tmpName := tmpFile.Name()
-
 	// Create gzip writer
 	gzw := gzip.NewWriter(tmpFile)
 	tw := tar.NewWriter(gzw)
@@ -68,12 +66,11 @@ func createTestTarGz(t *testing.T, files map[string]string) string {
 func createTestTarGzWithSymlink(t *testing.T) string {
 	t.Helper()
 
-	tmpFile, err := os.CreateTemp("", "test-symlink-*.tar.gz")
+	tmpName := filepath.Join(t.TempDir(), "test-symlink.tar.gz")
+	tmpFile, err := os.Create(tmpName)
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	tmpName := tmpFile.Name()
-
 	gzw := gzip.NewWriter(tmpFile)
 	tw := tar.NewWriter(gzw)
 
@@ -102,9 +99,15 @@ func createTestTarGzWithSymlink(t *testing.T) string {
 		t.Fatalf("failed to write symlink header: %v", err)
 	}
 
-	tw.Close()
-	gzw.Close()
-	tmpFile.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	return tmpName
 }
@@ -119,7 +122,6 @@ func TestExtractTarGz_Normal(t *testing.T) {
 		"dir/sub/file3.txt": "content3",
 	}
 	archivePath := createTestTarGz(t, files)
-	defer os.Remove(archivePath)
 
 	// Create temp directory for extraction
 	targetDir := t.TempDir()
@@ -156,7 +158,6 @@ func TestExtractTarGz_PathTraversal(t *testing.T) {
 		"../../../etc/passwd": "malicious",
 	}
 	archivePath := createTestTarGz(t, files)
-	defer os.Remove(archivePath)
 
 	targetDir := t.TempDir()
 
@@ -183,7 +184,6 @@ func TestExtractTarGz_AbsolutePath(t *testing.T) {
 		"/tmp/malicious.txt": "bad",
 	}
 	archivePath := createTestTarGz(t, files)
-	defer os.Remove(archivePath)
 
 	targetDir := t.TempDir()
 
@@ -200,7 +200,6 @@ func TestExtractTarGz_AbsolutePath(t *testing.T) {
 func TestExtractTarGz_SymlinkIgnored(t *testing.T) {
 	// Create archive with symlink
 	archivePath := createTestTarGzWithSymlink(t)
-	defer os.Remove(archivePath)
 
 	targetDir := t.TempDir()
 
@@ -314,13 +313,11 @@ func TestDetectArchiveType(t *testing.T) {
 
 func TestExtractZip_Normal(t *testing.T) {
 	// Create test zip archive
-	tmpFile, err := os.CreateTemp("", "test-*.zip")
+	tmpName := filepath.Join(t.TempDir(), "test.zip")
+	tmpFile, err := os.Create(tmpName)
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	tmpName := tmpFile.Name()
-	defer os.Remove(tmpName)
-
 	zw := zip.NewWriter(tmpFile)
 
 	// Add files
@@ -340,8 +337,12 @@ func TestExtractZip_Normal(t *testing.T) {
 		}
 	}
 
-	zw.Close()
-	tmpFile.Close()
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Extract
 	targetDir := t.TempDir()
@@ -364,18 +365,25 @@ func TestExtractZip_Normal(t *testing.T) {
 
 func TestExtractZip_PathTraversal(t *testing.T) {
 	// Create malicious zip
-	tmpFile, err := os.CreateTemp("", "test-*.zip")
+	tmpName := filepath.Join(t.TempDir(), "test.zip")
+	tmpFile, err := os.Create(tmpName)
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	tmpName := tmpFile.Name()
-	defer os.Remove(tmpName)
-
 	zw := zip.NewWriter(tmpFile)
-	w, _ := zw.Create("../../../etc/passwd")
-	_, _ = w.Write([]byte("malicious"))
-	zw.Close()
-	tmpFile.Close()
+	w, err := zw.Create("../../../etc/passwd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("malicious")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Extract should fail
 	targetDir := t.TempDir()
