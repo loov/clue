@@ -543,7 +543,9 @@ func TestNeedsRebuild_ObjectMissing(t *testing.T) {
 	}
 
 	// Delete the object file
-	os.Remove(objPath)
+	if err := os.Remove(objPath); err != nil {
+		t.Fatal(err)
+	}
 
 	// Check if needs rebuild
 	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, objPath, []string{}, []string{}, compilerPath, false)
@@ -601,7 +603,9 @@ func TestNeedsRebuild_DepFileMissing(t *testing.T) {
 	}
 
 	// Delete the dep file
-	os.Remove(depPath)
+	if err := os.Remove(depPath); err != nil {
+		t.Fatal(err)
+	}
 
 	// Check if needs rebuild
 	needsRebuild, reason, _ := cm.NeedsRebuild(srcPath, objPath, []string{}, []string{}, compilerPath, false)
