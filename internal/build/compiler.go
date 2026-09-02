@@ -254,8 +254,26 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	if err != nil {
 		return result, fmt.Errorf("failed to compile %s: %w", opts.Source, err)
 	}
+	depFile, err := writeDependencyFile(opts.Output, opts.Source, result.Dependencies)
+	if err != nil {
+		return result, fmt.Errorf("failed to record dependencies for %s: %w", opts.Source, err)
+	}
+	result.DepFile = depFile
 
 	return result, nil
+}
+
+func writeDependencyFile(output, source string, dependencies []string) (string, error) {
+	escape := func(path string) string {
+		return strings.NewReplacer("\\", "\\\\", " ", "\\ ", "\t", "\\\t").Replace(path)
+	}
+	depFile := strings.TrimSuffix(output, filepath.Ext(output)) + ".d"
+	paths := append([]string{source}, dependencies...)
+	for i := range paths {
+		paths[i] = escape(paths[i])
+	}
+	content := escape(output) + ": " + strings.Join(paths, " ") + "\n"
+	return depFile, os.WriteFile(depFile, []byte(content), 0o644)
 }
 
 // TranslateStdForMSVC translates C/C++ standard names to MSVC format.

@@ -7,7 +7,27 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/cache"
 )
+
+func TestWriteDependencyFileEscapesPaths(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "object file.obj")
+	source := filepath.Join(dir, "source file.cpp")
+	header := filepath.Join(dir, "header file.hpp")
+	depFile, err := writeDependencyFile(output, source, []string{header})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := cache.ParseDepFile(depFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Target != output || len(info.Sources) != 2 || info.Sources[0] != source || info.Sources[1] != header {
+		t.Fatalf("dependency file parsed as %+v", info)
+	}
+}
 
 func TestCompiler_isCPlusPlus(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
