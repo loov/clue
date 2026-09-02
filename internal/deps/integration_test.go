@@ -27,16 +27,7 @@ func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
 		t.Fatalf("Test project not found at %s", projectDir)
 	}
 
-	// Change to project directory so relative paths work
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalDir) }()
-
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change to project directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	// Load configuration
 	loader := config.NewLoader()
@@ -62,7 +53,11 @@ func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
 
 	// Build the project
 	buildDir := ".build"
-	defer os.RemoveAll(buildDir) // Cleanup
+	t.Cleanup(func() {
+		if err := os.RemoveAll(buildDir); err != nil {
+			t.Errorf("remove build directory: %v", err)
+		}
+	})
 
 	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
@@ -184,16 +179,7 @@ func TestGitDepProject_ConfigParsing(t *testing.T) {
 		t.Fatalf("Test project not found at %s", projectDir)
 	}
 
-	// Change to project directory so relative paths work
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalDir) }()
-
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change to project directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	// Load configuration
 	loader := config.NewLoader()
@@ -280,16 +266,7 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
 
-	// Change to project directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalDir) }()
-
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change to project directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	// Load configuration
 	loader := config.NewLoader()
@@ -300,7 +277,11 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 
 	// Build once to populate cache
 	buildDir := ".build"
-	defer os.RemoveAll(buildDir)
+	t.Cleanup(func() {
+		if err := os.RemoveAll(buildDir); err != nil {
+			t.Errorf("remove build directory: %v", err)
+		}
+	})
 
 	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
@@ -334,7 +315,9 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 	}
 
 	// Clean build artifacts but keep source
-	os.RemoveAll(buildDir)
+	if err := os.RemoveAll(buildDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Build again - should succeed without network (vendored deps are local)
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
@@ -369,16 +352,7 @@ func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
 
-	// Change to project directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalDir) }()
-
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change to project directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	// Load configuration
 	loader := config.NewLoader()
@@ -389,7 +363,11 @@ func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
 
 	// Build with output capture
 	buildDir := ".build"
-	defer os.RemoveAll(buildDir)
+	t.Cleanup(func() {
+		if err := os.RemoveAll(buildDir); err != nil {
+			t.Errorf("remove build directory: %v", err)
+		}
+	})
 
 	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityVerbose, 1, false)
 	if err != nil {
@@ -406,19 +384,12 @@ func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Capture output during build
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	result, err := builder.Build(ctx, opts)
-
-	w.Close()
-	os.Stdout = oldStdout
-
-	outputBytes, _ := os.ReadFile(r.Name())
-	output := string(outputBytes)
-
+	var result *build.Result
+	output, err := captureStdout(t, func() error {
+		var buildErr error
+		result, buildErr = builder.Build(ctx, opts)
+		return buildErr
+	})
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
