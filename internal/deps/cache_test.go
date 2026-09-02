@@ -3,8 +3,29 @@ package deps
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestCacheTarballRequiresCompletionMarker(t *testing.T) {
+	cache, err := NewCache(t.TempDir(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dep := NewTarballDependency("archive", "https://example.com/archive.tar.gz", strings.Repeat("0", 64), "", nil)
+	if err := os.MkdirAll(cache.Path(dep), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if cache.Has(dep) {
+		t.Fatal("partial tarball cache was reported as complete")
+	}
+	if err := cache.MarkFetched(dep); err != nil {
+		t.Fatal(err)
+	}
+	if !cache.Has(dep) {
+		t.Fatal("completed tarball cache was reported as missing")
+	}
+}
 
 func TestCacheCleanDepIgnoresShortUnrelatedNames(t *testing.T) {
 	cache, err := NewCache(t.TempDir(), false)

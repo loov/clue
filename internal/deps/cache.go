@@ -59,12 +59,12 @@ func (c *Cache) Has(dep Dependency) bool {
 		return info.IsDir()
 
 	case "tarball":
-		// For tarball, check if cache directory exists
-		info, err := os.Stat(cachePath)
+		// The directory may be left behind by an interrupted extraction.
+		info, err := os.Stat(filepath.Join(cachePath, ".clue-dep"))
 		if err != nil {
 			return false
 		}
-		return info.IsDir()
+		return !info.IsDir()
 
 	case "vendored":
 		// For vendored, the path is the original source location
