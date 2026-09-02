@@ -21,6 +21,8 @@ func TestCompiler_isCPlusPlus(t *testing.T) {
 		{"main.cpp", true},
 		{"file.cc", true},
 		{"code.cxx", true},
+		{"code.c++", true},
+		{"code.CC", true},
 		{"source.C", true},
 		{"program.CPP", true},
 		{"main.c", false},

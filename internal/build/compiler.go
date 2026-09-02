@@ -57,8 +57,11 @@ func NewCompiler(executor *Executor, toolchain Toolchain) *Compiler {
 // isCPlusPlus detects if a source file is C++ based on extension
 func (c *Compiler) isCPlusPlus(source string) bool {
 	ext := filepath.Ext(source)
-	switch ext {
-	case ".cpp", ".cc", ".cxx", ".C", ".CPP", ".cppm", ".ixx", ".mpp":
+	if ext == ".C" {
+		return true
+	}
+	switch strings.ToLower(ext) {
+	case ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp":
 		return true
 	default:
 		return false
