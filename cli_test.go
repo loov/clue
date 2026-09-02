@@ -211,12 +211,7 @@ func TestCLI_RunCommand_BuildsAndExecutes(t *testing.T) {
 }
 
 func TestCLI_RunCommand_PassesArguments(t *testing.T) {
-	// This test requires a program that echoes arguments
-	// Skip if testdata/args-test doesn't exist
 	testDir := filepath.Join("testdata", "args-test")
-	if _, err := os.Stat(testDir); os.IsNotExist(err) {
-		t.Skip("testdata/args-test not found")
-	}
 
 	// Clean first
 	runClue(t, testDir, "--all", "clean")
