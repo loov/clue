@@ -111,7 +111,9 @@ variants: {
 
 	// Clean the object directory so ninja has to rebuild
 	objDir := filepath.Join(buildDir, "debug", "myapp", "obj")
-	os.RemoveAll(objDir)
+	if err := os.RemoveAll(objDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Generate ninja file
 	ninjaPath := filepath.Join(tmpDir, "build.ninja")
