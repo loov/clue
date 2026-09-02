@@ -54,7 +54,6 @@ func TestDepsList_Integration(t *testing.T) {
 	}
 
 	output, err := captureStdout(t, func() error { return deps.RunList(cfg.Dependencies, false) })
-
 	if err != nil {
 		t.Errorf("RunList failed: %v", err)
 	}
@@ -93,7 +92,6 @@ func TestDepsFetch_Integration(t *testing.T) {
 	output, err := captureStdout(t, func() error {
 		return deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{Verbose: false})
 	})
-
 	if err != nil {
 		t.Errorf("RunFetch failed: %v", err)
 	}
@@ -138,7 +136,6 @@ func TestDepsClean_Integration(t *testing.T) {
 
 	// Run deps clean
 	_, err := captureStdout(t, func() error { return deps.RunClean(dummyDeps, "") })
-
 	if err != nil {
 		t.Errorf("RunClean failed: %v", err)
 	}
@@ -170,7 +167,6 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 
 	// Step 1: Verify dependencies are listed correctly
 	listOutput, err := captureStdout(t, func() error { return deps.RunList(cfg.Dependencies, false) })
-
 	if err != nil {
 		t.Errorf("RunList failed: %v", err)
 	}
