@@ -331,7 +331,7 @@ func TestNinja_BuildsDependencyWithClueConfig(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(depRoot, "clue.cue"), []byte(`
 targets: lib: {
-	type: "static_library"
+	type: "shared_library"
 	sources: ["lib.c"]
 }
 `), 0o644); err != nil {
@@ -354,6 +354,16 @@ targets: lib: {
 	}
 	if want := ninjaPathLocal(filepath.Join(depRoot, "lib.c")); !strings.Contains(buf.String(), want) {
 		t.Errorf("dependency clue.cue source is missing from Ninja output:\n%s", buf.String())
+	}
+	checks := []string{
+		"build .build/debug/deps/lib/lib/liblib.so: link_shared",
+		"build .build/debug/bin/app: link .build/debug/app/obj/main.c.o .build/debug/deps/lib/lib/liblib.so",
+		"-Wl,-rpath,$$ORIGIN/../deps/lib/lib",
+	}
+	for _, check := range checks {
+		if !strings.Contains(buf.String(), check) {
+			t.Errorf("missing %q in Ninja output:\n%s", check, buf.String())
+		}
 	}
 }
 
