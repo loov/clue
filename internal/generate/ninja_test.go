@@ -400,6 +400,31 @@ func TestNinja_HeaderOnlyDependencyAddsIncludesWithoutLibrary(t *testing.T) {
 	}
 }
 
+func TestNinja_PrebuiltDependencyLinksExactLibrary(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "sdk")
+	library := filepath.Join(root, "custom-name.a")
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"sdk"},
+	}
+	cfg.Dependencies = map[string]deps.Dependency{
+		"sdk": deps.NewVendoredDependency("sdk", root, &deps.InlineConfig{
+			Type: "prebuilt_static", Library: "custom-name.a",
+		}),
+	}
+
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o "+ninjaPathLocal(library)) {
+		t.Fatalf("prebuilt library is missing from link edge:\n%s", output.String())
+	}
+}
+
 func TestNinja_BuildsDependencyWithClueConfig(t *testing.T) {
 	depRoot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(depRoot, "lib.c"), nil, 0o644); err != nil {

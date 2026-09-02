@@ -135,6 +135,24 @@ func TestDepBuilder_HeaderOnlyDependencyNeedsNoCompiler(t *testing.T) {
 	}
 }
 
+func TestDepBuilder_PrebuiltDependencyNeedsNoCompiler(t *testing.T) {
+	root := t.TempDir()
+	library := filepath.Join(root, "libcustom.a")
+	if err := os.WriteFile(library, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dep := deps.NewVendoredDependency("custom", root, &deps.InlineConfig{
+		Type: "prebuilt_static", Library: "libcustom.a",
+	})
+	result, err := (&DepBuilder{}).BuildDep(t.Context(), dep, root, DepBuildOptions{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Type != "prebuilt_static" || result.LibPath != library {
+		t.Fatalf("prebuilt result = %+v", result)
+	}
+}
+
 func TestDepBuilder_SharedLibraryUsesProjectStandard(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "lib.cpp")

@@ -35,7 +35,7 @@ type DepBuildOptions struct {
 // DepBuildResult holds the result of building a dependency
 type DepBuildResult struct {
 	Name        string        // Dependency name
-	Type        string        // "static_library", "shared_library", or "header_only"
+	Type        string        // Built, header-only, or prebuilt library type
 	LibPath     string        // Path to built library
 	IncludePath string        // Path to include headers
 	Depends     []string      // Other external dependencies
@@ -49,6 +49,7 @@ type ResolvedDepConfig struct {
 	Includes []string
 	Defines  []string
 	Depends  []string
+	Library  string
 	Type     string
 }
 
@@ -60,7 +61,7 @@ func ResolveDepConfig(dep deps.Dependency, sourcePath string) (ResolvedDepConfig
 	}
 	return ResolvedDepConfig{
 		Sources: cfg.Sources, Includes: cfg.Includes, Defines: cfg.Defines,
-		Depends: cfg.Depends, Type: cfg.Type,
+		Depends: cfg.Depends, Library: cfg.Library, Type: cfg.Type,
 	}, nil
 }
 
@@ -96,6 +97,20 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	if cfg.Type == "header_only" {
 		return &DepBuildResult{
 			Name: dep.Name(), Type: cfg.Type, IncludePath: includePath,
+			Depends: cfg.Depends, Duration: time.Since(start),
+		}, nil
+	}
+	if cfg.Type == "prebuilt_static" || cfg.Type == "prebuilt_shared" {
+		library := filepath.Join(sourcePath, cfg.Library)
+		info, err := os.Stat(library)
+		if err != nil {
+			return nil, fmt.Errorf("prebuilt library %q: %w", library, err)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("prebuilt library %q is not a regular file", library)
+		}
+		return &DepBuildResult{
+			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath,
 			Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
 	}
@@ -253,6 +268,7 @@ type depConfig struct {
 	Includes []string
 	Defines  []string
 	Depends  []string
+	Library  string
 	Type     string
 }
 
@@ -292,6 +308,7 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 			Includes: includes,
 			Defines:  inlineConfig.Defines,
 			Depends:  inlineConfig.Depends,
+			Library:  inlineConfig.Library,
 			Type:     targetType,
 		}, nil
 	}

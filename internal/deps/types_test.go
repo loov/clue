@@ -37,3 +37,12 @@ func TestInlineConfig_HeaderOnlyNeedsNoSources(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInlineConfig_PrebuiltNeedsLibrary(t *testing.T) {
+	if err := (&InlineConfig{Type: "prebuilt_static"}).Validate(); err == nil {
+		t.Fatal("prebuilt dependency accepted a missing library")
+	}
+	if err := (&InlineConfig{Type: "prebuilt_static", Library: "lib/libfoo.a"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

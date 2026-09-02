@@ -87,9 +87,13 @@ package config
 	includes?: [...string]
 	defines?: [...string]
 	depends?: [...string]  // Other dependency names
-	targetType: *"static_library" | "shared_library" | "header_only"
-	if targetType != "header_only" {
+	library?: string
+	targetType: *"static_library" | "shared_library" | "header_only" | "prebuilt_static" | "prebuilt_shared"
+	if targetType == "static_library" || targetType == "shared_library" {
 		sources: [...string] & [_, ...]
+	}
+	if targetType == "prebuilt_static" || targetType == "prebuilt_shared" {
+		library: string
 	}
 }
 

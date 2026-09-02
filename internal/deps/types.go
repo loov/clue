@@ -25,7 +25,8 @@ type InlineConfig struct {
 	Includes []string
 	Defines  []string
 	Depends  []string
-	Type     string // "static_library", "shared_library", or "header_only"
+	Library  string
+	Type     string // built, header-only, or prebuilt library type
 }
 
 // GitDependency represents a dependency fetched from a git repository
@@ -215,10 +216,15 @@ func (v *VendoredDependency) Validate() error {
 
 // Validate checks that the inline config is valid
 func (ic *InlineConfig) Validate() error {
-	if len(ic.Sources) == 0 && ic.Type != "header_only" {
+	prebuilt := ic.Type == "prebuilt_static" || ic.Type == "prebuilt_shared"
+	if len(ic.Sources) == 0 && ic.Type != "header_only" && !prebuilt {
 		return fmt.Errorf("inline build config: at least one source file is required")
 	}
-	if ic.Type != "" && ic.Type != "static_library" && ic.Type != "shared_library" && ic.Type != "header_only" {
+	if prebuilt && ic.Library == "" {
+		return fmt.Errorf("inline build config: prebuilt library path is required")
+	}
+	if ic.Type != "" && ic.Type != "static_library" && ic.Type != "shared_library" &&
+		ic.Type != "header_only" && !prebuilt {
 		return fmt.Errorf("inline build config: unsupported target type %q", ic.Type)
 	}
 	return nil

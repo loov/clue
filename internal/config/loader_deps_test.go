@@ -263,6 +263,37 @@ dependencies: headers: {
 	}
 }
 
+func TestPrebuiltDependencyNeedsNoSources(t *testing.T) {
+	dir := t.TempDir()
+	contents := `
+name: "prebuilt"
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["main.cpp"]
+}
+dependencies: sdk: {
+	type: "vendored"
+	path: "vendor/sdk"
+	build: {
+		targetType: "prebuilt_static"
+		library: "lib/custom.a"
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := cfg.Dependencies["sdk"].InlineBuild()
+	if build == nil || build.Type != "prebuilt_static" || build.Library != "lib/custom.a" {
+		t.Fatalf("prebuilt build = %+v", build)
+	}
+}
+
 func TestDependencyValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 

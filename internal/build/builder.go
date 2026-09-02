@@ -183,7 +183,7 @@ func (b *Builder) targetToConfig(target config.Target, variant config.Variant) C
 	return cfg
 }
 
-func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libPaths, libs, sysLibs, sharedLibPaths, artifacts []string, err error) {
+func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libPaths, libs, sysLibs, sharedLibPaths, artifacts, linkFiles []string, err error) {
 	seen := make(map[string]bool)
 	seenPaths := make(map[string]bool)
 	seenSharedPaths := make(map[string]bool)
@@ -199,12 +199,16 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 			if result.LibPath != "" {
 				artifacts = append(artifacts, result.LibPath)
 				path := filepath.Dir(result.LibPath)
-				if !seenPaths[path] {
-					seenPaths[path] = true
-					libPaths = append(libPaths, path)
+				if result.Type == "prebuilt_static" || result.Type == "prebuilt_shared" {
+					linkFiles = append(linkFiles, result.LibPath)
+				} else {
+					if !seenPaths[path] {
+						seenPaths[path] = true
+						libPaths = append(libPaths, path)
+					}
+					libs = append(libs, result.Name)
 				}
-				libs = append(libs, result.Name)
-				if result.Type == "shared_library" && !seenSharedPaths[path] {
+				if (result.Type == "shared_library" || result.Type == "prebuilt_shared") && !seenSharedPaths[path] {
 					seenSharedPaths[path] = true
 					sharedLibPaths = append(sharedLibPaths, path)
 				}
@@ -250,10 +254,10 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 
 	for _, dependency := range target.Depends {
 		if err := visit(dependency); err != nil {
-			return nil, nil, nil, nil, nil, err
+			return nil, nil, nil, nil, nil, nil, err
 		}
 	}
-	return libPaths, libs, sysLibs, sharedLibPaths, artifacts, nil
+	return libPaths, libs, sysLibs, sharedLibPaths, artifacts, linkFiles, nil
 }
 
 func (b *Builder) addRuntimeLibraryPaths(cfg *Config, output string, paths []string) error {
@@ -550,7 +554,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	// Link or archive based on target type
 	switch target.Type {
 	case "executable":
-		libPaths, libs, dependencySysLibs, sharedLibPaths, artifacts, err := b.dependencyLinkInputs(opts, target)
+		libPaths, libs, dependencySysLibs, sharedLibPaths, artifacts, linkFiles, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
 			return nil, err
 		}
@@ -561,7 +565,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 		linkOpts := LinkOptions{
-			Objects:  objectFiles,
+			Objects:  append(append([]string(nil), objectFiles...), linkFiles...),
 			Output:   outputPath,
 			SysLibs:  append(append([]string(nil), target.SysLibs...), dependencySysLibs...),
 			LibPaths: libPaths,
@@ -622,7 +626,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 	case "shared_library":
-		libPaths, libs, dependencySysLibs, sharedLibPaths, artifacts, err := b.dependencyLinkInputs(opts, target)
+		libPaths, libs, dependencySysLibs, sharedLibPaths, artifacts, linkFiles, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
 			return nil, err
 		}
@@ -631,7 +635,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 		sharedOpts := SharedLibraryOptions{
-			Objects:          objectFiles,
+			Objects:          append(append([]string(nil), objectFiles...), linkFiles...),
 			Output:           outputPath,
 			SysLibs:          append(append([]string(nil), target.SysLibs...), dependencySysLibs...),
 			LibPaths:         libPaths,

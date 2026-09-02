@@ -5,7 +5,30 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 )
+
+func TestDependencyLinkInputs_PrebuiltLibraryUsesExactPath(t *testing.T) {
+	library := filepath.Join("vendor", "sdk", "custom-name.a")
+	b := &Builder{depResults: map[string]*DepBuildResult{
+		"sdk": {Name: "sdk", Type: "prebuilt_static", LibPath: library},
+	}}
+	cfg := &config.Config{
+		Targets: map[string]config.Target{"app": {Name: "app", Depends: []string{"sdk"}}},
+		Dependencies: map[string]deps.Dependency{
+			"sdk": deps.NewVendoredDependency("sdk", "vendor/sdk", &deps.InlineConfig{
+				Type: "prebuilt_static", Library: "custom-name.a",
+			}),
+		},
+	}
+	_, libs, _, _, artifacts, linkFiles, err := b.dependencyLinkInputs(Options{Config: cfg}, cfg.Targets["app"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(libs) != 0 || len(artifacts) != 1 || len(linkFiles) != 1 || linkFiles[0] != library {
+		t.Fatalf("libs=%v artifacts=%v link files=%v", libs, artifacts, linkFiles)
+	}
+}
 
 func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
 	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)

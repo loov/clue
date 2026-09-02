@@ -96,7 +96,7 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
 		sources := resolved.Sources
-		if resolved.Type == "header_only" {
+		if resolved.Type == "header_only" || resolved.Type == "prebuilt_static" || resolved.Type == "prebuilt_shared" {
 			continue
 		}
 		if len(sources) == 0 {
@@ -165,7 +165,14 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 
 func dependencyTargetType(dep deps.Dependency) string {
 	if buildConfig := dep.InlineBuild(); buildConfig != nil && buildConfig.Type != "" {
-		return buildConfig.Type
+		switch buildConfig.Type {
+		case "prebuilt_static":
+			return "static_library"
+		case "prebuilt_shared":
+			return "shared_library"
+		default:
+			return buildConfig.Type
+		}
 	}
 	if resolved, err := build.ResolveDepConfig(dep, dep.CachePath(".")); err == nil && resolved.Type != "" {
 		return resolved.Type
@@ -182,6 +189,10 @@ func dependencyDepends(dep deps.Dependency) []string {
 }
 
 func dependencyOutputPath(buildDir, variant string, dep deps.Dependency, platform toolchain.Platform) string {
+	buildConfig := dep.InlineBuild()
+	if buildConfig != nil && buildConfig.Library != "" {
+		return filepath.Join(dep.CachePath("."), buildConfig.Library)
+	}
 	if dependencyTargetType(dep) == "header_only" {
 		return ""
 	}

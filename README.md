@@ -150,3 +150,17 @@ dependencies: json: {
     }
 }
 ```
+
+For an already-built library, point at the exact artifact instead:
+
+```cue
+dependencies: sdk: {
+    type: "vendored"
+    path: "vendor/sdk"
+    build: {
+        targetType: "prebuilt_static" // or "prebuilt_shared"
+        library:    "lib/libsdk.a"
+        includes:   ["include"]
+    }
+}
+```
