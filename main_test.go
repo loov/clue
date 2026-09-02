@@ -275,7 +275,11 @@ func TestBuild_Verbose(t *testing.T) {
 	}
 
 	// Clean first
-	_, _ = exec.Command(binary, "--all", "clean").CombinedOutput()
+	clean := exec.Command(binary, "--all", "clean")
+	clean.Dir = testdataDir
+	if out, err := clean.CombinedOutput(); err != nil {
+		t.Fatalf("Clean failed: %v\n%s", err, out)
+	}
 
 	// Build with verbose flag
 	cmd = exec.Command(binary, "-v", "build")
