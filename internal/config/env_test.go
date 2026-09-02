@@ -135,18 +135,8 @@ func TestEnvConfigStructure(t *testing.T) {
 }
 
 func TestEnvVarPrecedence(t *testing.T) {
-	// Save and restore env
-	old := os.Getenv("TEST_VAR")
-	defer func() {
-		if old != "" {
-			os.Setenv("TEST_VAR", old)
-		} else {
-			os.Unsetenv("TEST_VAR")
-		}
-	}()
-
 	// Test: When env var is set, it should take precedence over default
-	os.Setenv("TEST_VAR", "from_env")
+	t.Setenv("TEST_VAR", "from_env")
 
 	// This is a structural test - real resolution requires CUE parsing
 	envVars := map[string]string{

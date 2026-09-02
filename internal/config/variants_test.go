@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 )
 
@@ -49,14 +48,7 @@ func TestVariantSelectorPrecedence(t *testing.T) {
 }
 
 func TestNewVariantSelector(t *testing.T) {
-	// Save and clear env
-	old := os.Getenv(VariantEnvVar)
-	os.Unsetenv(VariantEnvVar)
-	defer func() {
-		if old != "" {
-			os.Setenv(VariantEnvVar, old)
-		}
-	}()
+	t.Setenv(VariantEnvVar, "")
 
 	vs := NewVariantSelector()
 	if vs.Default != DefaultVariant {
@@ -67,7 +59,7 @@ func TestNewVariantSelector(t *testing.T) {
 	}
 
 	// Test with env var set
-	os.Setenv(VariantEnvVar, "custom")
+	t.Setenv(VariantEnvVar, "custom")
 	vs = NewVariantSelector()
 	if vs.EnvVar != "custom" {
 		t.Errorf("Expected EnvVar 'custom', got '%s'", vs.EnvVar)
@@ -75,14 +67,7 @@ func TestNewVariantSelector(t *testing.T) {
 }
 
 func TestSelectVariant(t *testing.T) {
-	// Save and clear env
-	old := os.Getenv(VariantEnvVar)
-	os.Unsetenv(VariantEnvVar)
-	defer func() {
-		if old != "" {
-			os.Setenv(VariantEnvVar, old)
-		}
-	}()
+	t.Setenv(VariantEnvVar, "")
 
 	// CLI provided
 	if got := SelectVariant("release"); got != "release" {
@@ -95,7 +80,7 @@ func TestSelectVariant(t *testing.T) {
 	}
 
 	// No CLI, env set
-	os.Setenv(VariantEnvVar, "profile")
+	t.Setenv(VariantEnvVar, "profile")
 	if got := SelectVariant(""); got != "profile" {
 		t.Errorf("Expected 'profile', got '%s'", got)
 	}
