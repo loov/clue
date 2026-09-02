@@ -244,6 +244,36 @@ func TestNinja_StaticLibrary(t *testing.T) {
 	}
 }
 
+func TestNinja_LinksTargetDependenciesInOrder(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"first"},
+	}
+	cfg.Targets["first"] = config.Target{
+		Name: "first", Type: "static_library", Sources: []string{"first.cpp"}, Depends: []string{"second"},
+	}
+	cfg.Targets["second"] = config.Target{
+		Name: "second", Type: "static_library", Sources: []string{"second.cpp"}, SysLibs: []string{"pthread"},
+	}
+
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(&buf, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	content := buf.String()
+	want := "build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o .build/debug/lib/libfirst.a .build/debug/lib/libsecond.a"
+	if !strings.Contains(content, want) {
+		t.Errorf("target libraries are not ordered link inputs:\n%s", content)
+	}
+	if !strings.Contains(content, "ldflags = -lpthread") {
+		t.Errorf("transitive system libraries are missing:\n%s", content)
+	}
+}
+
 func TestNinja_SharedLibrary(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
 

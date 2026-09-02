@@ -124,13 +124,15 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	// Link or archive
 	outputPath := ninjaPathLocal(outputPathForTarget(opts.BuildDir, variant, target.Name, target.Type, opts.Platform))
+	dependencyInputs, dependencySysLibs := targetLinkDependencies(opts.Config, target, opts.BuildDir, variant, opts.Platform)
+	linkInputs := append(append([]string(nil), objects...), dependencyInputs...)
 
 	switch target.Type {
 	case "executable":
-		ldflags := buildLinkerFlagsForNinja(opts.Config, target, buildCfg, opts.BuildDir, variant, opts.Platform, opts.Toolchain)
+		ldflags := buildLinkerFlagsForNinja(target, dependencySysLibs, buildCfg, opts.Platform, opts.Toolchain)
 		*file = append(*file, ninja.Build{
 			Rule: "link",
-			In:   objects,
+			In:   linkInputs,
 			Out:  []string{outputPath},
 			Vars: ninja.Vars{
 				{Key: "ldflags", Val: strings.Join(ldflags, " ")},
@@ -145,10 +147,10 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		})
 
 	case "shared_library":
-		ldflags := buildSharedLibLinkerFlags(opts.Config, target, buildCfg, opts.Platform, opts.Toolchain)
+		ldflags := buildSharedLibLinkerFlags(target, dependencySysLibs, buildCfg, opts.Platform, opts.Toolchain)
 		*file = append(*file, ninja.Build{
 			Rule: "link_shared",
-			In:   objects,
+			In:   linkInputs,
 			Out:  []string{outputPath},
 			Vars: ninja.Vars{
 				{Key: "ldflags", Val: strings.Join(ldflags, " ")},
@@ -193,22 +195,50 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 	return flags
 }
 
-// buildLinkerFlagsForNinja builds linker flags for executables
-func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, buildDir, variant string, platform toolchain.Platform, toolchainName string) []string {
-	var flags []string
-
-	// Library search paths for dependencies
-	for _, dep := range target.Depends {
-		if _, isTarget := cfg.Targets[dep]; isTarget {
-			// Target dependency - add library path
-			libPath := ninjaPathLocal(filepath.Join(buildDir, variant, "lib"))
-			flags = append(flags, "-L"+libPath)
-			flags = append(flags, "-l"+dep)
-		}
+func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) ([]string, []string) {
+	var inputs, sysLibs []string
+	seenTargets := map[string]bool{}
+	seenSysLibs := map[string]bool{}
+	for _, sysLib := range target.SysLibs {
+		seenSysLibs[sysLib] = true
 	}
 
+	var visit func(string)
+	visit = func(name string) {
+		if seenTargets[name] {
+			return
+		}
+		seenTargets[name] = true
+
+		dep, ok := cfg.Targets[name]
+		if !ok {
+			return
+		}
+		if dep.Type == "static_library" || dep.Type == "shared_library" {
+			inputs = append(inputs, ninjaPathLocal(outputPathForTarget(buildDir, variant, dep.Name, dep.Type, platform)))
+		}
+		for _, sysLib := range dep.SysLibs {
+			if !seenSysLibs[sysLib] {
+				seenSysLibs[sysLib] = true
+				sysLibs = append(sysLibs, sysLib)
+			}
+		}
+		for _, child := range dep.Depends {
+			visit(child)
+		}
+	}
+	for _, name := range target.Depends {
+		visit(name)
+	}
+	return inputs, sysLibs
+}
+
+// buildLinkerFlagsForNinja builds linker flags for executables
+func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, toolchainName string) []string {
+	var flags []string
+
 	// System libraries
-	for _, sysLib := range target.SysLibs {
+	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
 		flags = append(flags, "-l"+sysLib)
 	}
 
@@ -225,7 +255,7 @@ func buildLinkerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg
 }
 
 // buildSharedLibLinkerFlags builds linker flags for shared libraries
-func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg toolchain.Config, platform toolchain.Platform, toolchainName string) []string {
+func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, toolchainName string) []string {
 	var flags []string
 
 	// Platform-specific shared library flags
@@ -239,7 +269,7 @@ func buildSharedLibLinkerFlags(_ *config.Config, target config.Target, buildCfg 
 	}
 
 	// System libraries
-	for _, sysLib := range target.SysLibs {
+	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
 		flags = append(flags, "-l"+sysLib)
 	}
 
