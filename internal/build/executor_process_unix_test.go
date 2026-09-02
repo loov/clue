@@ -28,7 +28,7 @@ func TestExecutorCancellationKillsChildProcesses(t *testing.T) {
 	}()
 
 	_, err := NewExecutor(ExecutorConfig{}).RunCommand(
-		ctx, "sh", "-c", `sleep 10 & echo $! > "$1"; wait`, "sh", pidFile,
+		ctx, "sh", "-c", `sleep 10 & echo $! > "$1.tmp" && mv "$1.tmp" "$1"; wait`, "sh", pidFile,
 	)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("RunCommand error = %v, want context cancellation", err)
