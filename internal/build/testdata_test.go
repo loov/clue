@@ -28,12 +28,7 @@ func TestJsonExample_Integration(t *testing.T) {
 		t.Skip("testdata/json-example not found")
 	}
 
-	// Change to project directory
-	originalDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(originalDir) }()
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	// Load configuration
 	loader := config.NewLoader()
@@ -44,7 +39,11 @@ func TestJsonExample_Integration(t *testing.T) {
 
 	// Build
 	buildDir := ".build"
-	defer os.RemoveAll(buildDir)
+	t.Cleanup(func() {
+		if err := os.RemoveAll(buildDir); err != nil {
+			t.Errorf("remove build directory: %v", err)
+		}
+	})
 
 	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
@@ -104,11 +103,7 @@ func TestCatch2Example_Integration(t *testing.T) {
 		t.Skip("testdata/catch2-example not found")
 	}
 
-	originalDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(originalDir) }()
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	loader := config.NewLoader()
 	cfg, err := loader.Load(".")
@@ -117,7 +112,11 @@ func TestCatch2Example_Integration(t *testing.T) {
 	}
 
 	buildDir := ".build"
-	defer os.RemoveAll(buildDir)
+	t.Cleanup(func() {
+		if err := os.RemoveAll(buildDir); err != nil {
+			t.Errorf("remove build directory: %v", err)
+		}
+	})
 
 	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
@@ -181,11 +180,7 @@ func TestMultiDepsExample_Integration(t *testing.T) {
 		t.Skip("testdata/multi-deps-example not found")
 	}
 
-	originalDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(originalDir) }()
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	loader := config.NewLoader()
 	cfg, err := loader.Load(".")
@@ -194,7 +189,11 @@ func TestMultiDepsExample_Integration(t *testing.T) {
 	}
 
 	buildDir := ".build"
-	defer os.RemoveAll(buildDir)
+	t.Cleanup(func() {
+		if err := os.RemoveAll(buildDir); err != nil {
+			t.Errorf("remove build directory: %v", err)
+		}
+	})
 
 	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
