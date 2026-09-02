@@ -125,11 +125,14 @@ func (c *Cache) MarkFetched(dep Dependency) error {
 
 // Clean removes the entire .deps directory
 func (c *Cache) Clean() error {
-	if _, err := os.Stat(c.depsDir); os.IsNotExist(err) {
-		if c.verbose {
-			fmt.Println("Cache already clean (no .deps directory)")
+	if _, err := os.Lstat(c.depsDir); err != nil {
+		if os.IsNotExist(err) {
+			if c.verbose {
+				fmt.Println("Cache already clean (no .deps directory)")
+			}
+			return nil
 		}
-		return nil
+		return fmt.Errorf("failed to inspect .deps directory: %w", err)
 	}
 
 	if err := os.RemoveAll(c.depsDir); err != nil {
@@ -164,6 +167,8 @@ func (c *Cache) CleanDep(name string) error {
 				found = true
 			}
 		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read %s: %w", gitDir, err)
 	}
 
 	// Search in tarball/ subdirectory
@@ -182,6 +187,8 @@ func (c *Cache) CleanDep(name string) error {
 				found = true
 			}
 		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read %s: %w", tarballDir, err)
 	}
 
 	if !found {

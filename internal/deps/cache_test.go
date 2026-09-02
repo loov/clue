@@ -25,3 +25,24 @@ func TestCacheCleanDepIgnoresShortUnrelatedNames(t *testing.T) {
 		t.Errorf("unrelated cache entry was removed: %v", err)
 	}
 }
+
+func TestCacheCleanRemovesDanglingSymlink(t *testing.T) {
+	root := t.TempDir()
+	cache, err := NewCache(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(cache.depsDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "missing"), cache.depsDir); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if err := cache.Clean(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(cache.depsDir); !os.IsNotExist(err) {
+		t.Errorf("dangling cache symlink was not removed: %v", err)
+	}
+}
