@@ -183,9 +183,10 @@ func (b *Builder) targetToConfig(target config.Target, variant config.Variant) C
 	return cfg
 }
 
-func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libPaths, libs, sysLibs []string, hasShared bool, err error) {
+func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libPaths, libs, sysLibs, sharedLibPaths []string, err error) {
 	seen := make(map[string]bool)
 	seenPaths := make(map[string]bool)
+	seenSharedPaths := make(map[string]bool)
 	seenSysLibs := make(map[string]bool)
 	var visit func(string) error
 	visit = func(name string) error {
@@ -201,6 +202,10 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 				libPaths = append(libPaths, path)
 			}
 			libs = append(libs, result.Name)
+			if result.Type == "shared_library" && !seenSharedPaths[path] {
+				seenSharedPaths[path] = true
+				sharedLibPaths = append(sharedLibPaths, path)
+			}
 			var dependencies []string
 			if buildConfig := opts.Config.Dependencies[name].InlineBuild(); buildConfig != nil {
 				dependencies = buildConfig.Depends
@@ -224,7 +229,10 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 				libPaths = append(libPaths, path)
 			}
 			libs = append(libs, name)
-			hasShared = hasShared || dependency.Type == "shared_library"
+			if dependency.Type == "shared_library" && !seenSharedPaths[path] {
+				seenSharedPaths[path] = true
+				sharedLibPaths = append(sharedLibPaths, path)
+			}
 		}
 		for _, library := range dependency.SysLibs {
 			if !seenSysLibs[library] {
@@ -242,10 +250,26 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (libP
 
 	for _, dependency := range target.Depends {
 		if err := visit(dependency); err != nil {
-			return nil, nil, nil, false, err
+			return nil, nil, nil, nil, err
 		}
 	}
-	return libPaths, libs, sysLibs, hasShared, nil
+	return libPaths, libs, sysLibs, sharedLibPaths, nil
+}
+
+func (b *Builder) addRuntimeLibraryPaths(cfg *Config, output string, paths []string) error {
+	for _, path := range paths {
+		relative, err := filepath.Rel(filepath.Dir(output), path)
+		if err != nil {
+			return fmt.Errorf("failed to calculate runtime library path: %w", err)
+		}
+		switch b.target.OS {
+		case "darwin":
+			cfg.RawLinker = append(cfg.RawLinker, "-Wl,-rpath,@loader_path/"+filepath.ToSlash(relative))
+		case "linux":
+			cfg.RawLinker = append(cfg.RawLinker, "-Wl,-rpath,$ORIGIN/"+filepath.ToSlash(relative))
+		}
+	}
+	return nil
 }
 
 // BuildTarget builds a single target
@@ -510,21 +534,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	case "executable":
 		progress.Linking(target.Name)
 
-		libPaths, libs, dependencySysLibs, hasSharedLibDeps, err := b.dependencyLinkInputs(opts, target)
+		libPaths, libs, dependencySysLibs, sharedLibPaths, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
 			return nil, err
 		}
 
 		// Add rpath for shared library dependencies
-		if hasSharedLibDeps {
-			switch b.target.OS {
-			case "darwin":
-				// Look for libs relative to executable
-				buildCfg.RawLinker = append(buildCfg.RawLinker, "-Wl,-rpath,@executable_path/../lib")
-			case "linux":
-				// $ORIGIN is Linux equivalent of @executable_path
-				buildCfg.RawLinker = append(buildCfg.RawLinker, "-Wl,-rpath,$ORIGIN/../lib")
-			}
+		if err := b.addRuntimeLibraryPaths(&buildCfg, outputPath, sharedLibPaths); err != nil {
+			return nil, err
 		}
 
 		linkOpts := LinkOptions{
@@ -571,8 +588,11 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	case "shared_library":
 		progress.Linking(target.Name)
 
-		libPaths, libs, dependencySysLibs, _, err := b.dependencyLinkInputs(opts, target)
+		libPaths, libs, dependencySysLibs, sharedLibPaths, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
+			return nil, err
+		}
+		if err := b.addRuntimeLibraryPaths(&buildCfg, outputPath, sharedLibPaths); err != nil {
 			return nil, err
 		}
 
@@ -808,10 +828,12 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 
 		// Build dependency
 		buildOpts := DepBuildOptions{
-			Variant:   opts.Variant,
-			Platform:  b.target,
-			BuildDir:  opts.BuildDir,
-			Verbosity: opts.Verbosity,
+			Variant:      opts.Variant,
+			Platform:     b.target,
+			BuildDir:     opts.BuildDir,
+			Std:          opts.Config.Toolchain.Std,
+			Optimization: opts.Config.ActiveVariant.Optimization,
+			Verbosity:    opts.Verbosity,
 		}
 
 		result, err := depBuilder.BuildDep(ctx, dep, sourcePath, buildOpts, results)

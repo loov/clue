@@ -17,16 +17,19 @@ import (
 
 // DepBuildOptions holds options for building a dependency
 type DepBuildOptions struct {
-	Variant   string    // Build variant (e.g., "debug", "release")
-	Platform  Platform  // Target platform
-	BuildDir  string    // Build output root (default: ".build")
-	Verbosity Verbosity // Verbosity level (quiet/normal/verbose)
+	Variant      string    // Build variant (e.g., "debug", "release")
+	Platform     Platform  // Target platform
+	BuildDir     string    // Build output root (default: ".build")
+	Std          string    // Project language standard
+	Optimization string    // Active variant optimization
+	Verbosity    Verbosity // Verbosity level (quiet/normal/verbose)
 }
 
 // DepBuildResult holds the result of building a dependency
 type DepBuildResult struct {
 	Name        string        // Dependency name
-	LibPath     string        // Path to built .a file
+	Type        string        // "static_library" or "shared_library"
+	LibPath     string        // Path to built library
 	IncludePath string        // Path to include headers
 	SourceCount int           // Number of source files compiled
 	Duration    time.Duration // Time taken to build
@@ -37,6 +40,8 @@ type ResolvedDepConfig struct {
 	Sources  []string
 	Includes []string
 	Defines  []string
+	Depends  []string
+	Type     string
 }
 
 // ResolveDepConfig resolves either an inline dependency build or its clue.cue file.
@@ -45,7 +50,10 @@ func ResolveDepConfig(dep deps.Dependency, sourcePath string) (ResolvedDepConfig
 	if err != nil {
 		return ResolvedDepConfig{}, err
 	}
-	return ResolvedDepConfig{Sources: cfg.Sources, Includes: cfg.Includes, Defines: cfg.Defines}, nil
+	return ResolvedDepConfig{
+		Sources: cfg.Sources, Includes: cfg.Includes, Defines: cfg.Defines,
+		Depends: cfg.Depends, Type: cfg.Type,
+	}, nil
 }
 
 // DepBuilder builds individual dependencies
@@ -66,7 +74,7 @@ func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain Toolchain, verb
 	}
 }
 
-// BuildDep builds a single dependency to a static library
+// BuildDep builds a single dependency library.
 func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourcePath string, opts DepBuildOptions, builtDeps map[string]*DepBuildResult) (*DepBuildResult, error) {
 	start := time.Now()
 
@@ -99,6 +107,10 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	// Compile each source file to object file
 	var objectFiles []string
 	objectNames := buildpath.ObjectNames(cfg.Sources)
+	optimization := opts.Optimization
+	if optimization == "" {
+		optimization = "none"
+	}
 	for _, src := range cfg.Sources {
 		absPath := filepath.Join(sourcePath, src)
 		objPath := filepath.Join(objDir, objectNames[src])
@@ -110,13 +122,14 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Includes: compilationIncludes,
 			Defines:  cfg.Defines,
 			Flags: Config{
-				Optimize:         opts.Variant, // Use variant as optimization level
+				Optimize:         optimization,
 				Warnings:         "default",
 				WarningsAsErrors: false, // Don't fail dependency builds on warnings
 				Debug:            "none",
 				RawCompiler:      []string{},
 			},
-			Std: "c++20", // Default to C++20 for dependencies
+			Std:        opts.Std,
+			TargetType: cfg.Type,
 		}
 
 		if opts.Verbosity == VerbosityVerbose {
@@ -132,22 +145,34 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		objectFiles = append(objectFiles, result.Object)
 	}
 
-	// Create static library
 	libName := "lib" + dep.Name() + ".a"
+	if cfg.Type == "shared_library" {
+		libName = "lib" + dep.Name() + SharedLibraryExtension(opts.Platform)
+	}
 	libPath := filepath.Join(libDir, libName)
 
-	archiveOpts := ArchiveOptions{
-		Objects: objectFiles,
-		Output:  libPath,
+	if cfg.Type == "shared_library" {
+		var libPaths, libs []string
+		for _, name := range cfg.Depends {
+			if result, ok := builtDeps[name]; ok {
+				libPaths = append(libPaths, filepath.Dir(result.LibPath))
+				libs = append(libs, result.Name)
+			}
+		}
+		_, err = db.linker.LinkSharedLibrary(ctx, SharedLibraryOptions{
+			Objects: objectFiles, Output: libPath, LibPaths: libPaths, Libs: libs,
+			Flags: Config{Optimize: optimization, Warnings: "default"},
+		})
+	} else {
+		_, err = db.linker.CreateStaticLibrary(ctx, ArchiveOptions{Objects: objectFiles, Output: libPath})
 	}
-
-	_, err = db.linker.CreateStaticLibrary(ctx, archiveOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create static library: %w", err)
+		return nil, fmt.Errorf("failed to create %s: %w", cfg.Type, err)
 	}
 
 	return &DepBuildResult{
 		Name:        dep.Name(),
+		Type:        cfg.Type,
 		LibPath:     libPath,
 		IncludePath: includePath,
 		SourceCount: len(cfg.Sources),
@@ -160,6 +185,8 @@ type depConfig struct {
 	Sources  []string
 	Includes []string
 	Defines  []string
+	Depends  []string
+	Type     string
 }
 
 // determineConfig determines sources, includes, and defines for a dependency
@@ -169,6 +196,10 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 
 	// If inline config exists, use it
 	if inlineConfig != nil {
+		targetType := inlineConfig.Type
+		if targetType == "" {
+			targetType = "static_library"
+		}
 		sources, err := db.expandSourceGlobs(inlineConfig.Sources, sourcePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand source globs: %w", err)
@@ -193,6 +224,8 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 			Sources:  sources,
 			Includes: includes,
 			Defines:  inlineConfig.Defines,
+			Depends:  inlineConfig.Depends,
+			Type:     targetType,
 		}, nil
 	}
 
@@ -203,44 +236,40 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 	}
 
 	// Load clue.cue
-	sources, includes, err := db.loadClueConfig(clueFile, sourcePath)
+	cfg, err := db.loadClueConfig(clueFile, sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load clue.cue: %w", err)
 	}
 
-	return &depConfig{
-		Sources:  sources,
-		Includes: includes,
-		Defines:  nil, // clue.cue loaded deps don't have inline defines yet
-	}, nil
+	return cfg, nil
 }
 
 // loadClueConfig loads build configuration from a clue.cue file
-func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) ([]string, []string, error) {
+func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) (*depConfig, error) {
 	data, err := os.ReadFile(clueFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read clue.cue: %w", err)
+		return nil, fmt.Errorf("failed to read clue.cue: %w", err)
 	}
 
 	ctx := cuecontext.New()
 	val := ctx.CompileBytes(data, cue.Filename(clueFile))
 	if err := val.Err(); err != nil {
-		return nil, nil, fmt.Errorf("failed to parse clue.cue: %w", err)
+		return nil, fmt.Errorf("failed to parse clue.cue: %w", err)
 	}
 
 	// Extract first target's sources and includes
 	targetsVal := val.LookupPath(cue.ParsePath("targets"))
 	if !targetsVal.Exists() {
-		return nil, nil, fmt.Errorf("clue.cue has no targets")
+		return nil, fmt.Errorf("clue.cue has no targets")
 	}
 
 	iter, err := targetsVal.Fields()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to iterate targets: %w", err)
+		return nil, fmt.Errorf("failed to iterate targets: %w", err)
 	}
 
 	if !iter.Next() {
-		return nil, nil, fmt.Errorf("clue.cue has no targets")
+		return nil, fmt.Errorf("clue.cue has no targets")
 	}
 
 	targetVal := iter.Value()
@@ -258,13 +287,13 @@ func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) ([]string, []s
 	}
 
 	if len(sources) == 0 {
-		return nil, nil, fmt.Errorf("clue.cue target has no sources")
+		return nil, fmt.Errorf("clue.cue target has no sources")
 	}
 
 	// Expand globs
 	sources, err = db.expandSourceGlobs(sources, sourcePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to expand source globs: %w", err)
+		return nil, fmt.Errorf("failed to expand source globs: %w", err)
 	}
 
 	// Extract includes
@@ -280,7 +309,31 @@ func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) ([]string, []s
 		}
 	}
 
-	return sources, includes, nil
+	targetType := "static_library"
+	if typeVal := targetVal.LookupPath(cue.ParsePath("type")); typeVal.Exists() {
+		targetType, _ = typeVal.String()
+	}
+
+	return &depConfig{
+		Sources: sources, Includes: includes,
+		Defines: extractCUEStrings(targetVal, "defines"),
+		Depends: extractCUEStrings(targetVal, "depends"),
+		Type:    targetType,
+	}, nil
+}
+
+func extractCUEStrings(value cue.Value, field string) []string {
+	var result []string
+	list, err := value.LookupPath(cue.ParsePath(field)).List()
+	if err != nil {
+		return nil
+	}
+	for list.Next() {
+		if item, err := list.Value().String(); err == nil {
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
 // expandSourceGlobs expands glob patterns in source list

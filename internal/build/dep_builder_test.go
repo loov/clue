@@ -85,6 +85,45 @@ int add(int a, int b) {
 	}
 }
 
+func TestDepBuilder_SharedLibraryUsesProjectStandard(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "lib.cpp")
+	if err := os.WriteFile(source, []byte(`
+#if __cplusplus < 202002L
+#error expected C++20
+#endif
+extern "C" int answer() { return 42; }
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dep := deps.NewVendoredDependency("answer", root, &deps.InlineConfig{
+		Sources: []string{"lib.cpp"}, Type: "shared_library",
+	})
+	toolchain, err := NewToolchain("clang", HostPlatform())
+	if err != nil {
+		t.Skipf("clang not available: %v", err)
+	}
+	executor := NewExecutor(ExecutorConfig{StreamOutput: false})
+	builder := NewDepBuilder(
+		NewCompiler(executor, toolchain), NewLinker(executor, toolchain, HostPlatform()),
+		toolchain, VerbosityQuiet,
+	)
+
+	result, err := builder.BuildDep(context.Background(), dep, root, DepBuildOptions{
+		Variant: "debug", Platform: HostPlatform(), BuildDir: filepath.Join(root, ".build"), Std: "c++20",
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Type != "shared_library" {
+		t.Errorf("type = %q, want shared_library", result.Type)
+	}
+	want := "libanswer" + SharedLibraryExtension(HostPlatform())
+	if filepath.Base(result.LibPath) != want {
+		t.Errorf("library = %q, want %q", filepath.Base(result.LibPath), want)
+	}
+}
+
 // TestDepBuilder_ClueConfig tests building a dependency with clue.cue configuration
 func TestDepBuilder_ClueConfig(t *testing.T) {
 	// Create temporary directory for test
@@ -348,11 +387,11 @@ int test() { return 42; }
 // TestDepBuilder_HeadersIncludePath tests include path determination with headers field
 func TestDepBuilder_HeadersIncludePath(t *testing.T) {
 	tests := []struct {
-		name           string
-		inlineConfig   *deps.InlineConfig
-		sourcePath     string
-		expectedPath   string
-		description    string
+		name         string
+		inlineConfig *deps.InlineConfig
+		sourcePath   string
+		expectedPath string
+		description  string
 	}{
 		{
 			name: "headers_set",

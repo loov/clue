@@ -118,6 +118,21 @@ func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 	}
 }
 
+func TestBuilderAddsExternalSharedLibraryRuntimePath(t *testing.T) {
+	builder := &Builder{target: Platform{OS: "linux", Arch: "amd64"}}
+	cfg := Config{}
+	output := filepath.Join(".build", "debug", "bin", "app")
+	libraryDir := filepath.Join(".build", "debug", "deps", "answer", "lib")
+
+	if err := builder.addRuntimeLibraryPaths(&cfg, output, []string{libraryDir}); err != nil {
+		t.Fatal(err)
+	}
+	want := "-Wl,-rpath,$ORIGIN/../deps/answer/lib"
+	if len(cfg.RawLinker) != 1 || cfg.RawLinker[0] != want {
+		t.Errorf("runtime flags = %q, want [%q]", cfg.RawLinker, want)
+	}
+}
+
 func TestObjectDir_IncludesObjSubdirectory(t *testing.T) {
 	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
