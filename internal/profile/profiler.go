@@ -67,6 +67,9 @@ func (p *Profiler) GetEvents() []CompileEvent {
 
 // GetSlowestFiles returns the n slowest compilation events sorted by duration descending
 func (p *Profiler) GetSlowestFiles(n int) []CompileEvent {
+	if n <= 0 {
+		return nil
+	}
 	events := p.GetEvents()
 	sort.Slice(events, func(i, j int) bool {
 		return events[i].Duration > events[j].Duration

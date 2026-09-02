@@ -102,6 +102,17 @@ func TestProfiler_GetSlowestFiles_LessThanN(t *testing.T) {
 	}
 }
 
+func TestProfiler_GetSlowestFiles_NonPositive(t *testing.T) {
+	p := NewProfiler(true)
+	p.RecordCompilation("file.cpp", time.Now(), time.Second, 1)
+
+	for _, n := range []int{0, -1} {
+		if got := p.GetSlowestFiles(n); len(got) != 0 {
+			t.Errorf("GetSlowestFiles(%d) returned %d events, want none", n, len(got))
+		}
+	}
+}
+
 func TestFormatDuration(t *testing.T) {
 	tests := []struct {
 		duration time.Duration
