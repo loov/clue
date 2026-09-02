@@ -28,6 +28,8 @@ type CompileResult struct {
 	Object       string
 	DepFile      string   // Path to generated .d file (GCC/Clang)
 	Dependencies []string // Parsed dependencies (MSVC /showIncludes)
+	Stdout       string
+	Stderr       string
 	Duration     time.Duration
 	Success      bool
 }
@@ -146,7 +148,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	compiler := c.compilerCmd(opts.Source)
 
 	// Execute compilation
-	err := c.executor.RunCompiler(ctx, compiler, args)
+	commandResult, err := c.executor.RunCommand(ctx, compiler, args...)
 
 	duration := time.Since(start)
 	result := &CompileResult{
@@ -155,6 +157,10 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 		DepFile:  depFile,
 		Duration: duration,
 		Success:  err == nil,
+	}
+	if commandResult != nil {
+		result.Stdout = commandResult.Stdout
+		result.Stderr = commandResult.Stderr
 	}
 
 	if err != nil {
@@ -218,9 +224,9 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	// Get compiler command
 	compiler := c.compilerCmd(opts.Source)
 
-	// Execute compilation with context output (per CONTEXT.md: "Compiling foo.cpp..." before errors)
-	// Note: The actual context message is handled by the executor, we just call RunCompiler
-	err = c.executor.RunCompiler(ctx, compiler, finalArgs)
+	// Execute compilation. Parallel builds use a capturing executor so each
+	// compiler's output can be printed without interleaving.
+	commandResult, err := c.executor.RunCommand(ctx, compiler, finalArgs...)
 
 	duration := time.Since(start)
 	result := &CompileResult{
@@ -228,6 +234,11 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 		Object:   opts.Output,
 		Duration: duration,
 		Success:  err == nil,
+	}
+	if commandResult != nil {
+		result.Stdout = commandResult.Stdout
+		result.Stderr = commandResult.Stderr
+		result.Dependencies = parseShowIncludes(commandResult.Stdout)
 	}
 
 	if err != nil {

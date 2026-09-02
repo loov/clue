@@ -110,26 +110,6 @@ func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) 
 	return result, nil
 }
 
-// RunCompiler executes a compiler command with streaming output
-// Returns a formatted error on failure
-func (e *Executor) RunCompiler(ctx context.Context, compiler string, args []string) error {
-	// Create a new executor config with streaming enabled
-	compilerConfig := e.config
-	compilerConfig.StreamOutput = true
-
-	tempExecutor := &Executor{config: compilerConfig}
-
-	result, err := tempExecutor.RunCommand(ctx, compiler, args...)
-	if err != nil {
-		if result != nil && result.ExitCode != 0 {
-			return fmt.Errorf("compiler failed with exit code %d", result.ExitCode)
-		}
-		return err
-	}
-
-	return nil
-}
-
 // ToolExists checks if a tool is available in PATH
 func (e *Executor) ToolExists(name string) bool {
 	_, err := exec.LookPath(name)

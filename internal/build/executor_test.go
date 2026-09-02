@@ -146,28 +146,6 @@ func TestExecutor_RunCommand_Verbose(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCompiler(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
-		StreamOutput: false, // Override in RunCompiler
-	})
-
-	// Test successful compilation (using 'true' as a stand-in)
-	err := executor.RunCompiler(context.Background(), "true", []string{})
-	if err != nil {
-		t.Errorf("expected no error for successful command, got: %v", err)
-	}
-
-	// Test failed compilation (using 'false' as a stand-in)
-	err = executor.RunCompiler(context.Background(), "false", []string{})
-	if err == nil {
-		t.Fatal("expected error for failed compiler")
-	}
-
-	if !strings.Contains(err.Error(), "compiler failed with exit code") {
-		t.Errorf("expected 'compiler failed' error message, got: %v", err)
-	}
-}
-
 func TestExecutor_RunCommand_Duration(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,

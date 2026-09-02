@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -14,11 +13,6 @@ import (
 	"github.com/loov/clue/internal/profile"
 	"golang.org/x/sync/errgroup"
 )
-
-// createDir creates a directory if it doesn't exist
-func createDir(dir string) error {
-	return os.MkdirAll(dir, 0o755)
-}
 
 // ParallelResult holds the result of a single compilation in parallel mode
 type ParallelResult struct {
@@ -32,7 +26,6 @@ type ParallelResult struct {
 
 // ParallelCompiler handles parallel compilation of multiple source files
 type ParallelCompiler struct {
-	compiler  *Compiler
 	toolchain Toolchain
 	jobs      int
 	keepGoing bool
@@ -47,9 +40,8 @@ type ParallelCompiler struct {
 }
 
 // NewParallelCompiler creates a new ParallelCompiler instance
-func NewParallelCompiler(compiler *Compiler, toolchain Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
+func NewParallelCompiler(toolchain Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
 	return &ParallelCompiler{
-		compiler:  compiler,
 		toolchain: toolchain,
 		jobs:      jobs,
 		keepGoing: keepGoing,
@@ -131,8 +123,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	// Create temporary compiler with capturing executor
 	tempCompiler := NewCompiler(captureExecutor, p.toolchain)
 
-	// Run compilation using our capturing compiler wrapper
-	result, compileResult, err := p.compileSourceWithCapture(ctx, tempCompiler, captureExecutor, opts)
+	result, err := tempCompiler.CompileSource(ctx, opts)
 
 	duration := time.Since(start)
 
@@ -158,12 +149,12 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	}
 
 	// If there was captured output (errors, warnings), include it
-	if compileResult != nil {
-		if compileResult.Stdout != "" {
-			buf.WriteString(compileResult.Stdout)
+	if result != nil {
+		if result.Stdout != "" {
+			buf.WriteString(result.Stdout)
 		}
-		if compileResult.Stderr != "" {
-			buf.WriteString(compileResult.Stderr)
+		if result.Stderr != "" {
+			buf.WriteString(result.Stderr)
 		}
 	}
 
@@ -181,82 +172,6 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 		Error:    err,
 		Duration: duration,
 	}
-}
-
-// compileSourceWithCapture compiles a source file and returns both the result and captured output
-func (p *ParallelCompiler) compileSourceWithCapture(ctx context.Context, compiler *Compiler, executor *Executor, opts CompileOptions) (*CompileResult, *CommandResult, error) {
-	start := time.Now()
-
-	// Build the command args manually (mirroring compiler.CompileSource logic)
-	var args []string
-	args = append(args, "-c")
-	args = append(args, opts.Source)
-	args = append(args, "-o", opts.Output)
-
-	// Dependency generation
-	depFile := filepath.Base(opts.Output[:len(opts.Output)-len(filepath.Ext(opts.Output))]) + ".d"
-	depFile = filepath.Join(filepath.Dir(opts.Output), depFile)
-	args = append(args, "-MMD", "-MP", "-MF", depFile)
-
-	// Include paths
-	for _, include := range opts.Includes {
-		args = append(args, "-I"+include)
-	}
-
-	// Defines
-	for _, define := range opts.Defines {
-		args = append(args, "-D"+define)
-	}
-
-	// Language standard
-	if opts.Std != "" {
-		args = append(args, "-std="+opts.Std)
-	}
-
-	// C++20 Module flags
-	if opts.ModuleOutput != "" {
-		args = append(args, "-fmodule-output="+opts.ModuleOutput)
-	}
-	for modName, pcmPath := range opts.ModuleFiles {
-		args = append(args, fmt.Sprintf("-fmodule-file=%s=%s", modName, pcmPath))
-	}
-
-	// Semantic flags
-	semanticFlags := p.toolchain.CompilerFlags(opts.Flags)
-	args = append(args, semanticFlags...)
-
-	// Create output directory if needed
-	outputDir := filepath.Dir(opts.Output)
-	if err := createDir(outputDir); err != nil {
-		return &CompileResult{
-			Source:   opts.Source,
-			Object:   opts.Output,
-			DepFile:  depFile,
-			Duration: time.Since(start),
-			Success:  false,
-		}, nil, fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
-	}
-
-	// Get compiler command
-	compilerCmd := compiler.compilerCmd(opts.Source)
-
-	// Run command with capture (not streaming)
-	cmdResult, err := executor.RunCommand(ctx, compilerCmd, args...)
-
-	duration := time.Since(start)
-	result := &CompileResult{
-		Source:   opts.Source,
-		Object:   opts.Output,
-		DepFile:  depFile,
-		Duration: duration,
-		Success:  err == nil,
-	}
-
-	if err != nil {
-		return result, cmdResult, fmt.Errorf("failed to compile %s: %w", opts.Source, err)
-	}
-
-	return result, cmdResult, nil
 }
 
 // printResults prints all buffered outputs atomically
