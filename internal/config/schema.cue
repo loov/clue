@@ -3,8 +3,8 @@ package config
 // Core target definition - base for all buildable units
 #Target: {
 	name:    string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$"
-	type:    "executable" | "static_library" | "shared_library"
-	sources: [...string] & [_, ...]  // At least one source
+	type:    "executable" | "static_library" | "shared_library" | "custom"
+	sources?: [...string]
 	headers?: [...string]
 	includes?: [...string]
 	defines?: [...string]
@@ -31,6 +31,15 @@ package config
 	flags?: {
 		compiler?: [...string]
 		linker?: [...string]
+	}
+
+	if type == "custom" {
+		command: [...string] & [_, ...]
+		inputs?: [...string]
+		outputs: [...string] & [_, ...]
+	}
+	if type != "custom" {
+		sources: [...string] & [_, ...]
 	}
 }
 

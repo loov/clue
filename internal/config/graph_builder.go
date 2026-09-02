@@ -63,6 +63,8 @@ func targetTypeToNodeType(targetType string) graph.NodeType {
 		return graph.NodeTypeStatic
 	case "shared_library":
 		return graph.NodeTypeShared
+	case "custom":
+		return graph.NodeTypeCommand
 	default:
 		return graph.NodeTypeExecutable // Default fallback
 	}

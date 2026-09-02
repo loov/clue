@@ -62,6 +62,29 @@ targets: app: {name: "app", type: "executable", sources: ["main.c", "main.cpp"]}
 	}
 }
 
+func TestLoaderExtractsCustomTarget(t *testing.T) {
+	dir := t.TempDir()
+	config := `name: "generated"
+targets: generate: {
+	name: "generate"
+	type: "custom"
+	command: ["protoc", "schema.proto"]
+	inputs: ["schema.proto"]
+	outputs: ["generated/schema.pb.cpp"]
+}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := cfg.Targets["generate"]
+	if target.Type != "custom" || len(target.Command) != 2 || len(target.Outputs) != 1 {
+		t.Fatalf("custom target = %+v", target)
+	}
+}
+
 func TestInvalidConfig(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")

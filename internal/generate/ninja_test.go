@@ -99,6 +99,34 @@ func TestNinja_BasicStructure(t *testing.T) {
 	}
 }
 
+func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"generated.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"generated.cpp"}, Depends: []string{"generate"},
+	}
+	cfg.Targets["generate"] = config.Target{
+		Name: "generate", Type: "custom", Command: []string{"generator"},
+		Inputs: []string{"schema.idl"}, Outputs: []string{"generated.cpp"},
+	}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	for _, want := range []string{
+		"build generated.cpp: custom schema.idl",
+		"build .build/debug/app/obj/generated.cpp.o: cxx generated.cpp || generated.cpp",
+		"command = $clue -variant $variant -target $platform build $target",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Ninja output missing %q:\n%s", want, content)
+		}
+	}
+}
+
 func TestTargetModules_WiresProducedBMIsToConsumers(t *testing.T) {
 	modules := targetModules{
 		bySource: map[string]build.ModuleDependency{
@@ -490,7 +518,9 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 
 	file := ninja.File{}
 	addNinjaRules(&file, true)
-	generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc)
+	if _, err := generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true); err != nil {
+		t.Fatal(err)
+	}
 	var buf bytes.Buffer
 	if _, err := file.WriteTo(&buf); err != nil {
 		t.Fatal(err)

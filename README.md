@@ -112,3 +112,26 @@ Build with a variant:
 ```bash
 clue build -variant release
 ```
+
+### Generated sources
+
+Use a custom target when a tool must produce sources or headers before compilation:
+
+```cue
+targets: {
+    generate: {
+        name:    "generate"
+        type:    "custom"
+        command: ["protoc", "--cpp_out=generated", "schema.proto"]
+        inputs:  ["schema.proto"]
+        outputs: ["generated/schema.pb.cc", "generated/schema.pb.h"]
+    }
+    app: {
+        name:     "app"
+        type:     "executable"
+        sources:  ["main.cpp", "generated/schema.pb.cc"]
+        includes: ["generated"]
+        depends:  ["generate"]
+    }
+}
+```

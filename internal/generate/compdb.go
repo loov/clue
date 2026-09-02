@@ -104,6 +104,9 @@ func CompileCommands(opts CompDBOptions) error {
 
 // buildTargetCommands creates compile commands for a target's sources
 func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain) ([]CompileCommand, error) {
+	if target.Type == "custom" {
+		return nil, nil
+	}
 	var commands []CompileCommand
 
 	// Build Config from target and variant

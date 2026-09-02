@@ -276,6 +276,9 @@ func (b *Builder) addRuntimeLibraryPaths(cfg *Config, output string, paths []str
 
 // BuildTarget builds a single target
 func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.Target, progress *Progress) (*TargetResult, error) {
+	if target.Type == "custom" {
+		return b.buildCustomTarget(ctx, opts, target)
+	}
 	start := time.Now()
 
 	// Calculate paths

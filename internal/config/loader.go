@@ -77,9 +77,12 @@ func (tc Toolchain) Standard(source string) string {
 // Target represents a buildable unit
 type Target struct {
 	Name     string
-	Type     string // "executable", "static_library", "shared_library"
+	Type     string // "executable", "static_library", "shared_library", "custom"
 	Sources  []string
 	Headers  []string
+	Command  []string
+	Inputs   []string
+	Outputs  []string
 	Includes []string
 	Defines  []string
 	Depends  []string
@@ -334,6 +337,9 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 
 	t.Sources = extractStringList(val, "sources")
 	t.Headers = extractStringList(val, "headers")
+	t.Command = extractStringList(val, "command")
+	t.Inputs = extractStringList(val, "inputs")
+	t.Outputs = extractStringList(val, "outputs")
 	t.Includes = extractStringList(val, "includes")
 	t.Defines = extractStringList(val, "defines")
 	t.Depends = extractStringList(val, "depends")

@@ -57,8 +57,8 @@ func Ninja(opts NinjaOptions) error {
 }
 
 // generateVariantBuilds generates build statements for a single variant
-func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
-	outputs, err := generateDependencyBuilds(file, opts, variant, variantConfig, tc, emitFetchRules)
+func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain, emitSharedRules bool) ([]string, error) {
+	outputs, err := generateDependencyBuilds(file, opts, variant, variantConfig, tc, emitSharedRules)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 		}
 
 		// Generate build statements for this target
-		targetOutputs, err := generateTargetBuilds(file, opts, variant, variantConfig, target, tc)
+		targetOutputs, err := generateTargetBuilds(file, opts, variant, variantConfig, target, tc, emitSharedRules)
 		if err != nil {
 			return nil, err
 		}
@@ -238,6 +238,34 @@ func targetDependencyIncludes(cfg *config.Config, target config.Target) []string
 	return includes
 }
 
+func targetCustomOutputs(cfg *config.Config, target config.Target) []string {
+	var outputs []string
+	for _, name := range target.Depends {
+		if dependency, ok := cfg.Targets[name]; ok && dependency.Type == "custom" {
+			outputs = append(outputs, dependency.Outputs...)
+		}
+	}
+	return outputs
+}
+
+func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) []string {
+	var outputs []string
+	for _, name := range target.Depends {
+		if dependency, ok := cfg.Targets[name]; ok {
+			if dependency.Type == "custom" {
+				outputs = append(outputs, dependency.Outputs...)
+			} else {
+				outputs = append(outputs, outputPathForTarget(buildDir, variant, dependency.Name, dependency.Type, platform))
+			}
+			continue
+		}
+		if dependency, ok := cfg.Dependencies[name]; ok {
+			outputs = append(outputs, dependencyOutputPath(buildDir, variant, dependency, platform))
+		}
+	}
+	return outputs
+}
+
 func externalDependencyOutputs(cfg *config.Config, names []string, buildDir, variant string, platform toolchain.Platform) []string {
 	var outputs []string
 	for _, name := range names {
@@ -300,7 +328,16 @@ func runtimeLibraryFlags(output string, paths []string, platform toolchain.Platf
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain) ([]string, error) {
+func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain, emitSharedRules bool) ([]string, error) {
+	if target.Type == "custom" {
+		if emitSharedRules {
+			*file = append(*file, ninja.Build{
+				Rule: "custom", In: target.Inputs, InOrderOnly: targetDependencyOutputs(opts.Config, target, opts.BuildDir, variant, opts.Platform), Out: target.Outputs,
+				Vars: ninja.Vars{{Key: "target", Val: target.Name}, {Key: "variant", Val: variant}, {Key: "platform", Val: opts.Platform.String()}},
+			})
+		}
+		return target.Outputs, nil
+	}
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 	usage := config.CompileUsage(opts.Config, target)
@@ -312,6 +349,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	var objects []string
 	objectNames := buildpath.ObjectNames(target.Sources)
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
+	buildDependencies := targetCustomOutputs(opts.Config, target)
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
 		Includes: includes,
 		Defines:  target.Defines,
@@ -345,7 +383,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			Rule:        rule,
 			In:          []string{srcPath},
 			InImplicit:  modules.inputs(source),
-			InOrderOnly: externalDependencies,
+			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
 			Out:         []string{objPath},
 			Vars: ninja.Vars{
 				{Key: flagKey, Val: strings.Join(append(append([]string(nil), compilerFlags...), modules.flags(source)...), " ")},
@@ -690,6 +728,8 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	}
 	*file = append(*file, ninja.Rule{
 		Name: "fetch_dep", Command: "$clue deps fetch $dep", Description: "FETCH $dep",
+	}, ninja.Rule{
+		Name: "custom", Command: "$clue -variant $variant -target $platform build $target", Description: "CUSTOM $target",
 	})
 }
 
@@ -701,6 +741,9 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	}
 	if opts.Toolchain == "" {
 		opts.Toolchain = opts.Config.Toolchain.Compiler
+	}
+	if opts.Platform.OS == "" {
+		opts.Platform = toolchain.HostPlatform()
 	}
 	if len(opts.Variants) == 0 {
 		for name := range opts.Config.Variants {
