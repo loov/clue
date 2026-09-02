@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,26 +14,33 @@ import (
 
 // ExtractTarGz extracts a tar.gz archive to the target directory
 // Validates all paths to prevent directory traversal attacks
-func ExtractTarGz(archivePath, targetDir string) error {
+func ExtractTarGz(archivePath, targetDir string) (resultErr error) {
 	// Open archive file
 	f, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to open archive %s: %w", archivePath, err)
 	}
-	defer f.Close()
+	defer func() { resultErr = errors.Join(resultErr, f.Close()) }()
 
 	// Create gzip reader
 	gzr, err := gzip.NewReader(f)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader for %s: %w", archivePath, err)
 	}
-	defer gzr.Close()
+	defer func() { resultErr = errors.Join(resultErr, gzr.Close()) }()
 
 	// Create tar reader
 	tr := tar.NewReader(gzr)
 
 	// Track extracted files for cleanup on error
 	extractedFiles := []string{}
+	defer func() {
+		if resultErr != nil {
+			for _, path := range extractedFiles {
+				resultErr = errors.Join(resultErr, os.RemoveAll(path))
+			}
+		}
+	}()
 
 	// Extract each entry
 	for {
@@ -41,19 +49,11 @@ func ExtractTarGz(archivePath, targetDir string) error {
 			break // End of archive
 		}
 		if err != nil {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("failed to read tar entry: %w", err)
 		}
 
 		// Validate path with filepath.IsLocal (Go 1.20+)
 		if !filepath.IsLocal(hdr.Name) {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("path traversal detected: %s", hdr.Name)
 		}
 
@@ -63,25 +63,13 @@ func ExtractTarGz(archivePath, targetDir string) error {
 		// Additional security check: verify resolved path is within targetDir
 		absTarget, err := filepath.Abs(fullPath)
 		if err != nil {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("failed to resolve absolute path for %s: %w", fullPath, err)
 		}
 		absDir, err := filepath.Abs(targetDir)
 		if err != nil {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("failed to resolve absolute path for target dir %s: %w", targetDir, err)
 		}
 		if !strings.HasPrefix(absTarget, absDir+string(filepath.Separator)) && absTarget != absDir {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("path traversal detected: %s resolves outside target directory", hdr.Name)
 		}
 
@@ -90,10 +78,6 @@ func ExtractTarGz(archivePath, targetDir string) error {
 		case tar.TypeDir:
 			// Create directory
 			if err := os.MkdirAll(fullPath, 0o755); err != nil {
-				// Cleanup on error
-				for _, path := range extractedFiles {
-					os.RemoveAll(path)
-				}
 				return fmt.Errorf("failed to create directory %s: %w", fullPath, err)
 			}
 			extractedFiles = append(extractedFiles, fullPath)
@@ -101,35 +85,21 @@ func ExtractTarGz(archivePath, targetDir string) error {
 		case tar.TypeReg:
 			// Create parent directory if needed
 			if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-				// Cleanup on error
-				for _, path := range extractedFiles {
-					os.RemoveAll(path)
-				}
 				return fmt.Errorf("failed to create parent directory for %s: %w", fullPath, err)
 			}
 
 			// Create file
 			outFile, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode))
 			if err != nil {
-				// Cleanup on error
-				for _, path := range extractedFiles {
-					os.RemoveAll(path)
-				}
 				return fmt.Errorf("failed to create file %s: %w", fullPath, err)
 			}
+			extractedFiles = append(extractedFiles, fullPath)
 
 			// Copy contents
-			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
-				// Cleanup on error
-				for _, path := range extractedFiles {
-					os.RemoveAll(path)
-				}
+			_, copyErr := io.Copy(outFile, tr)
+			if err := errors.Join(copyErr, outFile.Close()); err != nil {
 				return fmt.Errorf("failed to write file %s: %w", fullPath, err)
 			}
-
-			outFile.Close()
-			extractedFiles = append(extractedFiles, fullPath)
 
 		case tar.TypeSymlink, tar.TypeLink:
 			// Skip symlinks and hardlinks for security
@@ -146,25 +116,28 @@ func ExtractTarGz(archivePath, targetDir string) error {
 
 // ExtractZip extracts a zip archive to the target directory
 // Validates all paths to prevent directory traversal attacks
-func ExtractZip(archivePath, targetDir string) error {
+func ExtractZip(archivePath, targetDir string) (resultErr error) {
 	// Open zip archive
 	r, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to open zip archive %s: %w", archivePath, err)
 	}
-	defer r.Close()
+	defer func() { resultErr = errors.Join(resultErr, r.Close()) }()
 
 	// Track extracted files for cleanup on error
 	extractedFiles := []string{}
+	defer func() {
+		if resultErr != nil {
+			for _, path := range extractedFiles {
+				resultErr = errors.Join(resultErr, os.RemoveAll(path))
+			}
+		}
+	}()
 
 	// Extract each file
 	for _, f := range r.File {
 		// Validate path with filepath.IsLocal
 		if !filepath.IsLocal(f.Name) {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("path traversal detected: %s", f.Name)
 		}
 
@@ -174,35 +147,19 @@ func ExtractZip(archivePath, targetDir string) error {
 		// Additional security check: verify resolved path is within targetDir
 		absTarget, err := filepath.Abs(fullPath)
 		if err != nil {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("failed to resolve absolute path for %s: %w", fullPath, err)
 		}
 		absDir, err := filepath.Abs(targetDir)
 		if err != nil {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("failed to resolve absolute path for target dir %s: %w", targetDir, err)
 		}
 		if !strings.HasPrefix(absTarget, absDir+string(filepath.Separator)) && absTarget != absDir {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("path traversal detected: %s resolves outside target directory", f.Name)
 		}
 
 		// Handle directories
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(fullPath, 0o755); err != nil {
-				// Cleanup on error
-				for _, path := range extractedFiles {
-					os.RemoveAll(path)
-				}
 				return fmt.Errorf("failed to create directory %s: %w", fullPath, err)
 			}
 			extractedFiles = append(extractedFiles, fullPath)
@@ -211,48 +168,28 @@ func ExtractZip(archivePath, targetDir string) error {
 
 		// Create parent directory
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("failed to create parent directory for %s: %w", fullPath, err)
 		}
 
 		// Open file from zip
 		srcFile, err := f.Open()
 		if err != nil {
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
 			return fmt.Errorf("failed to open file in zip %s: %w", f.Name, err)
 		}
 
 		// Create output file
 		outFile, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.Mode())
 		if err != nil {
-			srcFile.Close()
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
+			err = errors.Join(err, srcFile.Close())
 			return fmt.Errorf("failed to create file %s: %w", fullPath, err)
 		}
+		extractedFiles = append(extractedFiles, fullPath)
 
 		// Copy contents
-		if _, err := io.Copy(outFile, srcFile); err != nil {
-			srcFile.Close()
-			outFile.Close()
-			// Cleanup on error
-			for _, path := range extractedFiles {
-				os.RemoveAll(path)
-			}
+		_, copyErr := io.Copy(outFile, srcFile)
+		if err := errors.Join(copyErr, srcFile.Close(), outFile.Close()); err != nil {
 			return fmt.Errorf("failed to write file %s: %w", fullPath, err)
 		}
-
-		srcFile.Close()
-		outFile.Close()
-		extractedFiles = append(extractedFiles, fullPath)
 	}
 
 	return nil
