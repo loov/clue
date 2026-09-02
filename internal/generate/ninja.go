@@ -58,7 +58,7 @@ func Ninja(opts NinjaOptions) error {
 
 // generateVariantBuilds generates build statements for a single variant
 func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
-	outputs, err := generateDependencyBuilds(file, opts, variant, variantConfig, emitFetchRules)
+	outputs, err := generateDependencyBuilds(file, opts, variant, variantConfig, tc, emitFetchRules)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 	return outputs, nil
 }
 
-func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, emitFetchRules bool) ([]string, error) {
+func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
 	names := make([]string, 0, len(opts.Config.Dependencies))
 	for name := range opts.Config.Dependencies {
 		names = append(names, name)
@@ -103,11 +103,11 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 		if buildCfg.Optimize == "" {
 			buildCfg.Optimize = "none"
 		}
-		cflags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, false, opts.Toolchain, opts.Platform)
-		cxxflags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, true, opts.Toolchain, opts.Platform)
+		compilerFlags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, tc)
 		if resolved.Type == "shared_library" {
-			cflags = append(cflags, "-fPIC")
-			cxxflags = append(cxxflags, "-fPIC")
+			if tc.Name() != "msvc" {
+				compilerFlags = append(compilerFlags, "-fPIC")
+			}
 		}
 
 		objectNames := buildpath.ObjectNames(sources)
@@ -129,13 +129,13 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 		for _, source := range sources {
 			srcPath := filepath.Join(depPath, source)
 			objPath := ninjaPathLocal(depObjectPath(opts.BuildDir, variant, name, objectNames[source]))
-			rule, flagKey, flags := "cc", "cflags", cflags
+			rule, flagKey := "cc", "cflags"
 			if isCPlusPlusFile(source) {
-				rule, flagKey, flags = "cxx", "cxxflags", cxxflags
+				rule, flagKey = "cxx", "cxxflags"
 			}
 			*file = append(*file, ninja.Build{
 				Rule: rule, In: []string{ninjaPathLocal(srcPath)}, InOrderOnly: dependencyOutputs, Out: []string{objPath},
-				Vars: ninja.Vars{{Key: flagKey, Val: strings.Join(flags, " ")}},
+				Vars: ninja.Vars{{Key: flagKey, Val: strings.Join(compilerFlags, " ")}},
 			})
 			objects = append(objects, objPath)
 		}
@@ -144,12 +144,14 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 		if resolved.Type == "shared_library" {
 			dependencyInputs, sharedPaths := externalDependencyLinkInputs(opts.Config, resolved.Depends, opts.BuildDir, variant, opts.Platform)
 			inputs := append(objects, dependencyInputs...)
-			ldflags := buildSharedLibLinkerFlags(depTarget, nil, buildCfg, opts.Platform, opts.Toolchain)
+			ldflags := buildSharedLibLinkerFlags(depTarget, nil, buildCfg, opts.Platform, tc)
 			ldflags = append(ldflags, runtimeLibraryFlags(output, sharedPaths, opts.Platform)...)
-			*file = append(*file, ninja.Build{
+			statement := ninja.Build{
 				Rule: "link_shared", In: inputs, Out: []string{output},
 				Vars: ninja.Vars{{Key: "ldflags", Val: strings.Join(ldflags, " ")}},
-			})
+			}
+			addImportLibraryOutput(&statement, output, opts.Platform)
+			*file = append(*file, statement)
 		} else {
 			*file = append(*file, ninja.Build{Rule: "ar", In: objects, Out: []string{output}})
 		}
@@ -179,6 +181,22 @@ func dependencyDepends(dep deps.Dependency) []string {
 func dependencyOutputPath(buildDir, variant string, dep deps.Dependency, platform toolchain.Platform) string {
 	return filepath.Join(buildDir, variant, "deps", dep.Name(), "lib",
 		outputNameForTarget(dep.Name(), dependencyTargetType(dep), platform))
+}
+
+func linkInputPath(output, targetType string, platform toolchain.Platform) string {
+	if platform.OS == "windows" && targetType == "shared_library" {
+		return strings.TrimSuffix(output, filepath.Ext(output)) + ".lib"
+	}
+	return output
+}
+
+func addImportLibraryOutput(statement *ninja.Build, output string, platform toolchain.Platform) {
+	if platform.OS != "windows" {
+		return
+	}
+	importLibrary := linkInputPath(output, "shared_library", platform)
+	statement.OutImplicit = []string{importLibrary}
+	statement.Vars = append(statement.Vars, ninja.Var{Key: "implib", Val: importLibrary})
 }
 
 func dependencyIncludePath(dep deps.Dependency) string {
@@ -244,8 +262,9 @@ func externalDependencyLinkInputs(cfg *config.Config, names []string, buildDir, 
 			return
 		}
 		output := ninjaPathLocal(dependencyOutputPath(buildDir, variant, dep, platform))
-		inputs = append(inputs, output)
-		if dependencyTargetType(dep) == "shared_library" {
+		targetType := dependencyTargetType(dep)
+		inputs = append(inputs, linkInputPath(output, targetType, platform))
+		if targetType == "shared_library" {
 			sharedPaths = append(sharedPaths, filepath.Dir(output))
 		}
 		for _, child := range dependencyDepends(dep) {
@@ -281,7 +300,7 @@ func runtimeLibraryFlags(output string, paths []string, platform toolchain.Platf
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, _ toolchain.Toolchain) []string {
+func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain) []string {
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 	target.Defines = append(append([]string(nil), target.Defines...), variantConfig.Defines...)
@@ -290,13 +309,13 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	includes := append(append([]string(nil), target.Includes...), targetDependencyIncludes(opts.Config, target)...)
 
 	// Build compiler flags
-	cflags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, false, opts.Toolchain, opts.Platform)
-	cxxflags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, true, opts.Toolchain, opts.Platform)
+	compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc)
 
 	// Add -fPIC for shared libraries
 	if target.Type == "shared_library" {
-		cflags = append(cflags, "-fPIC")
-		cxxflags = append(cxxflags, "-fPIC")
+		if tc.Name() != "msvc" {
+			compilerFlags = append(compilerFlags, "-fPIC")
+		}
 	}
 
 	var objects []string
@@ -312,11 +331,9 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 		// Determine rule based on source extension
 		rule := "cc"
-		flags := strings.Join(cflags, " ")
 		flagKey := "cflags"
 		if isCPlusPlusFile(source) {
 			rule = "cxx"
-			flags = strings.Join(cxxflags, " ")
 			flagKey = "cxxflags"
 		}
 
@@ -326,7 +343,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			InOrderOnly: externalDependencies,
 			Out:         []string{objPath},
 			Vars: ninja.Vars{
-				{Key: flagKey, Val: flags},
+				{Key: flagKey, Val: strings.Join(compilerFlags, " ")},
 			},
 		})
 	}
@@ -338,7 +355,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	switch target.Type {
 	case "executable":
-		ldflags := buildLinkerFlagsForNinja(target, dependencySysLibs, buildCfg, opts.Platform, opts.Toolchain)
+		ldflags := buildLinkerFlagsForNinja(target, dependencySysLibs, buildCfg, tc)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
 		*file = append(*file, ninja.Build{
 			Rule: "link",
@@ -357,16 +374,18 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		})
 
 	case "shared_library":
-		ldflags := buildSharedLibLinkerFlags(target, dependencySysLibs, buildCfg, opts.Platform, opts.Toolchain)
+		ldflags := buildSharedLibLinkerFlags(target, dependencySysLibs, buildCfg, opts.Platform, tc)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
-		*file = append(*file, ninja.Build{
+		statement := ninja.Build{
 			Rule: "link_shared",
 			In:   linkInputs,
 			Out:  []string{outputPath},
 			Vars: ninja.Vars{
 				{Key: "ldflags", Val: strings.Join(ldflags, " ")},
 			},
-		})
+		}
+		addImportLibraryOutput(&statement, outputPath, opts.Platform)
+		*file = append(*file, statement)
 	}
 
 	return []string{outputPath}
@@ -376,33 +395,87 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 // Note: objectPath is defined in compdb.go and shared between both generators
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output
-func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, includes []string, _ bool, toolchainName string, platform toolchain.Platform) []string {
+func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, includes []string, tc toolchain.Toolchain) []string {
 	var flags []string
+	msvc := tc.Name() == "msvc"
 
 	// Language standard
 	if cfg.Toolchain.Std != "" {
-		flags = append(flags, "-std="+cfg.Toolchain.Std)
+		if msvc {
+			flags = append(flags, "/std:"+build.TranslateStdForMSVC(cfg.Toolchain.Std))
+		} else {
+			flags = append(flags, "-std="+cfg.Toolchain.Std)
+		}
 	}
 
 	// Include paths
 	for _, inc := range includes {
-		flags = append(flags, "-I"+ninjaPathLocal(inc))
+		prefix := "-I"
+		if msvc {
+			prefix = "/I"
+		}
+		path := ninjaPathLocal(inc)
+		if msvc {
+			path = quoteMSVCValue(path)
+		}
+		flags = append(flags, prefix+path)
+	}
+	if msvc {
+		for _, include := range toolchainEnvironmentPaths(tc, "INCLUDE") {
+			flags = append(flags, "/I"+quoteMSVCValue(ninjaPathLocal(include)))
+		}
 	}
 
 	// Defines
 	for _, def := range target.Defines {
-		flags = append(flags, "-D"+def)
+		prefix := "-D"
+		if msvc {
+			prefix = "/D"
+		}
+		flags = append(flags, prefix+def)
 	}
 
 	// Semantic flags from build package
-	tc, err := build.NewToolchain(toolchainName, platform)
-	if err != nil {
-		// Fallback to gcc if toolchain creation fails
-		tc, _ = build.NewToolchain("gcc", platform)
-	}
 	semanticFlags := tc.CompilerFlags(buildCfg)
 	flags = append(flags, semanticFlags...)
 
+	return flags
+}
+
+func quoteMSVCValue(value string) string {
+	if !strings.ContainsAny(value, " \t\"") {
+		return value
+	}
+	return `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
+}
+
+func toolchainEnvironmentPaths(tc toolchain.Toolchain, key string) []string {
+	provider, ok := tc.(interface{ Environment() map[string]string })
+	if !ok {
+		return nil
+	}
+	var value string
+	for name, candidate := range provider.Environment() {
+		if strings.EqualFold(name, key) {
+			value = candidate
+			break
+		}
+	}
+	var paths []string
+	for _, path := range strings.Split(value, ";") {
+		if path != "" {
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
+func appendMSVCLibraryPaths(flags []string, tc toolchain.Toolchain) []string {
+	for _, key := range []string{"LIB", "LIBPATH"} {
+		for _, path := range toolchainEnvironmentPaths(tc, key) {
+			flags = append(flags, "/LIBPATH:"+quoteMSVCValue(ninjaPathLocal(path)))
+		}
+	}
 	return flags
 }
 
@@ -425,8 +498,9 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 		if !ok {
 			if external, ok := cfg.Dependencies[name]; ok {
 				output := ninjaPathLocal(dependencyOutputPath(buildDir, variant, external, platform))
-				inputs = append(inputs, output)
-				if dependencyTargetType(external) == "shared_library" {
+				targetType := dependencyTargetType(external)
+				inputs = append(inputs, linkInputPath(output, targetType, platform))
+				if targetType == "shared_library" {
 					sharedPaths = append(sharedPaths, filepath.Dir(output))
 				}
 				for _, child := range dependencyDepends(external) {
@@ -437,7 +511,7 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 		}
 		if dep.Type == "static_library" || dep.Type == "shared_library" {
 			output := ninjaPathLocal(outputPathForTarget(buildDir, variant, dep.Name, dep.Type, platform))
-			inputs = append(inputs, output)
+			inputs = append(inputs, linkInputPath(output, dep.Type, platform))
 			if dep.Type == "shared_library" {
 				sharedPaths = append(sharedPaths, filepath.Dir(output))
 			}
@@ -459,20 +533,24 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 }
 
 // buildLinkerFlagsForNinja builds linker flags for executables
-func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, toolchainName string) []string {
+func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, tc toolchain.Toolchain) []string {
 	var flags []string
+	if tc.Name() == "msvc" {
+		flags = appendMSVCLibraryPaths(flags, tc)
+	}
 
 	// System libraries
 	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
-		flags = append(flags, "-l"+sysLib)
+		if tc.Name() == "msvc" {
+			if translated := build.TranslateSysLibForMSVC(sysLib); translated != "" {
+				flags = append(flags, translated)
+			}
+		} else {
+			flags = append(flags, "-l"+sysLib)
+		}
 	}
 
 	// Semantic linker flags
-	tc, err := build.NewToolchain(toolchainName, platform)
-	if err != nil {
-		// Fallback to gcc if toolchain creation fails
-		tc, _ = build.NewToolchain("gcc", platform)
-	}
 	semanticFlags := tc.LinkerFlags(buildCfg, []string{})
 	flags = append(flags, semanticFlags...)
 
@@ -480,8 +558,11 @@ func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, 
 }
 
 // buildSharedLibLinkerFlags builds linker flags for shared libraries
-func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, toolchainName string) []string {
+func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, tc toolchain.Toolchain) []string {
 	var flags []string
+	if tc.Name() == "msvc" {
+		flags = appendMSVCLibraryPaths(flags, tc)
+	}
 
 	// Platform-specific shared library flags
 	switch platform.OS {
@@ -495,15 +576,16 @@ func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string,
 
 	// System libraries
 	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
-		flags = append(flags, "-l"+sysLib)
+		if tc.Name() == "msvc" {
+			if translated := build.TranslateSysLibForMSVC(sysLib); translated != "" {
+				flags = append(flags, translated)
+			}
+		} else {
+			flags = append(flags, "-l"+sysLib)
+		}
 	}
 
 	// Semantic linker flags
-	tc, err := build.NewToolchain(toolchainName, platform)
-	if err != nil {
-		// Fallback to gcc if toolchain creation fails
-		tc, _ = build.NewToolchain("gcc", platform)
-	}
 	semanticFlags := tc.LinkerFlags(buildCfg, []string{})
 	flags = append(flags, semanticFlags...)
 
@@ -565,6 +647,41 @@ func writeIfChanged(path string, content []byte) error {
 	return os.WriteFile(path, content, 0o644)
 }
 
+func addNinjaRules(file *ninja.File, msvc bool) {
+	if msvc {
+		*file = append(*file,
+			ninja.Rule{
+				Name: "cc", Command: `"$cc" $cflags /c $in /Fo"$out"`, Deps: ninja.DepsMSVC,
+				MSVCDepsPrefix: "Note: including file:", Description: "CC $out",
+			},
+			ninja.Rule{
+				Name: "cxx", Command: `"$cxx" $cxxflags /c $in /Fo"$out"`, Deps: ninja.DepsMSVC,
+				MSVCDepsPrefix: "Note: including file:", Description: "CXX $out",
+			},
+			ninja.Rule{Name: "link", Command: `"$link" $in /OUT:"$out" $ldflags`, Description: "LINK $out"},
+			ninja.Rule{Name: "link_shared", Command: `"$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`, Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "ar", Command: `"$ar" /nologo /OUT:"$out" $in`, Description: "LIB $out"},
+		)
+	} else {
+		*file = append(*file,
+			ninja.Rule{
+				Name: "cc", Command: "$cc -MD -MF $out.d $cflags -c $in -o $out",
+				Depfile: "$out.d", Deps: ninja.DepsGCC, Description: "CC $out",
+			},
+			ninja.Rule{
+				Name: "cxx", Command: "$cxx -MD -MF $out.d $cxxflags -c $in -o $out",
+				Depfile: "$out.d", Deps: ninja.DepsGCC, Description: "CXX $out",
+			},
+			ninja.Rule{Name: "link", Command: "$cxx $in -o $out $ldflags", Description: "LINK $out"},
+			ninja.Rule{Name: "link_shared", Command: "$cxx -shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "ar", Command: "$ar crs $out $in", Description: "AR $out"},
+		)
+	}
+	*file = append(*file, ninja.Rule{
+		Name: "fetch_dep", Command: "$clue deps fetch $dep", Description: "FETCH $dep",
+	})
+}
+
 // WriteNinjaTo writes Ninja file content to a writer (for testing)
 func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	// Set defaults
@@ -602,43 +719,17 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	file = append(file, ninja.Var{Key: "cxx", Val: toolchain.CXX()})
 	file = append(file, ninja.Var{Key: "ar", Val: toolchain.AR()})
 	file = append(file, ninja.Var{Key: "clue", Val: "clue"})
+	if toolchain.Name() == "msvc" {
+		linker := "link.exe"
+		if dir := filepath.Dir(toolchain.CC()); dir != "." {
+			linker = filepath.Join(dir, linker)
+		}
+		file = append(file, ninja.Var{Key: "link", Val: ninjaPathLocal(linker)})
+	}
 
 	// Rules
 	file = append(file, ninja.Comment{Lines: []string{"Compilation rules"}})
-	file = append(file, ninja.Rule{
-		Name:        "cc",
-		Command:     "$cc -MD -MF $out.d $cflags -c $in -o $out",
-		Depfile:     "$out.d",
-		Deps:        ninja.DepsGCC,
-		Description: "CC $out",
-	})
-	file = append(file, ninja.Rule{
-		Name:        "cxx",
-		Command:     "$cxx -MD -MF $out.d $cxxflags -c $in -o $out",
-		Depfile:     "$out.d",
-		Deps:        ninja.DepsGCC,
-		Description: "CXX $out",
-	})
-	file = append(file, ninja.Rule{
-		Name:        "link",
-		Command:     "$cxx $in -o $out $ldflags",
-		Description: "LINK $out",
-	})
-	file = append(file, ninja.Rule{
-		Name:        "link_shared",
-		Command:     "$cxx -shared $in -o $out $ldflags",
-		Description: "LINK_SHARED $out",
-	})
-	file = append(file, ninja.Rule{
-		Name:        "ar",
-		Command:     "$ar crs $out $in",
-		Description: "AR $out",
-	})
-	file = append(file, ninja.Rule{
-		Name:        "fetch_dep",
-		Command:     "$clue deps fetch $dep",
-		Description: "FETCH $dep",
-	})
+	addNinjaRules(&file, toolchain.Name() == "msvc")
 
 	targetOrder := getSortedTargetNames(opts.Config)
 	variantOutputs := make(map[string][]string)

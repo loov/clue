@@ -113,9 +113,9 @@ func getMSVCLib() string {
 	return "lib.exe"
 }
 
-// translateSysLibForMSVC translates Unix-style system library names to MSVC format.
+// TranslateSysLibForMSVC translates Unix-style system library names to MSVC format.
 // Some libraries don't have Windows equivalents and are skipped.
-func translateSysLibForMSVC(lib string) string {
+func TranslateSysLibForMSVC(lib string) string {
 	// Skip libraries with no Windows equivalent
 	switch lib {
 	case "pthread", "rt", "dl":
@@ -231,7 +231,7 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 
 	// Add system libraries (translated to MSVC format)
 	for _, sysLib := range opts.SysLibs {
-		if translated := translateSysLibForMSVC(sysLib); translated != "" {
+		if translated := TranslateSysLibForMSVC(sysLib); translated != "" {
 			args = append(args, translated)
 		}
 	}
@@ -476,7 +476,7 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 
 	// Add system libraries (translated to MSVC format)
 	for _, sysLib := range opts.SysLibs {
-		if translated := translateSysLibForMSVC(sysLib); translated != "" {
+		if translated := TranslateSysLibForMSVC(sysLib); translated != "" {
 			args = append(args, translated)
 		}
 	}

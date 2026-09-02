@@ -206,7 +206,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 
 	// 7. Language standard (MSVC style: /std:)
 	if opts.Std != "" {
-		args = append(args, "/std:"+translateStdForMSVC(opts.Std))
+		args = append(args, "/std:"+TranslateStdForMSVC(opts.Std))
 	}
 
 	// 8. C++20 Modules (MSVC has different module syntax - deferred to v0.3.0)
@@ -254,9 +254,9 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	return result, nil
 }
 
-// translateStdForMSVC translates C/C++ standard names to MSVC format.
+// TranslateStdForMSVC translates C/C++ standard names to MSVC format.
 // MSVC uses /std:c++17, /std:c++20, /std:c++latest etc.
-func translateStdForMSVC(std string) string {
+func TranslateStdForMSVC(std string) string {
 	// Handle C++ standards with prefix
 	switch std {
 	case "c++11", "gnu++11":

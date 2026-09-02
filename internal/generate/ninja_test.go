@@ -7,9 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Duncaen/go-ninja"
+
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
 // createMinimalConfig creates a minimal config for testing
@@ -449,6 +452,49 @@ func TestOutputNameForTarget_Windows(t *testing.T) {
 		if got := outputNameForTarget("app", targetType, platform); got != want {
 			t.Errorf("outputNameForTarget(%q) = %q, want %q", targetType, got, want)
 		}
+	}
+}
+
+func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
+	platform := toolchain.Platform{OS: "windows", Arch: "amd64"}
+	tc, err := msvc.New(&msvc.Installation{Environment: map[string]string{
+		"INCLUDE": `C:\Program Files\VS\include;C:\SDK\include`,
+		"LIB":     `C:\Program Files\VS\lib`,
+	}}, platform)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
+	cfg.Targets["mylib"] = config.Target{
+		Name: "mylib", Type: "shared_library", Sources: []string{"lib.cpp"},
+		Includes: []string{"include"}, Defines: []string{"BUILDING_LIB"},
+	}
+	opts := NinjaOptions{Config: cfg, BuildDir: ".build", Toolchain: "msvc", Platform: platform}
+
+	file := ninja.File{}
+	addNinjaRules(&file, true)
+	generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc)
+	var buf bytes.Buffer
+	if _, err := file.WriteTo(&buf); err != nil {
+		t.Fatal(err)
+	}
+	content := buf.String()
+	checks := []string{
+		`command = "$cc" $cflags /c $in /Fo"$out"`,
+		"deps = msvc",
+		`/std:c++20 /Iinclude /I"C:\Program Files\VS\include" /IC:\SDK\include /DBUILDING_LIB`,
+		`command = "$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`,
+		`/LIBPATH:"C:\Program Files\VS\lib"`,
+		"build .build/debug/lib/mylib.dll | .build/debug/lib/mylib.lib: link_shared",
+		"implib = .build/debug/lib/mylib.lib",
+	}
+	for _, check := range checks {
+		if !strings.Contains(content, check) {
+			t.Errorf("missing %q in MSVC Ninja output:\n%s", check, content)
+		}
+	}
+	if strings.Contains(content, "-fPIC") || strings.Contains(content, "-MD") {
+		t.Errorf("GCC flags leaked into MSVC Ninja output:\n%s", content)
 	}
 }
 
