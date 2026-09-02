@@ -2,7 +2,6 @@ package build
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/all"
@@ -89,17 +88,6 @@ var ValidateToolchain = toolchain.ValidateToolchain
 // FindMSVC discovers the MSVC installation on Windows.
 var FindMSVC = msvc.FindMSVC
 
-// crossPrefix returns the GNU triplet prefix for cross-compilation.
-// Returns empty string if target matches host (native compilation).
-// Kept for tests that use it directly (will be removed in Phase 16).
-func crossPrefix(target toolchain.Platform) string {
-	host := toolchain.HostPlatform()
-	if target.OS == host.OS && target.Arch == host.Arch {
-		return ""
-	}
-	return gnuTripletPrefix(target)
-}
-
 // gnuTripletPrefix returns the GNU triplet prefix for a given platform.
 // This is the raw mapping without host comparison.
 // Kept for tests that use it directly (will be removed in Phase 16).
@@ -115,10 +103,4 @@ func gnuTripletPrefix(target toolchain.Platform) string {
 	default:
 		return ""
 	}
-}
-
-// isCrossCompiler checks if a compiler path contains GNU triplet prefix.
-// Used by tests that check cross-compilation detection.
-func isCrossCompiler(cc string) bool {
-	return strings.Contains(cc, "-linux-") || strings.Contains(cc, "-darwin-")
 }

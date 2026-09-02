@@ -8,7 +8,6 @@ package toolchain
 import (
 	"fmt"
 	"os/exec"
-	"strings"
 )
 
 // Toolchain is the interface for C/C++ compiler toolchains.
@@ -51,10 +50,4 @@ func ValidateToolchain(tc Toolchain) error {
 	}
 
 	return nil
-}
-
-// isCrossCompiler checks if a compiler path contains GNU triplet prefix.
-// Examples: aarch64-linux-gnu-gcc, x86_64-linux-gnu-clang
-func isCrossCompiler(cc string) bool {
-	return strings.Contains(cc, "-linux-") || strings.Contains(cc, "-darwin-")
 }
