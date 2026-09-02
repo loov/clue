@@ -24,6 +24,7 @@ type ExecutorConfig struct {
 	StreamOutput bool   // If true, stream to os.Stdout/Stderr; if false, capture
 	WorkDir      string // Working directory for commands
 	Environment  []string
+	WrapCommand  func(string, []string, string) (string, []string)
 }
 
 // Executor handles subprocess execution with configurable behavior
@@ -41,6 +42,9 @@ func NewExecutor(config ExecutorConfig) *Executor {
 // RunCommand executes a command with the configured behavior
 func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) (*CommandResult, error) {
 	start := time.Now()
+	if e.config.WrapCommand != nil {
+		name, args = e.config.WrapCommand(name, args, e.config.WorkDir)
+	}
 
 	// Print command if verbose
 	if e.config.Verbose {

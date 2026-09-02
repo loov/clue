@@ -615,6 +615,19 @@ func quoteMSVCValue(value string) string {
 	return `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
 }
 
+func ninjaToolCommand(tc toolchain.Toolchain, tool string) string {
+	command, args := build.ToolchainCommand(tc, tool, nil)
+	parts := append([]string{command}, args...)
+	for i, part := range parts {
+		part = strings.ReplaceAll(part, "$", "$$")
+		if strings.ContainsAny(part, " \t\"") {
+			part = `"` + strings.ReplaceAll(part, `"`, `\"`) + `"`
+		}
+		parts[i] = part
+	}
+	return strings.Join(parts, " ")
+}
+
 func toolchainEnvironmentPaths(tc toolchain.Toolchain, key string) []string {
 	provider, ok := tc.(interface{ Environment() map[string]string })
 	if !ok {
@@ -880,7 +893,9 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	}
 
 	// Discover toolchain
-	toolchain, err := build.NewToolchain(opts.Toolchain, opts.Platform)
+	settings := opts.Config.Toolchain
+	settings.Compiler = opts.Toolchain
+	toolchain, err := build.NewConfiguredToolchain(settings, opts.Platform, ".")
 	if err != nil {
 		return err
 	}
@@ -893,9 +908,9 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	// Variables
 	file = append(file, ninja.Comment{Lines: []string{"Build configuration"}})
 	file = append(file, ninja.Var{Key: "builddir", Val: ".ninja_build"})
-	file = append(file, ninja.Var{Key: "cc", Val: toolchain.CC()})
-	file = append(file, ninja.Var{Key: "cxx", Val: toolchain.CXX()})
-	file = append(file, ninja.Var{Key: "ar", Val: toolchain.AR()})
+	file = append(file, ninja.Var{Key: "cc", Val: ninjaToolCommand(toolchain, toolchain.CC())})
+	file = append(file, ninja.Var{Key: "cxx", Val: ninjaToolCommand(toolchain, toolchain.CXX())})
+	file = append(file, ninja.Var{Key: "ar", Val: ninjaToolCommand(toolchain, toolchain.AR())})
 	file = append(file, ninja.Var{Key: "clue", Val: "clue"})
 	if toolchain.Name() == "msvc" {
 		linker := "link.exe"

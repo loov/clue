@@ -18,8 +18,4 @@ Supporting Docker as a toolchain backend would let users build C++ projects with
 
 ## Solution
 
-TBD — Key design questions include:
-- How to specify container images per toolchain (CUE config?)
-- Volume mounting strategy for source files and build artifacts
-- Performance implications (container startup overhead per compilation unit vs. persistent containers)
-- Whether to support both full Docker builds and partial (e.g., compile in Docker, link locally)
+`toolchain.docker` selects a pre-pulled image and container working directory. Clue mounts the project root there and runs each compiler, linker, archiver, module scanner, custom command, and external dependency build in a disposable container. Cache keys include the image configuration, and generated Ninja and compilation database commands use the same wrapper.

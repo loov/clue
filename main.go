@@ -294,7 +294,7 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 	}
 
 	// Create builder with toolchain and target platform
-	builder, err := build.NewBuilder(cfg.Toolchain.Compiler, targetPlatform, verbosity, actualJobs, keepGoing)
+	builder, err := build.NewConfiguredBuilder(cfg.Toolchain, targetPlatform, dir, verbosity, actualJobs, keepGoing)
 	if err != nil {
 		printError(err)
 		return 1
@@ -441,7 +441,7 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 			fmt.Fprintln(os.Stderr, "Usage: clue deps build <name>")
 			return 1
 		}
-		builder, err := build.NewBuilder(cfg.Toolchain.Compiler, platform, verbosity, 1, false)
+		builder, err := build.NewConfiguredBuilder(cfg.Toolchain, platform, dir, verbosity, 1, false)
 		if err != nil {
 			printError(err)
 			return 1
@@ -717,7 +717,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		buildMu.Unlock()
 
 		// Create builder
-		builder, err := build.NewBuilder(cfg.Toolchain.Compiler, targetPlatform, verbosity, actualJobs, keepGoing)
+		builder, err := build.NewConfiguredBuilder(cfg.Toolchain, targetPlatform, dir, verbosity, actualJobs, keepGoing)
 		if err != nil {
 			printError(err)
 			return

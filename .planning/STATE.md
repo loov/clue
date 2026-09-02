@@ -56,9 +56,8 @@ All v0.1.0, v0.2.0, and v0.3.0 decisions logged in PROJECT.md Key Decisions tabl
 
 ### Pending Todos
 
-3 pending todo(s):
+2 pending todo(s):
 - **Add support for automatic and partial unity builds** (area: build)
-- **Support Docker-based toolchain invocation** (area: tooling)
 - **Zero-config multifolder projects with auto-discovery** (area: build)
 
 ### Blockers/Concerns

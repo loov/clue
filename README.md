@@ -53,6 +53,21 @@ if _target.os == "windows" {
 }
 ```
 
+To run the compiler, linker, archiver, module scanner, and build commands in Docker, add a pre-pulled image containing the selected toolchain:
+
+```cue
+toolchain: {
+    compiler: "clang"
+    cxxStd:   "c++23"
+    docker: {
+        image:   "project-toolchain:20"
+        workdir: "/workspace"
+    }
+}
+```
+
+Clue starts a disposable container for each command and mounts the project directory at `workdir`. Docker must be installed, the image must already exist locally, and files outside the project directory are not mounted.
+
 ## Commands
 
 - `clue validate` - Validate configuration and check dependencies

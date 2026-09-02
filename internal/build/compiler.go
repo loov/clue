@@ -17,7 +17,7 @@ import (
 
 func (c *Compiler) cacheInputs(opts CompileOptions) []string {
 	encoded, _ := json.Marshal(opts)
-	return append([]string{string(encoded)}, c.toolchain.CompilerFlags(opts.Flags)...)
+	return append([]string{string(encoded), toolchainCacheKey(c.toolchain)}, c.toolchain.CompilerFlags(opts.Flags)...)
 }
 
 // CompileOptions holds options for compiling a single source file

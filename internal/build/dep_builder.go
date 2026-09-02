@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -194,10 +193,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			}.Standard(absPath),
 			TargetType: cfg.Type,
 		}
-		compilerPath, err := exec.LookPath(db.compiler.compilerCmd(absPath))
-		if err != nil {
-			compilerPath = db.compiler.compilerCmd(absPath)
-		}
+		compilerPath := toolIdentityPath(db.toolchain, db.compiler.compilerCmd(absPath))
 		cacheInputs := db.compiler.cacheInputs(compileOpts)
 		if db.cache != nil {
 			needsRebuild, _, _ := db.cache.NeedsRebuild(
@@ -270,7 +266,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
 			Flags: Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags},
 		}
-		fingerprint, fingerprintErr := linkFingerprint(db.toolchain.CXX(), linkOpts, append(objectFiles, dependencyArtifacts...))
+		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.toolchain.CXX(), linkOpts, append(objectFiles, dependencyArtifacts...))
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
 		}
@@ -284,7 +280,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 	} else {
 		archiveOpts := ArchiveOptions{Objects: objectFiles, Output: libPath}
-		fingerprint, fingerprintErr := linkFingerprint(db.toolchain.AR(), archiveOpts, objectFiles)
+		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.toolchain.AR(), archiveOpts, objectFiles)
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
 		}

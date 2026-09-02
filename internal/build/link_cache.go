@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 
 	"github.com/loov/clue/internal/cache"
 )
@@ -14,11 +13,8 @@ type linkInput struct {
 	Hash string `json:"hash"`
 }
 
-func linkFingerprint(tool string, options any, inputs []string) ([]byte, error) {
-	toolPath, err := exec.LookPath(tool)
-	if err != nil {
-		toolPath = tool
-	}
+func linkFingerprint(tc Toolchain, tool string, options any, inputs []string) ([]byte, error) {
+	toolPath := toolIdentityPath(tc, tool)
 	toolID, _ := cache.GetCompilerIdentity(toolPath)
 	files := make([]linkInput, 0, len(inputs))
 	for _, path := range inputs {
@@ -29,10 +25,11 @@ func linkFingerprint(tool string, options any, inputs []string) ([]byte, error) 
 		files = append(files, linkInput{Path: path, Hash: hash})
 	}
 	return json.Marshal(struct {
-		Tool    cache.CompilerIdentity `json:"tool"`
-		Options any                    `json:"options"`
-		Inputs  []linkInput            `json:"inputs"`
-	}{toolID, options, files})
+		Tool      cache.CompilerIdentity `json:"tool"`
+		Toolchain string                 `json:"toolchain,omitempty"`
+		Options   any                    `json:"options"`
+		Inputs    []linkInput            `json:"inputs"`
+	}{toolID, toolchainCacheKey(tc), options, files})
 }
 
 func linkIsCurrent(output string, fingerprint []byte) bool {

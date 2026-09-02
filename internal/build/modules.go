@@ -2,6 +2,7 @@ package build
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -118,9 +119,13 @@ type p1689Require struct {
 
 // scanModuleDeps scans sources for module dependencies using clang-scan-deps.
 func (c *Compiler) scanModuleDeps(sources []string, opts CompileOptions) ([]ModuleDependency, error) {
-	scanDepsPath, err := exec.LookPath("clang-scan-deps")
-	if err != nil {
-		return nil, fmt.Errorf("clang-scan-deps not found: install Clang 16+ for C++20 module support")
+	scanDepsPath := "clang-scan-deps"
+	if toolchainCommandWrapper(c.toolchain) == nil {
+		var err error
+		scanDepsPath, err = exec.LookPath(scanDepsPath)
+		if err != nil {
+			return nil, fmt.Errorf("clang-scan-deps not found: install Clang 16+ for C++20 module support")
+		}
 	}
 
 	var deps []ModuleDependency
@@ -146,7 +151,10 @@ func ScanModuleDependencies(tc Toolchain, sources []string, opts CompileOptions)
 	if tc.Name() != "clang" {
 		return nil, fmt.Errorf("C++20 modules require the clang toolchain, got %q", tc.Name())
 	}
-	return (&Compiler{toolchain: tc}).scanModuleDeps(moduleSources, opts)
+	executor := NewExecutor(ExecutorConfig{
+		StreamOutput: false, Environment: toolchainEnvironment(tc), WrapCommand: toolchainCommandWrapper(tc),
+	})
+	return (&Compiler{toolchain: tc, executor: executor}).scanModuleDeps(moduleSources, opts)
 }
 
 // ModuleOutputPath returns a portable BMI path for a logical module name.
@@ -157,18 +165,17 @@ func ModuleOutputPath(dir, name string) string {
 // scanSource runs clang-scan-deps on a single source file
 func (c *Compiler) scanSource(scanDepsPath, source string, opts CompileOptions) (*ModuleDependency, error) {
 	args := c.moduleScanArgs(source, opts)
-	cmd := exec.Command(scanDepsPath, args...)
-	output, err := cmd.Output()
+	command, err := c.executor.RunCommand(context.Background(), scanDepsPath, args...)
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("clang-scan-deps failed: %s", string(exitErr.Stderr))
+		if command != nil && command.Stderr != "" {
+			return nil, fmt.Errorf("clang-scan-deps failed: %s", command.Stderr)
 		}
 		return nil, err
 	}
 
 	// Parse P1689 JSON output
 	var result p1689Output
-	if err := json.Unmarshal(output, &result); err != nil {
+	if err := json.Unmarshal([]byte(command.Stdout), &result); err != nil {
 		return nil, fmt.Errorf("failed to parse clang-scan-deps output: %w", err)
 	}
 

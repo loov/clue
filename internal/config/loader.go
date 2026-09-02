@@ -54,6 +54,13 @@ type Toolchain struct {
 	Std      string
 	CStd     string
 	CXXStd   string
+	Docker   *DockerToolchain
+}
+
+// DockerToolchain runs toolchain commands in a container image.
+type DockerToolchain struct {
+	Image   string
+	WorkDir string
 }
 
 // Standard returns the language standard applicable to source. The legacy Std
@@ -384,6 +391,13 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		}
 		if std := tc.LookupPath(cue.ParsePath("cxxStd")); std.Exists() {
 			cfg.Toolchain.CXXStd, _ = std.String()
+		}
+		if docker := tc.LookupPath(cue.ParsePath("docker")); docker.Exists() {
+			cfg.Toolchain.Docker = &DockerToolchain{WorkDir: "/workspace"}
+			cfg.Toolchain.Docker.Image, _ = docker.LookupPath(cue.ParsePath("image")).String()
+			if workDir := docker.LookupPath(cue.ParsePath("workdir")); workDir.Exists() {
+				cfg.Toolchain.Docker.WorkDir, _ = workDir.String()
+			}
 		}
 	}
 

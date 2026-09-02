@@ -12,7 +12,7 @@ import (
 
 func (b *Builder) buildCustomTarget(ctx context.Context, opts Options, target config.Target) (*TargetResult, error) {
 	start := time.Now()
-	fingerprint, err := linkFingerprint(target.Command[0], target.Command, target.Inputs)
+	fingerprint, err := linkFingerprint(b.toolchain, target.Command[0], target.Command, target.Inputs)
 	if err != nil {
 		return nil, fmt.Errorf("fingerprinting custom target %q: %w", target.Name, err)
 	}

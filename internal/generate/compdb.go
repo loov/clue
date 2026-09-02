@@ -58,7 +58,9 @@ func CompileCommands(opts CompDBOptions) error {
 	if opts.Platform.OS == "" {
 		opts.Platform = toolchain.HostPlatform()
 	}
-	tc, err := build.NewToolchain(opts.Toolchain, opts.Platform)
+	settings := opts.Config.Toolchain
+	settings.Compiler = opts.Toolchain
+	tc, err := build.NewConfiguredToolchain(settings, opts.Platform, ".")
 	if err != nil {
 		return err
 	}
@@ -275,7 +277,8 @@ func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, defines []s
 	semanticFlags := tc.CompilerFlags(buildCfg)
 	args = append(args, semanticFlags...)
 
-	return args
+	command, wrapped := build.ToolchainCommand(tc, args[0], args[1:])
+	return append([]string{command}, wrapped...)
 }
 
 // compilerForSource returns the appropriate compiler for a source file

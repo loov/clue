@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -66,12 +65,23 @@ type Builder struct {
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
 func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
-	// Create toolchain for the target platform
 	toolchain, err := NewToolchain(toolchainName, target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create toolchain: %w", err)
 	}
+	return newBuilder(toolchain, target, verbosity, jobs, keepGoing)
+}
 
+// NewConfiguredBuilder creates a builder from project toolchain settings.
+func NewConfiguredBuilder(settings config.Toolchain, target Platform, projectDir string, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
+	toolchain, err := NewConfiguredToolchain(settings, target, projectDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create toolchain: %w", err)
+	}
+	return newBuilder(toolchain, target, verbosity, jobs, keepGoing)
+}
+
+func newBuilder(toolchain Toolchain, target Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
 	// Validate toolchain exists
 	if err := ValidateToolchain(toolchain); err != nil {
 		return nil, err
@@ -84,6 +94,7 @@ func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs
 		StreamOutput: true,
 		WorkDir:      "",
 		Environment:  toolchainEnvironment(toolchain),
+		WrapCommand:  toolchainCommandWrapper(toolchain),
 	})
 
 	compiler := NewCompiler(executor, toolchain)
@@ -445,10 +456,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				}
 			}
 		}
-		compilerPath, err := exec.LookPath(b.compiler.compilerCmd(source))
-		if err != nil {
-			compilerPath = b.compiler.compilerCmd(source)
-		}
+		compilerPath := toolIdentityPath(b.toolchain, b.compiler.compilerCmd(source))
 		inputs := b.compiler.cacheInputs(compileOpts)
 		cacheInputs[source] = sourceCacheInputs{flags: inputs, compilerPath: compilerPath}
 
@@ -596,7 +604,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Libs:     dependencyUsage.libs,
 			Flags:    buildCfg,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain.CXX(), linkOpts, append(objectFiles, dependencyUsage.artifacts...))
+		fingerprint, err := linkFingerprint(b.toolchain, b.toolchain.CXX(), linkOpts, append(objectFiles, dependencyUsage.artifacts...))
 		if err != nil {
 			return nil, err
 		}
@@ -625,7 +633,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Objects: objectFiles,
 			Output:  outputPath,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain.AR(), archiveOpts, objectFiles)
+		fingerprint, err := linkFingerprint(b.toolchain, b.toolchain.AR(), archiveOpts, objectFiles)
 		if err != nil {
 			return nil, err
 		}
@@ -668,7 +676,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Flags:            buildCfg,
 			SymbolVisibility: "default", // Could be configurable via target config later
 		}
-		fingerprint, err := linkFingerprint(b.toolchain.CXX(), sharedOpts, append(objectFiles, dependencyUsage.artifacts...))
+		fingerprint, err := linkFingerprint(b.toolchain, b.toolchain.CXX(), sharedOpts, append(objectFiles, dependencyUsage.artifacts...))
 		if err != nil {
 			return nil, err
 		}

@@ -65,6 +65,30 @@ targets: app: {name: "app", type: "executable", sources: ["main.c", "main.cpp"]}
 	}
 }
 
+func TestLoaderExtractsDockerToolchain(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "containerized"
+toolchain: {
+	compiler: "clang"
+	docker: {
+		image: "project-toolchain:20"
+		workdir: "/src"
+	}
+}
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Toolchain.Docker == nil || cfg.Toolchain.Docker.Image != "project-toolchain:20" || cfg.Toolchain.Docker.WorkDir != "/src" {
+		t.Fatalf("Docker toolchain = %+v", cfg.Toolchain.Docker)
+	}
+}
+
 func TestLoaderLoadsWholeCUEPackage(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{

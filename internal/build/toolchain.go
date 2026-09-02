@@ -1,11 +1,15 @@
 package build
 
 import (
+	"fmt"
+	"os/exec"
 	"sort"
 
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/all"
 	"github.com/loov/clue/internal/toolchain/clang"
+	toolchaindocker "github.com/loov/clue/internal/toolchain/docker"
 	"github.com/loov/clue/internal/toolchain/gcc"
 	"github.com/loov/clue/internal/toolchain/msvc"
 )
@@ -76,6 +80,69 @@ type (
 // Delegates to toolchain/all package factory.
 func NewToolchain(name string, target toolchain.Platform) (Toolchain, error) {
 	return all.NewToolchain(name, target)
+}
+
+// NewConfiguredToolchain creates a local or Docker-backed configured toolchain.
+func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform, projectDir string) (Toolchain, error) {
+	name := settings.Compiler
+	if name == "" {
+		name = "clang"
+	}
+	if settings.Docker == nil {
+		return NewToolchain(name, target)
+	}
+	var base Toolchain
+	switch name {
+	case "clang":
+		base = clang.New("clang", "clang++", "ar", target)
+	case "gcc":
+		base = gcc.New("gcc", "g++", "ar", target)
+	default:
+		return nil, fmt.Errorf("docker toolchains support clang and gcc, got %q", name)
+	}
+	return toolchaindocker.New(base, settings.Docker.Image, projectDir, settings.Docker.WorkDir, target)
+}
+
+type commandWrappingToolchain interface {
+	WrapCommand(name string, args []string, workDir string) (string, []string)
+}
+
+func wrapToolchainCommand(tc Toolchain, name string, args []string, workDir string) (string, []string) {
+	if wrapper, ok := tc.(commandWrappingToolchain); ok {
+		return wrapper.WrapCommand(name, args, workDir)
+	}
+	return name, args
+}
+
+// ToolchainCommand wraps a command for the configured toolchain backend.
+func ToolchainCommand(tc Toolchain, name string, args []string) (string, []string) {
+	return wrapToolchainCommand(tc, name, args, "")
+}
+
+func toolchainCommandWrapper(tc Toolchain) func(string, []string, string) (string, []string) {
+	if _, ok := tc.(commandWrappingToolchain); !ok {
+		return nil
+	}
+	return func(name string, args []string, workDir string) (string, []string) {
+		return wrapToolchainCommand(tc, name, args, workDir)
+	}
+}
+
+func toolIdentityPath(tc Toolchain, command string) string {
+	if provider, ok := tc.(interface{ HostTool() string }); ok {
+		return provider.HostTool()
+	}
+	if path, err := exec.LookPath(command); err == nil {
+		return path
+	}
+	return command
+}
+
+func toolchainCacheKey(tc Toolchain) string {
+	if provider, ok := tc.(interface{ CacheKey() string }); ok {
+		return provider.CacheKey()
+	}
+	return ""
 }
 
 // TryToolchains tries each toolchain name in order and returns the first

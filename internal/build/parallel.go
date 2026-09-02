@@ -119,6 +119,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 		StreamOutput: false, // Capture, don't stream
 		WorkDir:      "",
 		Environment:  toolchainEnvironment(p.toolchain),
+		WrapCommand:  toolchainCommandWrapper(p.toolchain),
 	})
 
 	// Create temporary compiler with capturing executor
