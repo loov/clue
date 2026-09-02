@@ -45,8 +45,11 @@ func Clean(opts CleanOptions) (*CleanResult, error) {
 	}
 
 	// Check if path exists
-	_, err := os.Stat(targetPath)
+	_, err := os.Lstat(targetPath)
 	existed := err == nil
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to inspect %s: %w", targetPath, err)
+	}
 
 	// Remove if it exists
 	if existed {

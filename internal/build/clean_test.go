@@ -148,6 +148,25 @@ func TestClean_NonExistent(t *testing.T) {
 	}
 }
 
+func TestClean_RemovesDanglingSymlink(t *testing.T) {
+	buildDir := t.TempDir()
+	link := filepath.Join(buildDir, "debug")
+	if err := os.Symlink(filepath.Join(buildDir, "missing"), link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	result, err := Clean(CleanOptions{BuildDir: buildDir, Variant: "debug"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Existed {
+		t.Error("dangling symlink should be reported as existing")
+	}
+	if _, err := os.Lstat(link); !os.IsNotExist(err) {
+		t.Errorf("dangling symlink was not removed: %v", err)
+	}
+}
+
 func TestClean_EmptyVariant(t *testing.T) {
 	// Test: Clean with empty variant and All=false should return error
 	tmpDir := t.TempDir()
