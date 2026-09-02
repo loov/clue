@@ -1,6 +1,7 @@
 package toolchain
 
 import (
+	"fmt"
 	"os"
 	"strings"
 )
@@ -28,7 +29,12 @@ func WriteResponseFile(args []string) (string, error) {
 	// Write each argument on its own line
 	// This avoids the 16,383 character per-line limit in some link.exe versions
 	for _, arg := range args {
-		if _, err := tmpfile.WriteString(arg + "\n"); err != nil {
+		if strings.ContainsAny(arg, "\r\n") {
+			tmpfile.Close()
+			os.Remove(tmpfile.Name())
+			return "", fmt.Errorf("response file argument contains a newline")
+		}
+		if _, err := tmpfile.WriteString(QuoteResponseFileArg(arg) + "\n"); err != nil {
 			tmpfile.Close()
 			os.Remove(tmpfile.Name())
 			return "", err
@@ -97,12 +103,28 @@ func EstimateCommandLength(args []string) int {
 // This is used for compatibility with MSVC response file parsing.
 func QuoteResponseFileArg(arg string) string {
 	// Check if quoting is needed
-	needsQuoting := strings.ContainsAny(arg, " \t\n\"")
+	needsQuoting := arg == "" || strings.ContainsAny(arg, " \t\n\"")
 	if !needsQuoting {
 		return arg
 	}
 
-	// Escape embedded quotes and wrap in double quotes
-	escaped := strings.ReplaceAll(arg, `"`, `\"`)
-	return `"` + escaped + `"`
+	var quoted strings.Builder
+	quoted.WriteByte('"')
+	backslashes := 0
+	for _, r := range arg {
+		if r == '\\' {
+			backslashes++
+			continue
+		}
+		if r == '"' {
+			quoted.WriteString(strings.Repeat(`\`, backslashes*2+1))
+		} else {
+			quoted.WriteString(strings.Repeat(`\`, backslashes))
+		}
+		backslashes = 0
+		quoted.WriteRune(r)
+	}
+	quoted.WriteString(strings.Repeat(`\`, backslashes*2))
+	quoted.WriteByte('"')
+	return quoted.String()
 }

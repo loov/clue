@@ -130,8 +130,9 @@ func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
 
 	// Verify each line matches the original arg
 	for i, line := range lines {
-		if line != args[i] {
-			t.Errorf("line %d = %q, want %q", i, line, args[i])
+		want := QuoteResponseFileArg(args[i])
+		if line != want {
+			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
 	}
 
@@ -233,8 +234,9 @@ func TestWriteResponseFile(t *testing.T) {
 	}
 
 	for i, line := range lines {
-		if line != args[i] {
-			t.Errorf("line %d = %q, want %q", i, line, args[i])
+		want := QuoteResponseFileArg(args[i])
+		if line != want {
+			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
 	}
 }
@@ -279,8 +281,9 @@ func TestResponseFileFormat_WindowsPaths(t *testing.T) {
 
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	for i, line := range lines {
-		if line != args[i] {
-			t.Errorf("line %d = %q, want %q", i, line, args[i])
+		want := QuoteResponseFileArg(args[i])
+		if line != want {
+			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
 	}
 }
@@ -308,8 +311,9 @@ func TestResponseFileFormat_SpecialCharacters(t *testing.T) {
 
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	for i, line := range lines {
-		if line != args[i] {
-			t.Errorf("line %d = %q, want %q", i, line, args[i])
+		want := QuoteResponseFileArg(args[i])
+		if line != want {
+			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
 	}
 }
@@ -339,10 +343,12 @@ func TestQuoteResponseFileArg_QuotingNeeded(t *testing.T) {
 		want  string
 	}{
 		{"path with spaces", `"path with spaces"`},
+		{"", `""`},
 		{"/I C:\\Program Files\\include", `"/I C:\Program Files\include"`},
 		{"has\ttab", `"has	tab"`},
 		{"has\nnewline", `"has
 newline"`},
+		{`C:\Program Files\`, `"C:\Program Files\\"`},
 	}
 
 	for _, tt := range tests {
@@ -350,6 +356,13 @@ newline"`},
 		if got != tt.want {
 			t.Errorf("QuoteResponseFileArg(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+func TestWriteResponseFileRejectsNewlines(t *testing.T) {
+	if path, err := WriteResponseFile([]string{"safe", "injected\n/flag"}); err == nil {
+		os.Remove(path)
+		t.Fatal("expected newline argument to be rejected")
 	}
 }
 
