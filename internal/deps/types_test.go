@@ -1,9 +1,18 @@
 package deps
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestGitDependencyCachePathCannotEscapeCache(t *testing.T) {
+	dep := NewGitDependency("repo", "https://example.com/repo.git", "../../outside", nil)
+	want := filepath.Join("project", ".deps", "git", "repo-.._.._outsid")
+	if got := dep.CachePath("project"); got != want {
+		t.Fatalf("CachePath() = %q, want %q", got, want)
+	}
+}
 
 func TestRemoteDependenciesRejectHTTP(t *testing.T) {
 	for _, dep := range []Dependency{

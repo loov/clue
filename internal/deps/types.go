@@ -61,7 +61,7 @@ func (g *GitDependency) Type() string {
 // CachePath returns the cache directory path for this dependency
 func (g *GitDependency) CachePath(baseDir string) string {
 	sanitized := sanitizeName(g.name)
-	shortRef := truncate(g.Ref, 12)
+	shortRef := strings.NewReplacer("/", "_", "\\", "_").Replace(truncate(g.Ref, 12))
 	return filepath.Join(baseDir, ".deps", "git", fmt.Sprintf("%s-%s", sanitized, shortRef))
 }
 
