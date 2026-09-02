@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -30,6 +29,9 @@ func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath strin
 	if !ok {
 		return fmt.Errorf("expected GitDependency, got %T", dep)
 	}
+	if err := gitDep.Validate(); err != nil {
+		return err
+	}
 
 	if f.verbose {
 		fmt.Printf("Cloning %s (%s)...\n", gitDep.Repo, gitDep.Ref)
@@ -41,37 +43,9 @@ func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath strin
 		progressWriter = os.Stdout
 	}
 
-	// Determine reference type (branch or tag)
-	var refName plumbing.ReferenceName
-	if isTagLike(gitDep.Ref) {
-		refName = plumbing.NewTagReferenceName(gitDep.Ref)
-	} else {
-		refName = plumbing.NewBranchReferenceName(gitDep.Ref)
-	}
-
-	// Try shallow clone first
-	opts := &git.CloneOptions{
-		URL:           gitDep.Repo,
-		Depth:         1,
-		SingleBranch:  true,
-		ReferenceName: refName,
-		Progress:      progressWriter,
-	}
-
-	repo, err := git.PlainCloneContext(ctx, targetPath, false, opts)
+	repo, err := cloneGitRef(ctx, gitDep.Repo, gitDep.Ref, targetPath, progressWriter)
 	if err != nil {
-		// If shallow clone fails, try full clone (for pinned commits)
-		if isShallowError(err) {
-			if f.verbose {
-				fmt.Printf("Shallow clone failed, trying full clone...\n")
-			}
-			opts.Depth = 0
-			repo, err = git.PlainCloneContext(ctx, targetPath, false, opts)
-		}
-
-		if err != nil {
-			return fmt.Errorf("failed to clone %s: %w", gitDep.Repo, err)
-		}
+		return fmt.Errorf("failed to clone %s at %s: %w", gitDep.Repo, gitDep.Ref, err)
 	}
 
 	// Get commit hash for verification
@@ -86,20 +60,41 @@ func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath strin
 	return nil
 }
 
-// isTagLike determines if a ref looks like a tag (starts with v or contains dots)
-func isTagLike(ref string) bool {
-	return strings.HasPrefix(ref, "v") || strings.Contains(ref, ".")
-}
-
-// isShallowError checks if the error indicates shallow clone is not supported
-func isShallowError(err error) bool {
-	if err == nil {
-		return false
+func cloneGitRef(ctx context.Context, url, ref, targetPath string, progress io.Writer) (_ *git.Repository, resultErr error) {
+	defer func() {
+		if resultErr != nil {
+			resultErr = errors.Join(resultErr, os.RemoveAll(targetPath))
+		}
+	}()
+	for _, name := range []plumbing.ReferenceName{
+		plumbing.NewBranchReferenceName(ref),
+		plumbing.NewTagReferenceName(ref),
+	} {
+		repo, err := git.PlainCloneContext(ctx, targetPath, false, &git.CloneOptions{
+			URL: url, Depth: 1, SingleBranch: true, ReferenceName: name, Progress: progress,
+		})
+		if err == nil {
+			return repo, nil
+		}
+		if err := os.RemoveAll(targetPath); err != nil {
+			return nil, fmt.Errorf("clean failed clone: %w", err)
+		}
 	}
 
-	// Check for common shallow clone error indicators
-	errStr := err.Error()
-	return strings.Contains(errStr, "reference not found") ||
-		strings.Contains(errStr, "couldn't find remote ref") ||
-		errors.Is(err, plumbing.ErrReferenceNotFound)
+	repo, err := git.PlainCloneContext(ctx, targetPath, false, &git.CloneOptions{URL: url, Progress: progress})
+	if err != nil {
+		return nil, err
+	}
+	hash, err := repo.ResolveRevision(plumbing.Revision(ref))
+	if err != nil {
+		return nil, err
+	}
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return nil, err
+	}
+	if err := worktree.Checkout(&git.CheckoutOptions{Hash: *hash}); err != nil {
+		return nil, err
+	}
+	return repo, nil
 }
