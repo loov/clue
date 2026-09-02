@@ -108,11 +108,11 @@ void func%d() {
 	var mainSource strings.Builder
 	mainSource.WriteString("#include <iostream>\n\n")
 	for i := 1; i <= 20; i++ {
-		mainSource.WriteString(fmt.Sprintf("void func%d();\n", i))
+		_, _ = fmt.Fprintf(&mainSource, "void func%d();\n", i)
 	}
 	mainSource.WriteString("\nint main() {\n")
 	for i := 1; i <= 20; i++ {
-		mainSource.WriteString(fmt.Sprintf("    func%d();\n", i))
+		_, _ = fmt.Fprintf(&mainSource, "    func%d();\n", i)
 	}
 	mainSource.WriteString("    return 0;\n}\n")
 	mainPath := filepath.Join(dir, "main.cpp")
@@ -164,7 +164,7 @@ func formatCueArray(items []string) string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(fmt.Sprintf("%q", item))
+		_, _ = fmt.Fprintf(&b, "%q", item)
 	}
 	b.WriteString("]")
 	return b.String()
