@@ -289,10 +289,11 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 
 	// Build configuration from target and variant
 	buildCfg := b.targetToConfig(target, opts.Config.ActiveVariant)
-	defines := append(append([]string(nil), target.Defines...), opts.Config.ActiveVariant.Defines...)
+	usage := config.CompileUsage(opts.Config, target)
+	defines := append(usage.Defines, opts.Config.ActiveVariant.Defines...)
 
 	// Collect include paths from dependencies
-	includes := append([]string{}, target.Includes...)
+	includes := usage.Includes
 	for _, dep := range target.Depends {
 		if depResult, isExternalDep := b.depResults[dep]; isExternalDep {
 			includes = append(includes, depResult.IncludePath)

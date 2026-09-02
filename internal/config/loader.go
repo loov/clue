@@ -59,6 +59,7 @@ type Target struct {
 	Includes []string
 	Defines  []string
 	Depends  []string
+	Public   Usage
 	Flags    Flags
 	// Semantic flags (new)
 	Optimize         string
@@ -70,6 +71,12 @@ type Target struct {
 	LTO              *bool
 	PIC              *bool
 	Coverage         *bool
+}
+
+// Usage contains compile requirements inherited by target consumers.
+type Usage struct {
+	Includes []string
+	Defines  []string
 }
 
 // Flags for compiler and linker
@@ -300,6 +307,10 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.Includes = extractStringList(val, "includes")
 	t.Defines = extractStringList(val, "defines")
 	t.Depends = extractStringList(val, "depends")
+	if public := val.LookupPath(cue.ParsePath("public")); public.Exists() {
+		t.Public.Includes = extractStringList(public, "includes")
+		t.Public.Defines = extractStringList(public, "defines")
+	}
 
 	if flags := val.LookupPath(cue.ParsePath("flags")); flags.Exists() {
 		t.Flags.Compiler = extractStringList(flags, "compiler")

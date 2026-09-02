@@ -79,12 +79,14 @@ targets: {
         type:    "static_library"
         sources: ["lib/math.cpp"]
         headers: ["lib/arithmetic.h"]
+        public: {
+            includes: ["lib"]
+        }
     }
     app: {
         name:     "app"
         type:     "executable"
         sources:  ["src/main.cpp"]
-        includes: ["lib"]
         depends:  ["mathlib"]
     }
 }

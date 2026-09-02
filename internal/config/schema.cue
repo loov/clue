@@ -9,6 +9,10 @@ package config
 	includes?: [...string]
 	defines?: [...string]
 	depends?: [...string]  // Other target names
+	public?: {
+		includes?: [...string]
+		defines?: [...string]
+	}
 
 	// Semantic build flags (human-friendly)
 	optimize?: "none" | "size" | "fast" | "aggressive"

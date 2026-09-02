@@ -108,8 +108,9 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 
 	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
-	target.Defines = append(append([]string(nil), target.Defines...), variant.Defines...)
-	target.Includes = append(append([]string(nil), target.Includes...), targetDependencyIncludes(opts.Config, target)...)
+	usage := config.CompileUsage(opts.Config, target)
+	target.Defines = append(usage.Defines, variant.Defines...)
+	target.Includes = append(usage.Includes, targetDependencyIncludes(opts.Config, target)...)
 	objectNames := buildpath.ObjectNames(target.Sources)
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
 		Includes: target.Includes,

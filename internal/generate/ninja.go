@@ -306,10 +306,11 @@ func runtimeLibraryFlags(output string, paths []string, platform toolchain.Platf
 func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain) ([]string, error) {
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
-	target.Defines = append(append([]string(nil), target.Defines...), variantConfig.Defines...)
+	usage := config.CompileUsage(opts.Config, target)
+	target.Defines = append(usage.Defines, variantConfig.Defines...)
 
 	// Collect include paths
-	includes := append(append([]string(nil), target.Includes...), targetDependencyIncludes(opts.Config, target)...)
+	includes := append(usage.Includes, targetDependencyIncludes(opts.Config, target)...)
 
 	// Build compiler flags
 	compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc)

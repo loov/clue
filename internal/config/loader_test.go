@@ -87,7 +87,7 @@ func TestTargetExtraction(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
-	config := `{"name": "multilib", "targets": {"util": {"name": "util", "type": "static_library", "sources": ["util.cpp"], "headers": ["util.h"], "includes": ["include/"], "sanitizers": ["address"], "lto": true, "pic": true, "coverage": true}, "app": {"name": "app", "type": "executable", "sources": ["main.cpp"], "depends": ["util"], "flags": {"compiler": ["-Wall", "-Wextra"]}}}}`
+	config := `{"name": "multilib", "targets": {"util": {"name": "util", "type": "static_library", "sources": ["util.cpp"], "headers": ["util.h"], "includes": ["include/"], "public": {"includes": ["public/"], "defines": ["UTIL_PUBLIC"]}, "sanitizers": ["address"], "lto": true, "pic": true, "coverage": true}, "app": {"name": "app", "type": "executable", "sources": ["main.cpp"], "depends": ["util"], "flags": {"compiler": ["-Wall", "-Wextra"]}}}}`
 	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -115,6 +115,10 @@ func TestTargetExtraction(t *testing.T) {
 	}
 	if len(util.Includes) != 1 || util.Includes[0] != "include/" {
 		t.Errorf("Expected util includes ['include/'], got %v", util.Includes)
+	}
+	if len(util.Public.Includes) != 1 || util.Public.Includes[0] != "public/" ||
+		len(util.Public.Defines) != 1 || util.Public.Defines[0] != "UTIL_PUBLIC" {
+		t.Errorf("public usage requirements were not extracted: %+v", util.Public)
 	}
 	if len(util.Sanitizers) != 1 || util.Sanitizers[0] != "address" ||
 		util.LTO == nil || !*util.LTO || util.PIC == nil || !*util.PIC ||
