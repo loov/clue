@@ -191,3 +191,41 @@ func TestBuildDisambiguatesDuplicateSourceBasenames(t *testing.T) {
 		t.Fatalf("expected two distinct objects, got %v", objects)
 	}
 }
+
+func TestBuildLinksTransitiveStaticLibraries(t *testing.T) {
+	testclue.SkipIfNoClangPP(t)
+
+	tmpDir := t.TempDir()
+	sources := map[string]string{
+		"bottom.cpp": `extern "C" int bottom() { return 42; }`,
+		"middle.cpp": `extern "C" int bottom(); extern "C" int middle() { return bottom(); }`,
+		"main.cpp":   `extern "C" int middle(); int main() { return middle() - 42; }`,
+	}
+	for name, contents := range sources {
+		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := &config.Config{
+		Toolchain: config.Toolchain{Compiler: "clang", Std: "c++17"},
+		Targets: map[string]config.Target{
+			"bottom": {Name: "bottom", Type: "static_library", Sources: []string{filepath.Join(tmpDir, "bottom.cpp")}},
+			"middle": {Name: "middle", Type: "static_library", Sources: []string{filepath.Join(tmpDir, "middle.cpp")}, Depends: []string{"bottom"}},
+			"app":    {Name: "app", Type: "executable", Sources: []string{filepath.Join(tmpDir, "main.cpp")}, Depends: []string{"middle"}},
+		},
+	}
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityQuiet, 2, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildDir := filepath.Join(tmpDir, ".build")
+	if _, err := builder.Build(context.Background(), Options{
+		Config: cfg, Variant: "debug", BuildDir: buildDir, Verbosity: VerbosityQuiet,
+		Targets: []string{"app"}, Jobs: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command(filepath.Join(buildDir, "debug", "bin", "app")).Run(); err != nil {
+		t.Fatalf("transitively linked executable failed: %v", err)
+	}
+}
