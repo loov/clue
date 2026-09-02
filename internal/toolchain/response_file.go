@@ -1,6 +1,7 @@
 package toolchain
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -19,32 +20,38 @@ const ResponseFileThreshold = 8000
 // Response files work with cl.exe, link.exe, and lib.exe using the same syntax:
 //
 //	tool.exe @response.rsp
-func WriteResponseFile(args []string) (string, error) {
+func WriteResponseFile(args []string) (_ string, resultErr error) {
 	// Create temp file with .rsp extension (standard for MSVC response files)
 	tmpfile, err := os.CreateTemp("", "clue-*.rsp")
 	if err != nil {
 		return "", err
 	}
+	closed := false
+	defer func() {
+		if resultErr != nil {
+			if !closed {
+				resultErr = errors.Join(resultErr, tmpfile.Close())
+			}
+			resultErr = errors.Join(resultErr, os.Remove(tmpfile.Name()))
+		}
+	}()
 
 	// Write each argument on its own line
 	// This avoids the 16,383 character per-line limit in some link.exe versions
 	for _, arg := range args {
 		if strings.ContainsAny(arg, "\r\n") {
-			tmpfile.Close()
-			os.Remove(tmpfile.Name())
 			return "", fmt.Errorf("response file argument contains a newline")
 		}
 		if _, err := tmpfile.WriteString(QuoteResponseFileArg(arg) + "\n"); err != nil {
-			tmpfile.Close()
-			os.Remove(tmpfile.Name())
 			return "", err
 		}
 	}
 
 	if err := tmpfile.Close(); err != nil {
-		os.Remove(tmpfile.Name())
+		closed = true
 		return "", err
 	}
+	closed = true
 
 	return tmpfile.Name(), nil
 }
