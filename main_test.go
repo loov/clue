@@ -370,7 +370,11 @@ func TestBuild_SysLibs(t *testing.T) {
 	}
 
 	// Clean first
-	_ = exec.Command(binary, "--all", "clean").Run()
+	clean := exec.Command(binary, "--all", "clean")
+	clean.Dir = testdataDir
+	if out, err := clean.CombinedOutput(); err != nil {
+		t.Fatalf("Clean failed: %v\n%s", err, out)
+	}
 
 	// Build with verbose flag to see linker command
 	cmd = exec.Command(binary, "-v", "build")
