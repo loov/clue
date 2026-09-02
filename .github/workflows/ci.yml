@@ -25,3 +25,18 @@ jobs:
           echo /usr/lib/llvm-22/bin >> "$GITHUB_PATH"
       - run: make lint
       - run: go test -race ./...
+
+  platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+      - run: go test ./...
