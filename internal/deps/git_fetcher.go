@@ -37,13 +37,7 @@ func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath strin
 		fmt.Printf("Cloning %s (%s)...\n", gitDep.Repo, gitDep.Ref)
 	}
 
-	// Prepare progress writer
-	var progressWriter io.Writer
-	if f.verbose {
-		progressWriter = os.Stdout
-	}
-
-	repo, err := cloneGitRef(ctx, gitDep.Repo, gitDep.Ref, targetPath, progressWriter)
+	repo, err := cloneGitRef(ctx, gitDep.Repo, gitDep.Ref, targetPath, f.progressWriter())
 	if err != nil {
 		return fmt.Errorf("failed to clone %s at %s: %w", gitDep.Repo, gitDep.Ref, err)
 	}
@@ -57,6 +51,39 @@ func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath strin
 		}
 	}
 
+	return nil
+}
+
+// Update fast-forwards a cached branch. Tags and commit hashes stay pinned.
+func (f *GitFetcher) Update(ctx context.Context, targetPath string) (bool, error) {
+	repo, err := git.PlainOpen(targetPath)
+	if err != nil {
+		return false, err
+	}
+	head, err := repo.Head()
+	if err != nil {
+		return false, err
+	}
+	if !head.Name().IsBranch() {
+		return false, nil
+	}
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return false, err
+	}
+	err = worktree.PullContext(ctx, &git.PullOptions{
+		RemoteName: "origin", ReferenceName: head.Name(), SingleBranch: true, Progress: f.progressWriter(),
+	})
+	if errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func (f *GitFetcher) progressWriter() io.Writer {
+	if f.verbose {
+		return os.Stdout
+	}
 	return nil
 }
 

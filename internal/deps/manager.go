@@ -3,6 +3,7 @@ package deps
 import (
 	"context"
 	"fmt"
+	"sort"
 )
 
 // Manager coordinates dependency fetching and building
@@ -180,6 +181,45 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 	}
 
 	fmt.Printf("Dependency %s ready\n", name)
+	return nil
+}
+
+// UpdateAll fetches missing Git dependencies and fast-forwards cached branches.
+func (m *Manager) UpdateAll(ctx context.Context) error {
+	names := make([]string, 0, len(m.resolver.dependencies))
+	for name := range m.resolver.dependencies {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	updated := 0
+	for _, name := range names {
+		dep := m.resolver.dependencies[name]
+		if dep.Type() != "git" {
+			continue
+		}
+		if !m.cache.Has(dep) {
+			if err := m.FetchOne(ctx, name); err != nil {
+				return err
+			}
+			updated++
+			continue
+		}
+		changed, err := m.gitFetcher.Update(ctx, m.cache.Path(dep))
+		if err != nil {
+			return fmt.Errorf("failed to update %s: %w", name, err)
+		}
+		if changed {
+			if err := m.cache.MarkFetched(dep); err != nil {
+				return err
+			}
+			fmt.Printf("Updated %s\n", name)
+			updated++
+		}
+	}
+	if updated == 0 {
+		fmt.Println("All dependencies are up to date")
+	}
 	return nil
 }
 

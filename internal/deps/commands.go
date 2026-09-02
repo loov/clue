@@ -140,8 +140,11 @@ func RunClean(deps map[string]Dependency, name string) error {
 	return nil
 }
 
-// RunUpdate checks for dependency updates (placeholder for Phase 6)
-func RunUpdate(_ context.Context, _ map[string]Dependency) error {
-	fmt.Println("Dependency update checking not yet implemented")
-	return nil
+// RunUpdate checks out the latest commit of configured Git branches.
+func RunUpdate(ctx context.Context, dependencies map[string]Dependency) error {
+	mgr, err := NewManager(".", dependencies, ManagerOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create manager: %w", err)
+	}
+	return mgr.UpdateAll(ctx)
 }
