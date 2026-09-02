@@ -202,11 +202,12 @@ func (w *Watcher) fireRebuild() {
 }
 
 // IsRelevantFile returns true if the file should trigger a rebuild.
-// Matches: .c, .cpp, .h, .hpp, .cue (case insensitive)
+// Matches supported C/C++ sources, headers, modules, and CUE files.
 func IsRelevantFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".c", ".cpp", ".h", ".hpp", ".cue":
+	case ".c", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp",
+		".h", ".hpp", ".hh", ".hxx", ".h++", ".cue":
 		return true
 	default:
 		return false

@@ -2,7 +2,7 @@
 //
 // The watch package wraps fsnotify to provide file watching with configurable debounce windows,
 // batching rapid consecutive changes into a single rebuild trigger. It distinguishes between
-// source file changes (.c, .cpp, .h, .hpp) and configuration changes (.cue) to enable different
+// C/C++ source and header changes and configuration changes (.cue) to enable different
 // rebuild strategies.
 //
 // Key types:

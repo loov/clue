@@ -40,8 +40,10 @@ func TestIsRelevantFile(t *testing.T) {
 		{"hidden c file", ".hidden.c", true},
 		{"uppercase CPP", "Main.CPP", true}, // case insensitive
 		{"uppercase H", "Header.H", true},
-		{"cc extension", "main.cc", false},  // .cc not in our list
-		{"cxx extension", "main.cxx", false}, // .cxx not in our list
+		{"cc extension", "main.cc", true},
+		{"cxx extension", "main.cxx", true},
+		{"module extension", "module.cppm", true},
+		{"module interface", "module.ixx", true},
 	}
 
 	for _, tt := range tests {
@@ -56,11 +58,10 @@ func TestIsRelevantFile(t *testing.T) {
 
 func TestIsRelevantFileExtensions(t *testing.T) {
 	// Exhaustive extension test
-	relevantExts := []string{".c", ".cpp", ".h", ".hpp", ".cue"}
+	relevantExts := []string{".c", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp", ".h", ".hpp", ".hh", ".hxx", ".h++", ".cue"}
 	irrelevantExts := []string{".o", ".a", ".so", ".dylib", ".dll", ".exe",
 		".s", ".asm", ".txt", ".md", ".py", ".go", ".rs", ".java",
-		".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg",
-		".cc", ".cxx", ".hxx", ".hh"}
+		".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg"}
 
 	for _, ext := range relevantExts {
 		t.Run("relevant"+ext, func(t *testing.T) {
@@ -353,9 +354,9 @@ func TestWatcherMixedRelevantAndNonRelevant(t *testing.T) {
 
 	// Mix of relevant and non-relevant files
 	watcher.HandleEventPath("main.o")     // ignored
-	watcher.HandleEventPath("README.md")   // ignored
-	watcher.HandleEventPath("actual.cpp")  // relevant
-	watcher.HandleEventPath("Makefile")    // ignored
+	watcher.HandleEventPath("README.md")  // ignored
+	watcher.HandleEventPath("actual.cpp") // relevant
+	watcher.HandleEventPath("Makefile")   // ignored
 
 	time.Sleep(100 * time.Millisecond)
 
