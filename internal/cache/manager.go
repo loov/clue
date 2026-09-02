@@ -2,6 +2,7 @@ package cache
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,8 +92,7 @@ func atomicWrite(path string, data []byte) error {
 	}
 
 	if err := os.Rename(tempFile, path); err != nil {
-		os.Remove(tempFile) // Clean up on failure
-		return err
+		return errors.Join(err, os.Remove(tempFile))
 	}
 
 	return nil
