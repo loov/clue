@@ -3,6 +3,7 @@ package build
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -106,6 +107,11 @@ func (p *ParallelCompiler) CompileParallel(ctx context.Context, sources []Compil
 
 	// Print all buffered outputs atomically
 	p.printResults(collected)
+	if err == nil && p.keepGoing {
+		for _, result := range collected {
+			err = errors.Join(err, result.Error)
+		}
+	}
 
 	return collected, err
 }

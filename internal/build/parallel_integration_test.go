@@ -355,11 +355,10 @@ targets: {
 		KeepGoing: true,
 	}
 
-	result2, err2 := builder2.Build(context.Background(), opts2)
-	// With keep-going, the build may succeed (creating output from valid files)
-	// or may report error if compilation phase returns error even with keep-going.
-	// The key verification is that valid files were compiled.
-	t.Logf("keep-going build err: %v, result: %v", err2, result2)
+	_, err2 := builder2.Build(context.Background(), opts2)
+	if err2 == nil {
+		t.Error("keep-going build should report the compilation failure")
+	}
 
 	// Check that good.cpp and another.cpp compiled successfully
 	objDir := filepath.Join(dir, "build2", "debug", "keepgoingtest", "obj")
@@ -370,9 +369,9 @@ targets: {
 		t.Error("another.cpp should compile even with keep-going")
 	}
 
-	// Verify the library was created (from the good files)
+	// A failed target must not publish a partial library.
 	libPath := filepath.Join(dir, "build2", "debug", "lib", "libkeepgoingtest.a")
-	if _, err := os.Stat(libPath); err != nil {
-		t.Errorf("library should be created from valid files: %v", err)
+	if _, err := os.Stat(libPath); !os.IsNotExist(err) {
+		t.Errorf("partial library should not be created, stat error: %v", err)
 	}
 }

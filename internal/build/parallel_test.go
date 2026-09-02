@@ -288,9 +288,9 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 		t.Errorf("good2.o was not created despite keep-going")
 	}
 
-	// Keep-going with at least one error should still result in overall nil (no cancellation)
-	// since we're returning nil from g.Go() when keepGoing is true
-	_ = err
+	if err == nil {
+		t.Error("keep-going should report an overall error after attempting every file")
+	}
 }
 
 func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {

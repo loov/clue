@@ -4,6 +4,7 @@ package build
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -292,6 +293,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 
 	// Compilation - handle modules specially to ensure correct order
 	var compiledObjects []string
+	var compileErr error
 	if len(toCompile) > 0 {
 		// Check if we have modules that need sequential compilation
 		if len(orderedModules) > 0 {
@@ -334,11 +336,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				}
 
 				results, err := b.parallelCompiler.CompileParallel(ctx, []CompileOptions{opt})
-				if err != nil && !opts.KeepGoing {
-					return &TargetResult{
-						Name: target.Name, Type: target.Type, Output: outputPath,
-						Sources: len(target.Sources), Duration: time.Since(start), Success: false,
-					}, err
+				if err != nil {
+					compileErr = errors.Join(compileErr, err)
+					if !opts.KeepGoing {
+						return &TargetResult{
+							Name: target.Name, Type: target.Type, Output: outputPath,
+							Sources: len(target.Sources), Duration: time.Since(start), Success: false,
+						}, err
+					}
 				}
 				for _, r := range results {
 					if r.Error == nil {
@@ -369,11 +374,14 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				}
 
 				results, err := b.parallelCompiler.CompileParallel(ctx, otherCompile)
-				if err != nil && !opts.KeepGoing {
-					return &TargetResult{
-						Name: target.Name, Type: target.Type, Output: outputPath,
-						Sources: len(target.Sources), Duration: time.Since(start), Success: false,
-					}, err
+				if err != nil {
+					compileErr = errors.Join(compileErr, err)
+					if !opts.KeepGoing {
+						return &TargetResult{
+							Name: target.Name, Type: target.Type, Output: outputPath,
+							Sources: len(target.Sources), Duration: time.Since(start), Success: false,
+						}, err
+					}
 				}
 				for _, r := range results {
 					if r.Error == nil {
@@ -389,7 +397,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		} else {
 			// No modules - standard parallel compilation
 			results, err := b.parallelCompiler.CompileParallel(ctx, toCompile)
-			if err != nil && !opts.KeepGoing {
+			if err != nil {
 				return &TargetResult{
 					Name: target.Name, Type: target.Type, Output: outputPath,
 					Sources: len(target.Sources), Duration: time.Since(start), Success: false,
@@ -409,6 +417,12 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				}
 			}
 		}
+	}
+	if compileErr != nil {
+		return &TargetResult{
+			Name: target.Name, Type: target.Type, Output: outputPath,
+			Sources: len(target.Sources), Duration: time.Since(start), Success: false,
+		}, compileErr
 	}
 
 	// Combine pre-existing and newly compiled objects
