@@ -45,7 +45,7 @@ func registerFlags(fs *flag.FlagSet, opts *cliOptions) {
 	fs.BoolVar(&opts.rebuildAll, "rebuild-all", false, "Force rebuild of all files")
 	fs.IntVar(&opts.jobs, "j", 0, "Number of parallel jobs (0 = half of CPU cores, -1 = unlimited)")
 	fs.BoolVar(&opts.keepGoing, "keep-going", false, "Continue building despite errors")
-	fs.StringVar(&opts.target, "target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64)")
+	fs.StringVar(&opts.target, "target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64, windows-amd64)")
 	fs.BoolVar(&opts.profile, "profile", false, "Enable build profiling")
 	fs.BoolVar(&opts.saveProfile, "save-profile", false, "Save profile to profile.json in build directory")
 	fs.IntVar(&opts.top, "top", 10, "Number of slowest files to show (used with -v)")

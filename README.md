@@ -60,7 +60,7 @@ clue build       # Build project
 - `-quiet` - Suppress all non-error output
 - `-rebuild-all` - Force rebuild of all files
 - `-keep-going` - Continue building despite errors
-- `-target <platform>` - Cross-compile for target platform (e.g., linux-arm64, darwin-amd64)
+- `-target <platform>` - Cross-compile for target platform (e.g., linux-arm64, darwin-amd64, windows-amd64)
 
 ## Example Configurations
 
