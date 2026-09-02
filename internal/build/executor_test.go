@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -87,13 +88,22 @@ func TestExecutor_RunCommand_CaptureOutput(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	result, err := executor.RunCommand(context.Background(), "sh", "-c", "echo -n captured")
+	result, err := executor.RunCommand(
+		context.Background(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "emit",
+	)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
 	if result.Stdout != "captured" {
 		t.Errorf("expected stdout 'captured', got: %s", result.Stdout)
+	}
+}
+
+func TestExecutorOutputHelper(t *testing.T) {
+	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "emit" {
+		fmt.Print("captured")
+		os.Exit(0)
 	}
 }
 
