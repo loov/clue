@@ -3,6 +3,7 @@ package build
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -180,7 +181,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 }
 
 // compileSourceMSVC compiles using MSVC toolchain (cl.exe)
-func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, start time.Time) (*CompileResult, error) {
+func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, start time.Time) (_ *CompileResult, resultErr error) {
 	// Build MSVC-style command: cl.exe /nologo /c source.cpp /Fooutput.obj /Iinclude
 	var args []string
 
@@ -227,7 +228,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 		}, fmt.Errorf("failed to create response file: %w", err)
 	}
 	if cleanupPath != "" {
-		defer os.Remove(cleanupPath)
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
 	}
 
 	// Get compiler command

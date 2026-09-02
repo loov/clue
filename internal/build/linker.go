@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -201,7 +202,7 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 }
 
 // linkExecutableMSVC links using MSVC toolchain (link.exe)
-func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start time.Time) (*LinkResult, error) {
+func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start time.Time) (_ *LinkResult, resultErr error) {
 	// Build MSVC-style command: link.exe /nologo objects... /OUT:output.exe libs...
 	var args []string
 
@@ -242,7 +243,7 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
 	if cleanupPath != "" {
-		defer os.Remove(cleanupPath)
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
 	}
 
 	// Execute link.exe
@@ -313,7 +314,7 @@ func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions
 }
 
 // createStaticLibraryMSVC creates a static library using lib.exe
-func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOptions, start time.Time) (*LinkResult, error) {
+func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOptions, start time.Time) (_ *LinkResult, resultErr error) {
 	// Build lib.exe command: lib.exe /nologo /OUT:output.lib objects...
 	var args []string
 
@@ -332,7 +333,7 @@ func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOption
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
 	if cleanupPath != "" {
-		defer os.Remove(cleanupPath)
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
 	}
 
 	// Execute lib.exe
@@ -438,7 +439,7 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 }
 
 // linkSharedLibraryMSVC links a DLL using MSVC link.exe
-func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (*LinkResult, error) {
+func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (_ *LinkResult, resultErr error) {
 	// Build MSVC-style command: link.exe /nologo /DLL objects... /OUT:output.dll /IMPLIB:output.lib
 	var args []string
 
@@ -487,7 +488,7 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
 	if cleanupPath != "" {
-		defer os.Remove(cleanupPath)
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
 	}
 
 	// Execute link.exe
