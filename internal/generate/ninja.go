@@ -462,7 +462,7 @@ func toolchainEnvironmentPaths(tc toolchain.Toolchain, key string) []string {
 		}
 	}
 	var paths []string
-	for _, path := range strings.Split(value, ";") {
+	for path := range strings.SplitSeq(value, ";") {
 		if path != "" {
 			paths = append(paths, path)
 		}

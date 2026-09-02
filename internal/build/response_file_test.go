@@ -90,7 +90,7 @@ func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
 	// Create args that exceed 8000 characters
 	// Each long path is ~100 chars, so we need >80 of them
 	var args []string
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		// Create paths like "/very/long/path/to/include/directory/number/00/header.h"
 		args = append(args, strings.Repeat("x", 100))
 	}

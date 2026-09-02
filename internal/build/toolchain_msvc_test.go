@@ -2,6 +2,7 @@ package build
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -210,13 +211,13 @@ func TestMSVCToolchain_CompilerFlags(t *testing.T) {
 			flagStr := strings.Join(flags, " ")
 
 			for _, want := range tt.wantFlags {
-				if !containsFlag(flags, want) {
+				if !slices.Contains(flags, want) {
 					t.Errorf("CompilerFlags() missing %q, got: %s", want, flagStr)
 				}
 			}
 
 			for _, notWant := range tt.notWantFlags {
-				if containsFlag(flags, notWant) {
+				if slices.Contains(flags, notWant) {
 					t.Errorf("CompilerFlags() should not contain %q, got: %s", notWant, flagStr)
 				}
 			}
@@ -285,26 +286,16 @@ func TestMSVCToolchain_LinkerFlags(t *testing.T) {
 			flagStr := strings.Join(flags, " ")
 
 			for _, want := range tt.wantFlags {
-				if !containsFlag(flags, want) {
+				if !slices.Contains(flags, want) {
 					t.Errorf("LinkerFlags() missing %q, got: %s", want, flagStr)
 				}
 			}
 
 			for _, notWant := range tt.notWantFlags {
-				if containsFlag(flags, notWant) {
+				if slices.Contains(flags, notWant) {
 					t.Errorf("LinkerFlags() should not contain %q, got: %s", notWant, flagStr)
 				}
 			}
 		})
 	}
-}
-
-// containsFlag checks if a flag is present in the flags slice
-func containsFlag(flags []string, flag string) bool {
-	for _, f := range flags {
-		if f == flag {
-			return true
-		}
-	}
-	return false
 }

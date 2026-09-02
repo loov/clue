@@ -3,6 +3,7 @@ package gccish
 import (
 	"io"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/loov/clue/internal/toolchain"
@@ -342,10 +343,5 @@ func TestSanitizerFlags_Empty(t *testing.T) {
 
 // containsFlag checks if flags contains the given flag.
 func containsFlag(flags []string, flag string) bool {
-	for _, f := range flags {
-		if f == flag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(flags, flag)
 }

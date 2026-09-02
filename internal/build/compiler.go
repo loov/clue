@@ -316,7 +316,7 @@ func parseShowIncludes(stdout string) []string {
 	var deps []string
 	prefix := "Note: including file:"
 
-	for _, line := range strings.Split(stdout, "\n") {
+	for line := range strings.SplitSeq(stdout, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, prefix) {
 			// Extract path after prefix

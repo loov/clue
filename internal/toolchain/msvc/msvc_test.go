@@ -1,6 +1,7 @@
 package msvc
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -400,10 +401,5 @@ func TestToolchain_Environment_NilInstallation(t *testing.T) {
 
 // containsFlag checks if a flag is present in the flags slice
 func containsFlag(flags []string, flag string) bool {
-	for _, f := range flags {
-		if f == flag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(flags, flag)
 }
