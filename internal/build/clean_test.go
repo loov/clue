@@ -167,3 +167,27 @@ func TestClean_EmptyVariant(t *testing.T) {
 		t.Errorf("Expected error to mention variant requirement, got: %v", err)
 	}
 }
+
+func TestClean_RejectsUnsafeVariant(t *testing.T) {
+	tmpDir := t.TempDir()
+	outside := filepath.Join(tmpDir, "outside")
+	if err := os.Mkdir(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, variant := range []string{"../outside", "/outside", "nested/debug", "."} {
+		t.Run(variant, func(t *testing.T) {
+			_, err := Clean(CleanOptions{
+				BuildDir: filepath.Join(tmpDir, ".build"),
+				Variant:  variant,
+			})
+			if err == nil {
+				t.Fatalf("Clean accepted unsafe variant %q", variant)
+			}
+		})
+	}
+
+	if _, err := os.Stat(outside); err != nil {
+		t.Errorf("Clean touched a path outside the build directory: %v", err)
+	}
+}

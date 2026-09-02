@@ -261,6 +261,9 @@ func ExtractZip(archivePath, targetDir string) error {
 // StripPrefix moves contents from dir/prefix/* to dir/* and removes the prefix directory
 // Common for GitHub release tarballs that extract to a versioned directory
 func StripPrefix(dir, prefix string) error {
+	if !filepath.IsLocal(prefix) {
+		return fmt.Errorf("invalid strip prefix %q", prefix)
+	}
 	prefixPath := filepath.Join(dir, prefix)
 
 	// Check if prefix directory exists

@@ -38,6 +38,9 @@ func Clean(opts CleanOptions) (*CleanResult, error) {
 		if opts.Variant == "" {
 			return nil, fmt.Errorf("variant must be specified when not using --all")
 		}
+		if opts.Variant == "." || !filepath.IsLocal(opts.Variant) || filepath.Base(opts.Variant) != opts.Variant {
+			return nil, fmt.Errorf("invalid variant %q", opts.Variant)
+		}
 		targetPath = filepath.Join(opts.BuildDir, opts.Variant)
 	}
 

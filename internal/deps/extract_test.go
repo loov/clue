@@ -261,6 +261,29 @@ func TestStripPrefix(t *testing.T) {
 	}
 }
 
+func TestStripPrefixRejectsTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, "target")
+	outsideDir := filepath.Join(tmpDir, "outside")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outsideDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outsideFile := filepath.Join(outsideDir, "keep.txt")
+	if err := os.WriteFile(outsideFile, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := StripPrefix(targetDir, "../outside"); err == nil {
+		t.Fatal("StripPrefix accepted a path outside the extraction directory")
+	}
+	if _, err := os.Stat(outsideFile); err != nil {
+		t.Errorf("StripPrefix touched a path outside the extraction directory: %v", err)
+	}
+}
+
 func TestDetectArchiveType(t *testing.T) {
 	tests := []struct {
 		path     string
