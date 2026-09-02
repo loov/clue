@@ -18,7 +18,9 @@ go build -o clue .
 
 ## Quick Start
 
-Create a `clue.cue` file in your project directory:
+For a conventional project, run `clue build` without a configuration file. Clue treats each directory containing C or C++ sources as a target; a `main.c` or `main.cpp` makes that target an executable, while other source directories become static libraries. Project headers provide include roots, and internal includes infer dependencies between those targets.
+
+Generated, dependency, and hidden directories are skipped. Add a `clue.cue` file when target boundaries or dependencies cannot be inferred from those conventions; an explicit file always takes precedence:
 
 ```cue
 name: "hello"

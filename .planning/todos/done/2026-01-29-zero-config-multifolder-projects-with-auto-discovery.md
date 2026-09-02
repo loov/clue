@@ -19,10 +19,4 @@ This would make the "drop your code and build" experience possible, similar to h
 
 ## Solution
 
-TBD — Key design questions include:
-- What conventions to adopt (e.g., directory = target, `main.cpp` = executable)
-- How to handle ambiguous cases (multiple `main()` in one dir, header-only libs)
-- Whether auto-discovery is the default or opt-in
-- How to let users override/extend auto-discovered configuration
-- Performance of `#include` scanning for dependency inference
-- Interaction with existing explicit CUE configuration (hybrid mode?)
+When `clue.cue` is absent, Clue recursively discovers C and C++ sources. Each source-bearing directory becomes a target, with `main.*` selecting an executable and other directories becoming static libraries. Header locations establish include roots, and resolvable quoted or angle-bracket includes infer internal library dependencies. Generated, dependency, and hidden directories are skipped. An explicit `clue.cue` remains authoritative for non-conventional layouts.

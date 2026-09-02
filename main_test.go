@@ -127,7 +127,7 @@ func TestVersionFlag(t *testing.T) {
 	}
 }
 
-func TestValidateNoConfigError(t *testing.T) {
+func TestValidateEmptyProjectError(t *testing.T) {
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
 
@@ -139,13 +139,48 @@ func TestValidateNoConfigError(t *testing.T) {
 	// Create empty directory (no clue.cue)
 	emptyDir := t.TempDir()
 
-	// Should fail with "no CUE configuration files found"
+	// An empty project still fails with an actionable discovery error.
 	cmd = exec.Command(binary, "-dir", emptyDir, "validate")
 	out, _ := cmd.CombinedOutput()
 
 	output := string(out)
-	if !strings.Contains(output, "no CUE configuration files found") {
-		t.Errorf("Expected 'no CUE configuration files found' in output, got:\n%s", output)
+	if !strings.Contains(output, "no C/C++ source or header files found") {
+		t.Errorf("Expected a source discovery error, got:\n%s", output)
+	}
+}
+
+func TestBuildWithoutConfig(t *testing.T) {
+	for _, tool := range []string{"clang", "clang++", "ar"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s is not installed", tool)
+		}
+	}
+
+	tempDir := t.TempDir()
+	binary := filepath.Join(tempDir, "clue")
+	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build: %v\n%s", err, out)
+	}
+
+	project := t.TempDir()
+	files := map[string]string{
+		"app/main.cpp":       "#include <lib/math.h>\nint main() { return add(1, 2) == 3 ? 0 : 1; }\n",
+		"lib/math.cpp":       "#include \"lib/math.h\"\nint add(int a, int b) { return a + b; }\n",
+		"include/lib/math.h": "int add(int, int);\n",
+	}
+	for name, contents := range files {
+		path := filepath.Join(project, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := exec.Command(binary, "-dir", project, "-quiet", "build")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("zero-config build failed: %v\n%s", err, out)
 	}
 }
 

@@ -36,7 +36,7 @@ type cliOptions struct {
 
 func registerFlags(fs *flag.FlagSet, opts *cliOptions) {
 	fs.StringVar(&opts.variant, "variant", "", "Build variant (debug, release, or custom)")
-	fs.StringVar(&opts.dir, "dir", ".", "Directory containing clue.cue")
+	fs.StringVar(&opts.dir, "dir", ".", "Project directory")
 	fs.BoolVar(&opts.noColor, "no-color", false, "Disable colored output")
 	fs.BoolVar(&opts.quiet, "quiet", false, "Suppress all non-error output")
 	fs.BoolVar(&opts.verbose, "v", false, "Verbose output")
@@ -165,7 +165,7 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 	}
 	// Load configuration
 	loader := config.NewLoader()
-	cfg, err := loader.LoadForTarget(dir, platform)
+	cfg, err := loader.LoadOrDiscoverForTarget(dir, platform)
 	if err != nil {
 		return nil, "", toolchain.Platform{}, err
 	}
@@ -499,7 +499,7 @@ func runGenerate(dir, variant, target string, args []string) int {
 
 	// Load config without applying variant - generators handle variants internally
 	loader := config.NewLoader()
-	cfg, err := loader.LoadForTarget(dir, targetPlatform)
+	cfg, err := loader.LoadOrDiscoverForTarget(dir, targetPlatform)
 	if err != nil {
 		printError(err)
 		return 1
@@ -678,6 +678,8 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	}
 
 	buildCuePath := filepath.Join(dir, "clue.cue")
+	_, configErr := os.Stat(buildCuePath)
+	autoDiscover := os.IsNotExist(configErr)
 
 	// Track current build cancel function
 	var currentCancel context.CancelFunc
@@ -696,8 +698,8 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 
 		// Print timestamp and trigger
 		now := time.Now().Format("15:04:05")
-		if isConfigChange {
-			fmt.Printf("[%s] Config changed: %s - reloading...\n", now, trigger)
+		if isConfigChange || autoDiscover {
+			fmt.Printf("[%s] Project changed: %s - reloading...\n", now, trigger)
 			// Reload config
 			var err error
 			cfg, selectedVariant, targetPlatform, err = loadConfig(dir, variant, target, verbosity)
@@ -706,6 +708,8 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 				buildMu.Unlock()
 				return
 			}
+			_, configErr = os.Stat(buildCuePath)
+			autoDiscover = os.IsNotExist(configErr)
 		} else {
 			fmt.Printf("[%s] Change detected: %s\n", now, trigger)
 		}
