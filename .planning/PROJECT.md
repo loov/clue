@@ -90,9 +90,9 @@ Minimal configuration for common cases, with CUE's type system catching config e
 
 ## Context
 
-**Current state:** Shipped v0.3.0 with 27,833 LOC Go across 17 packages. internal/build refactored to core orchestration (~3,500 lines); toolchain, cache, profile, watch extracted to focused packages.
+**Current state:** Shipped v0.3.0. Toolchain, cache, profile, and watch behavior live in focused internal packages, while internal/build coordinates compilation and linking.
 
-**Tech stack:** Go 1.23, CUE for configuration, xxh3 for content hashing, errgroup for parallel compilation, fsnotify for watch mode.
+**Tech stack:** Go 1.25, CUE for configuration, xxh3 for content hashing, errgroup for parallel compilation, fsnotify for watch mode.
 
 **Capabilities:**
 - CUE-based validated configuration with schema inheritance
@@ -115,9 +115,7 @@ Minimal configuration for common cases, with CUE's type system catching config e
 - internal/testclue: Shared test helpers
 
 **Known tech debt:**
-- 9 orphaned test call sites using old Verbose bool API (test maintenance)
-- Module BMI compilation not fully implemented (foundation only)
-- Config loading output shows in --quiet mode (minor UX issue)
+- C++20 module compilation is Clang-only; MSVC modules remain unsupported
 
 ## Constraints
 
@@ -155,4 +153,4 @@ Minimal configuration for common cases, with CUE's type system catching config e
 | Mock Catch2 header for testdata | Network isolation, 267 lines vs 18,000 | ✓ Good |
 
 ---
-*Last updated: 2026-01-29 after v0.3.0 milestone*
+*Last updated: 2026-09-02 after repository review*
