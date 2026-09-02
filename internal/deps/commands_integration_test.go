@@ -13,6 +13,31 @@ import (
 	"github.com/loov/clue/internal/deps"
 )
 
+func captureStdout(t *testing.T, run func() error) (string, error) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStdout := os.Stdout
+	os.Stdout = w
+	runErr := run()
+	closeErr := w.Close()
+	os.Stdout = oldStdout
+
+	var output bytes.Buffer
+	if _, err := output.ReadFrom(r); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	return output.String(), runErr
+}
+
 // TestDepsList_Integration tests the deps list command with a real project
 func TestDepsList_Integration(t *testing.T) {
 	// Setup: use testdata/deps-project
@@ -28,21 +53,7 @@ func TestDepsList_Integration(t *testing.T) {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Capture output
-	var buf bytes.Buffer
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Run deps list
-	err = deps.RunList(cfg.Dependencies, false)
-
-	w.Close()
-	os.Stdout = oldStdout
-	if _, err := buf.ReadFrom(r); err != nil {
-		t.Fatalf("failed to read output: %v", err)
-	}
-	output := buf.String()
+	output, err := captureStdout(t, func() error { return deps.RunList(cfg.Dependencies, false) })
 
 	if err != nil {
 		t.Errorf("RunList failed: %v", err)
@@ -66,16 +77,7 @@ func TestDepsFetch_Integration(t *testing.T) {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
 
-	// Change to project directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalDir) }()
-
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change to project directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	// Load configuration
 	loader := config.NewLoader()
@@ -84,26 +86,13 @@ func TestDepsFetch_Integration(t *testing.T) {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Capture output
-	var buf bytes.Buffer
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
 	// Run deps fetch
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	err = deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
-		Verbose: false,
+	output, err := captureStdout(t, func() error {
+		return deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{Verbose: false})
 	})
-
-	w.Close()
-	os.Stdout = oldStdout
-	if _, err := buf.ReadFrom(r); err != nil {
-		t.Fatalf("failed to read output: %v", err)
-	}
-	output := buf.String()
 
 	if err != nil {
 		t.Errorf("RunFetch failed: %v", err)
@@ -142,30 +131,13 @@ func TestDepsClean_Integration(t *testing.T) {
 		t.Fatal(".deps directory should exist before clean")
 	}
 
-	// Capture output
-	var buf bytes.Buffer
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
 	// Create a dummy dependency map (RunClean needs it for manager creation)
 	dummyDeps := make(map[string]deps.Dependency)
 
-	// Change to temp directory so manager uses correct path
-	originalDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(originalDir) }()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
+	t.Chdir(tempDir)
 
 	// Run deps clean
-	err := deps.RunClean(dummyDeps, "")
-
-	w.Close()
-	os.Stdout = oldStdout
-	if _, err := buf.ReadFrom(r); err != nil {
-		t.Fatalf("failed to read output: %v", err)
-	}
+	_, err := captureStdout(t, func() error { return deps.RunClean(dummyDeps, "") })
 
 	if err != nil {
 		t.Errorf("RunClean failed: %v", err)
@@ -187,16 +159,7 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
 
-	// Change to project directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalDir) }()
-
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("Failed to change to project directory: %v", err)
-	}
+	t.Chdir(projectDir)
 
 	// Load configuration
 	loader := config.NewLoader()
@@ -205,23 +168,8 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	buildDir := ".build"
-	defer os.RemoveAll(buildDir)
-
 	// Step 1: Verify dependencies are listed correctly
-	var listBuf bytes.Buffer
-	oldStdout := os.Stdout
-	r1, w1, _ := os.Pipe()
-	os.Stdout = w1
-
-	err = deps.RunList(cfg.Dependencies, false)
-
-	w1.Close()
-	os.Stdout = oldStdout
-	if _, err := listBuf.ReadFrom(r1); err != nil {
-		t.Fatalf("failed to read output: %v", err)
-	}
-	listOutput := listBuf.String()
+	listOutput, err := captureStdout(t, func() error { return deps.RunList(cfg.Dependencies, false) })
 
 	if err != nil {
 		t.Errorf("RunList failed: %v", err)
