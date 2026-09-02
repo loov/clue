@@ -70,7 +70,7 @@ func TestJsonExample_Integration(t *testing.T) {
 	}
 
 	// Run executable
-	exePath := filepath.Join(buildDir, "debug", "bin", `"json-example"`)
+	exePath := filepath.Join(buildDir, "debug", "bin", "json-example")
 	cmd := exec.Command(exePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -143,7 +143,7 @@ func TestCatch2Example_Integration(t *testing.T) {
 	}
 
 	// Run test executable - Catch2 returns 0 if all tests pass
-	exePath := filepath.Join(buildDir, "debug", "bin", `"catch2-tests"`)
+	exePath := filepath.Join(buildDir, "debug", "bin", "catch2-tests")
 	cmd := exec.Command(exePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -220,7 +220,7 @@ func TestMultiDepsExample_Integration(t *testing.T) {
 	}
 
 	// Run executable
-	exePath := filepath.Join(buildDir, "debug", "bin", `"multi-deps-example"`)
+	exePath := filepath.Join(buildDir, "debug", "bin", "multi-deps-example")
 	cmd := exec.Command(exePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {

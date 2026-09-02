@@ -135,6 +135,54 @@ func TestTargetExtraction(t *testing.T) {
 	}
 }
 
+func TestLoaderUnquotesMapLabels(t *testing.T) {
+	dir := t.TempDir()
+	config := `name: "labels"
+targets: "my-app": {
+	name: "my-app"
+	type: "executable"
+	sources: ["main.cpp"]
+	depends: ["some-lib"]
+}
+variants: "fast-build": {optimization: "fast"}
+dependencies: "some-lib": {
+	type: "vendored"
+	path: "vendor"
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Targets["my-app"].Name != "my-app" || cfg.Variants["fast-build"].Name != "fast-build" {
+		t.Errorf("quoted labels were not decoded: targets=%#v variants=%#v", cfg.Targets, cfg.Variants)
+	}
+	if _, ok := cfg.Dependencies["some-lib"]; !ok {
+		t.Errorf("quoted dependency label was not decoded: %#v", cfg.Dependencies)
+	}
+}
+
+func TestLoaderRejectsMismatchedTargetName(t *testing.T) {
+	dir := t.TempDir()
+	config := `name: "mismatch"
+targets: app: {
+	name: "different"
+	type: "executable"
+	sources: ["main.cpp"]
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("expected target name mismatch, got %v", err)
+	}
+}
+
 func TestLoaderNewLoader(t *testing.T) {
 	loader := NewLoader()
 	if loader == nil {

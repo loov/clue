@@ -133,7 +133,7 @@ func listAvailableVariants(val cue.Value) []string {
 	var names []string
 	iter, _ := variants.Fields()
 	for iter.Next() {
-		names = append(names, iter.Selector().String())
+		names = append(names, iter.Selector().Unquoted())
 	}
 	return names
 }

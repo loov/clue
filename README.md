@@ -81,7 +81,7 @@ targets: {
         headers: ["lib/math.h"]
     }
     app: {
-        name:     "calculator"
+        name:     "app"
         type:     "executable"
         sources:  ["src/main.cpp"]
         includes: ["lib"]

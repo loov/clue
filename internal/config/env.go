@@ -41,7 +41,7 @@ func ResolveEnvVars(cfg *Config) (*EnvConfig, error) {
 	iter, _ := envDefs.Fields()
 
 	for iter.Next() {
-		name := iter.Selector().String()
+		name := iter.Selector().Unquoted()
 		def := iter.Value()
 
 		// Get the default value
@@ -106,7 +106,7 @@ func ApplyEnvVars(cfg *Config, env *EnvConfig) (*Config, error) {
 
 	iter, _ := envDefs.Fields()
 	for iter.Next() {
-		name := iter.Selector().String()
+		name := iter.Selector().Unquoted()
 		def := iter.Value()
 
 		// Get resolved value from environment

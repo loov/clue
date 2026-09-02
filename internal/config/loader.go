@@ -248,7 +248,7 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 	if targets := val.LookupPath(cue.ParsePath("targets")); targets.Exists() {
 		iter, _ := targets.Fields()
 		for iter.Next() {
-			name := iter.Selector().String()
+			name := iter.Selector().Unquoted()
 			target, err := l.extractTarget(name, iter.Value())
 			if err != nil {
 				return nil, err
@@ -261,7 +261,7 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 	if variants := val.LookupPath(cue.ParsePath("variants")); variants.Exists() {
 		iter, _ := variants.Fields()
 		for iter.Next() {
-			name := iter.Selector().String()
+			name := iter.Selector().Unquoted()
 			variant, err := l.extractVariant(name, iter.Value())
 			if err != nil {
 				return nil, err
@@ -284,6 +284,12 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 
 func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t := Target{Name: name}
+	if configured := val.LookupPath(cue.ParsePath("name")); configured.Exists() {
+		configuredName, _ := configured.String()
+		if configuredName != name {
+			return Target{}, fmt.Errorf("target key %q does not match name %q", name, configuredName)
+		}
+	}
 
 	if v := val.LookupPath(cue.ParsePath("type")); v.Exists() {
 		t.Type, _ = v.String()
@@ -369,7 +375,7 @@ func (l *Loader) extractDependencies(val cue.Value) (map[string]deps.Dependency,
 	}
 
 	for iter.Next() {
-		name := iter.Selector().String()
+		name := iter.Selector().Unquoted()
 		depVal := iter.Value()
 
 		// Get the type field to determine which dependency type to create
