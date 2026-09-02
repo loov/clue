@@ -152,6 +152,29 @@ it has no colon
 		}
 	})
 
+	t.Run("unescapes spaces in paths", func(t *testing.T) {
+		depFile := filepath.Join(tmpDir, "escaped-spaces.d")
+		content := `build/my\ app.o: src/my\ file.cpp include/my\ header.h
+`
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		deps, err := ParseDepFile(depFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if deps.Target != "build/my app.o" {
+			t.Errorf("target = %q, want %q", deps.Target, "build/my app.o")
+		}
+		want := []string{"src/my file.cpp", "include/my header.h"}
+		for i := range want {
+			if len(deps.Sources) <= i || deps.Sources[i] != want[i] {
+				t.Fatalf("sources = %q, want %q", deps.Sources, want)
+			}
+		}
+	})
+
 	t.Run("handles empty continuation lines", func(t *testing.T) {
 		depFile := filepath.Join(tmpDir, "empty_continuation.d")
 		content := `main.o: src/main.cpp \

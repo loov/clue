@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode"
 )
 
 // DependencyInfo contains parsed information from a .d dependency file
@@ -36,18 +37,13 @@ func ParseDepFile(path string) (DependencyInfo, error) {
 			continue
 		}
 
-		// Look for lines containing ":"
-		if !strings.Contains(line, ":") {
+		separator := ruleSeparator(line)
+		if separator < 0 {
 			continue
 		}
 
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		lineTarget := strings.TrimSpace(parts[0])
-		lineDeps := strings.TrimSpace(parts[1])
+		lineTarget := strings.TrimSpace(line[:separator])
+		lineDeps := strings.TrimSpace(line[separator+1:])
 
 		// Skip phony targets (empty dependencies from -MP)
 		if lineDeps == "" {
@@ -56,16 +52,14 @@ func ParseDepFile(path string) (DependencyInfo, error) {
 
 		// First non-phony target is the main target
 		if target == "" {
-			target = lineTarget
+			targetFields := makefileFields(lineTarget)
+			if len(targetFields) == 0 {
+				continue
+			}
+			target = targetFields[0]
 
 			// Parse dependencies
-			depFields := strings.FieldsSeq(lineDeps)
-			for dep := range depFields {
-				dep = strings.TrimSpace(dep)
-				if dep != "" {
-					sources = append(sources, dep)
-				}
-			}
+			sources = append(sources, makefileFields(lineDeps)...)
 		}
 	}
 
@@ -77,4 +71,43 @@ func ParseDepFile(path string) (DependencyInfo, error) {
 		Target:  target,
 		Sources: sources,
 	}, nil
+}
+
+func ruleSeparator(line string) int {
+	for i := 0; i < len(line); i++ {
+		if line[i] == ':' && (i+1 == len(line) || unicode.IsSpace(rune(line[i+1]))) {
+			return i
+		}
+	}
+	return -1
+}
+
+func makefileFields(s string) []string {
+	var fields []string
+	var field strings.Builder
+	escaped := false
+	flush := func() {
+		if field.Len() > 0 {
+			fields = append(fields, field.String())
+			field.Reset()
+		}
+	}
+	for _, r := range s {
+		switch {
+		case escaped:
+			field.WriteRune(r)
+			escaped = false
+		case r == '\\':
+			escaped = true
+		case unicode.IsSpace(r):
+			flush()
+		default:
+			field.WriteRune(r)
+		}
+	}
+	if escaped {
+		field.WriteByte('\\')
+	}
+	flush()
+	return fields
 }
