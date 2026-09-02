@@ -444,6 +444,13 @@ func (l *Loader) extractDependencies(val cue.Value) (map[string]deps.Dependency,
 			dep, err = l.extractTarballDependency(name, depVal)
 		case "vendored":
 			dep, err = l.extractVendoredDependency(name, depVal)
+		case "pkg_config":
+			pkg := extractOptionalString(depVal, "package")
+			static := false
+			if value := depVal.LookupPath(cue.ParsePath("static")); value.Exists() {
+				static, _ = value.Bool()
+			}
+			dep = deps.NewPkgConfigDependency(name, pkg, static)
 		default:
 			return nil, fmt.Errorf("dependency %q: unknown type %q", name, depType)
 		}

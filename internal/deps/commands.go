@@ -92,7 +92,7 @@ func RunFetch(ctx context.Context, deps map[string]Dependency, opts FetchOptions
 	initialStatuses := mgr.Status()
 	cachedCount := 0
 	for _, status := range initialStatuses {
-		if status.Status == "cached" {
+		if status.Status != "missing" {
 			cachedCount++
 		}
 	}

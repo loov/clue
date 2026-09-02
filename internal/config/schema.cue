@@ -124,8 +124,15 @@ package config
 	build?: #InlineBuildConfig
 }
 
+// System dependency discovered through pkg-config
+#PkgConfigDependency: {
+	type: "pkg_config"
+	package?: string
+	static?: bool | *false
+}
+
 // Union type for all dependency types
-#Dependency: #GitDependency | #TarballDependency | #VendoredDependency
+#Dependency: #GitDependency | #TarballDependency | #VendoredDependency | #PkgConfigDependency
 
 // Top-level configuration
 #Config: {

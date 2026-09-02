@@ -74,6 +74,9 @@ func (c *Cache) Has(dep Dependency) bool {
 		}
 		return info.IsDir()
 
+	case "pkg_config":
+		return true
+
 	default:
 		return false
 	}

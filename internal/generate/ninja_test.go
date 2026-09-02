@@ -3,6 +3,7 @@ package generate
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -422,6 +423,47 @@ func TestNinja_PrebuiltDependencyLinksExactLibrary(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o "+ninjaPathLocal(library)) {
 		t.Fatalf("prebuilt library is missing from link edge:\n%s", output.String())
+	}
+}
+
+func TestNinja_PkgConfigDependencyAddsUsage(t *testing.T) {
+	if _, err := exec.LookPath("pkg-config"); err != nil {
+		t.Skip("pkg-config not installed")
+	}
+	dir := t.TempDir()
+	pc := `
+prefix=/opt/clue-sdk
+includedir=${prefix}/include
+libdir=${prefix}/lib
+Name: clue-sdk
+Description: Clue test SDK
+Version: 1.0
+Cflags: -I${includedir} -DCLUE_SDK=1 -pthread
+Libs: -L${libdir} -lclue-sdk
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue-sdk.pc"), []byte(pc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PKG_CONFIG_PATH", dir)
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"sdk"},
+	}
+	cfg.Dependencies = map[string]deps.Dependency{
+		"sdk": deps.NewPkgConfigDependency("sdk", "clue-sdk", false),
+	}
+
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"-I/opt/clue-sdk/include", "-DCLUE_SDK=1", "-pthread", "-L/opt/clue-sdk/lib -lclue-sdk"} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("Ninja output missing %q:\n%s", want, output.String())
+		}
 	}
 }
 

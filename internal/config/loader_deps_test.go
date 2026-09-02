@@ -294,6 +294,35 @@ dependencies: sdk: {
 	}
 }
 
+func TestPkgConfigDependency(t *testing.T) {
+	dir := t.TempDir()
+	contents := `
+name: "system"
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["main.cpp"]
+	depends: ["ssl"]
+}
+dependencies: ssl: {
+	type: "pkg_config"
+	package: "openssl"
+	static: true
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, ok := cfg.Dependencies["ssl"].(*deps.PkgConfigDependency)
+	if !ok || pkg.Package != "openssl" || !pkg.Static {
+		t.Fatalf("pkg-config dependency = %+v", cfg.Dependencies["ssl"])
+	}
+}
+
 func TestDependencyValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 

@@ -164,3 +164,13 @@ dependencies: sdk: {
     }
 }
 ```
+
+System packages can export their compiler and linker flags through `pkg-config`:
+
+```cue
+dependencies: ssl: {
+    type:    "pkg_config"
+    package: "openssl" // defaults to the dependency name
+    static:  false     // use pkg-config --static when true
+}
+```

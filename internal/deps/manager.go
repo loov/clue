@@ -25,8 +25,8 @@ type ManagerOptions struct {
 // DepStatus represents the status of a dependency
 type DepStatus struct {
 	Name     string
-	Type     string // "git", "tarball", "vendored"
-	Status   string // "cached", "missing"
+	Type     string // "git", "tarball", "vendored", "pkg_config"
+	Status   string // "cached", "missing", "system"
 	Location string // Local path
 	Ref      string // For git: branch/tag/commit
 }
@@ -79,6 +79,12 @@ func (m *Manager) FetchAll(ctx context.Context) error {
 		if dep == nil {
 			return fmt.Errorf("dependency %q not found", name)
 		}
+		if dep.Type() == "pkg_config" {
+			if m.verbose {
+				fmt.Printf("  [%d/%d] Using system package %s\n", i+1, len(order), dep.(*PkgConfigDependency).Package)
+			}
+			continue
+		}
 
 		// Check cache
 		if m.cache.Has(dep) {
@@ -129,6 +135,9 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 	dep := m.resolver.dependencies[name]
 	if dep == nil {
 		return fmt.Errorf("dependency %q not found", name)
+	}
+	if dep.Type() == "pkg_config" {
+		return nil
 	}
 
 	// Check cache
@@ -235,7 +244,10 @@ func (m *Manager) Status() []DepStatus {
 		}
 
 		// Determine if cached or missing
-		if m.cache.Has(dep) {
+		if dep.Type() == "pkg_config" {
+			status.Status = "system"
+			status.Location = dep.(*PkgConfigDependency).Package
+		} else if m.cache.Has(dep) {
 			status.Status = "cached"
 		} else {
 			status.Status = "missing"

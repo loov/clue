@@ -3,6 +3,7 @@ package generate
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -90,6 +91,9 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 	var outputs []string
 	for _, name := range names {
 		dep := opts.Config.Dependencies[name]
+		if _, ok := dep.(*deps.PkgConfigDependency); ok {
+			continue
+		}
 		depPath := dep.CachePath(".")
 		resolved, err := build.ResolveDepConfig(dep, depPath)
 		if err != nil {
@@ -102,19 +106,20 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 		if len(sources) == 0 {
 			return nil, fmt.Errorf("dependency %q has no source files; run 'clue deps fetch' before generating Ninja", name)
 		}
-		includes := dependencyCompileIncludes(dep, opts.Config)
-		includes = append(resolved.Includes, includes...)
-		depTarget := config.Target{Name: name, Defines: resolved.Defines}
+		dependencyUsage, err := dependencyCompileUsage(dep, opts.Config)
+		if err != nil {
+			return nil, fmt.Errorf("dependency %q: %w", name, err)
+		}
+		includes := append(resolved.Includes, dependencyUsage.Includes...)
+		depTarget := config.Target{Name: name, Defines: append(resolved.Defines, dependencyUsage.Defines...)}
 		buildCfg := toolchain.Config{Optimize: variantConfig.Optimization, Warnings: "default"}
+		buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 		if buildCfg.Optimize == "" {
 			buildCfg.Optimize = "none"
 		}
 		objectNames := buildpath.ObjectNames(sources)
 		objects := make([]string, 0, len(sources))
-		var dependencyOutputs []string
-		if buildConfig := dep.InlineBuild(); buildConfig != nil {
-			dependencyOutputs = externalDependencyOutputs(opts.Config, buildConfig.Depends, opts.BuildDir, variant, opts.Platform)
-		}
+		dependencyOutputs := externalDependencyOutputs(opts.Config, resolved.Depends, opts.BuildDir, variant, opts.Platform)
 		sourcePaths := make([]string, 0, len(sources))
 		for _, source := range sources {
 			sourcePaths = append(sourcePaths, ninjaPathLocal(filepath.Join(depPath, source)))
@@ -148,6 +153,7 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 			dependencyInputs, sharedPaths := externalDependencyLinkInputs(opts.Config, resolved.Depends, opts.BuildDir, variant, opts.Platform)
 			inputs := append(objects, dependencyInputs...)
 			ldflags := buildSharedLibLinkerFlags(depTarget, nil, buildCfg, opts.Platform, tc)
+			ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 			ldflags = append(ldflags, runtimeLibraryFlags(output, sharedPaths, opts.Platform)...)
 			statement := ninja.Build{
 				Rule: "link_shared", In: inputs, Out: []string{output},
@@ -164,6 +170,9 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 }
 
 func dependencyTargetType(dep deps.Dependency) string {
+	if _, ok := dep.(*deps.PkgConfigDependency); ok {
+		return "header_only"
+	}
 	if buildConfig := dep.InlineBuild(); buildConfig != nil && buildConfig.Type != "" {
 		switch buildConfig.Type {
 		case "prebuilt_static":
@@ -231,48 +240,88 @@ func dependencyIncludePath(dep deps.Dependency) string {
 	return root
 }
 
-func dependencyCompileIncludes(dep deps.Dependency, cfg *config.Config) []string {
-	var includes []string
+func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config) (deps.Usage, error) {
+	var usage deps.Usage
 	seen := make(map[string]bool)
-	var visit func(deps.Dependency)
-	visit = func(current deps.Dependency) {
+	var visit func(deps.Dependency) error
+	visit = func(current deps.Dependency) error {
 		if seen[current.Name()] {
-			return
+			return nil
 		}
 		seen[current.Name()] = true
-		includes = append(includes, dependencyIncludePath(current))
+		if pkg, ok := current.(*deps.PkgConfigDependency); ok {
+			resolved, err := pkg.Resolve(context.Background())
+			if err != nil {
+				return err
+			}
+			mergeDependencyUsage(&usage, resolved)
+			return nil
+		}
+		usage.Includes = append(usage.Includes, dependencyIncludePath(current))
 		for _, name := range dependencyDepends(current) {
 			if child, ok := cfg.Dependencies[name]; ok {
-				visit(child)
+				if err := visit(child); err != nil {
+					return err
+				}
 			}
 		}
+		return nil
 	}
-	visit(dep)
-	return includes
+	if err := visit(dep); err != nil {
+		return deps.Usage{}, err
+	}
+	return usage, nil
 }
 
-func targetDependencyIncludes(cfg *config.Config, target config.Target) []string {
-	var includes []string
+func targetDependencyUsage(cfg *config.Config, target config.Target) (deps.Usage, error) {
+	var usage deps.Usage
 	seen := make(map[string]bool)
-	var visit func(string)
-	visit = func(name string) {
+	var visit func(string) error
+	visit = func(name string) error {
 		if seen[name] {
-			return
+			return nil
 		}
 		seen[name] = true
 		dep, ok := cfg.Dependencies[name]
 		if !ok {
-			return
+			if internal, exists := cfg.Targets[name]; exists {
+				for _, child := range internal.Depends {
+					if err := visit(child); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
 		}
-		includes = append(includes, dependencyIncludePath(dep))
+		if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
+			resolved, err := pkg.Resolve(context.Background())
+			if err != nil {
+				return err
+			}
+			mergeDependencyUsage(&usage, resolved)
+			return nil
+		}
+		usage.Includes = append(usage.Includes, dependencyIncludePath(dep))
 		for _, child := range dependencyDepends(dep) {
-			visit(child)
+			if err := visit(child); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
 	for _, name := range target.Depends {
-		visit(name)
+		if err := visit(name); err != nil {
+			return deps.Usage{}, err
+		}
 	}
-	return includes
+	return usage, nil
+}
+
+func mergeDependencyUsage(dst *deps.Usage, src deps.Usage) {
+	dst.Includes = append(dst.Includes, src.Includes...)
+	dst.Defines = append(dst.Defines, src.Defines...)
+	dst.CompilerFlags = append(dst.CompilerFlags, src.CompilerFlags...)
+	dst.LinkerFlags = append(dst.LinkerFlags, src.LinkerFlags...)
 }
 
 func targetCustomOutputs(cfg *config.Config, target config.Target) []string {
@@ -330,6 +379,9 @@ func externalDependencyLinkInputs(cfg *config.Config, names []string, buildDir, 
 		if !ok {
 			return
 		}
+		if _, ok := dep.(*deps.PkgConfigDependency); ok {
+			return
+		}
 		targetType := dependencyTargetType(dep)
 		if rawOutput := dependencyOutputPath(buildDir, variant, dep, platform); rawOutput != "" {
 			output := ninjaPathLocal(rawOutput)
@@ -384,10 +436,15 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 	usage := config.CompileUsage(opts.Config, target)
-	target.Defines = append(usage.Defines, variantConfig.Defines...)
+	dependencyUsage, err := targetDependencyUsage(opts.Config, target)
+	if err != nil {
+		return nil, fmt.Errorf("target %q: %w", target.Name, err)
+	}
+	target.Defines = append(append(usage.Defines, dependencyUsage.Defines...), variantConfig.Defines...)
+	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 
 	// Collect include paths
-	includes := append(usage.Includes, targetDependencyIncludes(opts.Config, target)...)
+	includes := append(usage.Includes, dependencyUsage.Includes...)
 
 	var objects []string
 	objectNames := buildpath.ObjectNames(target.Sources)
@@ -448,6 +505,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	switch target.Type {
 	case "executable":
 		ldflags := buildLinkerFlagsForNinja(target, dependencySysLibs, buildCfg, tc)
+		ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
 		*file = append(*file, ninja.Build{
 			Rule: "link",
@@ -467,6 +525,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	case "shared_library":
 		ldflags := buildSharedLibLinkerFlags(target, dependencySysLibs, buildCfg, opts.Platform, tc)
+		ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
 		statement := ninja.Build{
 			Rule: "link_shared",
@@ -589,6 +648,9 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 		dep, ok := cfg.Targets[name]
 		if !ok {
 			if external, ok := cfg.Dependencies[name]; ok {
+				if _, ok := external.(*deps.PkgConfigDependency); ok {
+					return
+				}
 				targetType := dependencyTargetType(external)
 				if rawOutput := dependencyOutputPath(buildDir, variant, external, platform); rawOutput != "" {
 					output := ninjaPathLocal(rawOutput)

@@ -29,6 +29,36 @@ type InlineConfig struct {
 	Type     string // built, header-only, or prebuilt library type
 }
 
+// PkgConfigDependency represents a system library described by pkg-config.
+type PkgConfigDependency struct {
+	name    string
+	Package string
+	Static  bool
+}
+
+// NewPkgConfigDependency creates a pkg-config dependency.
+func NewPkgConfigDependency(name, pkg string, static bool) *PkgConfigDependency {
+	if pkg == "" {
+		pkg = name
+	}
+	return &PkgConfigDependency{name: name, Package: pkg, Static: static}
+}
+
+func (p *PkgConfigDependency) Name() string               { return p.name }
+func (p *PkgConfigDependency) Type() string               { return "pkg_config" }
+func (p *PkgConfigDependency) CachePath(string) string    { return "" }
+func (p *PkgConfigDependency) InlineBuild() *InlineConfig { return nil }
+func (p *PkgConfigDependency) BuildTarget() string        { return "" }
+func (p *PkgConfigDependency) Validate() error {
+	if p.name == "" {
+		return fmt.Errorf("pkg-config dependency: name is required")
+	}
+	if p.Package == "" {
+		return fmt.Errorf("pkg-config dependency %q: package is required", p.name)
+	}
+	return nil
+}
+
 // GitDependency represents a dependency fetched from a git repository
 type GitDependency struct {
 	name        string

@@ -21,12 +21,31 @@ func TestDependencyLinkInputs_PrebuiltLibraryUsesExactPath(t *testing.T) {
 			}),
 		},
 	}
-	_, libs, _, _, artifacts, linkFiles, err := b.dependencyLinkInputs(Options{Config: cfg}, cfg.Targets["app"])
+	usage, err := b.dependencyLinkInputs(Options{Config: cfg}, cfg.Targets["app"])
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(libs) != 0 || len(artifacts) != 1 || len(linkFiles) != 1 || linkFiles[0] != library {
-		t.Fatalf("libs=%v artifacts=%v link files=%v", libs, artifacts, linkFiles)
+	if len(usage.libs) != 0 || len(usage.artifacts) != 1 || len(usage.linkFiles) != 1 || usage.linkFiles[0] != library {
+		t.Fatalf("libs=%v artifacts=%v link files=%v", usage.libs, usage.artifacts, usage.linkFiles)
+	}
+}
+
+func TestDependencyLinkInputs_PkgConfigFlags(t *testing.T) {
+	b := &Builder{depResults: map[string]*DepBuildResult{
+		"ssl": {Name: "ssl", Type: "pkg_config", Usage: deps.Usage{LinkerFlags: []string{"-lssl", "-lcrypto"}}},
+	}}
+	cfg := &config.Config{
+		Targets: map[string]config.Target{"app": {Name: "app", Depends: []string{"ssl"}}},
+		Dependencies: map[string]deps.Dependency{
+			"ssl": deps.NewPkgConfigDependency("ssl", "openssl", false),
+		},
+	}
+	usage, err := b.dependencyLinkInputs(Options{Config: cfg}, cfg.Targets["app"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(usage.flags) != 2 || usage.flags[0] != "-lssl" || usage.flags[1] != "-lcrypto" {
+		t.Fatalf("link flags = %v", usage.flags)
 	}
 }
 

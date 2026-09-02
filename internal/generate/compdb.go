@@ -85,6 +85,9 @@ func CompileCommands(opts CompDBOptions) error {
 	// Add commands for all dependencies with build config
 	for _, name := range slices.Sorted(maps.Keys(opts.Config.Dependencies)) {
 		dep := opts.Config.Dependencies[name]
+		if _, ok := dep.(*deps.PkgConfigDependency); ok {
+			continue
+		}
 		depCommands, err := buildDependencyCommands(workDir, opts, dep, variant, tc)
 		if err != nil {
 			return err
@@ -112,8 +115,13 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
 	usage := config.CompileUsage(opts.Config, target)
-	target.Defines = append(usage.Defines, variant.Defines...)
-	target.Includes = append(usage.Includes, targetDependencyIncludes(opts.Config, target)...)
+	dependencyUsage, err := targetDependencyUsage(opts.Config, target)
+	if err != nil {
+		return nil, err
+	}
+	target.Defines = append(append(usage.Defines, dependencyUsage.Defines...), variant.Defines...)
+	target.Includes = append(usage.Includes, dependencyUsage.Includes...)
+	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 	objectNames := buildpath.ObjectNames(target.Sources)
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
 		Includes: target.Includes,

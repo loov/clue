@@ -39,6 +39,7 @@ type DepBuildResult struct {
 	LibPath     string        // Path to built library
 	IncludePath string        // Path to include headers
 	Depends     []string      // Other external dependencies
+	Usage       deps.Usage    // Compile and link metadata for consumers
 	SourceCount int           // Number of source files compiled
 	Duration    time.Duration // Time taken to build
 }
@@ -156,7 +157,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				Warnings:         "default",
 				WarningsAsErrors: false, // Don't fail dependency builds on warnings
 				Debug:            "none",
-				RawCompiler:      []string{},
+				RawCompiler:      cfg.CompilerFlags,
 			},
 			Std: config.Toolchain{
 				Std: opts.Std, CStd: opts.CStd, CXXStd: opts.CXXStd,
@@ -201,24 +202,42 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		libName = SharedLibraryName(dep.Name(), opts.Platform)
 	}
 	libPath := filepath.Join(libDir, libName)
-	dependencyArtifacts := make([]string, 0, len(cfg.Depends))
-	for _, name := range cfg.Depends {
-		if result, ok := builtDeps[name]; ok && result.LibPath != "" {
-			dependencyArtifacts = append(dependencyArtifacts, result.LibPath)
-		}
-	}
+	var dependencyArtifacts []string
 
 	if cfg.Type == "shared_library" {
-		var libPaths, libs []string
-		for _, name := range cfg.Depends {
-			if result, ok := builtDeps[name]; ok && result.LibPath != "" {
-				libPaths = append(libPaths, filepath.Dir(result.LibPath))
-				libs = append(libs, result.Name)
+		var libPaths, libs, linkFiles []string
+		seen := make(map[string]bool)
+		var addLibrary func(string)
+		addLibrary = func(name string) {
+			if seen[name] {
+				return
+			}
+			seen[name] = true
+			if result, ok := builtDeps[name]; ok {
+				if result.LibPath == "" {
+					for _, child := range result.Depends {
+						addLibrary(child)
+					}
+					return
+				}
+				dependencyArtifacts = append(dependencyArtifacts, result.LibPath)
+				if result.Type == "prebuilt_static" || result.Type == "prebuilt_shared" {
+					linkFiles = append(linkFiles, result.LibPath)
+				} else {
+					libPaths = append(libPaths, filepath.Dir(result.LibPath))
+					libs = append(libs, result.Name)
+				}
+				for _, child := range result.Depends {
+					addLibrary(child)
+				}
 			}
 		}
+		for _, name := range cfg.Depends {
+			addLibrary(name)
+		}
 		linkOpts := SharedLibraryOptions{
-			Objects: objectFiles, Output: libPath, LibPaths: libPaths, Libs: libs,
-			Flags: Config{Optimize: optimization, Warnings: "default"},
+			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
+			Flags: Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags},
 		}
 		fingerprint, fingerprintErr := linkFingerprint(db.toolchain.CXX(), linkOpts, append(objectFiles, dependencyArtifacts...))
 		if fingerprintErr != nil {
@@ -264,12 +283,14 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 
 // depConfig holds the resolved build configuration for a dependency
 type depConfig struct {
-	Sources  []string
-	Includes []string
-	Defines  []string
-	Depends  []string
-	Library  string
-	Type     string
+	Sources       []string
+	Includes      []string
+	Defines       []string
+	Depends       []string
+	Library       string
+	CompilerFlags []string
+	LinkerFlags   []string
+	Type          string
 }
 
 // determineConfig determines sources, includes, and defines for a dependency
@@ -289,27 +310,50 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 		}
 
 		// Resolve include paths relative to source path
-		var includes []string
+		var includes, compilerFlags, linkerFlags []string
+		defines := append([]string(nil), inlineConfig.Defines...)
 		for _, inc := range inlineConfig.Includes {
 			includes = append(includes, filepath.Join(sourcePath, inc))
 		}
 
 		// Add include paths from depended-on dependencies
 		if len(inlineConfig.Depends) > 0 && builtDeps != nil {
-			for _, depName := range inlineConfig.Depends {
-				if builtDep, exists := builtDeps[depName]; exists {
+			seen := make(map[string]bool)
+			var addUsage func(string)
+			addUsage = func(name string) {
+				if seen[name] {
+					return
+				}
+				seen[name] = true
+				builtDep, exists := builtDeps[name]
+				if !exists {
+					return
+				}
+				if builtDep.IncludePath != "" {
 					includes = append(includes, builtDep.IncludePath)
 				}
+				includes = append(includes, builtDep.Usage.Includes...)
+				defines = append(defines, builtDep.Usage.Defines...)
+				compilerFlags = append(compilerFlags, builtDep.Usage.CompilerFlags...)
+				linkerFlags = append(linkerFlags, builtDep.Usage.LinkerFlags...)
+				for _, child := range builtDep.Depends {
+					addUsage(child)
+				}
+			}
+			for _, depName := range inlineConfig.Depends {
+				addUsage(depName)
 			}
 		}
 
 		return &depConfig{
-			Sources:  sources,
-			Includes: includes,
-			Defines:  inlineConfig.Defines,
-			Depends:  inlineConfig.Depends,
-			Library:  inlineConfig.Library,
-			Type:     targetType,
+			Sources:       sources,
+			Includes:      includes,
+			Defines:       defines,
+			Depends:       inlineConfig.Depends,
+			Library:       inlineConfig.Library,
+			CompilerFlags: compilerFlags,
+			LinkerFlags:   linkerFlags,
+			Type:          targetType,
 		}, nil
 	}
 
