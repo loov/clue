@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -145,7 +147,8 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 		// Generate precompiled module interface when compiling module source
 		args = append(args, "-fmodule-output="+opts.ModuleOutput)
 	}
-	for modName, pcmPath := range opts.ModuleFiles {
+	for _, modName := range slices.Sorted(maps.Keys(opts.ModuleFiles)) {
+		pcmPath := opts.ModuleFiles[modName]
 		// Reference precompiled modules when compiling consumers
 		args = append(args, fmt.Sprintf("-fmodule-file=%s=%s", modName, pcmPath))
 	}
