@@ -44,10 +44,9 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 	// Link main.o to executable
 	exePath := filepath.Join(tmpDir, "main")
 	result, err := linker.LinkExecutable(context.Background(), LinkOptions{
-		Objects:      []string{mainObj},
-		Output:       exePath,
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{mainObj},
+		Output:  exePath,
+		Flags:   Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -221,10 +220,9 @@ int main() { return add(20, 22); }`
 	// Link main.o with libadd.a to create executable
 	exePath := filepath.Join(tmpDir, "main")
 	result, err := linker.LinkExecutable(context.Background(), LinkOptions{
-		Objects:      []string{mainObj, libPath},
-		Output:       exePath,
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{mainObj, libPath},
+		Output:  exePath,
+		Flags:   Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -293,11 +291,10 @@ int main() {
 	// Link with pthread
 	exePath := filepath.Join(tmpDir, "main")
 	result, err := linker.LinkExecutable(context.Background(), LinkOptions{
-		Objects:      []string{mainObj},
-		Output:       exePath,
-		SysLibs:      []string{"pthread"},
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{mainObj},
+		Output:  exePath,
+		SysLibs: []string{"pthread"},
+		Flags:   Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -351,10 +348,9 @@ func TestLinker_OutputNaming(t *testing.T) {
 	// Test executable has no extension on Linux
 	exePath := filepath.Join(tmpDir, "myapp")
 	if _, err := linker.LinkExecutable(context.Background(), LinkOptions{
-		Objects:      []string{objFile},
-		Output:       exePath,
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{objFile},
+		Output:  exePath,
+		Flags:   Config{},
 	}); err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}
@@ -533,10 +529,9 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 
 	// Link shared library
 	result, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
-		Objects:      []string{libObj},
-		Output:       libPath,
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{libObj},
+		Output:  libPath,
+		Flags:   Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -601,10 +596,9 @@ func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
 	// Link shared library
 	libPath := filepath.Join(tmpDir, "libtest.dylib")
 	_, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
-		Objects:      []string{libObj},
-		Output:       libPath,
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{libObj},
+		Output:  libPath,
+		Flags:   Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -664,10 +658,9 @@ func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
 	// Link shared library
 	libPath := filepath.Join(tmpDir, "libtest.so")
 	_, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
-		Objects:      []string{libObj},
-		Output:       libPath,
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{libObj},
+		Output:  libPath,
+		Flags:   Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -733,10 +726,9 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 	ext := SharedLibraryExtension(HostPlatform())
 	libPath := filepath.Join(tmpDir, "libtest"+ext)
 	_, err := linker.LinkSharedLibrary(context.Background(), SharedLibraryOptions{
-		Objects:      []string{libObj},
-		Output:       libPath,
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects: []string{libObj},
+		Output:  libPath,
+		Flags:   Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -745,12 +737,11 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 	// Link executable against shared library
 	exePath := filepath.Join(tmpDir, "main")
 	_, err = linker.LinkExecutable(context.Background(), LinkOptions{
-		Objects:      []string{mainObj},
-		Output:       exePath,
-		LibPaths:     []string{tmpDir},
-		Libs:         []string{"test"},
-		UseCPlusPlus: true,
-		Flags:        Config{},
+		Objects:  []string{mainObj},
+		Output:   exePath,
+		LibPaths: []string{tmpDir},
+		Libs:     []string{"test"},
+		Flags:    Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)

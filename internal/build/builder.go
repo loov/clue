@@ -510,9 +510,6 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	case "executable":
 		progress.Linking(target.Name)
 
-		// Determine if we need C++ linker
-		useCPlusPlus := b.linker.needsCPlusPlusLinker(objectFiles)
-
 		libPaths, libs, dependencySysLibs, hasSharedLibDeps, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
 			return nil, err
@@ -531,13 +528,12 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 		linkOpts := LinkOptions{
-			Objects:      objectFiles,
-			Output:       outputPath,
-			SysLibs:      append(append([]string(nil), target.SysLibs...), dependencySysLibs...),
-			LibPaths:     libPaths,
-			Libs:         libs,
-			Flags:        buildCfg,
-			UseCPlusPlus: useCPlusPlus,
+			Objects:  objectFiles,
+			Output:   outputPath,
+			SysLibs:  append(append([]string(nil), target.SysLibs...), dependencySysLibs...),
+			LibPaths: libPaths,
+			Libs:     libs,
+			Flags:    buildCfg,
 		}
 
 		_, err = b.linker.LinkExecutable(ctx, linkOpts)
@@ -575,9 +571,6 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	case "shared_library":
 		progress.Linking(target.Name)
 
-		// Determine if we need C++ linker
-		useCPlusPlus := b.linker.needsCPlusPlusLinker(objectFiles)
-
 		libPaths, libs, dependencySysLibs, _, err := b.dependencyLinkInputs(opts, target)
 		if err != nil {
 			return nil, err
@@ -590,7 +583,6 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			LibPaths:         libPaths,
 			Libs:             libs,
 			Flags:            buildCfg,
-			UseCPlusPlus:     useCPlusPlus,
 			SymbolVisibility: "default", // Could be configurable via target config later
 		}
 

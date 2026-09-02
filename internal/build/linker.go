@@ -23,13 +23,12 @@ func SharedLibraryExtension(target Platform) string {
 
 // LinkOptions holds options for linking an executable
 type LinkOptions struct {
-	Objects      []string // Object files to link
-	Output       string   // Output executable path
-	SysLibs      []string // System libraries (pthread, m, dl)
-	LibPaths     []string // Library search paths (-L)
-	Libs         []string // Additional libraries to link
-	Flags        Config   // For raw linker flags and debug info
-	UseCPlusPlus bool     // Use clang++/g++ for linking (C++ std lib)
+	Objects  []string // Object files to link
+	Output   string   // Output executable path
+	SysLibs  []string // System libraries (pthread, m, dl)
+	LibPaths []string // Library search paths (-L)
+	Libs     []string // Additional libraries to link
+	Flags    Config   // For raw linker flags and debug info
 }
 
 // SharedLibraryOptions holds options for linking a shared library
@@ -40,7 +39,6 @@ type SharedLibraryOptions struct {
 	LibPaths         []string // Library search paths (-L)
 	Libs             []string // Additional libraries to link
 	Flags            Config   // For raw linker flags and debug info
-	UseCPlusPlus     bool     // Use clang++/g++ for linking (C++ std lib)
 	SymbolVisibility string   // "default" or "hidden"
 }
 
@@ -133,12 +131,6 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 
 // linkExecutableGCC links using GCC/Clang toolchain
 func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start time.Time) (*LinkResult, error) {
-	// Determine the linker command based on C++ requirement
-	linkerCmd := l.toolchain.CC()
-	if opts.UseCPlusPlus {
-		linkerCmd = l.toolchain.CXX()
-	}
-
 	// Build command arguments
 	var args []string
 
@@ -168,7 +160,7 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 	args = append(args, linkerFlags...)
 
 	// Execute the linker
-	result, err := l.executor.RunCommand(ctx, linkerCmd, args...)
+	result, err := l.executor.RunCommand(ctx, l.toolchain.CXX(), args...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -357,12 +349,6 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 
 // linkSharedLibraryGCC links a shared library using GCC/Clang
 func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (*LinkResult, error) {
-	// Determine the linker command based on C++ requirement
-	linkerCmd := l.toolchain.CC()
-	if opts.UseCPlusPlus {
-		linkerCmd = l.toolchain.CXX()
-	}
-
 	// Build command arguments
 	var args []string
 
@@ -411,7 +397,7 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	args = append(args, linkerFlags...)
 
 	// Execute the linker
-	result, err := l.executor.RunCommand(ctx, linkerCmd, args...)
+	result, err := l.executor.RunCommand(ctx, l.toolchain.CXX(), args...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -498,23 +484,4 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 		Duration:  result.Duration,
 		Success:   true,
 	}, nil
-}
-
-// needsCPlusPlusLinker determines if C++ linker is needed based on object files
-// This is a heuristic approach - checks if object paths suggest C++ origin
-func (l *Linker) needsCPlusPlusLinker(objects []string) bool {
-	for _, obj := range objects {
-		// Check if the object file path suggests C++ origin
-		// Common C++ extensions: .cpp, .cc, .cxx, .C
-		objLower := strings.ToLower(obj)
-		if strings.Contains(objLower, ".cpp.") ||
-			strings.Contains(objLower, ".cc.") ||
-			strings.Contains(objLower, ".cxx.") ||
-			strings.HasSuffix(objLower, ".cpp.o") ||
-			strings.HasSuffix(objLower, ".cc.o") ||
-			strings.HasSuffix(objLower, ".cxx.o") {
-			return true
-		}
-	}
-	return false
 }
