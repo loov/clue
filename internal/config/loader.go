@@ -477,7 +477,9 @@ func (l *Loader) extractGitDependency(name string, val cue.Value) (*deps.GitDepe
 		}
 	}
 
-	return deps.NewGitDependency(name, repo, ref, buildConfig), nil
+	dependency := deps.NewGitDependency(name, repo, ref, buildConfig)
+	dependency.TargetName = extractOptionalString(val, "target")
+	return dependency, nil
 }
 
 // extractTarballDependency extracts a tarball dependency
@@ -505,7 +507,9 @@ func (l *Loader) extractTarballDependency(name string, val cue.Value) (*deps.Tar
 		}
 	}
 
-	return deps.NewTarballDependency(name, url, checksum, stripPrefix, buildConfig), nil
+	dependency := deps.NewTarballDependency(name, url, checksum, stripPrefix, buildConfig)
+	dependency.TargetName = extractOptionalString(val, "target")
+	return dependency, nil
 }
 
 // extractVendoredDependency extracts a vendored dependency
@@ -523,7 +527,9 @@ func (l *Loader) extractVendoredDependency(name string, val cue.Value) (*deps.Ve
 		}
 	}
 
-	return deps.NewVendoredDependency(name, path, buildConfig), nil
+	dependency := deps.NewVendoredDependency(name, path, buildConfig)
+	dependency.TargetName = extractOptionalString(val, "target")
+	return dependency, nil
 }
 
 // extractInlineConfig extracts inline build configuration
@@ -559,4 +565,13 @@ func extractString(val cue.Value, field string) (string, error) {
 		return "", fmt.Errorf("field %q must be a string", field)
 	}
 	return s, nil
+}
+
+func extractOptionalString(val cue.Value, field string) string {
+	value := val.LookupPath(cue.ParsePath(field))
+	if !value.Exists() {
+		return ""
+	}
+	result, _ := value.String()
+	return result
 }

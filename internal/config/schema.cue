@@ -86,6 +86,7 @@ package config
 	type: "git"
 	repo: string & =~"^(https://|git@)"  // Require authenticated transport
 	ref?: string | *"main"
+	target?: string
 	build?: #InlineBuildConfig
 }
 
@@ -95,6 +96,7 @@ package config
 	url: string & =~"^https://"
 	checksum: string & =~"^[a-f0-9]{64}$"  // SHA256 hex
 	stripPrefix?: string
+	target?: string
 	build?: #InlineBuildConfig
 }
 
@@ -102,6 +104,7 @@ package config
 #VendoredDependency: {
 	type: "vendored"
 	path: string
+	target?: string
 	build?: #InlineBuildConfig
 }
 

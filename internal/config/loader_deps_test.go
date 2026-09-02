@@ -28,6 +28,7 @@ dependencies: {
 		type: "git"
 		repo: "https://github.com/nlohmann/json.git"
 		ref: "v3.11.2"
+		target: "jsonlib"
 		build: {
 			sources: ["single_include/nlohmann/json.hpp"]
 			targetType: "static_library"
@@ -83,6 +84,9 @@ dependencies: {
 	}
 	if gitDep.Ref != "v3.11.2" {
 		t.Errorf("Expected ref v3.11.2, got %s", gitDep.Ref)
+	}
+	if gitDep.BuildTarget() != "jsonlib" {
+		t.Errorf("Expected target jsonlib, got %s", gitDep.BuildTarget())
 	}
 	if gitDep.BuildConfig == nil {
 		t.Error("Expected build config")

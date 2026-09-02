@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,6 +345,45 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 	// Verify all 3 files were compiled
 	if result.SourceCount != 3 {
 		t.Errorf("expected 3 source files (glob expansion), got %d", result.SourceCount)
+	}
+}
+
+func TestResolveDepConfig_SelectsTargetAndItsInternalDependencies(t *testing.T) {
+	root := t.TempDir()
+	config := `targets: {
+	base: {type: "static_library", sources: ["base.cpp"], public: includes: ["include"]}
+	exported: {type: "static_library", sources: ["exported.cpp"], depends: ["base"]}
+	unused: {type: "static_library", sources: ["unused.cpp"]}
+}`
+	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dep := deps.NewVendoredDependency("package", root, nil)
+	dep.TargetName = "exported"
+	resolved, err := ResolveDepConfig(dep, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(resolved.Sources, []string{"exported.cpp", "base.cpp"}) {
+		t.Fatalf("sources = %v", resolved.Sources)
+	}
+	if !slices.Equal(resolved.Includes, []string{filepath.Join(root, "include")}) {
+		t.Fatalf("includes = %v", resolved.Includes)
+	}
+}
+
+func TestResolveDepConfig_RejectsAmbiguousTargets(t *testing.T) {
+	root := t.TempDir()
+	config := `targets: {
+	first: {type: "static_library", sources: ["first.cpp"]}
+	second: {type: "static_library", sources: ["second.cpp"]}
+}`
+	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ResolveDepConfig(deps.NewVendoredDependency("package", root, nil), root)
+	if err == nil || !strings.Contains(err.Error(), "multiple targets") {
+		t.Fatalf("ResolveDepConfig() error = %v, want ambiguous-target error", err)
 	}
 }
 

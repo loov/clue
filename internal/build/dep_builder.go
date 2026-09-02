@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -294,7 +295,7 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 	}
 
 	// Load clue.cue
-	cfg, err := db.loadClueConfig(clueFile, sourcePath)
+	cfg, err := db.loadClueConfig(clueFile, sourcePath, dep.Name(), dep.BuildTarget())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load clue.cue: %w", err)
 	}
@@ -303,7 +304,7 @@ func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 }
 
 // loadClueConfig loads build configuration from a clue.cue file
-func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) (*depConfig, error) {
+func (db *DepBuilder) loadClueConfig(clueFile, sourcePath, dependencyName, configuredTarget string) (*depConfig, error) {
 	data, err := os.ReadFile(clueFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read clue.cue: %w", err)
@@ -315,7 +316,8 @@ func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) (*depConfig, e
 		return nil, fmt.Errorf("failed to parse clue.cue: %w", err)
 	}
 
-	// Extract first target's sources and includes
+	// Index targets so a dependency never silently builds whichever one happens
+	// to be declared first.
 	targetsVal := val.LookupPath(cue.ParsePath("targets"))
 	if !targetsVal.Exists() {
 		return nil, fmt.Errorf("clue.cue has no targets")
@@ -326,26 +328,68 @@ func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) (*depConfig, e
 		return nil, fmt.Errorf("failed to iterate targets: %w", err)
 	}
 
-	if !iter.Next() {
+	targets := make(map[string]cue.Value)
+	var names []string
+	for iter.Next() {
+		name := iter.Selector().Unquoted()
+		names = append(names, name)
+		targets[name] = iter.Value()
+	}
+	if len(names) == 0 {
 		return nil, fmt.Errorf("clue.cue has no targets")
 	}
-
-	targetVal := iter.Value()
-
-	// Extract sources
-	var sources []string
-	sourcesVal := targetVal.LookupPath(cue.ParsePath("sources"))
-	if sourcesVal.Exists() {
-		sourceIter, _ := sourcesVal.List()
-		for sourceIter.Next() {
-			if s, err := sourceIter.Value().String(); err == nil {
-				sources = append(sources, s)
-			}
+	sort.Strings(names)
+	targetName := configuredTarget
+	if targetName == "" {
+		if _, ok := targets[dependencyName]; ok {
+			targetName = dependencyName
+		} else if len(names) == 1 {
+			targetName = names[0]
+		} else {
+			return nil, fmt.Errorf("clue.cue has multiple targets %v; set dependency target", names)
 		}
 	}
+	targetVal, ok := targets[targetName]
+	if !ok {
+		return nil, fmt.Errorf("clue.cue target %q not found; available targets: %v", targetName, names)
+	}
 
+	var sources, includes, defines, externalDepends []string
+	seen := make(map[string]bool)
+	var collect func(string) error
+	collect = func(name string) error {
+		if seen[name] {
+			return nil
+		}
+		seen[name] = true
+		target, ok := targets[name]
+		if !ok {
+			externalDepends = append(externalDepends, name)
+			return nil
+		}
+		sources = append(sources, extractCUEStrings(target, "sources")...)
+		for _, include := range extractCUEStrings(target, "includes") {
+			includes = append(includes, filepath.Join(sourcePath, include))
+		}
+		defines = append(defines, extractCUEStrings(target, "defines")...)
+		if public := target.LookupPath(cue.ParsePath("public")); public.Exists() {
+			for _, include := range extractCUEStrings(public, "includes") {
+				includes = append(includes, filepath.Join(sourcePath, include))
+			}
+			defines = append(defines, extractCUEStrings(public, "defines")...)
+		}
+		for _, dependency := range extractCUEStrings(target, "depends") {
+			if err := collect(dependency); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := collect(targetName); err != nil {
+		return nil, err
+	}
 	if len(sources) == 0 {
-		return nil, fmt.Errorf("clue.cue target has no sources")
+		return nil, fmt.Errorf("clue.cue target %q has no sources", targetName)
 	}
 
 	// Expand globs
@@ -354,28 +398,18 @@ func (db *DepBuilder) loadClueConfig(clueFile, sourcePath string) (*depConfig, e
 		return nil, fmt.Errorf("failed to expand source globs: %w", err)
 	}
 
-	// Extract includes
-	var includes []string
-	includesVal := targetVal.LookupPath(cue.ParsePath("includes"))
-	if includesVal.Exists() {
-		includeIter, _ := includesVal.List()
-		for includeIter.Next() {
-			if s, err := includeIter.Value().String(); err == nil {
-				// Resolve relative to source path
-				includes = append(includes, filepath.Join(sourcePath, s))
-			}
-		}
-	}
-
 	targetType := "static_library"
 	if typeVal := targetVal.LookupPath(cue.ParsePath("type")); typeVal.Exists() {
 		targetType, _ = typeVal.String()
 	}
+	if targetType != "static_library" && targetType != "shared_library" {
+		return nil, fmt.Errorf("dependency target %q must be a static_library or shared_library", targetName)
+	}
 
 	return &depConfig{
 		Sources: sources, Includes: includes,
-		Defines: extractCUEStrings(targetVal, "defines"),
-		Depends: extractCUEStrings(targetVal, "depends"),
+		Defines: defines,
+		Depends: externalDepends,
 		Type:    targetType,
 	}, nil
 }

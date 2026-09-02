@@ -14,6 +14,7 @@ type Dependency interface {
 	Type() string
 	CachePath(baseDir string) string
 	InlineBuild() *InlineConfig
+	BuildTarget() string
 	Validate() error
 }
 
@@ -32,6 +33,7 @@ type GitDependency struct {
 	name        string
 	Repo        string
 	Ref         string
+	TargetName  string
 	BuildConfig *InlineConfig
 }
 
@@ -66,6 +68,7 @@ func (g *GitDependency) CachePath(baseDir string) string {
 }
 
 func (g *GitDependency) InlineBuild() *InlineConfig { return g.BuildConfig }
+func (g *GitDependency) BuildTarget() string        { return g.TargetName }
 
 // Validate checks that required fields are set
 func (g *GitDependency) Validate() error {
@@ -94,6 +97,7 @@ type TarballDependency struct {
 	URL         string
 	Checksum    string
 	StripPrefix string
+	TargetName  string
 	BuildConfig *InlineConfig
 }
 
@@ -133,6 +137,7 @@ func (t *TarballDependency) CachePath(baseDir string) string {
 }
 
 func (t *TarballDependency) InlineBuild() *InlineConfig { return t.BuildConfig }
+func (t *TarballDependency) BuildTarget() string        { return t.TargetName }
 
 // Validate checks that required fields are set
 func (t *TarballDependency) Validate() error {
@@ -161,6 +166,7 @@ func (t *TarballDependency) Validate() error {
 type VendoredDependency struct {
 	name        string
 	Path        string
+	TargetName  string
 	BuildConfig *InlineConfig
 }
 
@@ -189,6 +195,7 @@ func (v *VendoredDependency) CachePath(_ string) string {
 }
 
 func (v *VendoredDependency) InlineBuild() *InlineConfig { return v.BuildConfig }
+func (v *VendoredDependency) BuildTarget() string        { return v.TargetName }
 
 // Validate checks that required fields are set
 func (v *VendoredDependency) Validate() error {
