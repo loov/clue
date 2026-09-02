@@ -25,8 +25,8 @@ func TestTarballFetcherRejectsOversizedDownload(t *testing.T) {
 	})}
 	t.Cleanup(func() { tarballHTTPClient = originalClient })
 
-	dep := NewTarballDependency("large", "https://example.com/large.tar.gz", "", "", nil)
-	err := NewTarballFetcher(false, false).Fetch(context.Background(), dep, t.TempDir())
+	dep := NewTarballDependency("large", "https://example.com/large.tar.gz", strings.Repeat("0", 64), "", nil)
+	err := NewTarballFetcher(false).Fetch(context.Background(), dep, t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "archive exceeds") {
 		t.Fatalf("expected archive size error, got %v", err)
 	}

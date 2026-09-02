@@ -426,7 +426,6 @@ func runDeps(dir string, verbose bool, args []string) int {
 
 		if err := deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
 			Verbose: verbose,
-			CIMode:  false,
 			Name:    name,
 		}); err != nil {
 			printError(err)

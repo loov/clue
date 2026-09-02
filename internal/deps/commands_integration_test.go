@@ -96,7 +96,6 @@ func TestDepsFetch_Integration(t *testing.T) {
 
 	err = deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 
 	w.Close()
@@ -238,7 +237,6 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 
 	err = deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Errorf("Fetch should succeed: %v", err)

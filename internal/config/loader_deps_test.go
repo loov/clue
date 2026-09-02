@@ -296,6 +296,18 @@ dependencies: {
 			expectError: "out of bound",
 		},
 		{
+			name: "missing tarball checksum",
+			config: `name: "test"
+targets: { app: { name: "app", type: "executable", sources: ["main.cpp"] } }
+dependencies: {
+	dep: {
+		type: "tarball"
+		url: "https://example.com/file.tar.gz"
+	}
+}`,
+			expectError: "incomplete value",
+		},
+		{
 			name: "insecure tarball URL",
 			config: `name: "test"
 targets: { app: { name: "app", type: "executable", sources: ["main.cpp"] } }

@@ -90,7 +90,6 @@ func TestRunFetch_NoDeps(t *testing.T) {
 	ctx := context.Background()
 	err := RunFetch(ctx, deps, FetchOptions{
 		Verbose: false,
-		CIMode:  false,
 		Name:    "",
 	})
 	if err != nil {
@@ -114,7 +113,6 @@ func TestRunFetch_InvalidDependency(t *testing.T) {
 	ctx := context.Background()
 	err := RunFetch(ctx, deps, FetchOptions{
 		Verbose: false,
-		CIMode:  false,
 		Name:    "",
 	})
 

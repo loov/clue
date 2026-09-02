@@ -790,7 +790,6 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options) (map[stri
 		opts.Config.Dependencies,
 		deps.ManagerOptions{
 			Verbose: opts.Verbosity == VerbosityVerbose,
-			CIMode:  false,
 		},
 	)
 	if err != nil {

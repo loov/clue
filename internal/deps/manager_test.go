@@ -13,7 +13,6 @@ func TestManager_StatusEmpty(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
@@ -36,7 +35,6 @@ func TestManager_StatusMissing(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, deps, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
@@ -77,7 +75,6 @@ func TestManager_VendoredAlwaysCached(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, deps, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
@@ -119,7 +116,6 @@ func TestFetchAll_SkipsCached(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, deps, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
@@ -148,7 +144,6 @@ func TestFetchOne_Unknown(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
@@ -174,7 +169,6 @@ func TestClean(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, deps, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
@@ -208,7 +202,6 @@ func TestCleanOne_Unknown(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
@@ -247,7 +240,6 @@ func TestManager_BuildOrder(t *testing.T) {
 
 	manager, err := NewManager(tmpDir, deps, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)

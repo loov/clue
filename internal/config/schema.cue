@@ -89,7 +89,7 @@ package config
 #TarballDependency: {
 	type: "tarball"
 	url: string & =~"^https://"
-	checksum?: string & =~"^[a-f0-9]{64}$"  // SHA256 hex
+	checksum: string & =~"^[a-f0-9]{64}$"  // SHA256 hex
 	stripPrefix?: string
 	build?: #InlineBuildConfig
 }

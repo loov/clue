@@ -145,12 +145,9 @@ func (t *TarballDependency) Validate() error {
 	if !strings.HasPrefix(t.URL, "https://") {
 		return fmt.Errorf("tarball dependency %q: url must start with https://", t.name)
 	}
-	// If checksum is provided, validate it's SHA256 hex (64 hex chars)
-	if t.Checksum != "" {
-		matched, _ := regexp.MatchString("^[a-f0-9]{64}$", t.Checksum)
-		if !matched {
-			return fmt.Errorf("tarball dependency %q: checksum must be a 64-character SHA256 hex string", t.name)
-		}
+	matched, _ := regexp.MatchString("^[a-f0-9]{64}$", t.Checksum)
+	if !matched {
+		return fmt.Errorf("tarball dependency %q: checksum must be a 64-character SHA256 hex string", t.name)
 	}
 	if t.BuildConfig != nil {
 		if err := t.BuildConfig.Validate(); err != nil {

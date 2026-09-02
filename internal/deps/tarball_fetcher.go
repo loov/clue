@@ -19,19 +19,18 @@ var tarballHTTPClient = &http.Client{Timeout: 5 * time.Minute}
 // TarballFetcher downloads and extracts tarball dependencies
 type TarballFetcher struct {
 	verbose bool
-	ciMode  bool
 }
 
 // NewTarballFetcher creates a new tarball fetcher
-func NewTarballFetcher(verbose, ciMode bool) *TarballFetcher {
-	return &TarballFetcher{
-		verbose: verbose,
-		ciMode:  ciMode,
-	}
+func NewTarballFetcher(verbose bool) *TarballFetcher {
+	return &TarballFetcher{verbose: verbose}
 }
 
 // Fetch downloads, verifies, and extracts a tarball dependency
 func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targetPath string) error {
+	if err := dep.Validate(); err != nil {
+		return err
+	}
 	// Create temp file for download
 	tmpFile, err := os.CreateTemp("", "clue-dep-*.tar")
 	if err != nil {
@@ -88,22 +87,12 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 		fmt.Printf("Download complete (%d bytes)\n", bytesWritten)
 	}
 
-	// Checksum verification
-	if dep.Checksum != "" {
-		if actualChecksum != dep.Checksum {
-			return fmt.Errorf("checksum mismatch for %s: expected %s, got %s",
-				dep.Name(), dep.Checksum, actualChecksum)
-		}
-		if f.verbose {
-			fmt.Printf("Checksum verified: %s\n", actualChecksum)
-		}
-	} else {
-		// Missing checksum
-		if f.ciMode {
-			return fmt.Errorf("dependency %s missing checksum (required in CI mode)", dep.Name())
-		}
-		// Warning in non-CI mode
-		fmt.Printf("Warning: %s has no checksum verification\n", dep.Name())
+	if actualChecksum != dep.Checksum {
+		return fmt.Errorf("checksum mismatch for %s: expected %s, got %s",
+			dep.Name(), dep.Checksum, actualChecksum)
+	}
+	if f.verbose {
+		fmt.Printf("Checksum verified: %s\n", actualChecksum)
 	}
 
 	// Detect archive type and extract

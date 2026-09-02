@@ -9,7 +9,6 @@ import (
 // FetchOptions configures the fetch operation
 type FetchOptions struct {
 	Verbose bool
-	CIMode  bool
 	Name    string // Optional: fetch specific dependency
 }
 
@@ -23,7 +22,6 @@ func RunList(deps map[string]Dependency, verbose bool) error {
 	// Create manager
 	mgr, err := NewManager(".", deps, ManagerOptions{
 		Verbose: verbose,
-		CIMode:  false,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create manager: %w", err)
@@ -80,7 +78,6 @@ func RunFetch(ctx context.Context, deps map[string]Dependency, opts FetchOptions
 	// Create manager
 	mgr, err := NewManager(".", deps, ManagerOptions{
 		Verbose: opts.Verbose,
-		CIMode:  opts.CIMode,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create manager: %w", err)
@@ -120,7 +117,6 @@ func RunClean(deps map[string]Dependency, name string) error {
 	// Create manager (verbose=false for clean)
 	mgr, err := NewManager(".", deps, ManagerOptions{
 		Verbose: false,
-		CIMode:  false,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create manager: %w", err)

@@ -14,13 +14,11 @@ type Manager struct {
 	vendoredFetcher *VendoredFetcher
 	resolver        *Resolver
 	verbose         bool
-	ciMode          bool
 }
 
 // ManagerOptions configures the manager
 type ManagerOptions struct {
 	Verbose bool
-	CIMode  bool
 }
 
 // DepStatus represents the status of a dependency
@@ -42,7 +40,7 @@ func NewManager(projectDir string, deps map[string]Dependency, opts ManagerOptio
 
 	// Initialize fetchers
 	gitFetcher := NewGitFetcher(opts.Verbose)
-	tarballFetcher := NewTarballFetcher(opts.Verbose, opts.CIMode)
+	tarballFetcher := NewTarballFetcher(opts.Verbose)
 	vendoredFetcher := NewVendoredFetcher(projectDir, opts.Verbose)
 
 	// Initialize resolver
@@ -56,7 +54,6 @@ func NewManager(projectDir string, deps map[string]Dependency, opts ManagerOptio
 		vendoredFetcher: vendoredFetcher,
 		resolver:        resolver,
 		verbose:         opts.Verbose,
-		ciMode:          opts.CIMode,
 	}, nil
 }
 
