@@ -114,6 +114,7 @@ func TestCLI_DirBuildsFromProjectDirectory(t *testing.T) {
 	projectDir := t.TempDir()
 	config := `name: "dir-test"
 version: "1.0.0"
+buildDir: "output"
 toolchain: {
 	compiler: "clang"
 	std: "c++17"
@@ -135,8 +136,17 @@ targets: app: {
 	if exitCode != 0 {
 		t.Fatalf("build failed with exit code %d: %s", exitCode, stderr)
 	}
-	if _, err := os.Stat(filepath.Join(projectDir, ".build", "debug", "bin", "app")); err != nil {
+	artifact := filepath.Join(projectDir, "output", "debug", "bin", "app")
+	if _, err := os.Stat(artifact); err != nil {
 		t.Errorf("artifact was not written below the project directory: %v", err)
+	}
+
+	_, stderr, exitCode = runClue(t, t.TempDir(), "-dir", projectDir, "clean", "-all")
+	if exitCode != 0 {
+		t.Fatalf("clean failed with exit code %d: %s", exitCode, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, "output")); !os.IsNotExist(err) {
+		t.Errorf("configured build directory was not cleaned, stat error: %v", err)
 	}
 }
 

@@ -262,9 +262,6 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 		return 1
 	}
 
-	// Determine build directory (default .build)
-	buildDir := ".build"
-
 	// Compute actual job count
 	actualJobs := jobs
 	if actualJobs == 0 {
@@ -308,7 +305,7 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 	opts := build.Options{
 		Config:       cfg,
 		Variant:      selectedVariant,
-		BuildDir:     buildDir,
+		BuildDir:     cfg.BuildDir,
 		Verbosity:    verbosity,
 		Targets:      targets,
 		ForceRebuild: rebuildAll,
@@ -345,16 +342,18 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 }
 
 func runClean(dir, variant string, all bool, verbosity build.Verbosity) int {
-	// Determine build directory relative to project directory
-	buildDir := filepath.Join(dir, ".build")
+	buildDir := ".build"
+	cfg, configErr := config.NewLoader().Load(dir)
+	if configErr == nil {
+		buildDir = cfg.BuildDir
+	}
 
 	// If not cleaning all, need to determine variant
 	if !all {
 		// If variant not specified, use default from selector
 		if variant == "" {
 			// Load config to get default variant behavior
-			_, err := config.NewLoader().Load(dir)
-			if err != nil {
+			if configErr != nil {
 				// If can't load config, default to "debug"
 				variant = "debug"
 			} else {
@@ -625,7 +624,7 @@ func runRun(dir, variant string, verbosity build.Verbosity, jobs int, args []str
 	result, err := build.RunTarget(buildCtx.Ctx, build.RunOptions{
 		Config:    cfg,
 		Variant:   selectedVariant,
-		BuildDir:  ".build",
+		BuildDir:  cfg.BuildDir,
 		Target:    targetName,
 		Args:      execArgs,
 		Verbosity: verbosity,
@@ -728,7 +727,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		opts := build.Options{
 			Config:    cfg,
 			Variant:   selectedVariant,
-			BuildDir:  ".build",
+			BuildDir:  cfg.BuildDir,
 			Verbosity: verbosity,
 			Jobs:      actualJobs,
 			KeepGoing: keepGoing,
