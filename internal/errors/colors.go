@@ -4,8 +4,6 @@ package errors
 import (
 	"fmt"
 	"os"
-	"syscall"
-	"unsafe"
 )
 
 // ANSI color codes
@@ -38,21 +36,12 @@ func init() {
 
 // isTerminal returns true if the file descriptor is a terminal
 func isTerminal(fd int) bool {
-	var termios syscall.Termios
-	_, _, err := syscall.Syscall6(
-		syscall.SYS_IOCTL,
-		uintptr(fd),
-		uintptr(getTermiosRequest()),
-		uintptr(unsafe.Pointer(&termios)),
-		0, 0, 0,
-	)
-	return err == 0
-}
-
-// getTermiosRequest returns the ioctl request code for getting terminal attributes
-// On Linux this is TCGETS (0x5401)
-func getTermiosRequest() uint64 {
-	return 0x5401 // TCGETS on Linux
+	file := os.NewFile(uintptr(fd), "terminal")
+	if file == nil {
+		return false
+	}
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 // SetNoColor explicitly enables or disables color output
