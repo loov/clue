@@ -200,7 +200,75 @@ func (l *Loader) load(dir string, overlay map[string]load.Source) (*Config, erro
 	}
 
 	// Extract into Go struct
-	return l.extractConfig(unified)
+	config, err := l.extractConfig(unified)
+	if err != nil {
+		return nil, err
+	}
+	if err := expandTargetGlobs(config, absDir); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func expandTargetGlobs(config *Config, root string) error {
+	for name, target := range config.Targets {
+		var err error
+		target.Sources, err = expandFileGlobs(root, target.Sources)
+		if err != nil {
+			return fmt.Errorf("target %q sources: %w", name, err)
+		}
+		target.Headers, err = expandFileGlobs(root, target.Headers)
+		if err != nil {
+			return fmt.Errorf("target %q headers: %w", name, err)
+		}
+		config.Targets[name] = target
+	}
+	return nil
+}
+
+func expandFileGlobs(root string, entries []string) ([]string, error) {
+	result := make([]string, 0, len(entries))
+	seen := make(map[string]bool)
+	for _, entry := range entries {
+		if !strings.ContainsAny(entry, "*?[") {
+			if !seen[entry] {
+				seen[entry] = true
+				result = append(result, entry)
+			}
+			continue
+		}
+		pattern := entry
+		if !filepath.IsAbs(pattern) {
+			pattern = filepath.Join(root, pattern)
+		}
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid pattern %q: %w", entry, err)
+		}
+		matched := false
+		for _, match := range matches {
+			info, err := os.Stat(match)
+			if err != nil || !info.Mode().IsRegular() {
+				continue
+			}
+			matched = true
+			path := match
+			if !filepath.IsAbs(entry) {
+				path, err = filepath.Rel(root, match)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if !seen[path] {
+				seen[path] = true
+				result = append(result, path)
+			}
+		}
+		if !matched {
+			return nil, fmt.Errorf("pattern %q matched no files", entry)
+		}
+	}
+	return result, nil
 }
 
 // convertCUEError transforms CUE errors into rich errors

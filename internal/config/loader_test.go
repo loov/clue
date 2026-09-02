@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -85,6 +86,47 @@ targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
 	}
 	if cfg.Name != "split" || cfg.Toolchain.CXXStd != "c++23" || cfg.Targets["app"].Name != "app" {
 		t.Fatalf("config = %+v", cfg)
+	}
+}
+
+func TestLoaderExpandsTargetGlobs(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"b.cpp", "a.cpp"} {
+		if err := os.WriteFile(filepath.Join(dir, "src", name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	contents := `name: "globs"
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["src/*.cpp", "generated.cpp"]
+}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{filepath.Join("src", "a.cpp"), filepath.Join("src", "b.cpp"), "generated.cpp"}
+	if !slices.Equal(cfg.Targets["app"].Sources, want) {
+		t.Fatalf("sources = %v, want %v", cfg.Targets["app"].Sources, want)
+	}
+}
+
+func TestLoaderRejectsUnmatchedTargetGlob(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "globs"
+targets: app: {name: "app", type: "executable", sources: ["src/*.cpp"]}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "matched no files") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

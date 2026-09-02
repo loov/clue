@@ -44,6 +44,7 @@ clue build       # Build project
 ```
 
 `clue.cue` may use a CUE package and split configuration across other `.cue` files in the same directory.
+Target `sources` and `headers` accept standard file globs such as `src/*.cpp`.
 
 ## Commands
 
