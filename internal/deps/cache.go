@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -152,7 +153,7 @@ func (c *Cache) CleanDep(name string) error {
 	if entries, err := os.ReadDir(gitDir); err == nil {
 		for _, entry := range entries {
 			// Match entries that start with sanitized name followed by dash
-			if entry.IsDir() && (entry.Name() == sanitized || filepath.Base(entry.Name())[:len(sanitized)+1] == sanitized+"-") {
+			if entry.IsDir() && (entry.Name() == sanitized || strings.HasPrefix(entry.Name(), sanitized+"-")) {
 				path := filepath.Join(gitDir, entry.Name())
 				if err := os.RemoveAll(path); err != nil {
 					return fmt.Errorf("failed to remove %s: %w", path, err)
@@ -170,7 +171,7 @@ func (c *Cache) CleanDep(name string) error {
 	if entries, err := os.ReadDir(tarballDir); err == nil {
 		for _, entry := range entries {
 			// Match entries that start with sanitized name followed by dash
-			if entry.IsDir() && (entry.Name() == sanitized || filepath.Base(entry.Name())[:len(sanitized)+1] == sanitized+"-") {
+			if entry.IsDir() && (entry.Name() == sanitized || strings.HasPrefix(entry.Name(), sanitized+"-")) {
 				path := filepath.Join(tarballDir, entry.Name())
 				if err := os.RemoveAll(path); err != nil {
 					return fmt.Errorf("failed to remove %s: %w", path, err)
