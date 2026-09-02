@@ -108,10 +108,10 @@ func (p *Profiler) PrintSlowestFiles(n int, w io.Writer) {
 		totalCompileTime += e.Duration
 	}
 
-	fmt.Fprintf(w, "\nSlowest %d compilation units:\n", len(slowest))
+	_, _ = fmt.Fprintf(w, "\nSlowest %d compilation units:\n", len(slowest))
 	for _, e := range slowest {
 		percentage := float64(e.Duration) / float64(totalCompileTime) * 100
-		fmt.Fprintf(w, "  %s  %s  (%.1f%%)\n",
+		_, _ = fmt.Fprintf(w, "  %s  %s  (%.1f%%)\n",
 			formatDuration(e.Duration),
 			filepath.Base(e.Source),
 			percentage)

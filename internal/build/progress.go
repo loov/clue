@@ -49,7 +49,7 @@ func (p *Progress) Compiling(target, filename string) {
 
 	basename := filepath.Base(filename)
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "[%d/%d] %s: %s\n", current, p.total, target, basename)
+	_, _ = fmt.Fprintf(p.out, "[%d/%d] %s: %s\n", current, p.total, target, basename)
 	p.mu.Unlock()
 }
 
@@ -63,7 +63,7 @@ func (p *Progress) CompilingTimed(target, filename string, duration time.Duratio
 	basename := filepath.Base(filename)
 
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "[%d/%d] %s: %s (%s)\n", current, p.total, target, basename, duration.String())
+	_, _ = fmt.Fprintf(p.out, "[%d/%d] %s: %s (%s)\n", current, p.total, target, basename, duration.String())
 	p.mu.Unlock()
 }
 
@@ -73,7 +73,7 @@ func (p *Progress) Command(compiler string, args []string) {
 		return
 	}
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "  $ %s %s\n", compiler, strings.Join(args, " "))
+	_, _ = fmt.Fprintf(p.out, "  $ %s %s\n", compiler, strings.Join(args, " "))
 	p.mu.Unlock()
 }
 
@@ -83,7 +83,7 @@ func (p *Progress) Linking(target string) {
 		return
 	}
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "Linking %s...\n", target)
+	_, _ = fmt.Fprintf(p.out, "Linking %s...\n", target)
 	p.mu.Unlock()
 }
 
@@ -93,7 +93,7 @@ func (p *Progress) Archiving(target string) {
 		return
 	}
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "Creating lib%s.a...\n", target)
+	_, _ = fmt.Fprintf(p.out, "Creating lib%s.a...\n", target)
 	p.mu.Unlock()
 }
 
@@ -106,11 +106,11 @@ func (p *Progress) Complete(artifact string, fileCount, cachedCount int, duratio
 	durationStr := duration.String()
 	p.mu.Lock()
 	if cachedCount > 0 {
-		fmt.Fprintf(p.out, "%s %s (%d files, %d cached, %s)\n",
+		_, _ = fmt.Fprintf(p.out, "%s %s (%d files, %d cached, %s)\n",
 			errors.Help("Built:"),
 			artifact, fileCount, cachedCount, durationStr)
 	} else {
-		fmt.Fprintf(p.out, "%s %s (%d files, %s)\n",
+		_, _ = fmt.Fprintf(p.out, "%s %s (%d files, %s)\n",
 			errors.Help("Built:"),
 			artifact, fileCount, durationStr)
 	}
@@ -128,7 +128,7 @@ func (p *Progress) Skip(target, filename string, _ cache.RebuildReason) {
 
 	basename := filepath.Base(filename)
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "[skip] %s: %s (cached)\n", target, basename)
+	_, _ = fmt.Fprintf(p.out, "[skip] %s: %s (cached)\n", target, basename)
 	p.mu.Unlock()
 }
 
@@ -141,11 +141,11 @@ func (p *Progress) Summary() {
 	cached := p.cached.Load()
 	p.mu.Lock()
 	if built == 0 && cached > 0 {
-		fmt.Fprintf(p.out, "Up to date\n")
+		_, _ = fmt.Fprintf(p.out, "Up to date\n")
 	} else if cached > 0 {
-		fmt.Fprintf(p.out, "Built %d files, %d cached\n", built, cached)
+		_, _ = fmt.Fprintf(p.out, "Built %d files, %d cached\n", built, cached)
 	} else if built > 0 {
-		fmt.Fprintf(p.out, "Built %d files\n", built)
+		_, _ = fmt.Fprintf(p.out, "Built %d files\n", built)
 	}
 	p.mu.Unlock()
 }
@@ -158,7 +158,7 @@ func (p *Progress) Stats() (built, cached int) {
 // Error reports a build error with target context
 func (p *Progress) Error(target string, err error) {
 	p.mu.Lock()
-	fmt.Fprintf(p.out, "%s %s\n",
+	_, _ = fmt.Fprintf(p.out, "%s %s\n",
 		errors.Error("[%s] error:", target),
 		err.Error())
 	p.mu.Unlock()
@@ -205,12 +205,12 @@ func (p *Progress) CompilingParallel(target string, activeFiles []string) {
 	p.mu.Lock()
 	if len(activeFiles) > 3 {
 		// Truncate if too many files
-		fmt.Fprintf(p.out, "[%d/%d] %s: %s... and %d more\n",
+		_, _ = fmt.Fprintf(p.out, "[%d/%d] %s: %s... and %d more\n",
 			current, p.total, target,
 			strings.Join(activeFiles[:3], ", "),
 			len(activeFiles)-3)
 	} else {
-		fmt.Fprintf(p.out, "[%d/%d] %s: %s\n",
+		_, _ = fmt.Fprintf(p.out, "[%d/%d] %s: %s\n",
 			current, p.total, target,
 			strings.Join(activeFiles, ", "))
 	}
