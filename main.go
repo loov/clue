@@ -164,10 +164,12 @@ func loadConfig(dir, variant string, verbosity build.Verbosity) (*config.Config,
 		fmt.Printf("Environment variables from system: %s\n", strings.Join(env.Used, ", "))
 	}
 	if verbosity >= build.VerbosityNormal && len(env.Variables) > 0 {
-		fmt.Printf("Environment variables: %d configured\n", len(env.Variables))
-		for name, value := range env.Variables {
-			fmt.Printf("  %s = %s\n", name, value)
+		names := make([]string, 0, len(env.Variables))
+		for name := range env.Variables {
+			names = append(names, name)
 		}
+		sort.Strings(names)
+		fmt.Printf("Environment variables configured: %s\n", strings.Join(names, ", "))
 	}
 
 	return cfg, selectedVariant, nil

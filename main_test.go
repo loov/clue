@@ -41,6 +41,9 @@ func TestValidateCommand(t *testing.T) {
 	if !strings.Contains(output, "utils") {
 		t.Errorf("Expected 'utils' target in output, got:\n%s", output)
 	}
+	if strings.Contains(output, "USE_OPENSSL =") || strings.Contains(output, "BUILD_JOBS =") {
+		t.Errorf("environment variable values must not be printed, got:\n%s", output)
+	}
 }
 
 func TestValidateWithVariant(t *testing.T) {
