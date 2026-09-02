@@ -62,6 +62,17 @@ func TestNewToolchain_Native(t *testing.T) {
 	}
 }
 
+func gnuTripletPrefix(target toolchain.Platform) string {
+	switch target.String() {
+	case "linux-arm64":
+		return "aarch64-linux-gnu-"
+	case "linux-amd64":
+		return "x86_64-linux-gnu-"
+	default:
+		return ""
+	}
+}
+
 func TestNewToolchain_CCEnvOverride(t *testing.T) {
 	host := HostPlatform()
 

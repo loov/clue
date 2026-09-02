@@ -87,20 +87,3 @@ var ValidateToolchain = toolchain.ValidateToolchain
 
 // FindMSVC discovers the MSVC installation on Windows.
 var FindMSVC = msvc.FindMSVC
-
-// gnuTripletPrefix returns the GNU triplet prefix for a given platform.
-// This is the raw mapping without host comparison.
-// Kept for tests that use it directly (will be removed in Phase 16).
-func gnuTripletPrefix(target toolchain.Platform) string {
-	switch target.String() {
-	case "linux-arm64":
-		return "aarch64-linux-gnu-"
-	case "linux-amd64":
-		return "x86_64-linux-gnu-"
-	case "darwin-amd64", "darwin-arm64":
-		// macOS cross-compilation from Linux deferred to v2
-		return ""
-	default:
-		return ""
-	}
-}
