@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,7 +70,7 @@ func TestUnityBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := builder.Build(context.Background(), Options{Config: cfg, Variant: "debug", BuildDir: buildDir, Verbosity: VerbosityQuiet, Jobs: 1}); err != nil {
+	if _, err := builder.Build(t.Context(), Options{Config: cfg, Variant: "debug", BuildDir: buildDir, Verbosity: VerbosityQuiet, Jobs: 1}); err != nil {
 		t.Fatal(err)
 	}
 	executable := ArtifactPath(buildDir, "debug", "app", "executable", HostPlatform())

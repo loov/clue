@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -51,7 +50,7 @@ func TestIncremental_FirstBuild(t *testing.T) {
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := builder.Build(context.Background(), opts)
+	result, err := builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -103,7 +102,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 	}
 
 	// First build
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -121,7 +120,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Second build with no changes
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("second build failed: %v", err)
 	}
@@ -163,7 +162,7 @@ func TestIncremental_SourceChange(t *testing.T) {
 	}
 
 	// First build
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -188,7 +187,7 @@ int get_version() {
 	}
 
 	// Rebuild
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("rebuild failed: %v", err)
 	}
@@ -227,7 +226,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 	}
 
 	// First build
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -251,7 +250,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 	}
 
 	// Rebuild
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("rebuild failed: %v", err)
 	}
@@ -286,7 +285,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 	}
 
 	// First build
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -300,7 +299,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 
 	// Rebuild with ForceRebuild (no file changes)
 	opts.ForceRebuild = true
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("force rebuild failed: %v", err)
 	}
@@ -335,7 +334,7 @@ func TestIncremental_ContentRevert(t *testing.T) {
 	}
 
 	// First build with original content
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("first build failed: %v", err)
 	}
@@ -362,7 +361,7 @@ int get_version() {
 	}
 
 	// Build with modified content
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("second build failed: %v", err)
 	}
@@ -382,7 +381,7 @@ int get_version() {
 	}
 
 	// Build again (should reuse cached result from first build)
-	_, err = builder.Build(context.Background(), opts)
+	_, err = builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("third build failed: %v", err)
 	}

@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,7 +94,7 @@ targets: {
 	}
 
 	// Build
-	result, err := builder.Build(context.Background(), opts)
+	result, err := builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("build failed: %v", err)
 	}
@@ -175,7 +174,7 @@ func TestCrossTargetModulesAndHeaderUnits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := builder.Build(context.Background(), Options{
+	if _, err := builder.Build(t.Context(), Options{
 		Config: cfg, Variant: "debug", BuildDir: cfg.BuildDir, Verbosity: VerbosityQuiet, Jobs: 1,
 	}); err != nil {
 		t.Fatal(err)
@@ -187,7 +186,7 @@ func TestCrossTargetModulesAndHeaderUnits(t *testing.T) {
 	if err := os.WriteFile(headerSource, []byte("inline int header_answer() { return 3; }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := builder.Build(context.Background(), Options{
+	if _, err := builder.Build(t.Context(), Options{
 		Config: cfg, Variant: "debug", BuildDir: cfg.BuildDir, Verbosity: VerbosityQuiet, Jobs: 1,
 	}); err != nil {
 		t.Fatal(err)
@@ -266,7 +265,7 @@ func TestBuildDisambiguatesDuplicateSourceBasenames(t *testing.T) {
 		t.Fatal(err)
 	}
 	buildDir := filepath.Join(tmpDir, ".build")
-	if _, err := builder.Build(context.Background(), Options{
+	if _, err := builder.Build(t.Context(), Options{
 		Config: cfg, Variant: "debug", BuildDir: buildDir, Verbosity: VerbosityQuiet, Jobs: 2,
 	}); err != nil {
 		t.Fatal(err)
@@ -308,7 +307,7 @@ func TestBuildLinksTransitiveStaticLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	buildDir := filepath.Join(tmpDir, ".build")
-	if _, err := builder.Build(context.Background(), Options{
+	if _, err := builder.Build(t.Context(), Options{
 		Config: cfg, Variant: "debug", BuildDir: buildDir, Verbosity: VerbosityQuiet,
 		Targets: []string{"app"}, Jobs: 2,
 	}); err != nil {

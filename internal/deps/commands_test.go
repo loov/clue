@@ -1,25 +1,11 @@
 package deps
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
-
-// chdir changes to the given directory and returns a function to restore the original directory.
-func chdir(t *testing.T, dir string) func() {
-	t.Helper()
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get current dir: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("failed to change to dir %s: %v", dir, err)
-	}
-	return func() { _ = os.Chdir(origDir) }
-}
 
 func TestRunList_Empty(t *testing.T) {
 	// Empty dependencies map
@@ -39,7 +25,7 @@ func TestRunList_WithDeps(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Create test dependencies
 	deps := map[string]Dependency{
@@ -62,7 +48,7 @@ func TestRunList_Verbose(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Create test dependencies
 	deps := map[string]Dependency{
@@ -81,13 +67,13 @@ func TestRunFetch_NoDeps(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Empty dependencies map
 	deps := make(map[string]Dependency)
 
 	// Run fetch
-	ctx := context.Background()
+	ctx := t.Context()
 	err := RunFetch(ctx, deps, FetchOptions{
 		Verbose: false,
 		Name:    "",
@@ -102,7 +88,7 @@ func TestRunFetch_InvalidDependency(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Create dependency with invalid URL (will fail to fetch)
 	deps := map[string]Dependency{
@@ -110,7 +96,7 @@ func TestRunFetch_InvalidDependency(t *testing.T) {
 	}
 
 	// Run fetch - should fail
-	ctx := context.Background()
+	ctx := t.Context()
 	err := RunFetch(ctx, deps, FetchOptions{
 		Verbose: false,
 		Name:    "",
@@ -131,7 +117,7 @@ func TestRunClean_NotExists(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Create empty dependencies map
 	deps := make(map[string]Dependency)
@@ -148,7 +134,7 @@ func TestRunClean_RemovesDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Create .deps directory with some content
 	depsDir := filepath.Join(tmpDir, ".deps")
@@ -188,7 +174,7 @@ func TestRunClean_SingleDependency(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Create .deps directory with multiple dependencies
 	depsDir := filepath.Join(tmpDir, ".deps")
@@ -226,13 +212,13 @@ func TestRunUpdate(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to temp directory for test
-	defer chdir(t, tmpDir)()
+	t.Chdir(tmpDir)
 
 	// Empty dependencies map
 	deps := make(map[string]Dependency)
 
 	// Run update - should succeed (just prints placeholder message)
-	ctx := context.Background()
+	ctx := t.Context()
 	err := RunUpdate(ctx, deps)
 	if err != nil {
 		t.Fatalf("RunUpdate failed: %v", err)

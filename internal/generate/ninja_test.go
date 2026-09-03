@@ -184,11 +184,7 @@ func TestNinja_CrossTargetModulesAndHeaderUnits(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(dir)
 	cfg := createMinimalConfig("modules", "static_library", []string{"math.cppm", "math-detail.cpp"})
 	cfg.Targets["app"] = config.Target{
 		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"modules"},

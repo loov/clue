@@ -16,7 +16,7 @@ import (
 
 func TestExecutorCancellationKillsChildProcesses(t *testing.T) {
 	pidFile := filepath.Join(t.TempDir(), "child.pid")
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	go func() {
 		for {
 			if _, err := os.Stat(pidFile); err == nil {

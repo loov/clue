@@ -71,7 +71,7 @@ func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
 		Verbosity: build.VerbosityNormal,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	result, err := builder.Build(ctx, opts)
@@ -295,7 +295,7 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 		Verbosity: build.VerbosityNormal,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	result, err := builder.Build(ctx, opts)
@@ -320,7 +320,7 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 	}
 
 	// Build again - should succeed without network (vendored deps are local)
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx2, cancel2 := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel2()
 
 	builder2, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
@@ -381,7 +381,7 @@ func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
 		Verbosity: build.VerbosityVerbose, // Enable verbose to see build steps
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	var result *build.Result

@@ -14,7 +14,7 @@ func TestExecutor_RunCommand_Success(t *testing.T) {
 		StreamOutput: false, // Capture output
 	})
 
-	result, err := executor.RunCommand(context.Background(), "echo", "hello")
+	result, err := executor.RunCommand(t.Context(), "echo", "hello")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestExecutor_RunCommand_Failure(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	result, err := executor.RunCommand(context.Background(), "sh", "-c", "exit 1")
+	result, err := executor.RunCommand(t.Context(), "sh", "-c", "exit 1")
 	if err == nil {
 		t.Fatal("expected error for non-zero exit code")
 	}
@@ -52,7 +52,7 @@ func TestExecutor_RunCommand_NotFound(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	_, err := executor.RunCommand(context.Background(), "nonexistent_tool_xyz")
+	_, err := executor.RunCommand(t.Context(), "nonexistent_tool_xyz")
 	if err == nil {
 		t.Fatal("expected error for non-existent command")
 	}
@@ -69,7 +69,7 @@ func TestExecutor_RunCommand_WithContext(t *testing.T) {
 	})
 
 	// Create context with very short timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	_, err := executor.RunCommand(ctx, "sleep", "10")
@@ -89,7 +89,7 @@ func TestExecutor_RunCommand_CaptureOutput(t *testing.T) {
 	})
 
 	result, err := executor.RunCommand(
-		context.Background(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "emit",
+		t.Context(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "emit",
 	)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
@@ -105,7 +105,7 @@ func TestExecutor_RunCommand_Environment(t *testing.T) {
 		Environment: append(os.Environ(), "CLUE_EXECUTOR_TEST=configured"),
 	})
 	result, err := executor.RunCommand(
-		context.Background(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "env",
+		t.Context(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "env",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -149,7 +149,7 @@ func TestExecutor_RunCommand_WorkDir(t *testing.T) {
 		WorkDir:      tmpDir,
 	})
 
-	result, err := executor.RunCommand(context.Background(), "pwd")
+	result, err := executor.RunCommand(t.Context(), "pwd")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestExecutor_RunCommand_Verbose(t *testing.T) {
 
 	// This test just ensures verbose mode doesn't crash
 	// Actual output to stdout is hard to capture in tests
-	_, err := executor.RunCommand(context.Background(), "echo", "test")
+	_, err := executor.RunCommand(t.Context(), "echo", "test")
 	if err != nil {
 		t.Fatalf("expected no error with verbose mode, got: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestExecutor_RunCommand_Duration(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	result, err := executor.RunCommand(context.Background(), "sleep", "0.1")
+	result, err := executor.RunCommand(t.Context(), "sleep", "0.1")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestExecutor_RunCommand_Stderr(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	result, err := executor.RunCommand(context.Background(), "sh", "-c", "echo error >&2")
+	result, err := executor.RunCommand(t.Context(), "sh", "-c", "echo error >&2")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestExecutor_RunCommand_MultipleArgs(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	result, err := executor.RunCommand(context.Background(), "echo", "arg1", "arg2", "arg3")
+	result, err := executor.RunCommand(t.Context(), "echo", "arg1", "arg2", "arg3")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestExecutor_RunCommand_EmptyCommand(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	_, err := executor.RunCommand(context.Background(), "")
+	_, err := executor.RunCommand(t.Context(), "")
 	if err == nil {
 		t.Fatal("expected error for empty command")
 	}
@@ -251,7 +251,7 @@ func TestExecutor_RunCommand_StreamingMode(t *testing.T) {
 	})
 
 	// Run command - output will go to stdout
-	result, err := executor.RunCommand(context.Background(), "echo", "streaming")
+	result, err := executor.RunCommand(t.Context(), "echo", "streaming")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}

@@ -42,7 +42,7 @@ func TestParallelBuild_20Files(t *testing.T) {
 	}
 
 	// Build
-	ctx := context.Background()
+	ctx := t.Context()
 	result, err := builder.Build(ctx, opts)
 	if err != nil {
 		t.Fatalf("build failed: %v", err)
@@ -102,7 +102,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	}
 
 	start1 := time.Now()
-	result1, err := builder1.Build(context.Background(), opts1)
+	result1, err := builder1.Build(t.Context(), opts1)
 	duration1 := time.Since(start1)
 	if err != nil {
 		t.Fatalf("sequential build failed: %v", err)
@@ -125,7 +125,7 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	}
 
 	start4 := time.Now()
-	result4, err := builder4.Build(context.Background(), opts4)
+	result4, err := builder4.Build(t.Context(), opts4)
 	duration4 := time.Since(start4)
 	if err != nil {
 		t.Fatalf("parallel build failed: %v", err)
@@ -171,7 +171,7 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 		Jobs:      4,
 	}
 
-	result, err := builder.Build(context.Background(), opts)
+	result, err := builder.Build(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("parallel build failed: %v", err)
 	}
@@ -227,7 +227,7 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 	}
 
 	// Create cancellable context
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// Start build in goroutine
 	var buildErr error
@@ -336,7 +336,7 @@ targets: {
 		KeepGoing: false,
 	}
 
-	_, err1 := builder1.Build(context.Background(), opts1)
+	_, err1 := builder1.Build(t.Context(), opts1)
 	if err1 == nil {
 		t.Error("build without keep-going should fail due to bad.cpp")
 	}
@@ -355,7 +355,7 @@ targets: {
 		KeepGoing: true,
 	}
 
-	_, err2 := builder2.Build(context.Background(), opts2)
+	_, err2 := builder2.Build(t.Context(), opts2)
 	if err2 == nil {
 		t.Error("keep-going build should report the compilation failure")
 	}

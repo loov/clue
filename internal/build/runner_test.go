@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"testing"
 
 	"github.com/loov/clue/internal/config"
@@ -41,7 +40,7 @@ func TestRunTarget_TargetNotFound(t *testing.T) {
 		Jobs:      1,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := RunTarget(ctx, opts)
 
 	if err == nil {
@@ -88,7 +87,7 @@ func TestRunTarget_NotExecutable_StaticLibrary(t *testing.T) {
 		Jobs:      1,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := RunTarget(ctx, opts)
 
 	if err == nil {
@@ -135,7 +134,7 @@ func TestRunTarget_NotExecutable_SharedLibrary(t *testing.T) {
 		Jobs:      1,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := RunTarget(ctx, opts)
 
 	if err == nil {

@@ -1,7 +1,6 @@
 package generate
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -67,11 +66,7 @@ variants: {
 	}
 
 	// Change to temp dir for clue build
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	buildDir := filepath.Join(tmpDir, ".build")
 
@@ -89,7 +84,7 @@ variants: {
 		Jobs:      1,
 	}
 
-	result, err := builder.Build(context.Background(), buildOpts)
+	result, err := builder.Build(t.Context(), buildOpts)
 	if err != nil {
 		t.Fatalf("clue build failed: %v", err)
 	}
@@ -229,11 +224,7 @@ variants: {
 	}
 
 	// Change to temp dir for generation
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	// Generate compile_commands.json
 	compdbPath := filepath.Join(tmpDir, "compile_commands.json")
@@ -378,11 +369,7 @@ variants: {
 	}
 
 	// Change to temp dir
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	buildDir := filepath.Join(tmpDir, ".build")
 

@@ -1,7 +1,6 @@
 package deps
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -122,7 +121,7 @@ func TestFetchAll_SkipsCached(t *testing.T) {
 	}
 
 	// FetchAll should succeed without network calls
-	ctx := context.Background()
+	ctx := t.Context()
 	err = manager.FetchAll(ctx)
 	if err != nil {
 		t.Errorf("FetchAll failed: %v", err)
@@ -149,7 +148,7 @@ func TestFetchOne_Unknown(t *testing.T) {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err = manager.FetchOne(ctx, "unknown")
 	if err == nil {
 		t.Error("Expected error for unknown dependency")
@@ -246,7 +245,7 @@ func TestManager_BuildOrder(t *testing.T) {
 	}
 
 	// FetchAll should process in alphabetical order
-	ctx := context.Background()
+	ctx := t.Context()
 	err = manager.FetchAll(ctx)
 	if err != nil {
 		t.Errorf("FetchAll failed: %v", err)

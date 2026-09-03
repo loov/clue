@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -145,7 +144,7 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 	}
 
 	// Build
-	ctx := context.Background()
+	ctx := t.Context()
 	result, err := builder.Build(ctx, opts)
 	if err != nil {
 		t.Fatalf("build failed: %v", err)

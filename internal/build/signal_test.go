@@ -34,7 +34,7 @@ func TestSetupSignalHandling_CreatesContext(t *testing.T) {
 }
 
 func TestContext_IsCancelled_InitiallyFalse(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	bc := &Context{
@@ -48,7 +48,7 @@ func TestContext_IsCancelled_InitiallyFalse(t *testing.T) {
 }
 
 func TestContext_IsCancelled_TrueAfterCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	bc := &Context{
 		Ctx:    ctx,
@@ -104,7 +104,7 @@ func TestExecutor_ProcessGroupSetup(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Run a simple command
 	result, err := executor.RunCommandWithCleanup(ctx, "echo", "test")
@@ -131,7 +131,7 @@ func TestExecutor_ProcessGroupSetup_WithArgs(t *testing.T) {
 	// Test with multiple arguments to ensure arg passing works
 	executor := NewExecutor(ExecutorConfig{})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := executor.RunCommandWithCleanup(ctx, "printf", "%s %s", "hello", "world")
 	if err != nil {
@@ -152,7 +152,7 @@ func TestExecutor_CancellationCleanup(t *testing.T) {
 		StreamOutput: false,
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// Start tracking time
 	start := time.Now()
@@ -189,7 +189,7 @@ func TestExecutor_RunCommand_WithSetpgid(t *testing.T) {
 	// Test that the regular RunCommand also has Setpgid and works correctly
 	executor := NewExecutor(ExecutorConfig{})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := executor.RunCommand(ctx, "echo", "hello")
 	if err != nil {
@@ -210,7 +210,7 @@ func TestExecutor_RunCommandWithCleanup_FailingCommand(t *testing.T) {
 	// Test that failing commands return proper exit codes
 	executor := NewExecutor(ExecutorConfig{})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Run a command that will fail
 	result, err := executor.RunCommandWithCleanup(ctx, "false")
@@ -235,7 +235,7 @@ func TestExecutor_RunCommandWithCleanup_WorkDir(t *testing.T) {
 		WorkDir: "/tmp",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := executor.RunCommandWithCleanup(ctx, "pwd")
 	if err != nil {

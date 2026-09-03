@@ -48,11 +48,7 @@ func TestCompileCommands_Basic(t *testing.T) {
 	}
 
 	// Change to temp directory for AbsPath to work
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 
@@ -117,11 +113,7 @@ func TestCompileCommands_UnityBuild(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(dir)
 	cfg := &config.Config{
 		Name: "unity", BuildDir: ".build", Toolchain: config.Toolchain{Compiler: "clang"},
 		Targets:  map[string]config.Target{"app": {Name: "app", Type: "executable", Sources: []string{"a.cpp", "b.cpp"}, Unity: &config.UnityBuild{BatchSize: 8}}},
@@ -184,11 +176,7 @@ func TestCompileCommands_Arguments(t *testing.T) {
 		t.Fatalf("failed to create vendor dir: %v", err)
 	}
 
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -304,11 +292,7 @@ func TestCompileCommands_MultipleTargets(t *testing.T) {
 		t.Fatalf("failed to write util.cpp: %v", err)
 	}
 
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -384,11 +368,7 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 		}
 	}
 
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -481,11 +461,7 @@ func TestCompileCommands_VariantFlags(t *testing.T) {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -548,11 +524,7 @@ func TestCompileCommands_GCCToolchain(t *testing.T) {
 		t.Fatalf("failed to write util.cpp: %v", err)
 	}
 
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{
@@ -628,11 +600,7 @@ func TestCompileCommands_WithDependencies(t *testing.T) {
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to tmp dir: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	outputPath := filepath.Join(tmpDir, "compile_commands.json")
 	opts := CompDBOptions{

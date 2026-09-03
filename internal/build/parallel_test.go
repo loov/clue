@@ -47,7 +47,7 @@ func TestParallelCompiler_SingleFile(t *testing.T) {
 	}
 
 	// Compile in parallel (single file)
-	results, err := parallel.CompileParallel(context.Background(), sources)
+	results, err := parallel.CompileParallel(t.Context(), sources)
 	// Verify success
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
@@ -120,7 +120,7 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 	}
 
 	// Compile in parallel
-	results, err := parallel.CompileParallel(context.Background(), opts)
+	results, err := parallel.CompileParallel(t.Context(), opts)
 	// Verify success
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
@@ -202,7 +202,7 @@ func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
 
 	// We can't easily instrument the parallel compiler to track concurrency,
 	// but we can at least verify it completes successfully with the limit set
-	results, err := parallel.CompileParallel(context.Background(), opts)
+	results, err := parallel.CompileParallel(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 	}
 
 	// Compile in parallel with keep-going
-	results, err := parallel.CompileParallel(context.Background(), opts)
+	results, err := parallel.CompileParallel(t.Context(), opts)
 
 	// With keep-going, should still return error but all files attempted
 	// Note: errgroup may not return an error if keepGoing is true and we return nil from g.Go
@@ -309,7 +309,7 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 	}
 
 	// Compile in parallel (but with jobs=1, sequential)
-	results, err := parallel.CompileParallel(context.Background(), opts)
+	results, err := parallel.CompileParallel(t.Context(), opts)
 
 	// Should have an error
 	if err == nil {
@@ -367,7 +367,7 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 	}
 
 	// Create a context that we'll cancel
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// Cancel after a short delay
 	go func() {
@@ -394,7 +394,7 @@ func TestParallelCompiler_EmptySources(t *testing.T) {
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Compile empty list
-	results, err := parallel.CompileParallel(context.Background(), nil)
+	results, err := parallel.CompileParallel(t.Context(), nil)
 	if err != nil {
 		t.Errorf("Expected nil error for empty sources, got: %v", err)
 	}
@@ -483,7 +483,7 @@ func TestParallelCompiler_OutputNotInterleaved(t *testing.T) {
 	}
 
 	// Compile in parallel
-	results, err := parallel.CompileParallel(context.Background(), opts)
+	results, err := parallel.CompileParallel(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("CompileParallel failed: %v", err)
 	}

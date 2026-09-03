@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -68,7 +67,7 @@ int add(int a, int b) {
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
+	result, err := depBuilder.BuildDep(t.Context(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}
@@ -101,7 +100,7 @@ int add(int a, int b) {
 		t.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if _, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil); err != nil {
+	if _, err := depBuilder.BuildDep(t.Context(), dep, sourcePath, opts, nil); err != nil {
 		t.Fatal(err)
 	}
 	objectAfter, err := os.Stat(objectPath)
@@ -201,7 +200,7 @@ extern "C" int answer() { return 42; }
 		toolchain, VerbosityQuiet,
 	)
 
-	result, err := builder.BuildDep(context.Background(), dep, root, DepBuildOptions{
+	result, err := builder.BuildDep(t.Context(), dep, root, DepBuildOptions{
 		Variant: "debug", Platform: HostPlatform(), BuildDir: filepath.Join(root, ".build"), Std: "c++20",
 	}, nil)
 	if err != nil {
@@ -275,7 +274,7 @@ targets: {
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
+	result, err := depBuilder.BuildDep(t.Context(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}
@@ -336,7 +335,7 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 	}
 
 	// Should fail with error about missing configuration
-	_, err = depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
+	_, err = depBuilder.BuildDep(t.Context(), dep, sourcePath, opts, nil)
 	if err == nil {
 		t.Fatal("expected error for missing configuration, got nil")
 	}
@@ -397,7 +396,7 @@ func TestDepBuilder_GlobSources(t *testing.T) {
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
+	result, err := depBuilder.BuildDep(t.Context(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}
@@ -504,7 +503,7 @@ int test() { return 42; }
 		Verbosity: VerbosityNormal,
 	}
 
-	result, err := depBuilder.BuildDep(context.Background(), dep, sourcePath, opts, nil)
+	result, err := depBuilder.BuildDep(t.Context(), dep, sourcePath, opts, nil)
 	if err != nil {
 		t.Fatalf("BuildDep failed: %v", err)
 	}

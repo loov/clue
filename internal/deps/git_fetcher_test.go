@@ -1,7 +1,6 @@
 package deps
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,7 +42,7 @@ func TestCloneGitRefDoesNotGuessRefType(t *testing.T) {
 		}
 
 		checkout := filepath.Join(t.TempDir(), "checkout")
-		cloned, err := cloneGitRef(context.Background(), source, ref.Short(), checkout, nil)
+		cloned, err := cloneGitRef(t.Context(), source, ref.Short(), checkout, nil)
 		if err != nil {
 			t.Fatalf("clone %s: %v", ref, err)
 		}
@@ -54,7 +53,7 @@ func TestCloneGitRefDoesNotGuessRefType(t *testing.T) {
 	}
 
 	checkout := filepath.Join(t.TempDir(), "commit")
-	cloned, err := cloneGitRef(context.Background(), source, hash.String(), checkout, nil)
+	cloned, err := cloneGitRef(t.Context(), source, hash.String(), checkout, nil)
 	if err != nil {
 		t.Fatalf("clone commit: %v", err)
 	}
@@ -62,12 +61,12 @@ func TestCloneGitRefDoesNotGuessRefType(t *testing.T) {
 	if err != nil || head.Hash() != hash {
 		t.Fatalf("clone commit resolved to %v, %v", head, err)
 	}
-	if changed, err := NewGitFetcher(false).Update(context.Background(), checkout); err != nil || changed {
+	if changed, err := NewGitFetcher(false).Update(t.Context(), checkout); err != nil || changed {
 		t.Fatalf("pinned commit update changed=%v, err=%v", changed, err)
 	}
 
 	failed := filepath.Join(t.TempDir(), "failed")
-	if _, err := cloneGitRef(context.Background(), source, "missing", failed, nil); err == nil {
+	if _, err := cloneGitRef(t.Context(), source, "missing", failed, nil); err == nil {
 		t.Fatal("missing ref cloned successfully")
 	}
 	if _, err := os.Stat(failed); !os.IsNotExist(err) {
@@ -108,7 +107,7 @@ func TestGitFetcherUpdateFastForwardsBranches(t *testing.T) {
 	}
 
 	checkout := filepath.Join(t.TempDir(), "checkout")
-	cloned, err := cloneGitRef(context.Background(), source, branch.Short(), checkout, nil)
+	cloned, err := cloneGitRef(t.Context(), source, branch.Short(), checkout, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +116,7 @@ func TestGitFetcherUpdateFastForwardsBranches(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	changed, err := NewGitFetcher(false).Update(context.Background(), checkout)
+	changed, err := NewGitFetcher(false).Update(t.Context(), checkout)
 	if err != nil {
 		t.Fatal(err)
 	}

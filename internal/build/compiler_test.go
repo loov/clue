@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -205,7 +204,7 @@ func TestCompiler_CompileSource_Integration(t *testing.T) {
 		},
 	}
 
-	result, err := compiler.CompileSource(context.Background(), opts)
+	result, err := compiler.CompileSource(t.Context(), opts)
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -327,7 +326,7 @@ func TestCompiler_CompileSource_Error(t *testing.T) {
 		},
 	}
 
-	result, err := compiler.CompileSource(context.Background(), opts)
+	result, err := compiler.CompileSource(t.Context(), opts)
 
 	// Verify compilation failed
 	if err == nil {
@@ -377,7 +376,7 @@ func TestCompiler_CompileSource_WithFlags(t *testing.T) {
 		},
 	}
 
-	result, err := compiler.CompileSource(context.Background(), opts)
+	result, err := compiler.CompileSource(t.Context(), opts)
 	// Verify compilation succeeded (flags are valid)
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -445,7 +444,7 @@ int main() { return HEADER_LOADED; }`
 		},
 	}
 
-	result, err := compiler.CompileSource(context.Background(), opts)
+	result, err := compiler.CompileSource(t.Context(), opts)
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -507,7 +506,7 @@ int main() { return VERSION; }
 		t.Fatalf("failed to create obj dir: %v", err)
 	}
 
-	result, err := compiler.CompileSource(context.Background(), CompileOptions{
+	result, err := compiler.CompileSource(t.Context(), CompileOptions{
 		Source:   srcPath,
 		Output:   filepath.Join(objDir, "main.cpp.o"),
 		Includes: []string{srcDir},
@@ -608,7 +607,7 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 		},
 	}
 
-	results, err := compiler.CompileSources(context.Background(), sources)
+	results, err := compiler.CompileSources(t.Context(), sources)
 
 	// Verify error returned after second file
 	if err == nil {
@@ -678,7 +677,7 @@ func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
 		},
 	}
 
-	result, err := compiler.CompileSource(context.Background(), opts)
+	result, err := compiler.CompileSource(t.Context(), opts)
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)
@@ -742,7 +741,7 @@ func TestCompiler_Executable_NoPIC(t *testing.T) {
 		},
 	}
 
-	result, err := compiler.CompileSource(context.Background(), opts)
+	result, err := compiler.CompileSource(t.Context(), opts)
 	// Verify compilation succeeded
 	if err != nil {
 		t.Fatalf("CompileSource failed: %v", err)

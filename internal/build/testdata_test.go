@@ -57,7 +57,7 @@ func TestJsonExample_Integration(t *testing.T) {
 		Verbosity: build.VerbosityNormal,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 
 	result, err := builder.Build(ctx, opts)
@@ -130,7 +130,7 @@ func TestCatch2Example_Integration(t *testing.T) {
 		Verbosity: build.VerbosityNormal,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 
 	result, err := builder.Build(ctx, opts)
@@ -207,7 +207,7 @@ func TestMultiDepsExample_Integration(t *testing.T) {
 		Verbosity: build.VerbosityNormal,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 
 	result, err := builder.Build(ctx, opts)

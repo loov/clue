@@ -1,7 +1,6 @@
 package build
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func TestBuildTargetInterfaceLibraryNeedsNoTools(t *testing.T) {
-	result, err := (&Builder{}).BuildTarget(context.Background(), Options{}, config.Target{Name: "headers", Type: "interface_library"}, nil)
+	result, err := (&Builder{}).BuildTarget(t.Context(), Options{}, config.Target{Name: "headers", Type: "interface_library"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

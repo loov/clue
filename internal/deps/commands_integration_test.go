@@ -86,7 +86,7 @@ func TestDepsFetch_Integration(t *testing.T) {
 	}
 
 	// Run deps fetch
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	output, err := captureStdout(t, func() error {
@@ -176,7 +176,7 @@ func TestBuildWithDeps_Integration(t *testing.T) {
 	}
 
 	// Step 2: Verify fetch works
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	err = deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
