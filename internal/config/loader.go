@@ -233,7 +233,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 		overlay = make(map[string]load.Source)
 	}
 	if !json.Valid(data) {
-		data = append(data, []byte(fmt.Sprintf("\n_target: {os: %q, arch: %q}\n", target.OS, target.Arch))...)
+		data = fmt.Appendf(data, "\n_target: {os: %q, arch: %q}\n", target.OS, target.Arch)
 		overlay[configPath] = load.FromBytes(data)
 	}
 

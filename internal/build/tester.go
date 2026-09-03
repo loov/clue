@@ -42,13 +42,11 @@ func RunTests(ctx context.Context, cases []TestCase, jobs int, verbosity Verbosi
 	tasks := make(chan int)
 	var workers sync.WaitGroup
 	for range min(jobs, len(cases)) {
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
+		workers.Go(func() {
 			for index := range tasks {
 				results[index] = runTest(ctx, cases[index])
 			}
-		}()
+		})
 	}
 	for index := range cases {
 		tasks <- index

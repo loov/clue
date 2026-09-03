@@ -6,8 +6,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -519,12 +521,8 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		return nil, err
 	}
 	providedModules := make(map[string]string, len(headerOutputs)+len(modules.provided))
-	for name, output := range headerOutputs {
-		providedModules[name] = output
-	}
-	for name, output := range modules.provided {
-		providedModules[name] = output
-	}
+	maps.Copy(providedModules, headerOutputs)
+	maps.Copy(providedModules, modules.provided)
 	targetModuleOutputs[target.Name] = providedModules
 	headerUnitBuilds := make([]string, 0, len(target.HeaderUnits))
 	builtHeaderUnits, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
@@ -677,12 +675,7 @@ func ninjaResponseArguments(arguments []string) string {
 }
 
 func sourcesUseCXX(sources []string) bool {
-	for _, source := range sources {
-		if toolchain.IsCXXSource(source) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(sources, toolchain.IsCXXSource)
 }
 
 func targetUsesCXXForNinja(cfg *config.Config, target config.Target) bool {
@@ -700,12 +693,7 @@ func targetUsesCXXForNinja(cfg *config.Config, target config.Target) bool {
 			if sourcesUseCXX(internal.Sources) {
 				return true
 			}
-			for _, child := range internal.Depends {
-				if visit(child) {
-					return true
-				}
-			}
-			return false
+			return slices.ContainsFunc(internal.Depends, visit)
 		}
 		dependency, ok := cfg.Dependencies[name]
 		if !ok {
@@ -718,19 +706,9 @@ func targetUsesCXXForNinja(cfg *config.Config, target config.Target) bool {
 		if sourcesUseCXX(resolved.Sources) {
 			return true
 		}
-		for _, child := range resolved.Depends {
-			if visit(child) {
-				return true
-			}
-		}
-		return false
+		return slices.ContainsFunc(resolved.Depends, visit)
 	}
-	for _, name := range target.Depends {
-		if visit(name) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(target.Depends, visit)
 }
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output

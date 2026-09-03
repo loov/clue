@@ -2,6 +2,7 @@ package generate
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -88,9 +89,7 @@ func (m targetModules) flags(source string) []string {
 		return nil
 	}
 	requiredOutputs := make(map[string]string, len(m.inherited)+len(module.Requires))
-	for name, output := range m.inherited {
-		requiredOutputs[name] = output
-	}
+	maps.Copy(requiredOutputs, m.inherited)
 	for _, required := range module.Requires {
 		if output := m.outputs[required]; output != "" {
 			requiredOutputs[required] = output

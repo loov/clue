@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -164,10 +165,8 @@ func TestCompilerTracksSystemHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, dependency := range dependencies.Sources {
-		if dependency == header {
-			return
-		}
+	if slices.Contains(dependencies.Sources, header) {
+		return
 	}
 	t.Fatalf("system header %q missing from dependencies: %v", header, dependencies.Sources)
 }

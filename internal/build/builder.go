@@ -6,8 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/loov/clue/internal/cache"
@@ -175,20 +177,13 @@ func (b *Builder) targetUsesCXX(cfg *config.Config, target config.Target) bool {
 			if dependency.RequiresCXX {
 				return true
 			}
-			for _, child := range dependency.Depends {
-				if visit(child) {
-					return true
-				}
+			if slices.ContainsFunc(dependency.Depends, visit) {
+				return true
 			}
 		}
 		return false
 	}
-	for _, name := range target.Depends {
-		if visit(name) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(target.Depends, visit)
 }
 
 func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (dependencyLinkUsage, error) {
@@ -394,9 +389,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		localModuleOutputs[dependency.Provides] = ModuleOutputPathFor(b.toolchain, bmiDir, dependency.Provides)
 	}
 	allModuleOutputs := make(map[string]string, len(availableModules)+len(localModuleOutputs))
-	for name, output := range availableModules {
-		allModuleOutputs[name] = output
-	}
+	maps.Copy(allModuleOutputs, availableModules)
 	for name, output := range localModuleOutputs {
 		if previous, exists := allModuleOutputs[name]; exists && previous != output {
 			return nil, fmt.Errorf("module %q is provided by target %q and one of its dependencies", name, target.Name)
@@ -430,9 +423,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			}
 		}
 		builtHeaderUnits := make(map[string]string, len(availableModules)+len(target.HeaderUnits))
-		for name, output := range availableModules {
-			builtHeaderUnits[name] = output
-		}
+		maps.Copy(builtHeaderUnits, availableModules)
 		for _, unit := range target.HeaderUnits {
 			name := HeaderUnitName(unit.Name, unit.System)
 			if opts.Verbosity == VerbosityVerbose {
@@ -513,9 +504,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			compileOpts.InternalPartition = module.InternalPartition
 			compileOpts.ModuleMapper = mapper
 			compileOpts.ModuleFiles = make(map[string]string, len(availableModules)+len(target.HeaderUnits))
-			for name, output := range availableModules {
-				compileOpts.ModuleFiles[name] = output
-			}
+			maps.Copy(compileOpts.ModuleFiles, availableModules)
 			for _, unit := range target.HeaderUnits {
 				name := HeaderUnitName(unit.Name, unit.System)
 				compileOpts.ModuleFiles[name] = localModuleOutputs[name]

@@ -2,6 +2,7 @@ package msvc
 
 import (
 	"fmt"
+	"maps"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -281,9 +282,7 @@ func (t *Toolchain) Environment() map[string]string {
 		return nil
 	}
 	environment := make(map[string]string, len(t.installation.Environment)+1)
-	for key, value := range t.installation.Environment {
-		environment[key] = value
-	}
+	maps.Copy(environment, t.installation.Environment)
 	// /showIncludes output is localized. Force the English prefix consumed by
 	// direct builds and generated Ninja files.
 	environment["VSLANG"] = "1033"

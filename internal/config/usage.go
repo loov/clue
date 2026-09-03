@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/loov/clue/internal/toolchain"
@@ -110,10 +111,8 @@ func TargetUsesCXX(cfg *Config, target Target) bool {
 			return false
 		}
 		seen[current.Name] = true
-		for _, source := range current.Sources {
-			if toolchain.IsCXXSource(source) {
-				return true
-			}
+		if slices.ContainsFunc(current.Sources, toolchain.IsCXXSource) {
+			return true
 		}
 		for _, name := range current.Depends {
 			if dependency, ok := cfg.Targets[name]; ok && visit(dependency) {
@@ -121,10 +120,8 @@ func TargetUsesCXX(cfg *Config, target Target) bool {
 			}
 			if dependency, ok := cfg.Dependencies[name]; ok {
 				if build := dependency.InlineBuild(); build != nil {
-					for _, source := range build.Sources {
-						if toolchain.IsCXXSource(source) {
-							return true
-						}
+					if slices.ContainsFunc(build.Sources, toolchain.IsCXXSource) {
+						return true
 					}
 				}
 			}

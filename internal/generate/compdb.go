@@ -4,6 +4,7 @@ package generate
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -167,12 +168,8 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		return nil, err
 	}
 	providedModules := make(map[string]string, len(headerOutputs)+len(modules.provided))
-	for name, output := range headerOutputs {
-		providedModules[name] = output
-	}
-	for name, output := range modules.provided {
-		providedModules[name] = output
-	}
+	maps.Copy(providedModules, headerOutputs)
+	maps.Copy(providedModules, modules.provided)
 	targetModuleOutputs[target.Name] = providedModules
 	builtHeaderUnits, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {
