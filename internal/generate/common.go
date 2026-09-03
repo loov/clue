@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
@@ -191,5 +192,5 @@ func AbsPath(path string) string {
 
 // NinjaPath normalizes a path for Ninja files (forward slashes on all platforms)
 func NinjaPath(path string) string {
-	return filepath.ToSlash(filepath.Clean(path))
+	return filepath.ToSlash(filepath.Clean(strings.ReplaceAll(path, `\`, "/")))
 }

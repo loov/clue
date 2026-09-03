@@ -711,6 +711,12 @@ func TestOutputNameForTarget_AddsWindowsExtensions(t *testing.T) {
 	}
 }
 
+func TestNinjaPathLocal_NormalizesWindowsDrivePath(t *testing.T) {
+	if got, want := ninjaPathLocal(`C:\project\main.cpp`), `C$:/project/main.cpp`; got != want {
+		t.Fatalf("ninjaPathLocal() = %q, want %q", got, want)
+	}
+}
+
 func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	platform := toolchain.Platform{OS: "windows", Arch: "amd64"}
 	tc, err := msvc.New(&msvc.Installation{Environment: map[string]string{
@@ -740,9 +746,9 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	checks := []string{
 		`command = set "VSLANG=1033"&& "$cc" $cflags /c "$source" /Fo"$object"`,
 		"deps = msvc",
-		`/std:c++20 /Iinclude /I"C:\Program Files\VS\include" /IC:\SDK\include /DBUILDING_LIB`,
+		`/std:c++20 /Iinclude /I"C:/Program Files/VS/include" /IC:/SDK/include /DBUILDING_LIB`,
 		`command = "$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`,
-		`/LIBPATH:"C:\Program Files\VS\lib"`,
+		`/LIBPATH:"C:/Program Files/VS/lib"`,
 		"build .build/debug/lib/mylib.dll | .build/debug/lib/mylib.lib: link_shared",
 		"implib = .build/debug/lib/mylib.lib",
 	}

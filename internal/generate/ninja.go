@@ -527,9 +527,10 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
 			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.mapper,
 		})
-		headerInputs := slices.Sorted(maps.Values(builtHeaderUnits))
+		headerInputs := ninjaPaths(slices.Sorted(maps.Values(builtHeaderUnits)))
+		ninjaOutput := ninjaPathLocal(output)
 		statement := ninja.Build{
-			Rule: "header_unit", Out: []string{output}, InImplicit: headerInputs,
+			Rule: "header_unit", Out: []string{ninjaOutput}, InImplicit: headerInputs,
 			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
 			Vars:        ninja.Vars{{Key: "huflags", Val: ninjaResponseArguments(arguments)}},
 		}
@@ -537,7 +538,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 			statement.In = []string{ninjaPathLocal(unit.Path)}
 		}
 		*file = append(*file, statement)
-		headerUnitBuilds = append(headerUnitBuilds, output)
+		headerUnitBuilds = append(headerUnitBuilds, ninjaOutput)
 		builtHeaderUnits[name] = output
 	}
 	sourcePlans := make(map[string]plan.Source, len(targetPlan.Sources))
@@ -571,21 +572,25 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 			flagKey = "cxxflags"
 		}
 
+		moduleFlags := modules.flags(source)
+		for index := range moduleFlags {
+			moduleFlags[index] = NinjaPath(moduleFlags[index])
+		}
 		statement := ninja.Build{
 			Rule:        rule,
 			In:          []string{srcPath},
-			InImplicit:  modules.inputs(source),
+			InImplicit:  ninjaPaths(modules.inputs(source)),
 			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
 			Out:         []string{objPath},
 			Vars: ninja.Vars{
 				{Key: "source", Val: srcPath},
 				{Key: "object", Val: objPath},
-				{Key: flagKey, Val: strings.Join(append(append([]string(nil), compilerFlags...), modules.flags(source)...), " ")},
+				{Key: flagKey, Val: strings.Join(append(append([]string(nil), compilerFlags...), moduleFlags...), " ")},
 			},
 		}
 		if module, ok := modules.bySource[source]; ok {
 			if output := modules.outputs[module.Provides]; output != "" {
-				statement.OutImplicit = []string{output}
+				statement.OutImplicit = []string{ninjaPathLocal(output)}
 				if tc.Name() == "clang" && module.InternalPartition {
 					statement.Rule = "module_partition"
 					statement.Vars = append(statement.Vars, ninja.Var{Key: "bmi", Val: output})
@@ -716,14 +721,14 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 		if msvc {
 			prefix = "/I"
 		}
-		path := ninjaPathLocal(inc)
+		path := NinjaPath(inc)
 		if msvc {
 			path = quoteMSVCValue(path)
 		}
 		flags = append(flags, prefix+path)
 	}
 	for _, inc := range target.SystemIncludes {
-		path := ninjaPathLocal(inc)
+		path := NinjaPath(inc)
 		if msvc {
 			flags = append(flags, "/external:I"+quoteMSVCValue(path))
 		} else {
@@ -732,7 +737,7 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 	}
 	if msvc {
 		for _, include := range toolchainEnvironmentPaths(tc, "INCLUDE") {
-			flags = append(flags, "/I"+quoteMSVCValue(ninjaPathLocal(include)))
+			flags = append(flags, "/I"+quoteMSVCValue(NinjaPath(include)))
 		}
 	}
 
@@ -796,7 +801,7 @@ func toolchainEnvironmentPaths(tc toolchain.Toolchain, key string) []string {
 func appendMSVCLibraryPaths(flags []string, tc toolchain.Toolchain) []string {
 	for _, key := range []string{"LIB", "LIBPATH"} {
 		for _, path := range toolchainEnvironmentPaths(tc, key) {
-			flags = append(flags, "/LIBPATH:"+quoteMSVCValue(ninjaPathLocal(path)))
+			flags = append(flags, "/LIBPATH:"+quoteMSVCValue(NinjaPath(path)))
 		}
 	}
 	return flags
@@ -917,7 +922,18 @@ func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string,
 // ninjaPathLocal converts a path to use forward slashes (Ninja convention)
 // Note: this is a local version; NinjaPath in common.go is exported for external use
 func ninjaPathLocal(path string) string {
-	return filepath.ToSlash(filepath.Clean(path))
+	path = NinjaPath(path)
+	if len(path) > 1 && path[1] == ':' {
+		path = path[:1] + "$:" + path[2:]
+	}
+	return path
+}
+
+func ninjaPaths(paths []string) []string {
+	for index := range paths {
+		paths[index] = ninjaPathLocal(paths[index])
+	}
+	return paths
 }
 
 // outputPathForTarget returns the output path for a target
@@ -1042,7 +1058,7 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 		if dir := filepath.Dir(toolchain.CC()); dir != "." {
 			linker = filepath.Join(dir, linker)
 		}
-		file = append(file, ninja.Var{Key: "link", Val: ninjaPathLocal(linker)})
+		file = append(file, ninja.Var{Key: "link", Val: NinjaPath(linker)})
 	}
 
 	// Rules
