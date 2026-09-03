@@ -1,59 +1,57 @@
 name:    "raylib-cross"
 version: "1.0.0"
 
-_containerfiles: {
-	linux:   "container/Containerfile.linux"
-	windows: "container/Containerfile.windows"
-	darwin:  "container/Containerfile.macos"
-}
-_compilers: {
-	linux:   "gcc"
-	windows: "gcc"
-	darwin:  "clang"
-}
-_cc: {
-	linux:   "gcc"
-	windows: "x86_64-w64-mingw32-gcc"
-	darwin:  "o64-clang"
-}
-_cxx: {
-	linux:   "g++"
-	windows: "x86_64-w64-mingw32-g++"
-	darwin:  "o64-clang++"
-}
-_ar: {
-	linux:   "ar"
-	windows: "x86_64-w64-mingw32-ar"
-	darwin:  "llvm-ar"
-}
-_linkerFlags: {
-	linux: [
-		"-L/opt/raylib/lib", "-lraylib",
-		"-lGL", "-lm", "-lpthread", "-ldl", "-lrt", "-lX11",
-	]
-	windows: [
-		"-L/opt/raylib/lib", "-lraylib",
-		"-lgdi32", "-lwinmm", "-lshcore", "-lopengl32",
-	]
-	darwin: [
-		"-L/opt/raylib/lib", "-lraylib",
-		"-framework", "OpenGL",
-		"-framework", "Cocoa",
-		"-framework", "IOKit",
-		"-framework", "CoreAudio",
-		"-framework", "CoreVideo",
-		"-framework", "QuartzCore",
-	]
+_os: {
+	linux: {
+		containerfile: "container/Containerfile.linux"
+		compiler:      "gcc"
+		cc:            "gcc"
+		cxx:           "g++"
+		ar:            "ar"
+		linkerFlags: [
+			"-L/opt/raylib/lib", "-lraylib",
+			"-lGL", "-lm", "-lpthread", "-ldl", "-lrt", "-lX11",
+		]
+	}
+	windows: {
+		containerfile: "container/Containerfile.windows"
+		compiler:      "gcc"
+		cc:            "x86_64-w64-mingw32-gcc"
+		cxx:           "x86_64-w64-mingw32-g++"
+		ar:            "x86_64-w64-mingw32-ar"
+		linkerFlags: [
+			"-L/opt/raylib/lib", "-lraylib",
+			"-lgdi32", "-lwinmm", "-lshcore", "-lopengl32",
+		]
+	}
+	darwin: {
+		containerfile: "container/Containerfile.macos"
+		compiler:      "clang"
+		cc:            "o64-clang"
+		cxx:           "o64-clang++"
+		ar:            "llvm-ar"
+		linkerFlags: [
+			"-L/opt/raylib/lib", "-lraylib",
+			"-framework", "OpenGL",
+			"-framework", "Cocoa",
+			"-framework", "IOKit",
+			"-framework", "CoreAudio",
+			"-framework", "CoreVideo",
+			"-framework", "QuartzCore",
+		]
+	}
 }
 
+_selectedOS: _os[_target.os]
+
 toolchain: {
-	compiler: _compilers[_target.os]
-	cc:       _cc[_target.os]
-	cxx:      _cxx[_target.os]
-	ar:       _ar[_target.os]
+	compiler: _selectedOS.compiler
+	cc:       _selectedOS.cc
+	cxx:      _selectedOS.cxx
+	ar:       _selectedOS.ar
 	cStd:     "c11"
 	container: {
-		containerfile: _containerfiles[_target.os]
+		containerfile: _selectedOS.containerfile
 		platform:      "linux/amd64"
 		workdir:       "/workspace"
 	}
@@ -64,5 +62,5 @@ targets: "raylib-example": {
 	type:           "executable"
 	sources:        ["main.c"]
 	systemIncludes: ["/opt/raylib/include"]
-	flags: linker:  _linkerFlags[_target.os]
+	flags: linker:  _selectedOS.linkerFlags
 }
