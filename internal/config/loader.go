@@ -50,11 +50,16 @@ type Config struct {
 
 // Toolchain configuration
 type Toolchain struct {
-	Compiler string
-	Std      string
-	CStd     string
-	CXXStd   string
-	Docker   *DockerToolchain
+	Compiler     string
+	CC           string
+	CXX          string
+	AR           string
+	TargetTriple string
+	Sysroot      string
+	Std          string
+	CStd         string
+	CXXStd       string
+	Docker       *DockerToolchain
 }
 
 // DockerToolchain runs toolchain commands in a container image.
@@ -382,6 +387,17 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 	if tc := val.LookupPath(cue.ParsePath("toolchain")); tc.Exists() {
 		if compiler := tc.LookupPath(cue.ParsePath("compiler")); compiler.Exists() {
 			cfg.Toolchain.Compiler, _ = compiler.String()
+		}
+		for path, destination := range map[string]*string{
+			"cc":           &cfg.Toolchain.CC,
+			"cxx":          &cfg.Toolchain.CXX,
+			"ar":           &cfg.Toolchain.AR,
+			"targetTriple": &cfg.Toolchain.TargetTriple,
+			"sysroot":      &cfg.Toolchain.Sysroot,
+		} {
+			if value := tc.LookupPath(cue.ParsePath(path)); value.Exists() {
+				*destination, _ = value.String()
+			}
 		}
 		if std := tc.LookupPath(cue.ParsePath("std")); std.Exists() {
 			cfg.Toolchain.Std, _ = std.String()

@@ -88,17 +88,18 @@ func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform
 	if name == "" {
 		name = "clang"
 	}
-	if settings.Docker == nil {
-		return NewToolchain(name, target)
-	}
-	var base Toolchain
-	switch name {
-	case "clang":
-		base = clang.New("clang", "clang++", "ar", target)
-	case "gcc":
-		base = gcc.New("gcc", "g++", "ar", target)
-	default:
+	if settings.Docker != nil && name != "clang" && name != "gcc" {
 		return nil, fmt.Errorf("docker toolchains support clang and gcc, got %q", name)
+	}
+	base, err := all.NewConfiguredToolchain(name, target, all.Config{
+		CC: settings.CC, CXX: settings.CXX, AR: settings.AR,
+		TargetTriple: settings.TargetTriple, Sysroot: settings.Sysroot,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if settings.Docker == nil {
+		return base, nil
 	}
 	return toolchaindocker.New(base, settings.Docker.Image, projectDir, settings.Docker.WorkDir, target)
 }

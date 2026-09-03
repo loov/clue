@@ -18,27 +18,59 @@ import (
 // NewToolchain creates a toolchain by name for the given target platform.
 // Supported names: "gcc", "clang", "msvc"
 func NewToolchain(name string, target toolchain.Platform) (toolchain.Toolchain, error) {
+	return NewConfiguredToolchain(name, target, Config{})
+}
+
+// Config provides explicit commands and target information for a toolchain.
+type Config struct {
+	CC, CXX, AR           string
+	TargetTriple, Sysroot string
+}
+
+// NewConfiguredToolchain creates a toolchain with optional explicit commands.
+func NewConfiguredToolchain(name string, target toolchain.Platform, config Config) (toolchain.Toolchain, error) {
 	prefix := crossPrefix(target)
+	if target.IsCrossCompile() && prefix == "" && config.TargetTriple == "" && config.CC == "" && config.CXX == "" {
+		return nil, fmt.Errorf("cross-compilation from %s to %s requires explicit toolchain.cc/toolchain.cxx or toolchain.targetTriple", toolchain.HostPlatform(), target)
+	}
 
 	switch name {
 	case "gcc":
-		cc := getEnvOr("CC", prefix+"gcc")
-		cxx := getEnvOr("CXX", prefix+"g++")
-		ar := prefix + "ar"
-		return gcc.New(cc, cxx, ar, target), nil
+		if target.IsCrossCompile() && prefix == "" && config.TargetTriple != "" && config.CC == "" && config.CXX == "" {
+			return nil, fmt.Errorf("GCC target %s requires explicit toolchain.cc and toolchain.cxx", target)
+		}
+		tc := gcc.New(configuredCommand(config.CC, "CC", prefix+"gcc"), configuredCommand(config.CXX, "CXX", prefix+"g++"), configuredArchive(config.AR, prefix+"ar"), target)
+		tc.ConfigureTarget(config.TargetTriple, config.Sysroot)
+		return tc, nil
 
 	case "clang":
-		cc := getEnvOr("CC", prefix+"clang")
-		cxx := getEnvOr("CXX", prefix+"clang++")
-		ar := prefix + "ar"
-		return clang.New(cc, cxx, ar, target), nil
+		tc := clang.New(configuredCommand(config.CC, "CC", prefix+"clang"), configuredCommand(config.CXX, "CXX", prefix+"clang++"), configuredArchive(config.AR, prefix+"ar"), target)
+		tc.ConfigureTarget(config.TargetTriple, config.Sysroot)
+		return tc, nil
 
 	case "msvc":
+		if target.IsCrossCompile() {
+			return nil, fmt.Errorf("MSVC cross-compilation from %s to %s is not configured", toolchain.HostPlatform(), target)
+		}
 		return msvc.FindAndNew(target)
 
 	default:
 		return nil, fmt.Errorf("unknown toolchain: %s (supported: gcc, clang, msvc)", name)
 	}
+}
+
+func configuredCommand(explicit, environment, fallback string) string {
+	if explicit != "" {
+		return explicit
+	}
+	return getEnvOr(environment, fallback)
+}
+
+func configuredArchive(explicit, fallback string) string {
+	if explicit != "" {
+		return explicit
+	}
+	return fallback
 }
 
 // TryToolchains tries each toolchain name in order and returns the first

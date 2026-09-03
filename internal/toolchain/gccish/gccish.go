@@ -18,11 +18,19 @@ import (
 // This struct is designed to be embedded by gcc.Toolchain and clang.Toolchain
 // to inherit common behavior.
 type Toolchain struct {
-	cc     string
-	cxx    string
-	ar     string
-	target toolchain.Platform
-	name   string // "gcc" or "clang"
+	cc           string
+	cxx          string
+	ar           string
+	target       toolchain.Platform
+	name         string // "gcc" or "clang"
+	targetTriple string
+	sysroot      string
+}
+
+// ConfigureTarget sets explicit target and SDK information.
+func (t *Toolchain) ConfigureTarget(targetTriple, sysroot string) {
+	t.targetTriple = targetTriple
+	t.sysroot = sysroot
 }
 
 // New creates a new gccish Toolchain with the specified configuration.
@@ -107,6 +115,12 @@ func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
 // should be added by the embedding type's CompilerFlags method.
 func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
 	var flags []string
+	if t.name == "clang" && t.targetTriple != "" {
+		flags = append(flags, "--target="+t.targetTriple)
+	}
+	if t.sysroot != "" {
+		flags = append(flags, "--sysroot="+t.sysroot)
+	}
 
 	// Add optimization flag
 	if opt := toolchain.OptimizationFlag(config.Optimize); opt != "" {
@@ -148,6 +162,12 @@ func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
 // should be added by the embedding type's LinkerFlags method.
 func (t *Toolchain) LinkerFlags(config toolchain.Config, sysLibs []string) []string {
 	var flags []string
+	if t.name == "clang" && t.targetTriple != "" {
+		flags = append(flags, "--target="+t.targetTriple)
+	}
+	if t.sysroot != "" {
+		flags = append(flags, "--sysroot="+t.sysroot)
+	}
 
 	// Add system library flags
 	for _, lib := range sysLibs {

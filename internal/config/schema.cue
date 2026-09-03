@@ -150,6 +150,11 @@ package config
 	// Toolchain selection
 	toolchain?: {
 		compiler: string | *"clang"
+		cc?: string
+		cxx?: string
+		ar?: string
+		targetTriple?: string
+		sysroot?: string
 		std?: string     // Backward-compatible single-language standard
 		cStd?: string    // e.g., "c17"
 		cxxStd?: string  // e.g., "c++23"

@@ -26,6 +26,20 @@ func TestToolchain_AccessorMethods(t *testing.T) {
 	}
 }
 
+func TestToolchain_ExplicitTargetFlags(t *testing.T) {
+	tc := New("clang", "clang", "clang++", "llvm-ar", toolchain.Platform{})
+	tc.ConfigureTarget("aarch64-linux-gnu", "/sdk")
+
+	for name, flags := range map[string][]string{
+		"compiler": tc.CompilerFlags(toolchain.Config{}),
+		"linker":   tc.LinkerFlags(toolchain.Config{}, nil),
+	} {
+		if !slices.Contains(flags, "--target=aarch64-linux-gnu") || !slices.Contains(flags, "--sysroot=/sdk") {
+			t.Errorf("%s flags = %v", name, flags)
+		}
+	}
+}
+
 func TestToolchain_IsCrossCompiler(t *testing.T) {
 	tests := []struct {
 		name string

@@ -148,6 +148,27 @@ func TestCrossPrefix(t *testing.T) {
 	}
 }
 
+func TestNewToolchainRejectsUnconfiguredCrossTarget(t *testing.T) {
+	target := toolchain.Platform{OS: "darwin", Arch: "arm64"}
+	if target == toolchain.HostPlatform() {
+		target.Arch = "amd64"
+	}
+	if target == toolchain.HostPlatform() {
+		target = toolchain.Platform{OS: "windows", Arch: "amd64"}
+	}
+
+	if _, err := NewToolchain("clang", target); err == nil {
+		t.Fatal("expected unconfigured cross target to fail")
+	}
+	tc, err := NewConfiguredToolchain("clang", target, Config{TargetTriple: "aarch64-apple-darwin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tc.CC() != "clang" {
+		t.Fatalf("CC() = %q", tc.CC())
+	}
+}
+
 func TestTryToolchains_FirstAvailable(t *testing.T) {
 	// Skip if no compiler available
 	var availableCompiler string

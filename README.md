@@ -70,6 +70,20 @@ toolchain: {
 
 Clue starts a disposable container for each command and mounts the project directory at `workdir`. Docker must be installed, the image must already exist locally, and files outside the project directory are not mounted.
 
+Cross-compilers can be selected explicitly. Clue rejects cross targets that
+would otherwise fall back to the host compiler:
+
+```cue
+toolchain: {
+    compiler:     "clang"
+    cc:           "clang"
+    cxx:          "clang++"
+    ar:           "llvm-ar"
+    targetTriple: "aarch64-linux-gnu"
+    sysroot:      "/opt/aarch64-sysroot"
+}
+```
+
 ## Commands
 
 - `clue validate` - Validate configuration and check dependencies

@@ -73,8 +73,8 @@ toolchain: {
 	docker: {
 		image: "project-toolchain:20"
 		workdir: "/src"
+		}
 	}
-}
 targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
 `
 	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
@@ -86,6 +86,34 @@ targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
 	}
 	if cfg.Toolchain.Docker == nil || cfg.Toolchain.Docker.Image != "project-toolchain:20" || cfg.Toolchain.Docker.WorkDir != "/src" {
 		t.Fatalf("Docker toolchain = %+v", cfg.Toolchain.Docker)
+	}
+}
+
+func TestLoaderExtractsExplicitToolchain(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "cross"
+toolchain: {
+	compiler: "clang"
+	cc: "/opt/bin/clang"
+	cxx: "/opt/bin/clang++"
+	ar: "/opt/bin/llvm-ar"
+	targetTriple: "aarch64-linux-gnu"
+	sysroot: "/opt/sysroot"
+}
+targets: app: {name: "app", type: "executable", sources: ["main.c"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Toolchain.CC != "/opt/bin/clang" || cfg.Toolchain.CXX != "/opt/bin/clang++" || cfg.Toolchain.AR != "/opt/bin/llvm-ar" {
+		t.Fatalf("toolchain commands = %q, %q, %q", cfg.Toolchain.CC, cfg.Toolchain.CXX, cfg.Toolchain.AR)
+	}
+	if cfg.Toolchain.TargetTriple != "aarch64-linux-gnu" || cfg.Toolchain.Sysroot != "/opt/sysroot" {
+		t.Fatalf("target profile = %q, %q", cfg.Toolchain.TargetTriple, cfg.Toolchain.Sysroot)
 	}
 }
 
