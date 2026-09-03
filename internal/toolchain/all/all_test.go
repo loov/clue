@@ -46,8 +46,12 @@ func TestNewToolchain_CreatesClangCompiler(t *testing.T) {
 	if tc.CXX() != "clang++" {
 		t.Errorf("CXX() = %q, want %q", tc.CXX(), "clang++")
 	}
-	if tc.AR() != "ar" {
-		t.Errorf("AR() = %q, want %q", tc.AR(), "ar")
+	wantAR := "ar"
+	if host.OS == "windows" {
+		wantAR = "llvm-ar"
+	}
+	if tc.AR() != wantAR {
+		t.Errorf("AR() = %q, want %q", tc.AR(), wantAR)
 	}
 	if tc.Name() != "clang" {
 		t.Errorf("Name() = %q, want %q", tc.Name(), "clang")
