@@ -560,7 +560,12 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 
 	// Create a simple shared library source
 	libCpp := filepath.Join(tmpDir, "lib.cpp")
-	libContent := `int lib_func() { return 42; }`
+	libContent := `#ifdef _WIN32
+#define CLUE_EXPORT __declspec(dllexport)
+#else
+#define CLUE_EXPORT
+#endif
+CLUE_EXPORT int lib_func() { return 42; }`
 	if err := os.WriteFile(libCpp, []byte(libContent), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
@@ -585,9 +590,7 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
-	// Determine expected extension
-	ext := plan.SharedLibraryExtension(toolchain.HostPlatform())
-	libPath := filepath.Join(tmpDir, "libtest"+ext)
+	libPath := filepath.Join(tmpDir, plan.SharedLibraryName("test", toolchain.HostPlatform()))
 
 	// Link shared library
 	result, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
@@ -607,6 +610,9 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Fatalf("shared library not created at %s", libPath)
 	}
+	if toolchain.HostPlatform().OS == "windows" {
+		return
+	}
 
 	// Verify it's actually a shared library by checking file type
 	fileCmd := exec.Command("file", libPath)
@@ -616,7 +622,6 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 	}
 
 	outputStr := string(output)
-	// Should be either "shared object" (Linux) or "dynamically linked" (macOS)
 	if !strings.Contains(outputStr, "shared object") && !strings.Contains(outputStr, "dynamically linked") {
 		t.Errorf("Output is not a shared library: %s", outputStr)
 	}
@@ -639,7 +644,13 @@ func TestLinkSharedLibrary_MacOSEmitsInstallName(t *testing.T) {
 
 	// Create a simple shared library source
 	libCpp := filepath.Join(tmpDir, "lib.cpp")
-	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0o644); err != nil {
+	libContent := `#ifdef _WIN32
+#define CLUE_EXPORT __declspec(dllexport)
+#else
+#define CLUE_EXPORT
+#endif
+CLUE_EXPORT int lib_func() { return 42; }`
+	if err := os.WriteFile(libCpp, []byte(libContent), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
@@ -759,7 +770,10 @@ func TestLinkSharedLibrary_LinksRunnableConsumer(t *testing.T) {
 
 	// Create main program that uses the library
 	mainCpp := filepath.Join(tmpDir, "main.cpp")
-	mainContent := `extern int lib_func();
+	mainContent := `#ifdef _WIN32
+__declspec(dllimport)
+#endif
+int lib_func();
 int main() { return lib_func() - 42; }` // Returns 0 on success
 	if err := os.WriteFile(mainCpp, []byte(mainContent), 0o644); err != nil {
 		t.Fatalf("failed to write main.cpp: %v", err)
@@ -789,8 +803,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
-	ext := plan.SharedLibraryExtension(toolchain.HostPlatform())
-	libPath := filepath.Join(tmpDir, "libtest"+ext)
+	libPath := filepath.Join(tmpDir, plan.SharedLibraryName("test", toolchain.HostPlatform()))
 	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
