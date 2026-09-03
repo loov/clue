@@ -145,19 +145,20 @@ dependencies: {
 	}
 
 	// Verify cache paths
-	jsonCache := jsonDep.CachePath("/project")
-	expectedGitCache := "/project/.deps/git/json-v3.11.2"
+	project := filepath.FromSlash("/project")
+	jsonCache := jsonDep.CachePath(project)
+	expectedGitCache := filepath.FromSlash("/project/.deps/git/json-v3.11.2")
 	if jsonCache != expectedGitCache {
 		t.Errorf("Expected git cache path %s, got %s", expectedGitCache, jsonCache)
 	}
 
-	zlibCache := zlibDep.CachePath("/project")
-	expectedTarballCache := "/project/.deps/tarball/zlib-c3e5e9fdd500"
+	zlibCache := zlibDep.CachePath(project)
+	expectedTarballCache := filepath.FromSlash("/project/.deps/tarball/zlib-c3e5e9fdd500")
 	if zlibCache != expectedTarballCache {
 		t.Errorf("Expected tarball cache path %s, got %s", expectedTarballCache, zlibCache)
 	}
 
-	mylibCache := mylibDep.CachePath("/project")
+	mylibCache := mylibDep.CachePath(project)
 	if mylibCache != "vendor/mylib" {
 		t.Errorf("Expected vendored cache path vendor/mylib, got %s", mylibCache)
 	}

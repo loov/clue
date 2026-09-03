@@ -45,7 +45,7 @@ func TestLinker_LinkExecutableProducesRunnableBinary(t *testing.T) {
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link main.o to executable
-	exePath := filepath.Join(tmpDir, "main")
+	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
 	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
 		Objects: []string{mainObj},
 		Output:  exePath,
@@ -101,7 +101,7 @@ func TestLinkerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output := filepath.Join(dir, "app")
+	output := filepath.Join(dir, plan.ExecutableName("app", toolchain.HostPlatform()))
 	if _, err := NewLinker(NewExecutor(ExecutorConfig{}), tc, toolchain.HostPlatform()).LinkExecutable(t.Context(), LinkOptions{
 		Objects: []string{object}, Output: output, Flags: toolchain.Config{RawLinker: flags},
 	}); err != nil {
@@ -257,7 +257,7 @@ int main() { return add(20, 22); }`
 	}
 
 	// Link main.o with libadd.a to create executable
-	exePath := filepath.Join(tmpDir, "main")
+	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
 	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
 		Objects: []string{mainObj, libPath},
 		Output:  exePath,
@@ -329,7 +329,7 @@ int main() {
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link with pthread
-	exePath := filepath.Join(tmpDir, "main")
+	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
 	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
 		Objects: []string{mainObj},
 		Output:  exePath,
@@ -775,7 +775,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 	}
 
 	// Link executable against shared library
-	exePath := filepath.Join(tmpDir, "main")
+	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
 	_, err = linker.LinkExecutable(t.Context(), LinkOptions{
 		Objects:  []string{mainObj},
 		Output:   exePath,

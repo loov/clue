@@ -544,8 +544,8 @@ func TestCompileSource_UsesRequestedDependencyPath(t *testing.T) {
 	// Unit test - no actual compilation needed
 	// Just verify the path computation logic
 
-	objPath := "/build/debug/myapp/obj/main.cpp.o"
-	expectedDepPath := "/build/debug/myapp/obj/main.cpp.d"
+	objPath := filepath.FromSlash("/build/debug/myapp/obj/main.cpp.o")
+	expectedDepPath := filepath.FromSlash("/build/debug/myapp/obj/main.cpp.d")
 
 	// Compute dep path the same way compiler does
 	depPath := filepath.Base(objPath[:len(objPath)-len(filepath.Ext(objPath))]) + ".d"

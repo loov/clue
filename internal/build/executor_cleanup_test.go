@@ -3,6 +3,8 @@ package build
 import (
 	"context"
 	"errors"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -142,20 +144,21 @@ func TestExecutor_RunCommandWithCleanupReturnsExitFailure(t *testing.T) {
 }
 
 func TestExecutor_RunCommandWithCleanupUsesDirectory(t *testing.T) {
-	// Test that working directory is properly set
+	dir := t.TempDir()
 	executor := NewExecutor(ExecutorConfig{
-		WorkDir: "/tmp",
+		WorkDir: dir,
 	})
 
 	ctx := t.Context()
 
-	result, err := executor.RunCommandWithCleanup(ctx, "pwd")
+	result, err := executor.RunCommandWithCleanup(
+		ctx, os.Args[0], "-test.run=^TestExecutorOutputHelper_WritesRequestedStreams$", "cwd",
+	)
 	if err != nil {
 		t.Fatalf("RunCommandWithCleanup failed: %v", err)
 	}
 
-	expected := "/tmp\n"
-	if result.Stdout != expected {
-		t.Errorf("Expected working dir %q, got %q", expected, result.Stdout)
+	if got := strings.TrimSpace(result.Stdout); got != dir {
+		t.Errorf("working directory = %q, want %q", got, dir)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/testclue"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -73,7 +74,7 @@ func TestIncremental_FirstBuildCompilesAllSources(t *testing.T) {
 	}
 
 	// Verify executable was created
-	exePath := filepath.Join(buildDir, "debug", "bin", "testapp")
+	exePath := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("testapp", toolchain.HostPlatform()))
 	if _, err := os.Stat(exePath); err != nil {
 		t.Errorf("executable not created: %v", err)
 	}
@@ -111,7 +112,7 @@ func TestIncremental_UnchangedBuildReusesCache(t *testing.T) {
 	// Get object file mtimes after first build
 	target := cfg.Targets["testapp"]
 	mtimesBefore := getObjectMtimes(t, buildDir, "debug", "testapp", target.Sources)
-	exePath := filepath.Join(buildDir, "debug", "bin", "testapp")
+	exePath := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("testapp", toolchain.HostPlatform()))
 	exeBefore, err := os.Stat(exePath)
 	if err != nil {
 		t.Fatal(err)

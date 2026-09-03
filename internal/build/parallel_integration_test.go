@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/testclue"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -70,7 +71,7 @@ func TestParallelBuild_CompilesTwentyFiles(t *testing.T) {
 	}
 
 	// Verify executable was created
-	execPath := filepath.Join(projectDir, "build", "debug", "bin", "paralleltest")
+	execPath := filepath.Join(projectDir, "build", "debug", "bin", plan.ExecutableName("paralleltest", toolchain.HostPlatform()))
 	if _, err := os.Stat(execPath); err != nil {
 		t.Errorf("executable should exist: %v", err)
 	}

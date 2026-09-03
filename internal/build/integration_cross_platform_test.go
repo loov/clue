@@ -156,7 +156,7 @@ func TestPlatformAgnosticConfig_BuildsOnHost(t *testing.T) {
 	}
 
 	// Verify output artifact exists
-	execPath := filepath.Join(dir, "build", "debug", "bin", "crossplatform")
+	execPath := filepath.Join(dir, "build", "debug", "bin", plan.ExecutableName("crossplatform", toolchain.HostPlatform()))
 	if _, err := os.Stat(execPath); err != nil {
 		t.Errorf("executable should exist: %v", err)
 	}
@@ -453,56 +453,56 @@ func TestOutputPath_UsesPlatformSuffix(t *testing.T) {
 			platform:     toolchain.Platform{OS: "linux", Arch: "amd64"},
 			targetType:   "shared_library",
 			expectedExt:  ".so",
-			expectedPath: "lib/libmylib.so",
+			expectedPath: filepath.Join("lib", "libmylib.so"),
 		},
 		{
 			name:         "darwin shared library",
 			platform:     toolchain.Platform{OS: "darwin", Arch: "arm64"},
 			targetType:   "shared_library",
 			expectedExt:  ".dylib",
-			expectedPath: "lib/libmylib.dylib",
+			expectedPath: filepath.Join("lib", "libmylib.dylib"),
 		},
 		{
 			name:         "linux static library",
 			platform:     toolchain.Platform{OS: "linux", Arch: "amd64"},
 			targetType:   "static_library",
 			expectedExt:  ".a",
-			expectedPath: "lib/libmylib.a",
+			expectedPath: filepath.Join("lib", "libmylib.a"),
 		},
 		{
 			name:         "darwin static library",
 			platform:     toolchain.Platform{OS: "darwin", Arch: "amd64"},
 			targetType:   "static_library",
 			expectedExt:  ".a",
-			expectedPath: "lib/libmylib.a",
+			expectedPath: filepath.Join("lib", "libmylib.a"),
 		},
 		{
 			name:         "linux executable",
 			platform:     toolchain.Platform{OS: "linux", Arch: "arm64"},
 			targetType:   "executable",
 			expectedExt:  "",
-			expectedPath: "bin/mylib",
+			expectedPath: filepath.Join("bin", "mylib"),
 		},
 		{
 			name:         "windows shared library",
 			platform:     toolchain.Platform{OS: "windows", Arch: "amd64"},
 			targetType:   "shared_library",
 			expectedExt:  ".dll",
-			expectedPath: "lib/mylib.dll",
+			expectedPath: filepath.Join("lib", "mylib.dll"),
 		},
 		{
 			name:         "windows static library",
 			platform:     toolchain.Platform{OS: "windows", Arch: "amd64"},
 			targetType:   "static_library",
 			expectedExt:  ".lib",
-			expectedPath: "lib/mylib.lib",
+			expectedPath: filepath.Join("lib", "mylib.lib"),
 		},
 		{
 			name:         "windows executable",
 			platform:     toolchain.Platform{OS: "windows", Arch: "amd64"},
 			targetType:   "executable",
 			expectedExt:  ".exe",
-			expectedPath: "bin/mylib.exe",
+			expectedPath: filepath.Join("bin", "mylib.exe"),
 		},
 	}
 

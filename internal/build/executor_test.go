@@ -124,6 +124,14 @@ func TestExecutorOutputHelper_WritesRequestedStreams(t *testing.T) {
 		fmt.Print(os.Getenv("CLUE_EXECUTOR_TEST"))
 		os.Exit(0)
 	}
+	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "cwd" {
+		dir, err := os.Getwd()
+		if err != nil {
+			os.Exit(1)
+		}
+		fmt.Print(dir)
+		os.Exit(0)
+	}
 }
 
 func TestExecutor_ToolExistsReportsPathLookup(t *testing.T) {
@@ -149,7 +157,9 @@ func TestExecutor_RunCommandUsesConfiguredDirectory(t *testing.T) {
 		WorkDir:      tmpDir,
 	})
 
-	result, err := executor.RunCommand(t.Context(), "pwd")
+	result, err := executor.RunCommand(
+		t.Context(), os.Args[0], "-test.run=^TestExecutorOutputHelper_WritesRequestedStreams$", "cwd",
+	)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}

@@ -269,7 +269,11 @@ func TestBuild_BuildsMultipleTargets(t *testing.T) {
 	}
 
 	// Check that artifacts exist
-	libPath := filepath.Join(testdataDir, ".build", "debug", "lib", "libmathlib.a")
+	libName := "libmathlib.a"
+	if runtime.GOOS == "windows" {
+		libName = "mathlib.lib"
+	}
+	libPath := filepath.Join(testdataDir, ".build", "debug", "lib", libName)
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Errorf("Expected library at %s, but it doesn't exist", libPath)
 	}

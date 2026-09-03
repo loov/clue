@@ -88,7 +88,7 @@ int add(int a, int b) {
 	}
 
 	// Verify it's named correctly
-	expectedLibName := "liblibfoo.a"
+	expectedLibName := plan.StaticLibraryName("libfoo", toolchainpkg.HostPlatform())
 	if filepath.Base(result.LibPath) != expectedLibName {
 		t.Errorf("expected library name %q, got %q", expectedLibName, filepath.Base(result.LibPath))
 	}
@@ -531,8 +531,8 @@ func TestDepBuilder_DerivesIncludePathFromHeaders(t *testing.T) {
 				Sources: []string{"math.cpp"},
 				Headers: []string{"math.h"},
 			},
-			sourcePath:   "/tmp/test/vendor/simplemath",
-			expectedPath: "/tmp/test/vendor",
+			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
+			expectedPath: filepath.FromSlash("/tmp/test/vendor"),
 			description:  "When headers is set, include path should be parent directory",
 		},
 		{
@@ -542,8 +542,8 @@ func TestDepBuilder_DerivesIncludePathFromHeaders(t *testing.T) {
 				Headers:  []string{},
 				Includes: []string{"custom"},
 			},
-			sourcePath:   "/tmp/test/vendor/simplemath",
-			expectedPath: "/tmp/test/vendor/simplemath/custom",
+			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
+			expectedPath: filepath.FromSlash("/tmp/test/vendor/simplemath/custom"),
 			description:  "When headers is empty but includes is set, use includes",
 		},
 		{
@@ -552,8 +552,8 @@ func TestDepBuilder_DerivesIncludePathFromHeaders(t *testing.T) {
 				Sources:  []string{"math.cpp"},
 				Includes: []string{".."},
 			},
-			sourcePath:   "/tmp/test/vendor/simplemath",
-			expectedPath: "/tmp/test/vendor",
+			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
+			expectedPath: filepath.FromSlash("/tmp/test/vendor"),
 			description:  "When headers is nil but includes is set, use includes (filepath.Join cleans ..)",
 		},
 		{
@@ -561,8 +561,8 @@ func TestDepBuilder_DerivesIncludePathFromHeaders(t *testing.T) {
 			inlineConfig: &deps.InlineConfig{
 				Sources: []string{"math.cpp"},
 			},
-			sourcePath:   "/tmp/test/vendor/simplemath",
-			expectedPath: "/tmp/test/vendor/simplemath",
+			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
+			expectedPath: filepath.FromSlash("/tmp/test/vendor/simplemath"),
 			description:  "When neither is set, fallback to sourcePath",
 		},
 	}
