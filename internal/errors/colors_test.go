@@ -2,9 +2,27 @@ package errors
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestIsTerminalLeavesFileOpen(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = r.Close()
+		_ = w.Close()
+	})
+
+	_ = isTerminal(w)
+	runtime.GC()
+	if _, err := w.WriteString("open"); err != nil {
+		t.Fatalf("isTerminal closed its file: %v", err)
+	}
+}
 
 func TestError_AddsBoldRedANSI(t *testing.T) {
 	// Enable colors for testing

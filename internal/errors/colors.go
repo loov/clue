@@ -29,17 +29,13 @@ func init() {
 	}
 
 	// Auto-detect TTY - disable colors if not a terminal
-	if !isTerminal(int(os.Stdout.Fd())) {
+	if !isTerminal(os.Stdout) {
 		noColor = true
 	}
 }
 
-// isTerminal returns true if the file descriptor is a terminal
-func isTerminal(fd int) bool {
-	file := os.NewFile(uintptr(fd), "terminal")
-	if file == nil {
-		return false
-	}
+// isTerminal returns true if the file is a terminal.
+func isTerminal(file *os.File) bool {
 	info, err := file.Stat()
 	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
