@@ -464,11 +464,8 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		}
 		return target.Outputs, nil
 	}
-	// Build configuration for flags
-	buildCfg := targetToBuildConfig(target, variantConfig)
-	usage := config.CompileUsage(opts.Config, target)
-	buildCfg.RawCompiler = append(buildCfg.RawCompiler, usage.CompilerFlags...)
-	buildCfg.RawLinker = append(buildCfg.RawLinker, usage.LinkerFlags...)
+	plan := build.PlanTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
+	buildCfg, usage := plan.Flags, plan.Usage
 	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
 	if err != nil {
 		return nil, fmt.Errorf("target %q: %w", target.Name, err)
@@ -487,7 +484,6 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	includes := append(usage.Includes, dependencyUsage.Includes...)
 
 	var objects []string
-	objectNames := buildpath.ObjectNames(target.Sources)
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
 	buildDependencies := targetCustomOutputs(opts.Config, target)
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
@@ -500,6 +496,10 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	if err != nil {
 		return nil, err
 	}
+	sourcePlans := make(map[string]build.SourcePlan, len(plan.Sources))
+	for _, source := range plan.Sources {
+		sourcePlans[source.Source] = source
+	}
 
 	for _, source := range modules.ordered {
 		compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc, source)
@@ -507,7 +507,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			compilerFlags = append(compilerFlags, "-fPIC")
 		}
 		// Determine object path
-		objPath := ninjaPathLocal(objectPath(opts.BuildDir, variant, target.Name, objectNames[source]))
+		objPath := ninjaPathLocal(sourcePlans[source].Object)
 		srcPath := ninjaPathLocal(source)
 
 		objects = append(objects, objPath)
@@ -539,7 +539,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	}
 
 	// Link or archive
-	outputPath := ninjaPathLocal(outputPathForTarget(opts.BuildDir, variant, target.Name, target.Type, opts.Platform))
+	outputPath := ninjaPathLocal(plan.Output)
 	dependencyInputs, dependencySysLibs, sharedLibraryPaths := targetLinkDependencies(opts.Config, target, opts.BuildDir, variant, opts.Platform)
 	linkInputs := append(append([]string(nil), objects...), dependencyInputs...)
 
@@ -647,9 +647,6 @@ func targetUsesCXXForNinja(cfg *config.Config, target config.Target) bool {
 	}
 	return false
 }
-
-// Note: targetToBuildConfig is defined in compdb.go and shared between both generators
-// Note: objectPath is defined in compdb.go and shared between both generators
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output
 func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, includes []string, tc toolchain.Toolchain, source string) []string {
@@ -885,14 +882,7 @@ func ninjaPathLocal(path string) string {
 
 // outputPathForTarget returns the output path for a target
 func outputPathForTarget(buildDir, variant, target, targetType string, platform toolchain.Platform) string {
-	return filepath.Join(buildDir, variant, outputDirectoryForTarget(targetType), outputNameForTarget(target, targetType, platform))
-}
-
-func outputDirectoryForTarget(targetType string) string {
-	if targetType == "executable" {
-		return "bin"
-	}
-	return "lib"
+	return build.ArtifactPath(buildDir, variant, target, targetType, platform)
 }
 
 func outputNameForTarget(target, targetType string, platform toolchain.Platform) string {

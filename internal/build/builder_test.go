@@ -61,14 +61,10 @@ func TestDependencyLinkInputs_PkgConfigFlags(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
-	if err != nil {
-		t.Fatalf("NewBuilder failed: %v", err)
-	}
 	target := config.Target{Name: "test"}
 	variant := config.Variant{Optimization: "fast", DebugInfo: true}
 
-	cfg := b.targetToConfig(target, variant)
+	cfg := TargetConfig(target, variant)
 
 	if cfg.Optimize != "fast" {
 		t.Errorf("expected Optimize='fast', got '%s'", cfg.Optimize)
@@ -79,10 +75,6 @@ func TestTargetToBuildConfig_DefaultsFromVariant(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
-	if err != nil {
-		t.Fatalf("NewBuilder failed: %v", err)
-	}
 	target := config.Target{
 		Name:     "test",
 		Optimize: "size",
@@ -92,7 +84,7 @@ func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
 	// Variant has no optimization set
 	variant := config.Variant{Optimization: "", DebugInfo: false}
 
-	cfg := b.targetToConfig(target, variant)
+	cfg := TargetConfig(target, variant)
 
 	if cfg.Optimize != "size" {
 		t.Errorf("expected Optimize='size' from target, got '%s'", cfg.Optimize)
@@ -106,10 +98,6 @@ func TestTargetToBuildConfig_TargetOverridesDefaults(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
-	if err != nil {
-		t.Fatalf("NewBuilder failed: %v", err)
-	}
 	// Target sets debug to minimal
 	target := config.Target{
 		Name:  "test",
@@ -118,7 +106,7 @@ func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
 	// Variant DebugInfo=true should override to "full"
 	variant := config.Variant{DebugInfo: true}
 
-	cfg := b.targetToConfig(target, variant)
+	cfg := TargetConfig(target, variant)
 
 	// Variant DebugInfo=true should win over target.Debug
 	if cfg.Debug != "full" {
@@ -127,10 +115,6 @@ func TestTargetToBuildConfig_VariantOverridesTarget(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_AdvancedVariantFlags(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
-	if err != nil {
-		t.Fatalf("NewBuilder failed: %v", err)
-	}
 	enabled, disabled := true, false
 	target := config.Target{
 		Sanitizers: []string{"address"}, LTO: &enabled, PIC: &disabled, Coverage: &disabled,
@@ -141,7 +125,7 @@ func TestTargetToBuildConfig_AdvancedVariantFlags(t *testing.T) {
 		DebugInfoSet: true, DebugInfo: false,
 	}
 
-	cfg := b.targetToConfig(target, variant)
+	cfg := TargetConfig(target, variant)
 	if len(cfg.Sanitizers) != 1 || cfg.Sanitizers[0] != "undefined" || cfg.LTO || !cfg.PIC || !cfg.Coverage {
 		t.Errorf("advanced variant flags not applied: %+v", cfg)
 	}
@@ -151,11 +135,6 @@ func TestTargetToBuildConfig_AdvancedVariantFlags(t *testing.T) {
 }
 
 func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
-	if err != nil {
-		t.Fatalf("NewBuilder failed: %v", err)
-	}
-
 	// Test pointer semantics: false should override default true
 	falseVal := false
 	target := config.Target{
@@ -164,7 +143,7 @@ func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 	}
 	variant := config.Variant{}
 
-	cfg := b.targetToConfig(target, variant)
+	cfg := TargetConfig(target, variant)
 
 	if cfg.WarningsAsErrors != false {
 		t.Errorf("expected WarningsAsErrors=false from target, got %v", cfg.WarningsAsErrors)

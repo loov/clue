@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
@@ -111,7 +110,7 @@ func newBuilder(toolchain Toolchain, target Platform, verbosity Verbosity, jobs 
 
 // ObjectDir returns the path for object files: build/variant/target/obj/
 func (b *Builder) ObjectDir(buildDir, variant, target string) string {
-	return filepath.Join(buildDir, variant, target, "obj")
+	return ObjectDir(buildDir, variant, target)
 }
 
 // OutputPath returns the final artifact path
@@ -119,79 +118,7 @@ func (b *Builder) ObjectDir(buildDir, variant, target string) string {
 // Static lib: build/variant/lib/libtarget.a
 // Shared lib: build/variant/lib/libtarget.so/.dylib (platform-specific)
 func (b *Builder) OutputPath(buildDir, variant, target, targetType string) string {
-	switch targetType {
-	case "executable":
-		return filepath.Join(buildDir, variant, "bin", ExecutableName(target, b.target))
-	case "static_library":
-		return filepath.Join(buildDir, variant, "lib", StaticLibraryName(target, b.target))
-	case "shared_library":
-		return filepath.Join(buildDir, variant, "lib", SharedLibraryName(target, b.target))
-	default:
-		return filepath.Join(buildDir, variant, "bin", ExecutableName(target, b.target))
-	}
-}
-
-// targetToConfig converts config.Target and config.Variant to Config
-func (b *Builder) targetToConfig(target config.Target, variant config.Variant) Config {
-	cfg := Config{
-		Optimize:         variant.Optimization,
-		Warnings:         "default", // Default if not specified
-		WarningsAsErrors: true,      // Default to true
-		Debug:            "none",    // Default if not specified
-		RawCompiler:      target.Flags.Compiler,
-		RawLinker:        target.Flags.Linker,
-		Sanitizers:       append([]string(nil), target.Sanitizers...),
-	}
-	if target.LTO != nil {
-		cfg.LTO = *target.LTO
-	}
-	if target.PIC != nil {
-		cfg.PIC = *target.PIC
-	}
-	if target.Coverage != nil {
-		cfg.Coverage = *target.Coverage
-	}
-
-	// Apply target-specific semantic flags (override defaults)
-	if target.Optimize != "" {
-		cfg.Optimize = target.Optimize
-	}
-	if target.Warnings != "" {
-		cfg.Warnings = target.Warnings
-	}
-	if target.Debug != "" {
-		cfg.Debug = target.Debug
-	}
-	if target.WarningsAsErrors != nil {
-		cfg.WarningsAsErrors = *target.WarningsAsErrors
-	}
-
-	// Apply variant debug info (overrides target)
-	if variant.DebugInfoSet || variant.DebugInfo {
-		if variant.DebugInfo {
-			cfg.Debug = "full"
-		} else {
-			cfg.Debug = "none"
-		}
-	}
-	if variant.Sanitizers != nil {
-		cfg.Sanitizers = append([]string(nil), variant.Sanitizers...)
-	}
-	if variant.LTO != nil {
-		cfg.LTO = *variant.LTO
-	}
-	if variant.PIC != nil {
-		cfg.PIC = *variant.PIC
-	}
-	if variant.Coverage != nil {
-		cfg.Coverage = *variant.Coverage
-	}
-
-	// Merge variant raw flags
-	cfg.RawCompiler = append(cfg.RawCompiler, variant.Flags.Compiler...)
-	cfg.RawLinker = append(cfg.RawLinker, variant.Flags.Linker...)
-
-	return cfg
+	return ArtifactPath(buildDir, variant, target, targetType, b.target)
 }
 
 type dependencyLinkUsage struct {
@@ -335,20 +262,16 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	}
 	start := time.Now()
 
-	// Calculate paths
-	objDir := b.ObjectDir(opts.BuildDir, opts.Variant, target.Name)
-	outputPath := b.OutputPath(opts.BuildDir, opts.Variant, target.Name, target.Type)
+	plan := PlanTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
+	objDir, outputPath := plan.ObjectDir, plan.Output
 
 	// Create directories
 	if err := os.MkdirAll(objDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create object directory: %w", err)
 	}
 
-	// Build configuration from target and variant
-	buildCfg := b.targetToConfig(target, opts.Config.ActiveVariant)
-	usage := config.CompileUsage(opts.Config, target)
-	buildCfg.RawCompiler = append(buildCfg.RawCompiler, usage.CompilerFlags...)
-	buildCfg.RawLinker = append(buildCfg.RawLinker, usage.LinkerFlags...)
+	// Build configuration from the shared plan.
+	buildCfg, usage := plan.Flags, plan.Usage
 
 	// Collect include paths from external dependencies.
 	includes := usage.Includes
@@ -471,9 +394,13 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	cacheInputs := make(map[string]sourceCacheInputs, len(target.Sources))
 	includeInputs := append(append([]string(nil), includes...), usage.SystemIncludes...)
 
-	objectNames := buildpath.ObjectNames(target.Sources)
+	sourcePlans := make(map[string]SourcePlan, len(plan.Sources))
+	for _, source := range plan.Sources {
+		sourcePlans[source.Source] = source
+	}
 	for _, source := range sourcesToCompile {
-		objPath := filepath.Join(objDir, objectNames[source])
+		sourcePlan := sourcePlans[source]
+		objPath := sourcePlan.Object
 		compileOpts := CompileOptions{
 			Source:         source,
 			Output:         objPath,
@@ -481,7 +408,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			SystemIncludes: usage.SystemIncludes,
 			Defines:        defines,
 			Flags:          buildCfg,
-			Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, source),
+			Std:            sourcePlan.Standard,
 			TargetType:     target.Type,
 		}
 		if module, ok := moduleInfo[source]; ok {

@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/loov/clue/internal/build"
-	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -109,74 +108,4 @@ func AbsPath(path string) string {
 // NinjaPath normalizes a path for Ninja files (forward slashes on all platforms)
 func NinjaPath(path string) string {
 	return filepath.ToSlash(filepath.Clean(path))
-}
-
-// objectPath returns the path for a named object file
-// Shared between compdb.go and ninja.go generators
-func objectPath(buildDir, variant, targetName, objectName string) string {
-	return filepath.Join(buildDir, variant, targetName, "obj", objectName)
-}
-
-// targetToBuildConfig converts config.Target and config.Variant to toolchain.Config
-// Shared between compdb.go and ninja.go generators
-func targetToBuildConfig(target config.Target, variant config.Variant) toolchain.Config {
-	cfg := toolchain.Config{
-		Optimize:         variant.Optimization,
-		Warnings:         "default",
-		WarningsAsErrors: true,
-		Debug:            "none",
-		RawCompiler:      target.Flags.Compiler,
-		RawLinker:        target.Flags.Linker,
-		Sanitizers:       append([]string(nil), target.Sanitizers...),
-	}
-	if target.LTO != nil {
-		cfg.LTO = *target.LTO
-	}
-	if target.PIC != nil {
-		cfg.PIC = *target.PIC
-	}
-	if target.Coverage != nil {
-		cfg.Coverage = *target.Coverage
-	}
-
-	// Apply target-specific semantic flags
-	if target.Optimize != "" {
-		cfg.Optimize = target.Optimize
-	}
-	if target.Warnings != "" {
-		cfg.Warnings = target.Warnings
-	}
-	if target.Debug != "" {
-		cfg.Debug = target.Debug
-	}
-	if target.WarningsAsErrors != nil {
-		cfg.WarningsAsErrors = *target.WarningsAsErrors
-	}
-
-	// Apply variant debug info
-	if variant.DebugInfoSet || variant.DebugInfo {
-		if variant.DebugInfo {
-			cfg.Debug = "full"
-		} else {
-			cfg.Debug = "none"
-		}
-	}
-	if variant.Sanitizers != nil {
-		cfg.Sanitizers = append([]string(nil), variant.Sanitizers...)
-	}
-	if variant.LTO != nil {
-		cfg.LTO = *variant.LTO
-	}
-	if variant.PIC != nil {
-		cfg.PIC = *variant.PIC
-	}
-	if variant.Coverage != nil {
-		cfg.Coverage = *variant.Coverage
-	}
-
-	// Merge variant raw flags
-	cfg.RawCompiler = append(cfg.RawCompiler, variant.Flags.Compiler...)
-	cfg.RawLinker = append(cfg.RawLinker, variant.Flags.Linker...)
-
-	return cfg
 }

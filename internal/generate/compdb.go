@@ -114,10 +114,8 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	}
 	var commands []CompileCommand
 
-	// Build Config from target and variant
-	buildCfg := targetToBuildConfig(target, variant)
-	usage := config.CompileUsage(opts.Config, target)
-	buildCfg.RawCompiler = append(buildCfg.RawCompiler, usage.CompilerFlags...)
+	plan := build.PlanTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
+	buildCfg, usage := plan.Flags, plan.Usage
 	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
 	if err != nil {
 		return nil, err
@@ -132,7 +130,6 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		target.CXXStd = usage.CXXStd
 	}
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
-	objectNames := buildpath.ObjectNames(target.Sources)
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
 		Includes:       target.Includes,
 		SystemIncludes: target.SystemIncludes,
@@ -143,13 +140,17 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	if err != nil {
 		return nil, err
 	}
+	sourcePlans := make(map[string]build.SourcePlan, len(plan.Sources))
+	for _, source := range plan.Sources {
+		sourcePlans[source.Source] = source
+	}
 
 	for _, source := range modules.ordered {
-		// Determine object path
-		objPath := objectPath(opts.BuildDir, opts.Variant, target.Name, objectNames[source])
+		sourcePlan := sourcePlans[source]
+		objPath := sourcePlan.Object
 
 		// Build compiler arguments
-		args := buildCompilerArgs(tc, config.CompileStandard(opts.Config.Toolchain, target, usage, source), target.Includes, target.SystemIncludes, target.Defines, source, objPath, buildCfg)
+		args := buildCompilerArgs(tc, sourcePlan.Standard, target.Includes, target.SystemIncludes, target.Defines, source, objPath, buildCfg)
 		for _, flag := range modules.flags(source) {
 			if value, ok := strings.CutPrefix(flag, "-fmodule-output="); ok {
 				flag = "-fmodule-output=" + AbsPath(value)
@@ -315,5 +316,3 @@ func isCPlusPlusFile(source string) bool {
 func depObjectPath(buildDir, variant, depName, objectName string) string {
 	return filepath.Join(buildDir, variant, "deps", depName, "obj", objectName)
 }
-
-// Note: objectPath and targetToBuildConfig are defined in common.go
