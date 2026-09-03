@@ -10,14 +10,14 @@ import (
 
 // ChromeEvent represents a single event in Chrome Trace format
 type ChromeEvent struct {
-	Name      string         `json:"name"`           // Display name (file basename)
-	Category  string         `json:"cat,omitempty"`  // Event category ("compile")
-	Phase     string         `json:"ph"`             // Phase type ("X" for complete events)
-	Timestamp int64          `json:"ts"`             // Microseconds from trace start
-	Duration  int64          `json:"dur"`            // Duration in microseconds
-	ProcessID int            `json:"pid"`            // Process ID (always 1)
-	ThreadID  int            `json:"tid"`            // Thread/worker ID
-	Args      map[string]any `json:"args,omitempty"` // Additional arguments
+	Name      string         `json:"name"`          // Display name (file basename)
+	Category  string         `json:"cat,omitzero"`  // Event category ("compile")
+	Phase     string         `json:"ph"`            // Phase type ("X" for complete events)
+	Timestamp int64          `json:"ts"`            // Microseconds from trace start
+	Duration  int64          `json:"dur"`           // Duration in microseconds
+	ProcessID int            `json:"pid"`           // Process ID (always 1)
+	ThreadID  int            `json:"tid"`           // Thread/worker ID
+	Args      map[string]any `json:"args,omitzero"` // Additional arguments
 }
 
 // ChromeTrace represents the complete Chrome Trace JSON structure

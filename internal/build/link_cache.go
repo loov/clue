@@ -26,8 +26,8 @@ func linkFingerprint(tc Toolchain, tool string, options any, inputs []string) ([
 	}
 	return json.Marshal(struct {
 		Tool        cache.CompilerIdentity `json:"tool"`
-		Toolchain   string                 `json:"toolchain,omitempty"`
-		Environment []string               `json:"environment,omitempty"`
+		Toolchain   string                 `json:"toolchain,omitzero"`
+		Environment []string               `json:"environment,omitzero"`
 		Options     any                    `json:"options"`
 		Inputs      []linkInput            `json:"inputs"`
 	}{toolID, toolchainCacheKey(tc), toolchainCacheEnvironment(tc), options, files})

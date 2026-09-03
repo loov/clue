@@ -20,9 +20,9 @@ type LockFile struct {
 type LockEntry struct {
 	Type     string `json:"type"`
 	URL      string `json:"url"`
-	Ref      string `json:"ref,omitempty"`
-	Commit   string `json:"commit,omitempty"`
-	Checksum string `json:"checksum,omitempty"`
+	Ref      string `json:"ref,omitzero"`
+	Commit   string `json:"commit,omitzero"`
+	Checksum string `json:"checksum,omitzero"`
 }
 
 func loadLockFile(projectDir string) (*LockFile, error) {

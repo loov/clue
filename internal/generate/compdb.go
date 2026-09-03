@@ -21,7 +21,7 @@ type CompileCommand struct {
 	Directory string   `json:"directory"`
 	File      string   `json:"file"`
 	Arguments []string `json:"arguments"`
-	Output    string   `json:"output,omitempty"`
+	Output    string   `json:"output,omitzero"`
 }
 
 // CompDBOptions holds options for generating compile_commands.json

@@ -23,10 +23,10 @@ type DepMarker struct {
 	Name      string    `json:"name"`
 	Type      string    `json:"type"`
 	FetchedAt time.Time `json:"fetched_at"`
-	Ref       string    `json:"ref,omitempty"`  // for git dependencies
-	URL       string    `json:"url,omitempty"`  // for tarball dependencies
-	Path      string    `json:"path,omitempty"` // for vendored dependencies
-	Checksum  string    `json:"checksum,omitempty"`
+	Ref       string    `json:"ref,omitzero"`  // for git dependencies
+	URL       string    `json:"url,omitzero"`  // for tarball dependencies
+	Path      string    `json:"path,omitzero"` // for vendored dependencies
+	Checksum  string    `json:"checksum,omitzero"`
 }
 
 // NewCache creates a new dependency cache manager
