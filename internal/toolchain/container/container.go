@@ -104,11 +104,12 @@ func findRuntime(name string) (string, error) {
 	return "", fmt.Errorf("container runtime not found: install Docker, Podman, Apple container, or nerdctl, or set toolchain.container.runtime")
 }
 
-func (t *Toolchain) CC() string            { return t.base.CC() }
-func (t *Toolchain) CXX() string           { return t.base.CXX() }
-func (t *Toolchain) AR() string            { return t.base.AR() }
-func (t *Toolchain) Name() string          { return t.base.Name() }
-func (t *Toolchain) IsCrossCompiler() bool { return t.target != toolchain.HostPlatform() }
+func (t *Toolchain) CC() string                 { return t.base.CC() }
+func (t *Toolchain) CXX() string                { return t.base.CXX() }
+func (t *Toolchain) AR() string                 { return t.base.AR() }
+func (t *Toolchain) Name() string               { return t.base.Name() }
+func (t *Toolchain) Target() toolchain.Platform { return t.target }
+func (t *Toolchain) IsCrossCompiler() bool      { return t.target != toolchain.HostPlatform() }
 func (t *Toolchain) String() string {
 	return fmt.Sprintf("%s in %s:%s", t.base.Name(), filepath.Base(t.runtimePath), t.image)
 }

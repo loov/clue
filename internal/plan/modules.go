@@ -247,7 +247,8 @@ func ModuleCompileFlags(tc toolchain.Toolchain, dependency ModuleDependency, out
 			}
 		}
 	default:
-		if dependency.UsesModules || dependency.IsModule || output != "" || len(moduleFiles) > 0 {
+		targeted, hasTarget := tc.(interface{ Target() toolchain.Platform })
+		if !hasTarget || targeted.Target().OS != "windows" {
 			flags = append(flags, "-fcxx-modules")
 		}
 		if output != "" && !dependency.InternalPartition {

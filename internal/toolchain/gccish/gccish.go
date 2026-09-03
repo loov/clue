@@ -59,6 +59,11 @@ func (t *Toolchain) AR() string {
 	return t.ar
 }
 
+// Target returns the platform this toolchain emits code for.
+func (t *Toolchain) Target() toolchain.Platform {
+	return t.target
+}
+
 // Name returns the toolchain name ("gcc" or "clang").
 func (t *Toolchain) Name() string {
 	return t.name

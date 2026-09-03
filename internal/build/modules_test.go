@@ -8,6 +8,7 @@ import (
 
 	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/clang"
 )
 
 func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
@@ -35,6 +36,14 @@ func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestModuleCompileFlags_ClangOmitsCXXModulesSwitchOnWindows(t *testing.T) {
+	tc := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "windows", Arch: "amd64"})
+	flags := plan.ModuleCompileFlags(tc, plan.ModuleDependency{UsesModules: true}, "math.pcm", nil, "")
+	if slices.Contains(flags, "-fcxx-modules") {
+		t.Errorf("Windows Clang module flags = %q", flags)
 	}
 }
 
