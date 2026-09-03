@@ -12,9 +12,18 @@ import (
 
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/all"
 )
 
 var includeDirective = regexp.MustCompile(`(?m)^[ \t]*#[ \t]*include[ \t]*[<"]([^">]+)[">]`)
+
+var discoverCompiler = func(names []string, target toolchain.Platform, requiresCXX bool) (string, error) {
+	tc, err := all.TryToolchainsForLanguages(names, target, requiresCXX)
+	if err != nil {
+		return "", err
+	}
+	return tc.Name(), nil
+}
 
 // LoadOrDiscoverForTarget loads clue.cue when present and otherwise discovers
 // conventional targets from the source tree.
@@ -25,7 +34,7 @@ func (l *Loader) LoadOrDiscoverForTarget(dir string, target toolchain.Platform) 
 	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("inspect config: %w", err)
 	}
-	return l.discover(dir)
+	return l.discover(dir, target)
 }
 
 type discoveredTarget struct {
@@ -33,7 +42,7 @@ type discoveredTarget struct {
 	target Target
 }
 
-func (l *Loader) discover(dir string) (*Config, error) {
+func (l *Loader) discover(dir string, targetPlatform toolchain.Platform) (*Config, error) {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("invalid directory: %w", err)
@@ -115,11 +124,25 @@ func (l *Loader) discover(dir string) (*Config, error) {
 	if err := inferDiscoveredDependencies(root, targets, headerOwners, includeDirs); err != nil {
 		return nil, err
 	}
+	requiresCXX := false
+	for _, target := range targets {
+		for _, source := range target.Sources {
+			requiresCXX = requiresCXX || toolchain.IsCXXSource(source)
+		}
+	}
+	candidates := []string{"clang", "gcc", "msvc"}
+	if targetPlatform.OS == "windows" {
+		candidates = []string{"msvc", "clang", "gcc"}
+	}
+	compiler, err := discoverCompiler(candidates, targetPlatform, requiresCXX)
+	if err != nil {
+		return nil, fmt.Errorf("discover toolchain: %w", err)
+	}
 
 	return &Config{
 		Name:         filepath.Base(root),
 		BuildDir:     ".build",
-		Toolchain:    Toolchain{Compiler: "clang"},
+		Toolchain:    Toolchain{Compiler: compiler},
 		Targets:      targets,
 		Variants:     make(map[string]Variant),
 		Dependencies: make(map[string]deps.Dependency),

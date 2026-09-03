@@ -1,7 +1,10 @@
 package all
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/loov/clue/internal/toolchain"
@@ -207,5 +210,27 @@ func TestTryToolchains_NoneAvailable(t *testing.T) {
 	expected := "no available toolchain in [nonexistent-compiler-1 nonexistent-compiler-2]"
 	if len(err.Error()) < len(expected) || err.Error()[:len(expected)] != expected {
 		t.Errorf("error should start with %q, got %q", expected, err.Error())
+	}
+}
+
+func TestTryToolchainsForLanguagesSkipsMissingCXX(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("executable test stubs use Unix file modes")
+	}
+	dir := t.TempDir()
+	for _, name := range []string{"clang", "gcc", "g++", "ar"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+	t.Setenv("CC", "")
+	t.Setenv("CXX", "")
+	tc, err := TryToolchainsForLanguages([]string{"clang", "gcc"}, toolchain.HostPlatform(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tc.Name() != "gcc" {
+		t.Fatalf("selected %q, want gcc with an available C++ driver", tc.Name())
 	}
 }

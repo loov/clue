@@ -8,6 +8,7 @@ package all
 import (
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/clang"
@@ -76,6 +77,11 @@ func configuredArchive(explicit, fallback string) string {
 // TryToolchains tries each toolchain name in order and returns the first
 // that is available (binaries exist in PATH). Returns error if none available.
 func TryToolchains(names []string, target toolchain.Platform) (toolchain.Toolchain, error) {
+	return TryToolchainsForLanguages(names, target, false)
+}
+
+// TryToolchainsForLanguages also requires a C++ driver when the project uses C++.
+func TryToolchainsForLanguages(names []string, target toolchain.Platform, requiresCXX bool) (toolchain.Toolchain, error) {
 	var lastErr error
 	for _, name := range names {
 		tc, err := NewToolchain(name, target)
@@ -87,6 +93,12 @@ func TryToolchains(names []string, target toolchain.Platform) (toolchain.Toolcha
 		if err := toolchain.ValidateToolchain(tc); err != nil {
 			lastErr = err
 			continue
+		}
+		if requiresCXX {
+			if _, err := exec.LookPath(tc.CXX()); err != nil {
+				lastErr = fmt.Errorf("c++ compiler not found: %s", tc.CXX())
+				continue
+			}
 		}
 
 		return tc, nil

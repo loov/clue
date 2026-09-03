@@ -82,3 +82,25 @@ func TestLoadOrDiscoverRejectsMultipleMainFiles(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestLoadOrDiscoverSelectsAnAvailableCompiler(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "main.cpp"), []byte("int main() {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	original := discoverCompiler
+	t.Cleanup(func() { discoverCompiler = original })
+	var gotNames []string
+	var gotRequiresCXX bool
+	discoverCompiler = func(names []string, _ toolchain.Platform, requiresCXX bool) (string, error) {
+		gotNames, gotRequiresCXX = slices.Clone(names), requiresCXX
+		return "gcc", nil
+	}
+	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Toolchain.Compiler != "gcc" || !gotRequiresCXX || !slices.Equal(gotNames, []string{"clang", "gcc", "msvc"}) {
+		t.Fatalf("compiler = %q, candidates = %v, requires C++ = %t", cfg.Toolchain.Compiler, gotNames, gotRequiresCXX)
+	}
+}
