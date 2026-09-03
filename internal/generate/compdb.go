@@ -122,6 +122,11 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		return nil, nil
 	}
 	var commands []CompileCommand
+	var err error
+	target, err = build.PrepareUnityTarget(target, opts.BuildDir, opts.Variant)
+	if err != nil {
+		return nil, err
+	}
 
 	plan := build.PlanTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
 	buildCfg, usage := plan.Flags, plan.Usage

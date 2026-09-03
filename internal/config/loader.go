@@ -121,6 +121,13 @@ type Target struct {
 	PIC              *bool
 	Coverage         *bool
 	Test             *Test
+	Unity            *UnityBuild
+}
+
+// UnityBuild combines compatible sources into larger translation units.
+type UnityBuild struct {
+	BatchSize int
+	Exclude   []string
 }
 
 // HeaderUnit declares a header that the selected C++ compiler should precompile.
@@ -278,6 +285,21 @@ func expandTargetGlobs(config *Config, root string) error {
 		target.Headers, err = expandFileGlobs(root, target.Headers)
 		if err != nil {
 			return fmt.Errorf("target %q headers: %w", name, err)
+		}
+		if target.Unity != nil {
+			target.Unity.Exclude, err = expandFileGlobs(root, target.Unity.Exclude)
+			if err != nil {
+				return fmt.Errorf("target %q unity exclusions: %w", name, err)
+			}
+			sources := make(map[string]bool, len(target.Sources))
+			for _, source := range target.Sources {
+				sources[filepath.Clean(source)] = true
+			}
+			for _, excluded := range target.Unity.Exclude {
+				if !sources[filepath.Clean(excluded)] {
+					return fmt.Errorf("target %q unity exclusion %q is not a source", name, excluded)
+				}
+			}
 		}
 		config.Targets[name] = target
 	}
@@ -499,6 +521,13 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 
 	t.Sources = extractStringList(val, "sources")
 	t.Headers = extractStringList(val, "headers")
+	if unity := val.LookupPath(cue.ParsePath("unity")); unity.Exists() {
+		t.Unity = &UnityBuild{BatchSize: 8, Exclude: extractStringList(unity, "exclude")}
+		if size := unity.LookupPath(cue.ParsePath("batchSize")); size.Exists() {
+			configured, _ := size.Int64()
+			t.Unity.BatchSize = int(configured)
+		}
+	}
 	if units := val.LookupPath(cue.ParsePath("headerUnits")); units.Exists() {
 		iter, _ := units.List()
 		for iter.Next() {

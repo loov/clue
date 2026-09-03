@@ -296,6 +296,11 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		return b.buildCustomTarget(ctx, opts, target)
 	}
 	start := time.Now()
+	var err error
+	target, err = PrepareUnityTarget(target, opts.BuildDir, opts.Variant)
+	if err != nil {
+		return nil, err
+	}
 
 	plan := PlanTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
 	objDir, outputPath := plan.ObjectDir, plan.Output

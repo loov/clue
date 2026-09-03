@@ -237,6 +237,36 @@ targets: app: {name: "app", type: "executable", sources: ["src/*.cpp"]}`
 	}
 }
 
+func TestLoaderExpandsUnityExclusions(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"a.cpp", "skip.cpp"} {
+		if err := os.WriteFile(filepath.Join(dir, "src", name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	contents := `name: "unity"
+targets: app: {
+	name: "app"
+	type: "executable"
+	sources: ["src/*.cpp"]
+	unity: {batchSize: 4, exclude: ["src/skip*.cpp"]}
+}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unity := cfg.Targets["app"].Unity
+	if unity == nil || unity.BatchSize != 4 || !slices.Equal(unity.Exclude, []string{filepath.Join("src", "skip.cpp")}) {
+		t.Fatalf("unity = %+v", unity)
+	}
+}
+
 func TestLoaderInjectsTargetPlatform(t *testing.T) {
 	dir := t.TempDir()
 	contents := `name: "platform"

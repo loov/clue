@@ -469,6 +469,11 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		}
 		return target.Outputs, nil
 	}
+	var err error
+	target, err = build.PrepareUnityTarget(target, opts.BuildDir, variant)
+	if err != nil {
+		return nil, err
+	}
 	plan := build.PlanTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
 	buildCfg, usage := plan.Flags, plan.Usage
 	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)

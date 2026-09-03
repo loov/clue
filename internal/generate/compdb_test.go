@@ -110,6 +110,40 @@ func TestCompileCommands_Basic(t *testing.T) {
 	}
 }
 
+func TestCompileCommands_UnityBuild(t *testing.T) {
+	dir := t.TempDir()
+	for _, source := range []string{"a.cpp", "b.cpp"} {
+		if err := os.WriteFile(filepath.Join(dir, source), []byte("// source\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		Name: "unity", BuildDir: ".build", Toolchain: config.Toolchain{Compiler: "clang"},
+		Targets:  map[string]config.Target{"app": {Name: "app", Type: "executable", Sources: []string{"a.cpp", "b.cpp"}, Unity: &config.UnityBuild{BatchSize: 8}}},
+		Variants: map[string]config.Variant{}, Dependencies: map[string]deps.Dependency{},
+	}
+	output := filepath.Join(dir, "compile_commands.json")
+	if err := CompileCommands(CompDBOptions{Config: cfg, Variant: "debug", BuildDir: ".build", OutputPath: output, Toolchain: "clang"}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var commands []CompileCommand
+	if err := json.Unmarshal(data, &commands); err != nil {
+		t.Fatal(err)
+	}
+	if len(commands) != 1 || !strings.HasSuffix(commands[0].File, filepath.Join("unity", "unity-cpp-001.cpp")) {
+		t.Fatalf("commands = %+v", commands)
+	}
+}
+
 func TestCompileCommands_Arguments(t *testing.T) {
 	tmpDir := t.TempDir()
 

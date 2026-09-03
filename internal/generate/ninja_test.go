@@ -100,6 +100,30 @@ func TestNinja_BasicStructure(t *testing.T) {
 	}
 }
 
+func TestNinja_UnityBuild(t *testing.T) {
+	dir := t.TempDir()
+	sources := []string{filepath.Join(dir, "a.cpp"), filepath.Join(dir, "b.cpp")}
+	for _, source := range sources {
+		if err := os.WriteFile(source, []byte("// source\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := createMinimalConfig("myapp", "executable", sources)
+	target := cfg.Targets["myapp"]
+	target.Unity = &config.UnityBuild{BatchSize: 8}
+	cfg.Targets["myapp"] = target
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: filepath.Join(dir, ".build"), Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(output.String(), "unity-cpp-001.cpp"); got < 2 {
+		t.Fatalf("Ninja output does not compile the generated unity source:\n%s", output.String())
+	}
+}
+
 func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
 	cfg := createMinimalConfig("app", "executable", []string{"generated.cpp"})
 	cfg.Targets["app"] = config.Target{

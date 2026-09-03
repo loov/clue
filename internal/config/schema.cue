@@ -6,6 +6,10 @@ package config
 	type:    "executable" | "static_library" | "shared_library" | "interface_library" | "custom"
 	sources?: [...string]
 	headers?: [...string]
+	unity?: {
+		batchSize?: int & >=2
+		exclude?: [...string]
+	}
 	headerUnits?: [...{
 		name: string & != ""
 		path?: string
