@@ -96,11 +96,16 @@ func TestLoadOrDiscoverSelectsAnAvailableCompiler(t *testing.T) {
 		gotNames, gotRequiresCXX = slices.Clone(names), requiresCXX
 		return "gcc", nil
 	}
-	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
+	platform := toolchain.HostPlatform()
+	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, platform)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Toolchain.Compiler != "gcc" || !gotRequiresCXX || !slices.Equal(gotNames, []string{"clang", "gcc", "msvc"}) {
+	wantNames := []string{"clang", "gcc", "msvc"}
+	if platform.OS == "windows" {
+		wantNames = []string{"msvc", "clang", "gcc"}
+	}
+	if cfg.Toolchain.Compiler != "gcc" || !gotRequiresCXX || !slices.Equal(gotNames, wantNames) {
 		t.Fatalf("compiler = %q, candidates = %v, requires C++ = %t", cfg.Toolchain.Compiler, gotNames, gotRequiresCXX)
 	}
 }
