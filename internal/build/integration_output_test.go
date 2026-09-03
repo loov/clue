@@ -10,6 +10,7 @@ import (
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/testclue"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // TestSharedLibraryBuildAndLink verifies SC1:
@@ -79,7 +80,7 @@ targets: {
 	}
 
 	// Create builder
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -172,7 +173,7 @@ func TestCrossTargetModulesAndHeaderUnits(t *testing.T) {
 		},
 		Variants: map[string]config.Variant{"debug": {Name: "debug"}}, ActiveVariant: config.Variant{Name: "debug"},
 	}
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityQuiet, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +226,7 @@ func TestPureCBuildDoesNotRequireCXX(t *testing.T) {
 		},
 		ActiveVariant: config.Variant{Name: "debug"},
 	}
-	builder, err := NewConfiguredBuilder(cfg.Toolchain, HostPlatform(), dir, VerbosityQuiet, 1, false)
+	builder, err := NewConfiguredBuilder(cfg.Toolchain, toolchain.HostPlatform(), dir, VerbosityQuiet, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +266,7 @@ func TestBuildDisambiguatesDuplicateSourceBasenames(t *testing.T) {
 			},
 		},
 	}
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityQuiet, 2, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +308,7 @@ func TestBuildLinksTransitiveStaticLibraries(t *testing.T) {
 			"app":    {Name: "app", Type: "executable", Sources: []string{filepath.Join(tmpDir, "main.cpp")}, Depends: []string{"middle"}},
 		},
 	}
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityQuiet, 2, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}

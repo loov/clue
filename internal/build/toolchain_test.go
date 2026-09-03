@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewToolchain_CreatesNativeCompiler(t *testing.T) {
-	host := HostPlatform()
+	host := toolchain.HostPlatform()
 
 	tests := []struct {
 		name         string
@@ -74,7 +74,7 @@ func gnuTripletPrefix(target toolchain.Platform) string {
 }
 
 func TestNewToolchain_UsesCCEnvironmentOverride(t *testing.T) {
-	host := HostPlatform()
+	host := toolchain.HostPlatform()
 
 	t.Setenv("CC", "/custom/path/gcc")
 
@@ -94,7 +94,7 @@ func TestNewToolchain_UsesCCEnvironmentOverride(t *testing.T) {
 }
 
 func TestNewToolchain_UsesCXXEnvironmentOverride(t *testing.T) {
-	host := HostPlatform()
+	host := toolchain.HostPlatform()
 
 	t.Setenv("CXX", "/custom/path/g++")
 
@@ -114,8 +114,8 @@ func TestNewToolchain_UsesCXXEnvironmentOverride(t *testing.T) {
 }
 
 func TestNewToolchain_CreatesLinuxARM64CrossCompiler(t *testing.T) {
-	target := Platform{OS: "linux", Arch: "arm64"}
-	host := HostPlatform()
+	target := toolchain.Platform{OS: "linux", Arch: "arm64"}
+	host := toolchain.HostPlatform()
 
 	// Skip if we're already on arm64 Linux (not a cross-compile)
 	if host.OS == target.OS && host.Arch == target.Arch {
@@ -166,7 +166,7 @@ func TestNewToolchain_CreatesLinuxARM64CrossCompiler(t *testing.T) {
 }
 
 func TestNewToolchain_CreatesLinuxAMD64CrossCompiler(t *testing.T) {
-	target := Platform{OS: "linux", Arch: "amd64"}
+	target := toolchain.Platform{OS: "linux", Arch: "amd64"}
 
 	tests := []struct {
 		name        string
@@ -214,32 +214,32 @@ func TestNewToolchain_CreatesLinuxAMD64CrossCompiler(t *testing.T) {
 func TestCrossPrefix(t *testing.T) {
 	tests := []struct {
 		name     string
-		platform Platform
+		platform toolchain.Platform
 		want     string
 	}{
 		{
 			name:     "linux arm64",
-			platform: Platform{OS: "linux", Arch: "arm64"},
+			platform: toolchain.Platform{OS: "linux", Arch: "arm64"},
 			want:     "aarch64-linux-gnu-",
 		},
 		{
 			name:     "linux amd64",
-			platform: Platform{OS: "linux", Arch: "amd64"},
+			platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 			want:     "x86_64-linux-gnu-",
 		},
 		{
 			name:     "darwin arm64",
-			platform: Platform{OS: "darwin", Arch: "arm64"},
+			platform: toolchain.Platform{OS: "darwin", Arch: "arm64"},
 			want:     "",
 		},
 		{
 			name:     "darwin amd64",
-			platform: Platform{OS: "darwin", Arch: "amd64"},
+			platform: toolchain.Platform{OS: "darwin", Arch: "amd64"},
 			want:     "",
 		},
 		{
 			name:     "unsupported platform",
-			platform: Platform{OS: "windows", Arch: "amd64"},
+			platform: toolchain.Platform{OS: "windows", Arch: "amd64"},
 			want:     "",
 		},
 	}
@@ -264,7 +264,7 @@ func TestValidateToolchain_RejectsMissingCompiler(t *testing.T) {
 		toolchain.HostPlatform(),
 	)
 
-	err := ValidateToolchain(tc)
+	err := toolchain.ValidateToolchain(tc)
 	if err == nil {
 		t.Fatal("ValidateToolchain should fail for nonexistent compiler")
 	}
@@ -292,12 +292,12 @@ func TestValidateToolchain_AcceptsAvailableCompiler(t *testing.T) {
 		t.Skip("No C compiler found in PATH, skipping validation test")
 	}
 
-	tc, err := NewToolchain(toolchainName, HostPlatform())
+	tc, err := NewToolchain(toolchainName, toolchain.HostPlatform())
 	if err != nil {
 		t.Fatalf("NewToolchain failed: %v", err)
 	}
 
-	err = ValidateToolchain(tc)
+	err = toolchain.ValidateToolchain(tc)
 	if err != nil {
 		t.Errorf("ValidateToolchain failed for real compiler: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestToolchainString_DescribesCompilerAndTarget(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		toolchain  Toolchain
+		toolchain  toolchain.Toolchain
 		wantSuffix string
 	}{
 		{

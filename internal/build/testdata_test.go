@@ -12,6 +12,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/testclue"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // TestJSONExample_BuildsAndRuns tests the json-example testdata project
@@ -45,7 +46,7 @@ func TestJSONExample_BuildsAndRuns(t *testing.T) {
 		}
 	})
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
+	builder, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
@@ -118,7 +119,7 @@ func TestCatch2Example_BuildsAndRuns(t *testing.T) {
 		}
 	})
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
+	builder, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
@@ -195,7 +196,7 @@ func TestMultiDependencyExample_BuildsAndRuns(t *testing.T) {
 		}
 	})
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
+	builder, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}

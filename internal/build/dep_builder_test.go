@@ -10,6 +10,7 @@ import (
 
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/deps"
+	toolchainpkg "github.com/loov/clue/internal/toolchain"
 )
 
 // TestDepBuilder_InlineConfigBuildsAndCachesLibrary tests building a dependency with inline configuration
@@ -43,14 +44,14 @@ int add(int a, int b) {
 	dep := deps.NewVendoredDependency("libfoo", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
 
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
 	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, HostPlatform())
+	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
 	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
@@ -62,7 +63,7 @@ int add(int a, int b) {
 	}
 	opts := DepBuildOptions{
 		Variant:   "debug",
-		Platform:  HostPlatform(),
+		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
@@ -190,18 +191,18 @@ extern "C" int answer() { return 42; }
 	dep := deps.NewVendoredDependency("answer", root, &deps.InlineConfig{
 		Sources: []string{"lib.cpp"}, Type: "shared_library",
 	})
-	toolchain, err := NewToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
 	executor := NewExecutor(ExecutorConfig{StreamOutput: false})
 	builder := NewDepBuilder(
-		NewCompiler(executor, toolchain), NewLinker(executor, toolchain, HostPlatform()),
+		NewCompiler(executor, toolchain), NewLinker(executor, toolchain, toolchainpkg.HostPlatform()),
 		toolchain, VerbosityQuiet,
 	)
 
 	result, err := builder.BuildDep(t.Context(), dep, root, DepBuildOptions{
-		Variant: "debug", Platform: HostPlatform(), BuildDir: filepath.Join(root, ".build"), Std: "c++20",
+		Variant: "debug", Platform: toolchainpkg.HostPlatform(), BuildDir: filepath.Join(root, ".build"), Std: "c++20",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -209,7 +210,7 @@ extern "C" int answer() { return 42; }
 	if result.Type != "shared_library" {
 		t.Errorf("type = %q, want shared_library", result.Type)
 	}
-	want := "libanswer" + SharedLibraryExtension(HostPlatform())
+	want := "libanswer" + SharedLibraryExtension(toolchainpkg.HostPlatform())
 	if filepath.Base(result.LibPath) != want {
 		t.Errorf("library = %q, want %q", filepath.Base(result.LibPath), want)
 	}
@@ -254,14 +255,14 @@ targets: {
 	dep := deps.NewVendoredDependency("libbar", sourcePath, nil)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
 
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
 	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, HostPlatform())
+	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
 	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
@@ -269,7 +270,7 @@ targets: {
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
 		Variant:   "release",
-		Platform:  HostPlatform(),
+		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
@@ -314,14 +315,14 @@ func TestDepBuilder_RejectsMissingConfiguration(t *testing.T) {
 	dep := deps.NewVendoredDependency("libnone", sourcePath, nil)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
 
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
 	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, HostPlatform())
+	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
 	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
@@ -329,7 +330,7 @@ func TestDepBuilder_RejectsMissingConfiguration(t *testing.T) {
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
 		Variant:   "debug",
-		Platform:  HostPlatform(),
+		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
@@ -376,14 +377,14 @@ func TestDepBuilder_ExpandsSourceGlobs(t *testing.T) {
 	dep := deps.NewVendoredDependency("libglob", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
 
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
 	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, HostPlatform())
+	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
 	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
@@ -391,7 +392,7 @@ func TestDepBuilder_ExpandsSourceGlobs(t *testing.T) {
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
 		Variant:   "debug",
-		Platform:  HostPlatform(),
+		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}
@@ -483,14 +484,14 @@ int test() { return 42; }
 	dep := deps.NewVendoredDependency("libinc", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", HostPlatform())
+	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
 
 	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
 	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, HostPlatform())
+	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
 	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
@@ -498,7 +499,7 @@ int test() { return 42; }
 	buildDir := filepath.Join(tmpDir, ".build")
 	opts := DepBuildOptions{
 		Variant:   "debug",
-		Platform:  HostPlatform(),
+		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
 		Verbosity: VerbosityNormal,
 	}

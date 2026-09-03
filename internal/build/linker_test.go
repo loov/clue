@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // TestLinker_LinkExecutableProducesRunnableBinary tests linking an executable from object files
@@ -38,15 +40,15 @@ func TestLinker_LinkExecutableProducesRunnableBinary(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link main.o to executable
 	exePath := filepath.Join(tmpDir, "main")
 	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
 		Objects: []string{mainObj},
 		Output:  exePath,
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -94,13 +96,13 @@ func TestLinkerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	for i := range flags {
 		flags[i] = "-L" + filepath.Join(dir, strings.Repeat("unused", 15))
 	}
-	tc, err := NewToolchain("clang", HostPlatform())
+	tc, err := NewToolchain("clang", toolchain.HostPlatform())
 	if err != nil {
 		t.Fatal(err)
 	}
 	output := filepath.Join(dir, "app")
-	if _, err := NewLinker(NewExecutor(ExecutorConfig{}), tc, HostPlatform()).LinkExecutable(t.Context(), LinkOptions{
-		Objects: []string{object}, Output: output, Flags: Config{RawLinker: flags},
+	if _, err := NewLinker(NewExecutor(ExecutorConfig{}), tc, toolchain.HostPlatform()).LinkExecutable(t.Context(), LinkOptions{
+		Objects: []string{object}, Output: output, Flags: toolchain.Config{RawLinker: flags},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -151,8 +153,8 @@ func TestLinker_CreateStaticLibraryProducesArchive(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Archive add.o to libadd.a
 	libPath := filepath.Join(tmpDir, "libadd.a")
@@ -241,8 +243,8 @@ int main() { return add(20, 22); }`
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Archive add.o to libadd.a
 	libPath := filepath.Join(tmpDir, "libadd.a")
@@ -258,7 +260,7 @@ int main() { return add(20, 22); }`
 	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
 		Objects: []string{mainObj, libPath},
 		Output:  exePath,
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -322,8 +324,8 @@ int main() {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link with pthread
 	exePath := filepath.Join(tmpDir, "main")
@@ -331,7 +333,7 @@ int main() {
 		Objects: []string{mainObj},
 		Output:  exePath,
 		SysLibs: []string{"pthread"},
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -379,15 +381,15 @@ func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Test executable has no extension on Linux
 	exePath := filepath.Join(tmpDir, "myapp")
 	if _, err := linker.LinkExecutable(t.Context(), LinkOptions{
 		Objects: []string{objFile},
 		Output:  exePath,
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	}); err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}
@@ -430,13 +432,13 @@ func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 
 // TestSharedLibraryExtension_LinuxUsesSO verifies .so extension for Linux
 func TestSharedLibraryExtension_LinuxUsesSO(t *testing.T) {
-	linuxAmd64 := Platform{OS: "linux", Arch: "amd64"}
+	linuxAmd64 := toolchain.Platform{OS: "linux", Arch: "amd64"}
 	ext := SharedLibraryExtension(linuxAmd64)
 	if ext != ".so" {
 		t.Errorf("SharedLibraryExtension(linux-amd64) = %s, want .so", ext)
 	}
 
-	linuxArm64 := Platform{OS: "linux", Arch: "arm64"}
+	linuxArm64 := toolchain.Platform{OS: "linux", Arch: "arm64"}
 	ext = SharedLibraryExtension(linuxArm64)
 	if ext != ".so" {
 		t.Errorf("SharedLibraryExtension(linux-arm64) = %s, want .so", ext)
@@ -445,13 +447,13 @@ func TestSharedLibraryExtension_LinuxUsesSO(t *testing.T) {
 
 // TestSharedLibraryExtension_DarwinUsesDylib verifies .dylib extension for macOS
 func TestSharedLibraryExtension_DarwinUsesDylib(t *testing.T) {
-	darwinAmd64 := Platform{OS: "darwin", Arch: "amd64"}
+	darwinAmd64 := toolchain.Platform{OS: "darwin", Arch: "amd64"}
 	ext := SharedLibraryExtension(darwinAmd64)
 	if ext != ".dylib" {
 		t.Errorf("SharedLibraryExtension(darwin-amd64) = %s, want .dylib", ext)
 	}
 
-	darwinArm64 := Platform{OS: "darwin", Arch: "arm64"}
+	darwinArm64 := toolchain.Platform{OS: "darwin", Arch: "arm64"}
 	ext = SharedLibraryExtension(darwinArm64)
 	if ext != ".dylib" {
 		t.Errorf("SharedLibraryExtension(darwin-arm64) = %s, want .dylib", ext)
@@ -461,7 +463,7 @@ func TestSharedLibraryExtension_DarwinUsesDylib(t *testing.T) {
 // TestLinker_UsesProvidedToolchain verifies Linker uses Toolchain paths
 func TestLinker_UsesProvidedToolchain(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
-	platform := HostPlatform()
+	platform := toolchain.HostPlatform()
 
 	// Test with clang toolchain
 	clangTC, err := NewToolchain("clang", platform)
@@ -497,14 +499,14 @@ func TestLinker_CrossCompilerUsesPrefixedArchiver(t *testing.T) {
 	// This test verifies the toolchain discovery logic for cross-compilation
 	// Note: Actual cross-compilers may not be installed, so we test the prefix logic
 
-	host := HostPlatform()
+	host := toolchain.HostPlatform()
 
 	// Find a different target platform (to trigger cross-compilation)
-	var crossTarget Platform
+	var crossTarget toolchain.Platform
 	if host.String() == "linux-amd64" {
-		crossTarget = Platform{OS: "linux", Arch: "arm64"}
+		crossTarget = toolchain.Platform{OS: "linux", Arch: "arm64"}
 	} else {
-		crossTarget = Platform{OS: "linux", Arch: "amd64"}
+		crossTarget = toolchain.Platform{OS: "linux", Arch: "amd64"}
 	}
 
 	tc, err := NewToolchain("gcc", crossTarget)
@@ -557,18 +559,18 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Determine expected extension
-	ext := SharedLibraryExtension(HostPlatform())
+	ext := SharedLibraryExtension(toolchain.HostPlatform())
 	libPath := filepath.Join(tmpDir, "libtest"+ext)
 
 	// Link shared library
 	result, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -600,7 +602,7 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 // TestLinkSharedLibrary_MacOSEmitsInstallName tests macOS install_name handling
 func TestLinkSharedLibrary_MacOSEmitsInstallName(t *testing.T) {
 	// Skip if not on macOS
-	if HostPlatform().OS != "darwin" {
+	if toolchain.HostPlatform().OS != "darwin" {
 		t.Skip("macOS-specific test")
 	}
 
@@ -627,15 +629,15 @@ func TestLinkSharedLibrary_MacOSEmitsInstallName(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
 	libPath := filepath.Join(tmpDir, "libtest.dylib")
 	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -657,7 +659,7 @@ func TestLinkSharedLibrary_MacOSEmitsInstallName(t *testing.T) {
 // TestLinkSharedLibrary_LinuxEmitsSONAME tests Linux SONAME handling
 func TestLinkSharedLibrary_LinuxEmitsSONAME(t *testing.T) {
 	// Skip if not on Linux
-	if HostPlatform().OS != "linux" {
+	if toolchain.HostPlatform().OS != "linux" {
 		t.Skip("Linux-specific test")
 	}
 
@@ -689,15 +691,15 @@ func TestLinkSharedLibrary_LinuxEmitsSONAME(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
 	libPath := filepath.Join(tmpDir, "libtest.so")
 	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -756,16 +758,16 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := NewToolchain("clang", HostPlatform())
-	linker := NewLinker(executor, tc, HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
-	ext := SharedLibraryExtension(HostPlatform())
+	ext := SharedLibraryExtension(toolchain.HostPlatform())
 	libPath := filepath.Join(tmpDir, "libtest"+ext)
 	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   Config{},
+		Flags:   toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -778,7 +780,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 		Output:   exePath,
 		LibPaths: []string{tmpDir},
 		Libs:     []string{"test"},
-		Flags:    Config{},
+		Flags:    toolchain.Config{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -786,7 +788,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 
 	// Run executable with LD_LIBRARY_PATH/DYLD_LIBRARY_PATH set
 	cmd = exec.Command(exePath)
-	if HostPlatform().OS == "darwin" {
+	if toolchain.HostPlatform().OS == "darwin" {
 		cmd.Env = append(os.Environ(), "DYLD_LIBRARY_PATH="+tmpDir)
 	} else {
 		cmd.Env = append(os.Environ(), "LD_LIBRARY_PATH="+tmpDir)

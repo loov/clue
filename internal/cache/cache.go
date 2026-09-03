@@ -19,9 +19,6 @@ type CacheKey struct {
 	IncludePaths        []string                   `json:"include_paths"` // Include directories (order preserved)
 }
 
-// CompilerIdentity uniquely identifies a compiler binary
-type CompilerIdentity = toolchain.CompilerIdentity
-
 // ComputeFileHash reads a file and returns its xxh3 hash as a hex string
 func ComputeFileHash(path string) (string, error) {
 	data, err := os.ReadFile(path)
@@ -33,6 +30,3 @@ func ComputeFileHash(path string) (string, error) {
 	hashBytes := hash.Bytes()
 	return hex.EncodeToString(hashBytes[:]), nil
 }
-
-// ComputeCompilerIdentity returns the identity of a compiler binary.
-var ComputeCompilerIdentity = toolchain.ComputeCompilerIdentity

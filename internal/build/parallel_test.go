@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // Helper to create a temporary C++ source file
@@ -33,7 +35,7 @@ func TestParallelCompiler_CompilesSingleFile(t *testing.T) {
 	source := createTempSource(t, tmpDir, "main.cpp", `int main() { return 0; }`)
 
 	// Setup compiler
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Create compile options
@@ -42,7 +44,7 @@ func TestParallelCompiler_CompilesSingleFile(t *testing.T) {
 		{
 			Source: source,
 			Output: filepath.Join(objDir, "main.o"),
-			Flags:  Config{Optimize: "none"},
+			Flags:  toolchain.Config{Optimize: "none"},
 		},
 	}
 
@@ -104,7 +106,7 @@ func TestParallelCompiler_CompilesMultipleFiles(t *testing.T) {
 	}
 
 	// Setup compiler
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Create compile options
@@ -115,7 +117,7 @@ func TestParallelCompiler_CompilesMultipleFiles(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  Config{Optimize: "none"},
+			Flags:  toolchain.Config{Optimize: "none"},
 		})
 	}
 
@@ -184,7 +186,7 @@ func TestParallelCompiler_RespectsConcurrencyLimit(t *testing.T) {
 	}
 
 	// Setup compiler with limited concurrency
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	jobs := 2
 	parallel := NewParallelCompiler(tc, jobs, false, VerbosityNormal)
 
@@ -196,7 +198,7 @@ func TestParallelCompiler_RespectsConcurrencyLimit(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  Config{Optimize: "none"},
+			Flags:  toolchain.Config{Optimize: "none"},
 		})
 	}
 
@@ -229,15 +231,15 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 	good2 := createTempSource(t, tmpDir, "good2.cpp", `int good2() { return 2; }`)
 
 	// Setup compiler with keepGoing=true
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, true, VerbosityNormal) // keepGoing=true
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
 	opts := []CompileOptions{
-		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: Config{Optimize: "none"}},
-		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: Config{Optimize: "none"}},
-		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: Config{Optimize: "none"}},
+		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: toolchain.Config{Optimize: "none"}},
+		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Config{Optimize: "none"}},
+		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: toolchain.Config{Optimize: "none"}},
 	}
 
 	// Compile in parallel with keep-going
@@ -298,14 +300,14 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 	good := createTempSource(t, tmpDir, "good.cpp", `int good() { return 1; }`)
 
 	// Setup compiler with keepGoing=false (fail fast)
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 1, false, VerbosityNormal) // jobs=1 to ensure order
 
 	// Create compile options - bad file first
 	objDir := filepath.Join(tmpDir, "obj")
 	opts := []CompileOptions{
-		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: Config{Optimize: "none"}},
-		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: Config{Optimize: "none"}},
+		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Config{Optimize: "none"}},
+		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: toolchain.Config{Optimize: "none"}},
 	}
 
 	// Compile in parallel (but with jobs=1, sequential)
@@ -351,7 +353,7 @@ func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 	}
 
 	// Setup compiler with limited concurrency
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Create compile options
@@ -362,7 +364,7 @@ func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  Config{Optimize: "none"},
+			Flags:  toolchain.Config{Optimize: "none"},
 		})
 	}
 
@@ -390,7 +392,7 @@ func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 
 func TestParallelCompiler_EmptySourcesReturnNoResults(t *testing.T) {
 	// Setup compiler
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Compile empty list
@@ -406,7 +408,7 @@ func TestParallelCompiler_EmptySourcesReturnNoResults(t *testing.T) {
 
 func TestParallelCompiler_ProgressReportsCompletedWork(t *testing.T) {
 	// Unit test - no compilation needed
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Initially zero
@@ -421,7 +423,7 @@ func TestParallelCompiler_ProgressReportsCompletedWork(t *testing.T) {
 
 func TestParallelCompiler_ActiveTracksCurrentFiles(t *testing.T) {
 	// Unit test - no compilation needed
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Initially empty
@@ -467,7 +469,7 @@ func TestParallelCompiler_BuffersEachCommandOutput(t *testing.T) {
 	}
 
 	// Setup compiler with max concurrency
-	tc, _ := NewToolchain("clang", HostPlatform())
+	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
 	parallel := NewParallelCompiler(tc, 4, false, VerbosityNormal)
 
 	// Create compile options
@@ -478,7 +480,7 @@ func TestParallelCompiler_BuffersEachCommandOutput(t *testing.T) {
 		opts = append(opts, CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  Config{Optimize: "none"},
+			Flags:  toolchain.Config{Optimize: "none"},
 		})
 	}
 

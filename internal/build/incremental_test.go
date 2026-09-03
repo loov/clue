@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/loov/clue/internal/testclue"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // getObjectMtimes returns the modification times of object files
@@ -37,7 +38,7 @@ func TestIncremental_FirstBuildCompilesAllSources(t *testing.T) {
 	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
 	// Create builder
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -90,7 +91,7 @@ func TestIncremental_UnchangedBuildReusesCache(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -150,7 +151,7 @@ func TestIncremental_SourceChangeRecompilesObject(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -214,7 +215,7 @@ func TestIncremental_HeaderChangeRecompilesConsumer(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -273,7 +274,7 @@ func TestIncremental_ForceRebuildIgnoresCache(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -322,7 +323,7 @@ func TestIncremental_ContentRevertRestoresPriorCacheKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir, cfg := testclue.CreateTestProject(t, tmpDir)
 
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}

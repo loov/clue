@@ -21,15 +21,15 @@ import (
 
 // DepBuildOptions holds options for building a dependency
 type DepBuildOptions struct {
-	Variant      string    // Build variant (e.g., "debug", "release")
-	Platform     Platform  // Target platform
-	BuildDir     string    // Build output root (default: ".build")
-	Std          string    // Project language standard
-	CStd         string    // C language standard
-	CXXStd       string    // C++ language standard
-	Optimization string    // Active variant optimization
-	Verbosity    Verbosity // Verbosity level (quiet/normal/verbose)
-	ForceRebuild bool      // Force dependency sources to rebuild
+	Variant      string             // Build variant (e.g., "debug", "release")
+	Platform     toolchain.Platform // Target platform
+	BuildDir     string             // Build output root (default: ".build")
+	Std          string             // Project language standard
+	CStd         string             // C language standard
+	CXXStd       string             // C++ language standard
+	Optimization string             // Active variant optimization
+	Verbosity    Verbosity          // Verbosity level (quiet/normal/verbose)
+	ForceRebuild bool               // Force dependency sources to rebuild
 }
 
 // DepBuildResult holds the result of building a dependency
@@ -72,13 +72,13 @@ func ResolveDepConfig(dep deps.Dependency, sourcePath string) (ResolvedDepConfig
 type DepBuilder struct {
 	compiler  *Compiler
 	linker    *Linker
-	toolchain Toolchain
+	toolchain toolchain.Toolchain
 	verbosity Verbosity
 	cache     *cache.Manager
 }
 
 // NewDepBuilder creates a new dependency builder
-func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain Toolchain, verbosity Verbosity) *DepBuilder {
+func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain toolchain.Toolchain, verbosity Verbosity) *DepBuilder {
 	return &DepBuilder{
 		compiler:  compiler,
 		linker:    linker,
@@ -185,7 +185,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Output:   objPath,
 			Includes: compilationIncludes,
 			Defines:  cfg.Defines,
-			Flags: Config{
+			Flags: toolchain.Config{
 				Optimize:         optimization,
 				Warnings:         "default",
 				WarningsAsErrors: false, // Don't fail dependency builds on warnings
@@ -271,7 +271,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 		linkOpts := SharedLibraryOptions{
 			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
-			Flags: Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
+			Flags: toolchain.Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
 		}
 		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.linker.linkDriver(requiresCXX), linkOpts, append(objectFiles, dependencyArtifacts...))
 		if fingerprintErr != nil {

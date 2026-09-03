@@ -75,7 +75,7 @@ func IsModuleExtension(path string) bool {
 // so invoking a compiler-specific dependency scanner is unnecessary here.
 // ponytail: conditional imports are scanned conservatively; switch to compiler
 // P1689 output if projects need preprocessor-sensitive module graphs.
-func ScanModuleDependencies(_ Toolchain, sources []string, _ CompileOptions) ([]ModuleDependency, error) {
+func ScanModuleDependencies(_ toolchain.Toolchain, sources []string, _ CompileOptions) ([]ModuleDependency, error) {
 	moduleSources, err := DetectModuleSources(sources)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func ModuleOutputPath(dir, name string) string {
 }
 
 // ModuleOutputPathFor returns the compiler-specific BMI path for a logical name.
-func ModuleOutputPathFor(tc Toolchain, dir, name string) string {
+func ModuleOutputPathFor(tc toolchain.Toolchain, dir, name string) string {
 	extension := ".pcm"
 	if tc != nil {
 		switch tc.Name() {
@@ -217,7 +217,7 @@ func ModuleOutputPathFor(tc Toolchain, dir, name string) string {
 }
 
 // ModuleCompileFlags returns module flags for a compiler invocation.
-func ModuleCompileFlags(tc Toolchain, dependency ModuleDependency, output string, moduleFiles map[string]string, mapper string) []string {
+func ModuleCompileFlags(tc toolchain.Toolchain, dependency ModuleDependency, output string, moduleFiles map[string]string, mapper string) []string {
 	if tc == nil {
 		return nil
 	}
@@ -286,7 +286,7 @@ func WriteModuleMapper(path string, modules map[string]string) error {
 		if strings.ContainsAny(name+modules[name], "\r\n") {
 			return errors.New("module mapper names and paths cannot contain newlines")
 		}
-		fmt.Fprintf(&content, "%s %s\n", name, QuoteResponseFileArg(modules[name]))
+		fmt.Fprintf(&content, "%s %s\n", name, toolchain.QuoteResponseFileArg(modules[name]))
 	}
 	return os.WriteFile(path, []byte(content.String()), 0o644)
 }

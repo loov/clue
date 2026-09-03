@@ -5,6 +5,7 @@ import (
 
 	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // SourcePlan is the canonical source, object, and language-standard mapping.
@@ -16,14 +17,14 @@ type SourcePlan struct {
 type BuildPlan struct {
 	Target    config.Target
 	Usage     config.Usage
-	Flags     Config
+	Flags     toolchain.Config
 	ObjectDir string
 	Output    string
 	Sources   []SourcePlan
 }
 
 // PlanTarget creates the common plan used by direct and generated builds.
-func PlanTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform Platform) BuildPlan {
+func PlanTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform toolchain.Platform) BuildPlan {
 	objectDir := ObjectDir(buildDir, variantName, target.Name)
 	usage := config.CompileUsage(cfg, target)
 	flags := TargetConfig(target, variant)
@@ -50,7 +51,7 @@ func ObjectDir(buildDir, variant, target string) string {
 }
 
 // ArtifactPath returns the platform-specific final target path.
-func ArtifactPath(buildDir, variant, target, targetType string, platform Platform) string {
+func ArtifactPath(buildDir, variant, target, targetType string, platform toolchain.Platform) string {
 	directory := "lib"
 	name := target
 	switch targetType {
@@ -65,8 +66,8 @@ func ArtifactPath(buildDir, variant, target, targetType string, platform Platfor
 }
 
 // TargetConfig merges target and variant semantic flags.
-func TargetConfig(target config.Target, variant config.Variant) Config {
-	cfg := Config{
+func TargetConfig(target config.Target, variant config.Variant) toolchain.Config {
+	cfg := toolchain.Config{
 		Optimize: variant.Optimization, Warnings: "default", WarningsAsErrors: true,
 		Debug: "none", RawCompiler: target.Flags.Compiler, RawLinker: target.Flags.Linker,
 		Sanitizers: append([]string(nil), target.Sanitizers...),

@@ -12,17 +12,14 @@ import (
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/all"
-	"github.com/loov/clue/internal/toolchain/clang"
 	toolchaindocker "github.com/loov/clue/internal/toolchain/docker"
-	"github.com/loov/clue/internal/toolchain/gcc"
-	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
 type environmentToolchain interface {
 	Environment() map[string]string
 }
 
-func toolchainEnvironment(tc Toolchain) []string {
+func toolchainEnvironment(tc toolchain.Toolchain) []string {
 	provider, ok := tc.(environmentToolchain)
 	if !ok || provider.Environment() == nil {
 		return nil
@@ -36,55 +33,14 @@ func toolchainEnvironment(tc Toolchain) []string {
 	return result
 }
 
-// Toolchain is the interface for C/C++ compiler toolchains.
-type Toolchain = toolchain.Toolchain
-
-// Type aliases for internal build package use.
-// External callers should import directly from toolchain package.
-type (
-	Platform = toolchain.Platform
-	Config   = toolchain.Config
-)
-
-// Function aliases for internal build package use.
-// External callers should import directly from toolchain package.
-var (
-	HostPlatform           = toolchain.HostPlatform
-	ParseTarget            = toolchain.ParseTarget
-	IsSupportedTarget      = toolchain.IsSupportedTarget
-	MaybeUseResponseFile   = toolchain.MaybeUseResponseFile
-	MaybeUseResponseFileIn = toolchain.MaybeUseResponseFileIn
-)
-
-// Constant aliases for internal build package use.
-const (
-	ResponseFileThreshold = toolchain.ResponseFileThreshold
-)
-
-// Response file helper functions for internal build package use.
-var (
-	EstimateCommandLength = toolchain.EstimateCommandLength
-	WriteResponseFile     = toolchain.WriteResponseFile
-	QuoteResponseFileArg  = toolchain.QuoteResponseFileArg
-)
-
-// Type aliases for backward compatibility.
-// These allow existing code to use build.GCCToolchain, build.ClangToolchain, etc.
-type (
-	GCCToolchain     = gcc.Toolchain
-	ClangToolchain   = clang.Toolchain
-	MSVCToolchain    = msvc.Toolchain
-	MSVCInstallation = msvc.Installation
-)
-
 // NewToolchain creates a toolchain implementation based on the name.
 // Delegates to toolchain/all package factory.
-func NewToolchain(name string, target toolchain.Platform) (Toolchain, error) {
+func NewToolchain(name string, target toolchain.Platform) (toolchain.Toolchain, error) {
 	return all.NewToolchain(name, target)
 }
 
 // NewConfiguredToolchain creates a local or Docker-backed configured toolchain.
-func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform, projectDir string) (Toolchain, error) {
+func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform, projectDir string) (toolchain.Toolchain, error) {
 	name := settings.Compiler
 	if name == "" {
 		name = "clang"
@@ -109,7 +65,7 @@ type commandWrappingToolchain interface {
 	WrapCommand(name string, args []string, workDir string) (string, []string)
 }
 
-func wrapToolchainCommand(tc Toolchain, name string, args []string, workDir string) (string, []string) {
+func wrapToolchainCommand(tc toolchain.Toolchain, name string, args []string, workDir string) (string, []string) {
 	if wrapper, ok := tc.(commandWrappingToolchain); ok {
 		return wrapper.WrapCommand(name, args, workDir)
 	}
@@ -117,12 +73,12 @@ func wrapToolchainCommand(tc Toolchain, name string, args []string, workDir stri
 }
 
 // ToolchainCommand wraps a command for the configured toolchain backend.
-func ToolchainCommand(tc Toolchain, name string, args []string) (string, []string) {
+func ToolchainCommand(tc toolchain.Toolchain, name string, args []string) (string, []string) {
 	return wrapToolchainCommand(tc, name, args, "")
 }
 
 // ToolOutput runs a metadata tool in the configured toolchain environment.
-func ToolOutput(ctx context.Context, tc Toolchain, workDir, name string, args ...string) (string, error) {
+func ToolOutput(ctx context.Context, tc toolchain.Toolchain, workDir, name string, args ...string) (string, error) {
 	executor := NewExecutor(ExecutorConfig{
 		WorkDir: workDir, Environment: toolchainEnvironment(tc), WrapCommand: toolchainCommandWrapper(tc),
 	})
@@ -136,7 +92,7 @@ func ToolOutput(ctx context.Context, tc Toolchain, workDir, name string, args ..
 	return result.Stdout, nil
 }
 
-func toolchainCommandWrapper(tc Toolchain) func(string, []string, string) (string, []string) {
+func toolchainCommandWrapper(tc toolchain.Toolchain) func(string, []string, string) (string, []string) {
 	if _, ok := tc.(commandWrappingToolchain); !ok {
 		return nil
 	}
@@ -145,7 +101,7 @@ func toolchainCommandWrapper(tc Toolchain) func(string, []string, string) (strin
 	}
 }
 
-func toolIdentityPath(tc Toolchain, command string) string {
+func toolIdentityPath(tc toolchain.Toolchain, command string) string {
 	if provider, ok := tc.(interface{ HostTool() string }); ok {
 		return provider.HostTool()
 	}
@@ -155,7 +111,7 @@ func toolIdentityPath(tc Toolchain, command string) string {
 	return command
 }
 
-func toolchainCacheKey(tc Toolchain) string {
+func toolchainCacheKey(tc toolchain.Toolchain) string {
 	if provider, ok := tc.(interface{ CacheKey() string }); ok {
 		return provider.CacheKey()
 	}
@@ -169,7 +125,7 @@ var compilerEnvironmentKeys = []string{
 	"VCToolsInstallDir", "VSLANG", "WindowsSdkDir", "WindowsSDKVersion",
 }
 
-func toolchainCacheEnvironment(tc Toolchain) []string {
+func toolchainCacheEnvironment(tc toolchain.Toolchain) []string {
 	var environment map[string]string
 	if provider, ok := tc.(environmentToolchain); ok {
 		environment = provider.Environment()
@@ -198,13 +154,3 @@ func lookupEnvironment(environment map[string]string, key string) (string, bool)
 	}
 	return "", false
 }
-
-// TryToolchains tries each toolchain name in order and returns the first
-// that is available (binaries exist in PATH). Returns error if none available.
-var TryToolchains = all.TryToolchains
-
-// ValidateToolchain validates that all toolchain components exist in PATH.
-var ValidateToolchain = toolchain.ValidateToolchain
-
-// FindMSVC discovers the MSVC installation on Windows.
-var FindMSVC = msvc.FindMSVC

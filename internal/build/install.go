@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // InstallOptions configures artifact and header installation.
 type InstallOptions struct {
 	Config          *config.Config
 	Variant         string
-	Platform        Platform
+	Platform        toolchain.Platform
 	Prefix, DestDir string
 	Targets         []string
 }

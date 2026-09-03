@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/loov/clue/internal/profile"
+	"github.com/loov/clue/internal/toolchain"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -27,7 +28,7 @@ type ParallelResult struct {
 
 // ParallelCompiler handles parallel compilation of multiple source files
 type ParallelCompiler struct {
-	toolchain Toolchain
+	toolchain toolchain.Toolchain
 	jobs      int
 	keepGoing bool
 	verbosity Verbosity
@@ -41,7 +42,7 @@ type ParallelCompiler struct {
 }
 
 // NewParallelCompiler creates a new ParallelCompiler instance
-func NewParallelCompiler(toolchain Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
+func NewParallelCompiler(toolchain toolchain.Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
 	return &ParallelCompiler{
 		toolchain: toolchain,
 		jobs:      jobs,

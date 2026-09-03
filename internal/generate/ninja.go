@@ -660,7 +660,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 func ninjaResponseArguments(arguments []string) string {
 	quoted := make([]string, len(arguments))
 	for index, argument := range arguments {
-		quoted[index] = strings.ReplaceAll(build.QuoteResponseFileArg(argument), "$", "$$")
+		quoted[index] = strings.ReplaceAll(toolchain.QuoteResponseFileArg(argument), "$", "$$")
 	}
 	return strings.Join(quoted, " ")
 }

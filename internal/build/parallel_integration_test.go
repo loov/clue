@@ -11,6 +11,7 @@ import (
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/testclue"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // TestParallelBuild_CompilesTwentyFiles tests that a 20-file project builds successfully with parallel compilation
@@ -28,7 +29,7 @@ func TestParallelBuild_CompilesTwentyFiles(t *testing.T) {
 	}
 
 	// Create builder with 4 parallel jobs
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 4, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 4, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -89,7 +90,7 @@ func TestParallelBuild_UsesMultipleWorkers(t *testing.T) {
 	}
 
 	// Clean build with 1 job (sequential)
-	builder1, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder1, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestParallelBuild_UsesMultipleWorkers(t *testing.T) {
 	}
 
 	// Clean build with 4 jobs (parallel)
-	builder4, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 4, false)
+	builder4, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 4, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -159,7 +160,7 @@ func TestParallelBuild_ProducesRunnableBinary(t *testing.T) {
 	}
 
 	// Build with parallel execution
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 4, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 4, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -214,7 +215,7 @@ func TestParallelBuild_CancellationStopsWorkers(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 2, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 2, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -323,7 +324,7 @@ targets: {
 	}
 
 	// Build WITHOUT keep-going: should stop on first error
-	builder1, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	builder1, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	} // keepGoing=false
@@ -342,7 +343,7 @@ targets: {
 	}
 
 	// Build WITH keep-going: should compile all valid files
-	builder2, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 2, true)
+	builder2, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 2, true)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	} // keepGoing=true

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestInstallStagesArtifactsAndPublicHeaders(t *testing.T) {
@@ -26,7 +27,7 @@ func TestInstallStagesArtifactsAndPublicHeaders(t *testing.T) {
 		"library": {Name: "library", Type: "static_library", Headers: []string{header}, Public: config.Usage{Includes: []string{filepath.Join(dir, "include")}}},
 	}}
 	stage := filepath.Join(dir, "stage")
-	result, err := Install(InstallOptions{Config: cfg, Variant: "release", Platform: Platform{OS: "linux", Arch: "amd64"}, Prefix: "/usr", DestDir: stage})
+	result, err := Install(InstallOptions{Config: cfg, Variant: "release", Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}, Prefix: "/usr", DestDir: stage})
 	if err != nil {
 		t.Fatal(err)
 	}

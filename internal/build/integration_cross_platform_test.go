@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // compilerAvailable checks if a compiler is available in PATH
@@ -19,7 +20,7 @@ func compilerAvailable(compiler string) bool {
 }
 
 // crossCompilerAvailable checks if a cross-compiler is available for the target platform
-func crossCompilerAvailable(target Platform) bool {
+func crossCompilerAvailable(target toolchain.Platform) bool {
 	// Discover what the cross-compiler would be named
 	toolchain, err := NewToolchain("gcc", target)
 	if err != nil {
@@ -78,7 +79,7 @@ targets: {
 
 // TestHostPlatform_ReportsSupportedRuntimeTarget verifies that HostPlatform() returns a valid platform
 func TestHostPlatform_ReportsSupportedRuntimeTarget(t *testing.T) {
-	host := HostPlatform()
+	host := toolchain.HostPlatform()
 
 	// Verify the platform string is in expected format (os-arch)
 	platformStr := host.String()
@@ -96,7 +97,7 @@ func TestHostPlatform_ReportsSupportedRuntimeTarget(t *testing.T) {
 	}
 
 	// Verify current platform is supported
-	if !IsSupportedTarget(host) {
+	if !toolchain.IsSupportedTarget(host) {
 		t.Errorf("host platform %s should be a supported target", host)
 	}
 
@@ -130,7 +131,7 @@ func TestPlatformAgnosticConfig_BuildsOnHost(t *testing.T) {
 	}
 
 	// Build with native toolchain for current platform
-	builder, err := NewBuilder(toolchainName, HostPlatform(), VerbosityNormal, 1, false)
+	builder, err := NewBuilder(toolchainName, toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}
@@ -159,21 +160,21 @@ func TestPlatformAgnosticConfig_BuildsOnHost(t *testing.T) {
 		t.Errorf("executable should exist: %v", err)
 	}
 
-	t.Logf("Successfully built platform-agnostic config on %s using %s", HostPlatform(), toolchainName)
+	t.Logf("Successfully built platform-agnostic config on %s using %s", toolchain.HostPlatform(), toolchainName)
 }
 
 // TestCrossCompilation_UsesTargetTripletTools verifies cross-compilation toolchain discovery
 // This test verifies Success Criterion 2: Cross-compilation uses correct toolchain
 func TestCrossCompilation_UsesTargetTripletTools(t *testing.T) {
 	// Test cross-compilation to linux-arm64 (if on amd64) or linux-amd64 (if on arm64)
-	host := HostPlatform()
-	var targetPlatform Platform
+	host := toolchain.HostPlatform()
+	var targetPlatform toolchain.Platform
 
 	// Choose a cross-compilation target based on host
 	if host.OS == "linux" && host.Arch == "amd64" {
-		targetPlatform = Platform{OS: "linux", Arch: "arm64"}
+		targetPlatform = toolchain.Platform{OS: "linux", Arch: "arm64"}
 	} else if host.OS == "linux" && host.Arch == "arm64" {
-		targetPlatform = Platform{OS: "linux", Arch: "amd64"}
+		targetPlatform = toolchain.Platform{OS: "linux", Arch: "amd64"}
 	} else {
 		t.Skip("cross-compilation test requires linux host (amd64 or arm64)")
 	}
@@ -184,7 +185,7 @@ func TestCrossCompilation_UsesTargetTripletTools(t *testing.T) {
 	}
 
 	// Parse target string
-	parsed, err := ParseTarget(targetPlatform.String())
+	parsed, err := toolchain.ParseTarget(targetPlatform.String())
 	if err != nil {
 		t.Fatalf("ParseTarget failed: %v", err)
 	}
@@ -221,13 +222,13 @@ func TestCrossCompilation_UsesTargetTripletTools(t *testing.T) {
 // TestCrossCompilation_RejectsUnavailableCompiler verifies upfront validation of cross-compiler availability
 func TestCrossCompilation_RejectsUnavailableCompiler(t *testing.T) {
 	// Test with an unavailable cross-compiler (darwin from linux)
-	host := HostPlatform()
+	host := toolchain.HostPlatform()
 	if host.OS != "linux" {
 		t.Skip("cross-compilation validation test requires linux host")
 	}
 
 	// Try to build for darwin-arm64 (cross-compiler unlikely to be installed)
-	targetPlatform := Platform{OS: "darwin", Arch: "arm64"}
+	targetPlatform := toolchain.Platform{OS: "darwin", Arch: "arm64"}
 
 	// Create builder - should fail during toolchain validation
 	_, err := NewBuilder("clang", targetPlatform, VerbosityNormal, 1, false)
@@ -250,11 +251,11 @@ func TestCrossCompilation_RejectsUnavailableCompiler(t *testing.T) {
 // TestCrossCompilerNaming_MapsGNUTriplets verifies GNU triplet prefix mapping
 func TestCrossCompilerNaming_MapsGNUTriplets(t *testing.T) {
 	tests := []struct {
-		platform       Platform
+		platform       toolchain.Platform
 		expectedPrefix string
 	}{
-		{Platform{OS: "linux", Arch: "arm64"}, "aarch64-linux-gnu-"},
-		{Platform{OS: "linux", Arch: "amd64"}, "x86_64-linux-gnu-"},
+		{toolchain.Platform{OS: "linux", Arch: "arm64"}, "aarch64-linux-gnu-"},
+		{toolchain.Platform{OS: "linux", Arch: "amd64"}, "x86_64-linux-gnu-"},
 	}
 
 	for _, tt := range tests {
@@ -274,67 +275,67 @@ func TestCrossCompilerNaming_MapsGNUTriplets(t *testing.T) {
 func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    Config
+		config    toolchain.Config
 		toolchain string
 		expected  []string
 	}{
 		{
 			name:      "optimization fast",
-			config:    Config{Optimize: "fast"},
+			config:    toolchain.Config{Optimize: "fast"},
 			toolchain: "gcc",
 			expected:  []string{"-O2"},
 		},
 		{
 			name:      "optimization size",
-			config:    Config{Optimize: "size"},
+			config:    toolchain.Config{Optimize: "size"},
 			toolchain: "clang",
 			expected:  []string{"-Os"},
 		},
 		{
 			name:      "warnings strict",
-			config:    Config{Warnings: "strict"},
+			config:    toolchain.Config{Warnings: "strict"},
 			toolchain: "gcc",
 			expected:  []string{"-Wall", "-Wextra"},
 		},
 		{
 			name:      "debug full",
-			config:    Config{Debug: "full"},
+			config:    toolchain.Config{Debug: "full"},
 			toolchain: "clang",
 			expected:  []string{"-g"},
 		},
 		{
 			name:      "sanitizer address",
-			config:    Config{Sanitizers: []string{"address"}},
+			config:    toolchain.Config{Sanitizers: []string{"address"}},
 			toolchain: "clang",
 			expected:  []string{"-fsanitize=address"},
 		},
 		{
 			name:      "sanitizer undefined",
-			config:    Config{Sanitizers: []string{"undefined"}},
+			config:    toolchain.Config{Sanitizers: []string{"undefined"}},
 			toolchain: "gcc",
 			expected:  []string{"-fsanitize=undefined"},
 		},
 		{
 			name:      "lto enabled",
-			config:    Config{LTO: true},
+			config:    toolchain.Config{LTO: true},
 			toolchain: "clang",
 			expected:  []string{"-flto"},
 		},
 		{
 			name:      "pic enabled",
-			config:    Config{PIC: true},
+			config:    toolchain.Config{PIC: true},
 			toolchain: "gcc",
 			expected:  []string{"-fPIC"},
 		},
 		{
 			name:      "coverage clang",
-			config:    Config{Coverage: true},
+			config:    toolchain.Config{Coverage: true},
 			toolchain: "clang",
 			expected:  []string{"-fprofile-instr-generate", "-fcoverage-mapping"},
 		},
 		{
 			name:      "coverage gcc",
-			config:    Config{Coverage: true},
+			config:    toolchain.Config{Coverage: true},
 			toolchain: "gcc",
 			expected:  []string{"-fprofile-arcs", "-ftest-coverage"},
 		},
@@ -342,7 +343,7 @@ func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := NewToolchain(tt.toolchain, HostPlatform())
+			tc, err := NewToolchain(tt.toolchain, toolchain.HostPlatform())
 			if err != nil {
 				t.Fatalf("NewToolchain failed: %v", err)
 			}
@@ -363,31 +364,31 @@ func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 func TestSemanticFlagMapping_TranslatesLinkerOptions(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    Config
+		config    toolchain.Config
 		toolchain string
 		expected  []string
 	}{
 		{
 			name:      "debug full in linker",
-			config:    Config{Debug: "full"},
+			config:    toolchain.Config{Debug: "full"},
 			toolchain: "gcc",
 			expected:  []string{"-g"},
 		},
 		{
 			name:      "sanitizer address in linker",
-			config:    Config{Sanitizers: []string{"address"}},
+			config:    toolchain.Config{Sanitizers: []string{"address"}},
 			toolchain: "clang",
 			expected:  []string{"-fsanitize=address"},
 		},
 		{
 			name:      "lto in linker",
-			config:    Config{LTO: true},
+			config:    toolchain.Config{LTO: true},
 			toolchain: "gcc",
 			expected:  []string{"-flto"},
 		},
 		{
 			name:      "coverage clang in linker",
-			config:    Config{Coverage: true},
+			config:    toolchain.Config{Coverage: true},
 			toolchain: "clang",
 			expected:  []string{"-fprofile-instr-generate"},
 		},
@@ -395,7 +396,7 @@ func TestSemanticFlagMapping_TranslatesLinkerOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := NewToolchain(tt.toolchain, HostPlatform())
+			tc, err := NewToolchain(tt.toolchain, toolchain.HostPlatform())
 			if err != nil {
 				t.Fatalf("NewToolchain failed: %v", err)
 			}
@@ -416,14 +417,14 @@ func TestSemanticFlagMapping_TranslatesLinkerOptions(t *testing.T) {
 // This test verifies Success Criterion 4: Platform-specific file extensions
 func TestSharedLibraryExtension_UsesPlatformSuffix(t *testing.T) {
 	tests := []struct {
-		platform Platform
+		platform toolchain.Platform
 		expected string
 	}{
-		{Platform{OS: "linux", Arch: "amd64"}, ".so"},
-		{Platform{OS: "linux", Arch: "arm64"}, ".so"},
-		{Platform{OS: "darwin", Arch: "amd64"}, ".dylib"},
-		{Platform{OS: "darwin", Arch: "arm64"}, ".dylib"},
-		{Platform{OS: "windows", Arch: "amd64"}, ".dll"},
+		{toolchain.Platform{OS: "linux", Arch: "amd64"}, ".so"},
+		{toolchain.Platform{OS: "linux", Arch: "arm64"}, ".so"},
+		{toolchain.Platform{OS: "darwin", Arch: "amd64"}, ".dylib"},
+		{toolchain.Platform{OS: "darwin", Arch: "arm64"}, ".dylib"},
+		{toolchain.Platform{OS: "windows", Arch: "amd64"}, ".dll"},
 	}
 
 	for _, tt := range tests {
@@ -441,63 +442,63 @@ func TestSharedLibraryExtension_UsesPlatformSuffix(t *testing.T) {
 func TestOutputPath_UsesPlatformSuffix(t *testing.T) {
 	tests := []struct {
 		name         string
-		platform     Platform
+		platform     toolchain.Platform
 		targetType   string
 		expectedExt  string
 		expectedPath string // path fragment to verify
 	}{
 		{
 			name:         "linux shared library",
-			platform:     Platform{OS: "linux", Arch: "amd64"},
+			platform:     toolchain.Platform{OS: "linux", Arch: "amd64"},
 			targetType:   "shared_library",
 			expectedExt:  ".so",
 			expectedPath: "lib/libmylib.so",
 		},
 		{
 			name:         "darwin shared library",
-			platform:     Platform{OS: "darwin", Arch: "arm64"},
+			platform:     toolchain.Platform{OS: "darwin", Arch: "arm64"},
 			targetType:   "shared_library",
 			expectedExt:  ".dylib",
 			expectedPath: "lib/libmylib.dylib",
 		},
 		{
 			name:         "linux static library",
-			platform:     Platform{OS: "linux", Arch: "amd64"},
+			platform:     toolchain.Platform{OS: "linux", Arch: "amd64"},
 			targetType:   "static_library",
 			expectedExt:  ".a",
 			expectedPath: "lib/libmylib.a",
 		},
 		{
 			name:         "darwin static library",
-			platform:     Platform{OS: "darwin", Arch: "amd64"},
+			platform:     toolchain.Platform{OS: "darwin", Arch: "amd64"},
 			targetType:   "static_library",
 			expectedExt:  ".a",
 			expectedPath: "lib/libmylib.a",
 		},
 		{
 			name:         "linux executable",
-			platform:     Platform{OS: "linux", Arch: "arm64"},
+			platform:     toolchain.Platform{OS: "linux", Arch: "arm64"},
 			targetType:   "executable",
 			expectedExt:  "",
 			expectedPath: "bin/mylib",
 		},
 		{
 			name:         "windows shared library",
-			platform:     Platform{OS: "windows", Arch: "amd64"},
+			platform:     toolchain.Platform{OS: "windows", Arch: "amd64"},
 			targetType:   "shared_library",
 			expectedExt:  ".dll",
 			expectedPath: "lib/mylib.dll",
 		},
 		{
 			name:         "windows static library",
-			platform:     Platform{OS: "windows", Arch: "amd64"},
+			platform:     toolchain.Platform{OS: "windows", Arch: "amd64"},
 			targetType:   "static_library",
 			expectedExt:  ".lib",
 			expectedPath: "lib/mylib.lib",
 		},
 		{
 			name:         "windows executable",
-			platform:     Platform{OS: "windows", Arch: "amd64"},
+			platform:     toolchain.Platform{OS: "windows", Arch: "amd64"},
 			targetType:   "executable",
 			expectedExt:  ".exe",
 			expectedPath: "bin/mylib.exe",

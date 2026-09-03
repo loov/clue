@@ -4,6 +4,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
 func TestMSVCDiscovery_NotFoundError_OnNonWindows(t *testing.T) {
@@ -12,7 +15,7 @@ func TestMSVCDiscovery_NotFoundError_OnNonWindows(t *testing.T) {
 	}
 
 	// On non-Windows, FindMSVC() should return an error
-	_, err := FindMSVC()
+	_, err := msvc.FindMSVC()
 	if err == nil {
 		t.Fatal("FindMSVC() should return error on non-Windows")
 	}
@@ -24,7 +27,7 @@ func TestMSVCDiscovery_NotFoundError_OnNonWindows(t *testing.T) {
 }
 
 func TestMSVCInstallation_ExposesDetectedPathsAndEnvironment(t *testing.T) {
-	installation := &MSVCInstallation{
+	installation := &msvc.Installation{
 		InstallPath: `C:\Program Files\Microsoft Visual Studio\2022\Community`,
 		Version:     "17.9.0",
 		VCToolsPath: `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807`,
@@ -63,7 +66,7 @@ func TestMSVCInstallation_ExposesDetectedPathsAndEnvironment(t *testing.T) {
 }
 
 func TestMSVCInstallation_AllowsEmptyEnvironment(t *testing.T) {
-	installation := &MSVCInstallation{
+	installation := &msvc.Installation{
 		InstallPath: `C:\VS`,
 		Version:     "17.0",
 		Environment: nil,
@@ -89,7 +92,7 @@ func TestNewToolchain_RejectsMSVCOnLinux(t *testing.T) {
 	}
 
 	// Try to create MSVC toolchain on Linux
-	_, err := NewToolchain("msvc", HostPlatform())
+	_, err := NewToolchain("msvc", toolchain.HostPlatform())
 
 	// Should return error (MSVC not available on Linux)
 	if err == nil {
@@ -109,7 +112,7 @@ func TestNewToolchain_AcceptsMSVCWindowsTarget(t *testing.T) {
 	}
 
 	// Even with Windows target platform, on Linux host we can't use MSVC
-	windowsTarget := Platform{OS: "windows", Arch: "amd64"}
+	windowsTarget := toolchain.Platform{OS: "windows", Arch: "amd64"}
 
 	_, err := NewToolchain("msvc", windowsTarget)
 

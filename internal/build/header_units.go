@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // HeaderUnitOptions describes one explicitly configured C++ header unit.
@@ -17,14 +19,14 @@ type HeaderUnitOptions struct {
 	Includes       []string
 	SystemIncludes []string
 	Defines        []string
-	Flags          Config
+	Flags          toolchain.Config
 	Std            string
 	ModuleFiles    map[string]string
 	ModuleMapper   string
 }
 
 // HeaderUnitArguments returns compiler arguments shared by direct builds and generators.
-func HeaderUnitArguments(tc Toolchain, opts HeaderUnitOptions) []string {
+func HeaderUnitArguments(tc toolchain.Toolchain, opts HeaderUnitOptions) []string {
 	standard := opts.Std
 	if standard == "" {
 		standard = "c++20"
@@ -77,7 +79,7 @@ func (c *Compiler) CompileHeaderUnit(ctx context.Context, opts HeaderUnitOptions
 	if err := os.MkdirAll(filepath.Dir(opts.Output), 0o755); err != nil {
 		return fmt.Errorf("create header-unit output directory: %w", err)
 	}
-	args, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), HeaderUnitArguments(c.toolchain, opts))
+	args, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), HeaderUnitArguments(c.toolchain, opts))
 	if err != nil {
 		return fmt.Errorf("create header-unit response file: %w", err)
 	}

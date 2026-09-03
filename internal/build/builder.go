@@ -16,6 +16,7 @@ import (
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/profile"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // Options holds options for a build operation
@@ -58,8 +59,8 @@ type Builder struct {
 	linker              *Linker
 	cacheManager        *cache.Manager
 	parallelCompiler    *ParallelCompiler
-	toolchain           Toolchain
-	target              Platform
+	toolchain           toolchain.Toolchain
+	target              toolchain.Platform
 	depResults          map[string]*DepBuildResult // Built dependencies
 	profiler            *profile.Profiler
 	targetModuleOutputs map[string]map[string]string
@@ -100,7 +101,7 @@ func dependencyModuleOutputs(cfg *config.Config, target config.Target, outputs m
 }
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
-func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
+func NewBuilder(toolchainName string, target toolchain.Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
 	toolchain, err := NewToolchain(toolchainName, target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create toolchain: %w", err)
@@ -109,7 +110,7 @@ func NewBuilder(toolchainName string, target Platform, verbosity Verbosity, jobs
 }
 
 // NewConfiguredBuilder creates a builder from project toolchain settings.
-func NewConfiguredBuilder(settings config.Toolchain, target Platform, projectDir string, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
+func NewConfiguredBuilder(settings config.Toolchain, target toolchain.Platform, projectDir string, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
 	toolchain, err := NewConfiguredToolchain(settings, target, projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create toolchain: %w", err)
@@ -117,9 +118,9 @@ func NewConfiguredBuilder(settings config.Toolchain, target Platform, projectDir
 	return newBuilder(toolchain, target, verbosity, jobs, keepGoing)
 }
 
-func newBuilder(toolchain Toolchain, target Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
+func newBuilder(tc toolchain.Toolchain, target toolchain.Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
 	// Validate toolchain exists
-	if err := ValidateToolchain(toolchain); err != nil {
+	if err := toolchain.ValidateToolchain(tc); err != nil {
 		return nil, err
 	}
 
@@ -129,18 +130,18 @@ func newBuilder(toolchain Toolchain, target Platform, verbosity Verbosity, jobs 
 		Verbose:      verbose,
 		StreamOutput: true,
 		WorkDir:      "",
-		Environment:  toolchainEnvironment(toolchain),
-		WrapCommand:  toolchainCommandWrapper(toolchain),
+		Environment:  toolchainEnvironment(tc),
+		WrapCommand:  toolchainCommandWrapper(tc),
 	})
 
-	compiler := NewCompiler(executor, toolchain)
+	compiler := NewCompiler(executor, tc)
 
 	return &Builder{
 		executor:         executor,
 		compiler:         compiler,
-		linker:           NewLinker(executor, toolchain, target),
-		parallelCompiler: NewParallelCompiler(toolchain, jobs, keepGoing, verbosity),
-		toolchain:        toolchain,
+		linker:           NewLinker(executor, tc, target),
+		parallelCompiler: NewParallelCompiler(tc, jobs, keepGoing, verbosity),
+		toolchain:        tc,
 		target:           target,
 	}, nil
 }
@@ -266,7 +267,7 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (depe
 	return usage, nil
 }
 
-func (b *Builder) addRuntimeLibraryPaths(cfg *Config, output string, paths []string) error {
+func (b *Builder) addRuntimeLibraryPaths(cfg *toolchain.Config, output string, paths []string) error {
 	for _, path := range paths {
 		relative, err := filepath.Rel(filepath.Dir(output), path)
 		if err != nil {

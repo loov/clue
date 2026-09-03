@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // RunOptions configures the run operation
@@ -40,7 +41,7 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 	}
 
 	// 2. Build the target first
-	platform := HostPlatform() // Run always uses host platform
+	platform := toolchain.HostPlatform() // Run always uses host platform
 	builder, err := NewConfiguredBuilder(opts.Config.Toolchain, platform, ".", opts.Verbosity, opts.Jobs, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create builder: %w", err)

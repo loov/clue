@@ -35,7 +35,7 @@ type CompileOptions struct {
 	Includes          []string          // Include directories
 	SystemIncludes    []string          // Third-party include directories
 	Defines           []string          // Preprocessor defines
-	Flags             Config            // Semantic flags
+	Flags             toolchain.Config  // Semantic flags
 	Std               string            // Language standard (e.g., "c++20", "c17")
 	TargetType        string            // "executable", "static_library", "shared_library"
 	ModuleOutput      string            // Path to output binary module interface
@@ -61,11 +61,11 @@ type CompileResult struct {
 // Compiler handles source file compilation
 type Compiler struct {
 	executor  *Executor
-	toolchain Toolchain
+	toolchain toolchain.Toolchain
 }
 
 // NewCompiler creates a new Compiler instance
-func NewCompiler(executor *Executor, toolchain Toolchain) *Compiler {
+func NewCompiler(executor *Executor, toolchain toolchain.Toolchain) *Compiler {
 	return &Compiler{
 		executor:  executor,
 		toolchain: toolchain,
@@ -182,7 +182,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 			}, err
 		}
 	}
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -231,7 +231,7 @@ func (c *Compiler) precompileClangPartition(ctx context.Context, opts CompileOpt
 	args = append(args, c.toolchain.CompilerFlags(opts.Flags)...)
 	args = append(args, ModuleCompileFlags(c.toolchain, ModuleDependency{UsesModules: true}, "", opts.ModuleFiles, "")...)
 	args = append(args, "-x", "c++-module", "--precompile", opts.Source, "-o", opts.ModuleOutput)
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.ModuleOutput), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.ModuleOutput), args)
 	if err != nil {
 		return fmt.Errorf("create module-partition response file: %w", err)
 	}
@@ -291,7 +291,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	}, opts.ModuleOutput, opts.ModuleFiles, opts.ModuleMapper)...)
 
 	// Use response file for many include paths
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return &CompileResult{
 			Source:   opts.Source,

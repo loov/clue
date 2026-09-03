@@ -13,7 +13,7 @@ import (
 // newTestMSVCToolchain creates an MSVCToolchain for testing without requiring
 // actual Visual Studio installation. This allows flag generation tests to run
 // on any platform (including Linux CI).
-func newTestMSVCToolchain() *MSVCToolchain {
+func newTestMSVCToolchain() *msvc.Toolchain {
 	tc, _ := msvc.New(
 		&msvc.Installation{
 			InstallPath: `C:\Program Files\Microsoft Visual Studio\2022\Community`,
@@ -111,13 +111,13 @@ func TestMSVCToolchain_ARUsesLib(t *testing.T) {
 func TestMSVCToolchain_CompilerFlagsMapConfiguration(t *testing.T) {
 	tests := []struct {
 		name         string
-		config       Config
+		config       toolchain.Config
 		wantFlags    []string
 		notWantFlags []string
 	}{
 		{
 			name:   "default config",
-			config: Config{},
+			config: toolchain.Config{},
 			wantFlags: []string{
 				"/nologo", // Always suppress banner
 				"/MT",     // Static CRT for release
@@ -128,74 +128,74 @@ func TestMSVCToolchain_CompilerFlagsMapConfiguration(t *testing.T) {
 		},
 		{
 			name:      "optimize fast",
-			config:    Config{Optimize: "fast"},
+			config:    toolchain.Config{Optimize: "fast"},
 			wantFlags: []string{"/nologo", "/O2", "/MT"},
 		},
 		{
 			name:      "optimize size",
-			config:    Config{Optimize: "size"},
+			config:    toolchain.Config{Optimize: "size"},
 			wantFlags: []string{"/nologo", "/O1", "/MT"},
 		},
 		{
 			name:      "optimize none",
-			config:    Config{Optimize: "none"},
+			config:    toolchain.Config{Optimize: "none"},
 			wantFlags: []string{"/nologo", "/Od", "/MT"},
 		},
 		{
 			name:      "optimize aggressive (maps to O2)",
-			config:    Config{Optimize: "aggressive"},
+			config:    toolchain.Config{Optimize: "aggressive"},
 			wantFlags: []string{"/nologo", "/O2", "/MT"},
 		},
 		{
 			name:      "warnings default",
-			config:    Config{Warnings: "default"},
+			config:    toolchain.Config{Warnings: "default"},
 			wantFlags: []string{"/nologo", "/W3"},
 		},
 		{
 			name:      "warnings off",
-			config:    Config{Warnings: "off"},
+			config:    toolchain.Config{Warnings: "off"},
 			wantFlags: []string{"/nologo", "/W0"},
 		},
 		{
 			name:      "warnings strict",
-			config:    Config{Warnings: "strict"},
+			config:    toolchain.Config{Warnings: "strict"},
 			wantFlags: []string{"/nologo", "/W4"},
 		},
 		{
 			name:         "warnings pedantic",
-			config:       Config{Warnings: "pedantic"},
+			config:       toolchain.Config{Warnings: "pedantic"},
 			wantFlags:    []string{"/nologo", "/W4", "/permissive-"},
 			notWantFlags: []string{},
 		},
 		{
 			name:      "warnings as errors",
-			config:    Config{WarningsAsErrors: true},
+			config:    toolchain.Config{WarningsAsErrors: true},
 			wantFlags: []string{"/nologo", "/WX"},
 		},
 		{
 			name:      "debug full",
-			config:    Config{Debug: "full"},
+			config:    toolchain.Config{Debug: "full"},
 			wantFlags: []string{"/nologo", "/Zi", "/MTd"}, // Debug CRT
 		},
 		{
 			name:      "debug minimal",
-			config:    Config{Debug: "minimal"},
+			config:    toolchain.Config{Debug: "minimal"},
 			wantFlags: []string{"/nologo", "/Z7", "/MTd"}, // Debug CRT
 		},
 		{
 			name:         "debug none (explicit)",
-			config:       Config{Debug: "none"},
+			config:       toolchain.Config{Debug: "none"},
 			wantFlags:    []string{"/nologo", "/MT"},
 			notWantFlags: []string{"/Zi", "/Z7", "/MTd"},
 		},
 		{
 			name:      "raw compiler flags",
-			config:    Config{RawCompiler: []string{"/std:c++20", "/DUNICODE"}},
+			config:    toolchain.Config{RawCompiler: []string{"/std:c++20", "/DUNICODE"}},
 			wantFlags: []string{"/nologo", "/std:c++20", "/DUNICODE"},
 		},
 		{
 			name: "combined flags",
-			config: Config{
+			config: toolchain.Config{
 				Optimize:         "fast",
 				Warnings:         "strict",
 				WarningsAsErrors: true,
@@ -229,47 +229,47 @@ func TestMSVCToolchain_CompilerFlagsMapConfiguration(t *testing.T) {
 func TestMSVCToolchain_LinkerFlagsMapConfiguration(t *testing.T) {
 	tests := []struct {
 		name         string
-		config       Config
+		config       toolchain.Config
 		sysLibs      []string
 		wantFlags    []string
 		notWantFlags []string
 	}{
 		{
 			name:      "default config",
-			config:    Config{},
+			config:    toolchain.Config{},
 			wantFlags: []string{"/nologo"},
 		},
 		{
 			name:      "debug mode",
-			config:    Config{Debug: "full"},
+			config:    toolchain.Config{Debug: "full"},
 			wantFlags: []string{"/nologo", "/DEBUG"},
 		},
 		{
 			name:         "no debug",
-			config:       Config{Debug: "none"},
+			config:       toolchain.Config{Debug: "none"},
 			wantFlags:    []string{"/nologo"},
 			notWantFlags: []string{"/DEBUG"},
 		},
 		{
 			name:      "raw linker flags",
-			config:    Config{RawLinker: []string{"/SUBSYSTEM:CONSOLE"}},
+			config:    toolchain.Config{RawLinker: []string{"/SUBSYSTEM:CONSOLE"}},
 			wantFlags: []string{"/nologo", "/SUBSYSTEM:CONSOLE"},
 		},
 		{
 			name:      "system libraries (no .lib extension)",
-			config:    Config{},
+			config:    toolchain.Config{},
 			sysLibs:   []string{"kernel32", "user32"},
 			wantFlags: []string{"/nologo", "kernel32.lib", "user32.lib"},
 		},
 		{
 			name:      "system libraries (with .lib extension)",
-			config:    Config{},
+			config:    toolchain.Config{},
 			sysLibs:   []string{"ws2_32.lib", "advapi32.lib"},
 			wantFlags: []string{"/nologo", "ws2_32.lib", "advapi32.lib"},
 		},
 		{
 			name:    "combined flags",
-			config:  Config{Debug: "full", RawLinker: []string{"/INCREMENTAL:NO"}},
+			config:  toolchain.Config{Debug: "full", RawLinker: []string{"/INCREMENTAL:NO"}},
 			sysLibs: []string{"kernel32"},
 			wantFlags: []string{
 				"/nologo",

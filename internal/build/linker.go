@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // SharedLibraryExtension returns the platform-specific shared library extension
-func SharedLibraryExtension(target Platform) string {
+func SharedLibraryExtension(target toolchain.Platform) string {
 	switch target.OS {
 	case "darwin":
 		return ".dylib"
@@ -23,7 +25,7 @@ func SharedLibraryExtension(target Platform) string {
 }
 
 // ExecutableName returns the platform-specific executable filename.
-func ExecutableName(name string, target Platform) string {
+func ExecutableName(name string, target toolchain.Platform) string {
 	if target.OS == "windows" {
 		return name + ".exe"
 	}
@@ -31,7 +33,7 @@ func ExecutableName(name string, target Platform) string {
 }
 
 // StaticLibraryName returns the platform-specific static library filename.
-func StaticLibraryName(name string, target Platform) string {
+func StaticLibraryName(name string, target toolchain.Platform) string {
 	if target.OS == "windows" {
 		return name + ".lib"
 	}
@@ -39,7 +41,7 @@ func StaticLibraryName(name string, target Platform) string {
 }
 
 // SharedLibraryName returns the platform-specific shared library filename.
-func SharedLibraryName(name string, target Platform) string {
+func SharedLibraryName(name string, target toolchain.Platform) string {
 	if target.OS == "windows" {
 		return name + ".dll"
 	}
@@ -48,25 +50,25 @@ func SharedLibraryName(name string, target Platform) string {
 
 // LinkOptions holds options for linking an executable
 type LinkOptions struct {
-	Objects  []string // Object files to link
-	Output   string   // Output executable path
-	SysLibs  []string // System libraries (pthread, m, dl)
-	LibPaths []string // Library search paths (-L)
-	Libs     []string // Additional libraries to link
-	Flags    Config   // For raw linker flags and debug info
-	UseCXX   bool     // Use the C++ driver when the link graph contains C++
+	Objects  []string         // Object files to link
+	Output   string           // Output executable path
+	SysLibs  []string         // System libraries (pthread, m, dl)
+	LibPaths []string         // Library search paths (-L)
+	Libs     []string         // Additional libraries to link
+	Flags    toolchain.Config // For raw linker flags and debug info
+	UseCXX   bool             // Use the C++ driver when the link graph contains C++
 }
 
 // SharedLibraryOptions holds options for linking a shared library
 type SharedLibraryOptions struct {
-	Objects          []string // Object files to link
-	Output           string   // Output .so/.dylib path
-	SysLibs          []string // System libraries (pthread, m, dl)
-	LibPaths         []string // Library search paths (-L)
-	Libs             []string // Additional libraries to link
-	Flags            Config   // For raw linker flags and debug info
-	SymbolVisibility string   // "default" or "hidden"
-	UseCXX           bool     // Use the C++ driver when the link graph contains C++
+	Objects          []string         // Object files to link
+	Output           string           // Output .so/.dylib path
+	SysLibs          []string         // System libraries (pthread, m, dl)
+	LibPaths         []string         // Library search paths (-L)
+	Libs             []string         // Additional libraries to link
+	Flags            toolchain.Config // For raw linker flags and debug info
+	SymbolVisibility string           // "default" or "hidden"
+	UseCXX           bool             // Use the C++ driver when the link graph contains C++
 }
 
 // ArchiveOptions holds options for creating a static library
@@ -87,12 +89,12 @@ type LinkResult struct {
 // Linker handles linking object files into executables and creating static libraries
 type Linker struct {
 	executor  *Executor
-	toolchain Toolchain
-	target    Platform
+	toolchain toolchain.Toolchain
+	target    toolchain.Platform
 }
 
 // NewLinker creates a new Linker with the given executor and toolchain
-func NewLinker(executor *Executor, toolchain Toolchain, target Platform) *Linker {
+func NewLinker(executor *Executor, toolchain toolchain.Toolchain, target toolchain.Platform) *Linker {
 	return &Linker{
 		executor:  executor,
 		toolchain: toolchain,
@@ -101,7 +103,7 @@ func NewLinker(executor *Executor, toolchain Toolchain, target Platform) *Linker
 }
 
 // isMSVC returns true if the toolchain is MSVC
-func isMSVC(tc Toolchain) bool {
+func isMSVC(tc toolchain.Toolchain) bool {
 	return tc.Name() == "msvc"
 }
 
@@ -185,7 +187,7 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{}) // Pass empty sysLibs since we handle them above
 	args = append(args, linkerFlags...)
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -247,7 +249,7 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 	}
 
 	// Use response file for long command lines
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -304,7 +306,7 @@ func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions
 	// ar crs: c=create, r=replace/insert, s=create symbol table
 	args := []string{"crs", opts.Output}
 	args = append(args, opts.Objects...)
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -344,7 +346,7 @@ func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOption
 	args = append(args, opts.Objects...)
 
 	// Use response file for many objects
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -436,7 +438,7 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{})
 	args = append(args, linkerFlags...)
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -513,7 +515,7 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 	}
 
 	// Use response file for long command lines
-	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}

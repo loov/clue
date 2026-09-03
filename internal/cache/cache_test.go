@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestComputeFileHash_IsStableAndContentSensitive(t *testing.T) {
@@ -78,7 +80,7 @@ func TestComputeCompilerIdentity_ReportsFileMetadataAndMissingFiles(t *testing.T
 	}
 
 	t.Run("returns compiler identity", func(t *testing.T) {
-		identity, err := ComputeCompilerIdentity(goBinary)
+		identity, err := toolchain.ComputeCompilerIdentity(goBinary)
 		if err != nil {
 			t.Fatalf("GetCompilerIdentity failed: %v", err)
 		}
@@ -97,7 +99,7 @@ func TestComputeCompilerIdentity_ReportsFileMetadataAndMissingFiles(t *testing.T
 	})
 
 	t.Run("returns error for nonexistent compiler", func(t *testing.T) {
-		_, err := ComputeCompilerIdentity("/nonexistent/compiler")
+		_, err := toolchain.ComputeCompilerIdentity("/nonexistent/compiler")
 		if err == nil {
 			t.Error("expected error for nonexistent compiler")
 		}

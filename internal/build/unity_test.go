@@ -10,6 +10,7 @@ import (
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/testclue"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestPrepareUnityTarget_GeneratesBatchesAndPreservesExclusions(t *testing.T) {
@@ -66,14 +67,14 @@ func TestUnityBuild_CompilesGeneratedSources(t *testing.T) {
 		Targets:  map[string]config.Target{"app": {Name: "app", Type: "executable", Sources: []string{first, main}, Unity: &config.UnityBuild{BatchSize: 8}}},
 		Variants: map[string]config.Variant{"debug": {Name: "debug"}}, ActiveVariant: config.Variant{Name: "debug"},
 	}
-	builder, err := NewBuilder("clang", HostPlatform(), VerbosityQuiet, 1, false)
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := builder.Build(t.Context(), Options{Config: cfg, Variant: "debug", BuildDir: buildDir, Verbosity: VerbosityQuiet, Jobs: 1}); err != nil {
 		t.Fatal(err)
 	}
-	executable := ArtifactPath(buildDir, "debug", "app", "executable", HostPlatform())
+	executable := ArtifactPath(buildDir, "debug", "app", "executable", toolchain.HostPlatform())
 	if err := exec.Command(executable).Run(); err != nil {
 		t.Fatalf("run unity-built executable: %v", err)
 	}

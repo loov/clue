@@ -12,6 +12,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // TestVendoredDependency_BuildsFromLocalSources verifies that users can build projects with vendored dependencies
@@ -59,7 +60,7 @@ func TestVendoredDependency_BuildsFromLocalSources(t *testing.T) {
 		}
 	})
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
+	builder, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
@@ -283,7 +284,7 @@ func TestOfflineBuild_UsesCachedDependencies(t *testing.T) {
 		}
 	})
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
+	builder, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}
@@ -323,7 +324,7 @@ func TestOfflineBuild_UsesCachedDependencies(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel2()
 
-	builder2, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityNormal, 1, false)
+	builder2, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create second builder: %v", err)
 	}
@@ -369,7 +370,7 @@ func TestDependencyBuildOutput_LinksGeneratedLibrary(t *testing.T) {
 		}
 	})
 
-	builder, err := build.NewBuilder("clang", build.HostPlatform(), build.VerbosityVerbose, 1, false)
+	builder, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityVerbose, 1, false)
 	if err != nil {
 		t.Fatalf("Failed to create builder: %v", err)
 	}

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // Entry represents a cached compilation result
@@ -137,7 +139,7 @@ func (cm *Manager) NeedsRebuild(
 	}
 
 	// Get current compiler identity
-	compilerID, err := ComputeCompilerIdentity(compilerPath)
+	compilerID, err := toolchain.ComputeCompilerIdentity(compilerPath)
 	if err != nil {
 		return true, ReasonCompilerChanged, ""
 	}
@@ -253,7 +255,7 @@ func (cm *Manager) StoreResult(
 	}
 
 	// Get compiler identity
-	compilerID, err := ComputeCompilerIdentity(compilerPath)
+	compilerID, err := toolchain.ComputeCompilerIdentity(compilerPath)
 	if err != nil {
 		return fmt.Errorf("failed to get compiler identity: %w", err)
 	}

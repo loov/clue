@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func cleanupResponseFile(t *testing.T, path string) {
@@ -15,12 +17,12 @@ func cleanupResponseFile(t *testing.T, path string) {
 }
 
 func TestEstimateCommandLength_EmptyArgumentsReturnZero(t *testing.T) {
-	got := EstimateCommandLength(nil)
+	got := toolchain.EstimateCommandLength(nil)
 	if got != 0 {
 		t.Errorf("EstimateCommandLength(nil) = %d, want 0", got)
 	}
 
-	got = EstimateCommandLength([]string{})
+	got = toolchain.EstimateCommandLength([]string{})
 	if got != 0 {
 		t.Errorf("EstimateCommandLength([]) = %d, want 0", got)
 	}
@@ -28,7 +30,7 @@ func TestEstimateCommandLength_EmptyArgumentsReturnZero(t *testing.T) {
 
 func TestEstimateCommandLength_CountsSingleArgument(t *testing.T) {
 	// Single arg "foo" = 3 chars, no trailing space needed
-	got := EstimateCommandLength([]string{"foo"})
+	got := toolchain.EstimateCommandLength([]string{"foo"})
 	want := 3
 	if got != want {
 		t.Errorf("EstimateCommandLength([foo]) = %d, want %d", got, want)
@@ -38,7 +40,7 @@ func TestEstimateCommandLength_CountsSingleArgument(t *testing.T) {
 func TestEstimateCommandLength_IncludesSeparators(t *testing.T) {
 	// "foo bar baz" = 3 + 1(space) + 3 + 1(space) + 3 = 11
 	args := []string{"foo", "bar", "baz"}
-	got := EstimateCommandLength(args)
+	got := toolchain.EstimateCommandLength(args)
 	want := 11 // 3+1+3+1+3
 	if got != want {
 		t.Errorf("EstimateCommandLength(%v) = %d, want %d", args, got, want)
@@ -53,7 +55,7 @@ func TestEstimateCommandLength_CountsLongArguments(t *testing.T) {
 	// "/W4" = 3
 	// "/EHsc" = 5
 	// Total = 7+1+3+1+3+1+5 = 21
-	got := EstimateCommandLength(args)
+	got := toolchain.EstimateCommandLength(args)
 	want := 21
 	if got != want {
 		t.Errorf("EstimateCommandLength(%v) = %d, want %d", args, got, want)
@@ -64,7 +66,7 @@ func TestMaybeUseResponseFile_BelowThresholdKeepsArguments(t *testing.T) {
 	// Create args well below the 8000 char threshold
 	args := []string{"/nologo", "/O2", "/W4", "/EHsc", "/c", "main.cpp"}
 
-	resultArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	resultArgs, cleanupPath, err := toolchain.MaybeUseResponseFile(args)
 	if err != nil {
 		t.Fatalf("MaybeUseResponseFile failed: %v", err)
 	}
@@ -97,11 +99,11 @@ func TestMaybeUseResponseFile_AboveThresholdWritesFile(t *testing.T) {
 	}
 
 	// Verify we're above threshold
-	if EstimateCommandLength(args) <= ResponseFileThreshold {
+	if toolchain.EstimateCommandLength(args) <= toolchain.ResponseFileThreshold {
 		t.Fatal("test args should exceed threshold")
 	}
 
-	resultArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	resultArgs, cleanupPath, err := toolchain.MaybeUseResponseFile(args)
 	if err != nil {
 		t.Fatalf("MaybeUseResponseFile failed: %v", err)
 	}
@@ -140,7 +142,7 @@ func TestMaybeUseResponseFile_AboveThresholdWritesFile(t *testing.T) {
 
 	// Verify each line matches the original arg
 	for i, line := range lines {
-		want := QuoteResponseFileArg(args[i])
+		want := toolchain.QuoteResponseFileArg(args[i])
 		if line != want {
 			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
@@ -149,8 +151,8 @@ func TestMaybeUseResponseFile_AboveThresholdWritesFile(t *testing.T) {
 
 func TestMaybeUseResponseFileIn_WritesBesideOutput(t *testing.T) {
 	dir := t.TempDir()
-	args := []string{strings.Repeat("x", ResponseFileThreshold+1)}
-	resultArgs, cleanupPath, err := MaybeUseResponseFileIn(dir, args)
+	args := []string{strings.Repeat("x", toolchain.ResponseFileThreshold+1)}
+	resultArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(dir, args)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,12 +170,12 @@ func TestMaybeUseResponseFile_ExactThresholdKeepsArguments(t *testing.T) {
 	args := []string{strings.Repeat("a", 8000)}
 
 	// Verify we're at exactly the threshold
-	length := EstimateCommandLength(args)
-	if length != ResponseFileThreshold {
-		t.Fatalf("test args length = %d, want exactly %d", length, ResponseFileThreshold)
+	length := toolchain.EstimateCommandLength(args)
+	if length != toolchain.ResponseFileThreshold {
+		t.Fatalf("test args length = %d, want exactly %d", length, toolchain.ResponseFileThreshold)
 	}
 
-	resultArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	resultArgs, cleanupPath, err := toolchain.MaybeUseResponseFile(args)
 	if err != nil {
 		t.Fatalf("MaybeUseResponseFile failed: %v", err)
 	}
@@ -195,12 +197,12 @@ func TestMaybeUseResponseFile_JustAboveThresholdWritesFile(t *testing.T) {
 	args := []string{strings.Repeat("a", 8001)}
 
 	// Verify we're above the threshold
-	length := EstimateCommandLength(args)
-	if length <= ResponseFileThreshold {
-		t.Fatalf("test args length = %d, should be above %d", length, ResponseFileThreshold)
+	length := toolchain.EstimateCommandLength(args)
+	if length <= toolchain.ResponseFileThreshold {
+		t.Fatalf("test args length = %d, should be above %d", length, toolchain.ResponseFileThreshold)
 	}
 
-	resultArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	resultArgs, cleanupPath, err := toolchain.MaybeUseResponseFile(args)
 	if err != nil {
 		t.Fatalf("MaybeUseResponseFile failed: %v", err)
 	}
@@ -221,7 +223,7 @@ func TestMaybeUseResponseFile_JustAboveThresholdWritesFile(t *testing.T) {
 func TestWriteResponseFile_WritesOneQuotedArgumentPerLine(t *testing.T) {
 	args := []string{"/nologo", "/O2", "/W4", "C:\\Program Files\\project\\main.cpp"}
 
-	path, err := WriteResponseFile(args)
+	path, err := toolchain.WriteResponseFile(args)
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
@@ -254,7 +256,7 @@ func TestWriteResponseFile_WritesOneQuotedArgumentPerLine(t *testing.T) {
 	}
 
 	for i, line := range lines {
-		want := QuoteResponseFileArg(args[i])
+		want := toolchain.QuoteResponseFileArg(args[i])
 		if line != want {
 			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
@@ -262,7 +264,7 @@ func TestWriteResponseFile_WritesOneQuotedArgumentPerLine(t *testing.T) {
 }
 
 func TestWriteResponseFile_EmptyArgumentsCreateEmptyFile(t *testing.T) {
-	path, err := WriteResponseFile([]string{})
+	path, err := toolchain.WriteResponseFile([]string{})
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
@@ -287,7 +289,7 @@ func TestResponseFileFormat_PreservesWindowsPaths(t *testing.T) {
 		`C:\workspace\build\main.obj`,
 	}
 
-	path, err := WriteResponseFile(args)
+	path, err := toolchain.WriteResponseFile(args)
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
@@ -301,7 +303,7 @@ func TestResponseFileFormat_PreservesWindowsPaths(t *testing.T) {
 
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	for i, line := range lines {
-		want := QuoteResponseFileArg(args[i])
+		want := toolchain.QuoteResponseFileArg(args[i])
 		if line != want {
 			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
@@ -317,7 +319,7 @@ func TestResponseFileFormat_QuotesSpecialCharacters(t *testing.T) {
 		"/D__FILE__=main.cpp",
 	}
 
-	path, err := WriteResponseFile(args)
+	path, err := toolchain.WriteResponseFile(args)
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
 	}
@@ -331,7 +333,7 @@ func TestResponseFileFormat_QuotesSpecialCharacters(t *testing.T) {
 
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	for i, line := range lines {
-		want := QuoteResponseFileArg(args[i])
+		want := toolchain.QuoteResponseFileArg(args[i])
 		if line != want {
 			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
@@ -350,7 +352,7 @@ func TestQuoteResponseFileArg_LeavesSimpleArgumentUnquoted(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := QuoteResponseFileArg(tt.input)
+		got := toolchain.QuoteResponseFileArg(tt.input)
 		if got != tt.want {
 			t.Errorf("QuoteResponseFileArg(%q) = %q, want %q", tt.input, got, tt.want)
 		}
@@ -372,7 +374,7 @@ newline"`},
 	}
 
 	for _, tt := range tests {
-		got := QuoteResponseFileArg(tt.input)
+		got := toolchain.QuoteResponseFileArg(tt.input)
 		if got != tt.want {
 			t.Errorf("QuoteResponseFileArg(%q) = %q, want %q", tt.input, got, tt.want)
 		}
@@ -380,7 +382,7 @@ newline"`},
 }
 
 func TestWriteResponseFileRejectsNewlines(t *testing.T) {
-	if path, err := WriteResponseFile([]string{"safe", "injected\n/flag"}); err == nil {
+	if path, err := toolchain.WriteResponseFile([]string{"safe", "injected\n/flag"}); err == nil {
 		cleanupResponseFile(t, path)
 		t.Fatal("expected newline argument to be rejected")
 	}
@@ -389,7 +391,7 @@ func TestWriteResponseFileRejectsNewlines(t *testing.T) {
 func TestQuoteResponseFileArg_EmbeddedQuotes(t *testing.T) {
 	// Args with embedded quotes need escaping
 	input := `/DVERSION="1.0"`
-	got := QuoteResponseFileArg(input)
+	got := toolchain.QuoteResponseFileArg(input)
 
 	// Should wrap in quotes and escape the embedded quotes
 	if !strings.HasPrefix(got, `"`) || !strings.HasSuffix(got, `"`) {
@@ -404,7 +406,7 @@ func TestQuoteResponseFileArg_EmbeddedQuotes(t *testing.T) {
 
 func TestResponseFileThreshold_MatchesPlatformLimit(t *testing.T) {
 	// Verify the threshold constant is set correctly
-	if ResponseFileThreshold != 8000 {
-		t.Errorf("ResponseFileThreshold = %d, want 8000", ResponseFileThreshold)
+	if toolchain.ResponseFileThreshold != 8000 {
+		t.Errorf("ResponseFileThreshold = %d, want 8000", toolchain.ResponseFileThreshold)
 	}
 }

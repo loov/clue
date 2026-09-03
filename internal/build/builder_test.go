@@ -6,6 +6,7 @@ import (
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestBuildTargetInterfaceLibraryNeedsNoTools(t *testing.T) {
@@ -150,8 +151,8 @@ func TestTargetToBuildConfig_WarningsAsErrors(t *testing.T) {
 }
 
 func TestBuilderAddsExternalSharedLibraryRuntimePath(t *testing.T) {
-	builder := &Builder{target: Platform{OS: "linux", Arch: "amd64"}}
-	cfg := Config{}
+	builder := &Builder{target: toolchain.Platform{OS: "linux", Arch: "amd64"}}
+	cfg := toolchain.Config{}
 	output := filepath.Join(".build", "debug", "bin", "app")
 	libraryDir := filepath.Join(".build", "debug", "deps", "answer", "lib")
 
@@ -165,7 +166,7 @@ func TestBuilderAddsExternalSharedLibraryRuntimePath(t *testing.T) {
 }
 
 func TestObjectDir_IncludesObjSubdirectory(t *testing.T) {
-	b, err := NewBuilder("clang", HostPlatform(), VerbosityNormal, 1, false)
+	b, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityNormal, 1, false)
 	if err != nil {
 		t.Fatalf("NewBuilder failed: %v", err)
 	}

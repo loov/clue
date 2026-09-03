@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/loov/clue/internal/cache"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 type linkInput struct {
@@ -13,9 +14,9 @@ type linkInput struct {
 	Hash string `json:"hash"`
 }
 
-func linkFingerprint(tc Toolchain, tool string, options any, inputs []string) ([]byte, error) {
+func linkFingerprint(tc toolchain.Toolchain, tool string, options any, inputs []string) ([]byte, error) {
 	toolPath := toolIdentityPath(tc, tool)
-	toolID, _ := cache.ComputeCompilerIdentity(toolPath)
+	toolID, _ := toolchain.ComputeCompilerIdentity(toolPath)
 	files := make([]linkInput, 0, len(inputs))
 	for _, path := range inputs {
 		hash, err := cache.ComputeFileHash(path)
@@ -25,11 +26,11 @@ func linkFingerprint(tc Toolchain, tool string, options any, inputs []string) ([
 		files = append(files, linkInput{Path: path, Hash: hash})
 	}
 	return json.Marshal(struct {
-		Tool        cache.CompilerIdentity `json:"tool"`
-		Toolchain   string                 `json:"toolchain,omitzero"`
-		Environment []string               `json:"environment,omitzero"`
-		Options     any                    `json:"options"`
-		Inputs      []linkInput            `json:"inputs"`
+		Tool        toolchain.CompilerIdentity `json:"tool"`
+		Toolchain   string                     `json:"toolchain,omitzero"`
+		Environment []string                   `json:"environment,omitzero"`
+		Options     any                        `json:"options"`
+		Inputs      []linkInput                `json:"inputs"`
 	}{toolID, toolchainCacheKey(tc), toolchainCacheEnvironment(tc), options, files})
 }
 

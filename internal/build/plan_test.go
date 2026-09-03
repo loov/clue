@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestPlanTargetResolvesSharedBuildSemantics(t *testing.T) {
@@ -17,7 +18,7 @@ func TestPlanTargetResolvesSharedBuildSemantics(t *testing.T) {
 	}
 	target := config.Target{Name: "app", Type: "executable", Sources: []string{"src/main.c", "src/main.cpp"}, Depends: []string{"base"}}
 	variant := config.Variant{Name: "debug", DebugInfo: true, DebugInfoSet: true, LTO: &debug}
-	plan := PlanTarget(cfg, target, variant, "build", "debug", Platform{OS: "windows", Arch: "amd64"})
+	plan := PlanTarget(cfg, target, variant, "build", "debug", toolchain.Platform{OS: "windows", Arch: "amd64"})
 	if plan.Output != filepath.Join("build", "debug", "bin", "app.exe") || plan.Flags.Debug != "full" || !plan.Flags.LTO {
 		t.Fatalf("plan = %+v", plan)
 	}

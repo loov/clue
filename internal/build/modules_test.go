@@ -5,14 +5,16 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
-	clang, _ := NewToolchain("clang", HostPlatform())
-	gcc, _ := NewToolchain("gcc", HostPlatform())
+	clang, _ := NewToolchain("clang", toolchain.HostPlatform())
+	gcc, _ := NewToolchain("gcc", toolchain.HostPlatform())
 	tests := []struct {
 		name   string
-		tc     Toolchain
+		tc     toolchain.Toolchain
 		output string
 		mapper string
 		want   []string
