@@ -3,9 +3,10 @@ package build
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/loov/clue/internal/config"
@@ -27,11 +28,7 @@ func toolchainEnvironment(tc Toolchain) []string {
 		return nil
 	}
 	environment := provider.Environment()
-	keys := make([]string, 0, len(environment))
-	for key := range environment {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(environment))
 	result := make([]string, 0, len(keys))
 	for _, key := range keys {
 		result = append(result, key+"="+environment[key])

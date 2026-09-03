@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -444,7 +444,7 @@ func (db *DepBuilder) loadClueConfig(clueFile, sourcePath, dependencyName, confi
 	if len(names) == 0 {
 		return nil, fmt.Errorf("clue.cue has no targets")
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	targetName := configuredTarget
 	if targetName == "" {
 		if _, ok := targets[dependencyName]; ok {

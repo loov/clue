@@ -5,11 +5,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -224,11 +225,7 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 		fmt.Printf("Environment variables from system: %s\n", strings.Join(env.Used, ", "))
 	}
 	if verbosity >= build.VerbosityNormal && len(env.Variables) > 0 {
-		names := make([]string, 0, len(env.Variables))
-		for name := range env.Variables {
-			names = append(names, name)
-		}
-		sort.Strings(names)
+		names := slices.Sorted(maps.Keys(env.Variables))
 		fmt.Printf("Environment variables configured: %s\n", strings.Join(names, ", "))
 	}
 
@@ -562,16 +559,11 @@ func printError(err error) {
 
 func generateNinja(dir string, cfg *config.Config, platform toolchain.Platform) int {
 	// Collect all variant names
-	variants := make([]string, 0, len(cfg.Variants))
-	for name := range cfg.Variants {
-		variants = append(variants, name)
-	}
+	variants := slices.Sorted(maps.Keys(cfg.Variants))
 	// If no variants defined, use "debug" as default
 	if len(variants) == 0 {
 		variants = []string{"debug"}
 	}
-	// Sort for consistent output
-	sort.Strings(variants)
 
 	outputPath := filepath.Join(dir, "build.ninja")
 	err := generate.Ninja(generate.NinjaOptions{
@@ -775,12 +767,7 @@ func selectConfiguredTests(cfg *config.Config, selectors []string) ([]string, er
 	if len(selected) == 0 {
 		return nil, fmt.Errorf("no tests configured")
 	}
-	names := make([]string, 0, len(selected))
-	for name := range selected {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names, nil
+	return slices.Sorted(maps.Keys(selected)), nil
 }
 
 func resolvedJobs(jobs int) int {

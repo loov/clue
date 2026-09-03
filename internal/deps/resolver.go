@@ -2,7 +2,8 @@ package deps
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 
 	"github.com/dominikbraun/graph"
 )
@@ -62,12 +63,7 @@ func (r *Resolver) BuildOrder() ([]string, error) {
 
 	// If no edges (no interdependencies), return alphabetical order
 	if !hasEdges {
-		names := make([]string, 0, len(r.dependencies))
-		for name := range r.dependencies {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		return names, nil
+		return slices.Sorted(maps.Keys(r.dependencies)), nil
 	}
 
 	// Perform stable topological sort for deterministic order

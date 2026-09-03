@@ -1,10 +1,11 @@
 package profile
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 )
@@ -71,8 +72,8 @@ func (p *Profiler) GetSlowestFiles(n int) []CompileEvent {
 		return nil
 	}
 	events := p.GetEvents()
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].Duration > events[j].Duration
+	slices.SortFunc(events, func(a, b CompileEvent) int {
+		return cmp.Compare(b.Duration, a.Duration)
 	})
 	if n > len(events) {
 		n = len(events)

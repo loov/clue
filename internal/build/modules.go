@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/loov/clue/internal/toolchain"
@@ -269,12 +270,7 @@ func ModuleCompileFlags(tc Toolchain, dependency ModuleDependency, output string
 }
 
 func sortedModuleNames(moduleFiles map[string]string) []string {
-	names := make([]string, 0, len(moduleFiles))
-	for name := range moduleFiles {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
+	return slices.Sorted(maps.Keys(moduleFiles))
 }
 
 // WriteModuleMapper writes the GCC module name-to-CMI mapping.
@@ -332,7 +328,7 @@ func OrderModuleCompilationWithProviders(deps []ModuleDependency, available map[
 	}
 	var result []string
 	for len(queue) > 0 {
-		sort.Strings(queue)
+		slices.Sort(queue)
 		source := queue[0]
 		queue = queue[1:]
 		result = append(result, source)

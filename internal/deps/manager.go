@@ -3,8 +3,9 @@ package deps
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 )
 
 // Manager coordinates dependency fetching and building
@@ -234,11 +235,7 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 
 // UpdateAll resolves configured Git refs again and rewrites their lock entries.
 func (m *Manager) UpdateAll(ctx context.Context) error {
-	names := make([]string, 0, len(m.resolver.dependencies))
-	for name := range m.resolver.dependencies {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := slices.Sorted(maps.Keys(m.resolver.dependencies))
 
 	updated := 0
 	for _, name := range names {

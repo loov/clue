@@ -5,7 +5,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
@@ -117,7 +117,7 @@ func (m targetModules) inputs(source string) []string {
 			inputs = append(inputs, output)
 		}
 	}
-	sort.Strings(inputs)
+	slices.Sort(inputs)
 	return inputs
 }
 

@@ -1,9 +1,10 @@
 package deps
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 )
 
 // FetchOptions configures the fetch operation
@@ -31,8 +32,8 @@ func RunList(deps map[string]Dependency, verbose bool) error {
 	statuses := mgr.Status()
 
 	// Sort by name for consistent output
-	sort.Slice(statuses, func(i, j int) bool {
-		return statuses[i].Name < statuses[j].Name
+	slices.SortFunc(statuses, func(a, b DepStatus) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	// Print table

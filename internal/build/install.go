@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/loov/clue/internal/config"
@@ -85,7 +85,7 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 			return nil, fmt.Errorf("custom target %q has no installable artifact", name)
 		}
 	}
-	sort.Strings(requested)
+	slices.Sort(requested)
 	return requested, nil
 }
 

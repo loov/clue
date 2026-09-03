@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/Duncaen/go-ninja"
@@ -85,11 +84,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 }
 
 func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
-	names := make([]string, 0, len(opts.Config.Dependencies))
-	for name := range opts.Config.Dependencies {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := slices.Sorted(maps.Keys(opts.Config.Dependencies))
 
 	var outputs []string
 	for _, name := range names {
@@ -538,11 +533,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
 			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.mapper,
 		})
-		headerInputs := make([]string, 0, len(builtHeaderUnits))
-		for _, input := range builtHeaderUnits {
-			headerInputs = append(headerInputs, input)
-		}
-		sort.Strings(headerInputs)
+		headerInputs := slices.Sorted(maps.Values(builtHeaderUnits))
 		statement := ninja.Build{
 			Rule: "header_unit", Out: []string{output}, InImplicit: headerInputs,
 			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
@@ -1039,7 +1030,7 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 		if len(opts.Variants) == 0 {
 			opts.Variants = []string{"debug"}
 		}
-		sort.Strings(opts.Variants)
+		slices.Sort(opts.Variants)
 	}
 
 	// Discover toolchain

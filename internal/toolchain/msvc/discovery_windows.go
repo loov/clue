@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -137,8 +137,8 @@ func findVCToolsPath(vsPath string) (string, error) {
 	}
 
 	// Sort versions and pick the newest
-	sort.Slice(versions, func(i, j int) bool {
-		return compareVersions(versions[i], versions[j]) > 0
+	slices.SortFunc(versions, func(a, b string) int {
+		return compareVersions(b, a)
 	})
 
 	return filepath.Join(msvcDir, versions[0]), nil
