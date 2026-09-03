@@ -12,7 +12,7 @@ import (
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/all"
-	toolchaindocker "github.com/loov/clue/internal/toolchain/docker"
+	toolchaincontainer "github.com/loov/clue/internal/toolchain/container"
 )
 
 type environmentToolchain interface {
@@ -39,14 +39,14 @@ func NewToolchain(name string, target toolchain.Platform) (toolchain.Toolchain, 
 	return all.NewToolchain(name, target)
 }
 
-// NewConfiguredToolchain creates a local or Docker-backed configured toolchain.
+// NewConfiguredToolchain creates a local or container-backed configured toolchain.
 func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform, projectDir string) (toolchain.Toolchain, error) {
 	name := settings.Compiler
 	if name == "" {
 		name = "clang"
 	}
-	if settings.Docker != nil && name != "clang" && name != "gcc" {
-		return nil, fmt.Errorf("docker toolchains support clang and gcc, got %q", name)
+	if settings.Container != nil && name != "clang" && name != "gcc" {
+		return nil, fmt.Errorf("container toolchains support clang and gcc, got %q", name)
 	}
 	base, err := all.NewConfiguredToolchain(name, target, all.Config{
 		CC: settings.CC, CXX: settings.CXX, AR: settings.AR,
@@ -55,10 +55,10 @@ func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform
 	if err != nil {
 		return nil, err
 	}
-	if settings.Docker == nil {
+	if settings.Container == nil {
 		return base, nil
 	}
-	return toolchaindocker.New(base, settings.Docker.Image, projectDir, settings.Docker.WorkDir, target)
+	return toolchaincontainer.New(base, settings.Container.Image, projectDir, settings.Container.WorkDir, target)
 }
 
 type commandWrappingToolchain interface {

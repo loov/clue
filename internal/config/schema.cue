@@ -185,7 +185,7 @@ package config
 		std?: string     // Backward-compatible single-language standard
 		cStd?: string    // e.g., "c17"
 		cxxStd?: string  // e.g., "c++23"
-		docker?: {
+		container?: {
 			image: string & != ""
 			workdir?: string | *"/workspace"
 		}

@@ -59,11 +59,11 @@ type Toolchain struct {
 	Std          string
 	CStd         string
 	CXXStd       string
-	Docker       *DockerToolchain
+	Container    *ContainerToolchain
 }
 
-// DockerToolchain runs toolchain commands in a container image.
-type DockerToolchain struct {
+// ContainerToolchain runs toolchain commands in a container image.
+type ContainerToolchain struct {
 	Image   string
 	WorkDir string
 }
@@ -459,11 +459,11 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		if std := tc.LookupPath(cue.ParsePath("cxxStd")); std.Exists() {
 			cfg.Toolchain.CXXStd, _ = std.String()
 		}
-		if docker := tc.LookupPath(cue.ParsePath("docker")); docker.Exists() {
-			cfg.Toolchain.Docker = &DockerToolchain{WorkDir: "/workspace"}
-			cfg.Toolchain.Docker.Image, _ = docker.LookupPath(cue.ParsePath("image")).String()
-			if workDir := docker.LookupPath(cue.ParsePath("workdir")); workDir.Exists() {
-				cfg.Toolchain.Docker.WorkDir, _ = workDir.String()
+		if container := tc.LookupPath(cue.ParsePath("container")); container.Exists() {
+			cfg.Toolchain.Container = &ContainerToolchain{WorkDir: "/workspace"}
+			cfg.Toolchain.Container.Image, _ = container.LookupPath(cue.ParsePath("image")).String()
+			if workDir := container.LookupPath(cue.ParsePath("workdir")); workDir.Exists() {
+				cfg.Toolchain.Container.WorkDir, _ = workDir.String()
 			}
 		}
 	}

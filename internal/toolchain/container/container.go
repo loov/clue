@@ -1,5 +1,5 @@
-// Package docker runs a C/C++ toolchain inside a Docker image.
-package docker
+// Package container runs a C/C++ toolchain inside a Docker image.
+package container
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ func New(base toolchain.Toolchain, image, projectDir, workDir string, target too
 	}
 	docker, err := exec.LookPath("docker")
 	if err != nil {
-		return nil, fmt.Errorf("docker not found: install Docker or remove toolchain.docker")
+		return nil, fmt.Errorf("docker not found: install Docker or remove toolchain.container")
 	}
 	hostRoot, err := filepath.Abs(projectDir)
 	if err != nil {

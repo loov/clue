@@ -90,12 +90,12 @@ targets: headers: {
 	}
 }
 
-func TestLoaderExtractsDockerToolchain(t *testing.T) {
+func TestLoaderExtractsContainerToolchain(t *testing.T) {
 	dir := t.TempDir()
 	contents := `name: "containerized"
 toolchain: {
 	compiler: "clang"
-	docker: {
+	container: {
 		image: "project-toolchain:20"
 		workdir: "/src"
 		}
@@ -109,8 +109,8 @@ targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Toolchain.Docker == nil || cfg.Toolchain.Docker.Image != "project-toolchain:20" || cfg.Toolchain.Docker.WorkDir != "/src" {
-		t.Fatalf("Docker toolchain = %+v", cfg.Toolchain.Docker)
+	if cfg.Toolchain.Container == nil || cfg.Toolchain.Container.Image != "project-toolchain:20" || cfg.Toolchain.Container.WorkDir != "/src" {
+		t.Fatalf("container toolchain = %+v", cfg.Toolchain.Container)
 	}
 }
 

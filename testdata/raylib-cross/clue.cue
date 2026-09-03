@@ -52,7 +52,7 @@ toolchain: {
 	cxx:      _cxx[_target.os]
 	ar:       _ar[_target.os]
 	cStd:     "c11"
-	docker: {
+	container: {
 		image:   _images[_target.os]
 		workdir: "/workspace"
 	}

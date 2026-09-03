@@ -64,7 +64,7 @@ To run the compiler, linker, archiver, and build commands in Docker, add a pre-p
 toolchain: {
     compiler: "clang"
     cxxStd:   "c++23"
-    docker: {
+    container: {
         image:   "project-toolchain:20"
         workdir: "/workspace"
     }
