@@ -141,7 +141,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 		}
 		for _, source := range sources {
 			compilerFlags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, tc, source)
-			if resolved.Type == "shared_library" && tc.Name() != "msvc" {
+			if resolved.Type == "shared_library" && opts.Platform.OS != "windows" && tc.Name() != "msvc" {
 				compilerFlags = append(compilerFlags, "-fPIC")
 			}
 			srcPath := filepath.Join(depPath, source)
@@ -554,7 +554,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 				compilerFlags = append(compilerFlags, "-std=c++20")
 			}
 		}
-		if target.Type == "shared_library" && tc.Name() != "msvc" {
+		if target.Type == "shared_library" && opts.Platform.OS != "windows" && tc.Name() != "msvc" {
 			compilerFlags = append(compilerFlags, "-fPIC")
 		}
 		// Determine object path

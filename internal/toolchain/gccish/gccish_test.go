@@ -230,6 +230,13 @@ func TestToolchain_CompilerFlagsEnablePIC(t *testing.T) {
 	}
 }
 
+func TestToolchain_CompilerFlagsOmitPICOnWindows(t *testing.T) {
+	tc := New("clang", "clang", "clang++", "llvm-ar", toolchain.Platform{OS: "windows", Arch: "amd64"})
+	if flags := tc.CompilerFlags(toolchain.Config{PIC: true}); slices.Contains(flags, "-fPIC") {
+		t.Errorf("CompilerFlags() = %v, must omit -fPIC on Windows", flags)
+	}
+}
+
 func TestToolchain_CompilerFlagsAppendRawFlags(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{RawCompiler: []string{"-march=native", "-DFOO=1"}}

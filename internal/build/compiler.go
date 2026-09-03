@@ -33,14 +33,15 @@ func (c *Compiler) cacheInputs(opts CompileOptions) []string {
 
 // CompileOptions holds options for compiling a single source file
 type CompileOptions struct {
-	Source            string            // Source file path
-	Output            string            // Output object file path
-	Includes          []string          // Include directories
-	SystemIncludes    []string          // Third-party include directories
-	Defines           []string          // Preprocessor defines
-	Flags             toolchain.Config  // Semantic flags
-	Std               string            // Language standard (e.g., "c++20", "c17")
-	TargetType        string            // "executable", "static_library", "shared_library"
+	Source            string           // Source file path
+	Output            string           // Output object file path
+	Includes          []string         // Include directories
+	SystemIncludes    []string         // Third-party include directories
+	Defines           []string         // Preprocessor defines
+	Flags             toolchain.Config // Semantic flags
+	Std               string           // Language standard (e.g., "c++20", "c17")
+	TargetType        string           // "executable", "static_library", "shared_library"
+	Platform          toolchain.Platform
 	ModuleOutput      string            // Path to output binary module interface
 	ModuleFiles       map[string]string // Logical module/header-unit name to BMI path
 	ModuleName        string
@@ -145,7 +146,11 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	args = append(args, dependencyMode, "-MP", "-MF", depFile)
 
 	// 5. Position-independent code for shared libraries (automatic)
-	if opts.TargetType == "shared_library" {
+	platform := opts.Platform
+	if platform.OS == "" {
+		platform = toolchain.HostPlatform()
+	}
+	if opts.TargetType == "shared_library" && platform.OS != "windows" {
 		args = append(args, "-fPIC")
 	}
 

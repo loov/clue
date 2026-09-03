@@ -196,6 +196,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				Std: opts.Std, CStd: opts.CStd, CXXStd: opts.CXXStd,
 			}.Standard(absPath),
 			TargetType: cfg.Type,
+			Platform:   opts.Platform,
 		}
 		compilerPath := toolIdentityPath(db.toolchain, db.compiler.compilerCmd(absPath))
 		cacheInputs := db.compiler.cacheInputs(compileOpts)

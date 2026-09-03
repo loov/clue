@@ -488,6 +488,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Flags:          buildCfg,
 			Std:            sourcePlan.Standard,
 			TargetType:     target.Type,
+			Platform:       b.target,
 		}
 		if module, ok := moduleInfo[source]; ok {
 			compileOpts.ModuleAware = true
