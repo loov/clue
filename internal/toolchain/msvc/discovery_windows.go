@@ -54,6 +54,7 @@ func FindMSVC() (*Installation, error) {
 		"-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
 		"-format", "json",
 	)
+	cmd.Dir = os.TempDir()
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -224,6 +225,7 @@ set
 
 	// Execute the batch script via cmd.exe
 	cmd := exec.Command("cmd.exe", "/c", tmpPath)
+	cmd.Dir = os.TempDir()
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError

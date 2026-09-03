@@ -1,12 +1,33 @@
 package msvc
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/loov/clue/internal/toolchain"
 )
+
+func TestToolchain_ResolvesToolsFromCapturedPath(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"cl.exe", "lib.exe"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tc, err := New(&Installation{Environment: map[string]string{"PATH": dir}}, toolchain.Platform{OS: "windows", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := tc.CC(), filepath.Join(dir, "cl.exe"); got != want {
+		t.Errorf("CC() = %q, want %q", got, want)
+	}
+	if got, want := tc.AR(), filepath.Join(dir, "lib.exe"); got != want {
+		t.Errorf("AR() = %q, want %q", got, want)
+	}
+}
 
 // newTestToolchain creates a Toolchain for testing without requiring
 // actual Visual Studio installation. This allows flag generation tests to run

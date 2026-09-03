@@ -71,17 +71,6 @@ func isMSVC(tc toolchain.Toolchain) bool {
 	return tc.Name() == "msvc"
 }
 
-// getMSVCLinker returns the MSVC linker path (link.exe)
-// For MSVC, we use link.exe directly rather than cl.exe for linking
-func getMSVCLinker() string {
-	return "link.exe"
-}
-
-// getMSVCLib returns the MSVC librarian path (lib.exe)
-func getMSVCLib() string {
-	return "lib.exe"
-}
-
 // SystemLibraryFlag maps a portable system-library name to a compiler flag.
 func SystemLibraryFlag(toolchainName string, platform toolchain.Platform, lib string) string {
 	if platform.OS == "windows" {
@@ -219,10 +208,11 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 	}
 
 	// Execute link.exe
-	result, err := l.executor.RunCommand(ctx, getMSVCLinker(), finalArgs...)
+	linker := l.msvcTool("link.exe")
+	result, err := l.executor.RunCommand(ctx, linker, finalArgs...)
 	if err != nil {
 		// Show full command line on linker errors (per CONTEXT.md)
-		cmdLine := getMSVCLinker() + " " + strings.Join(args, " ")
+		cmdLine := linker + " " + strings.Join(args, " ")
 		return &LinkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
@@ -316,7 +306,7 @@ func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOption
 	}
 
 	// Execute lib.exe
-	result, err := l.executor.RunCommand(ctx, getMSVCLib(), finalArgs...)
+	result, err := l.executor.RunCommand(ctx, l.toolchain.AR(), finalArgs...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -433,6 +423,14 @@ func (l *Linker) linkDriver(useCXX bool) string {
 	return l.toolchain.CC()
 }
 
+func (l *Linker) msvcTool(name string) string {
+	compiler := l.toolchain.CC()
+	if filepath.IsAbs(compiler) {
+		return filepath.Join(filepath.Dir(compiler), name)
+	}
+	return name
+}
+
 // linkSharedLibraryMSVC links a DLL using MSVC link.exe
 func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (_ *LinkResult, resultErr error) {
 	// Build MSVC-style command: link.exe /nologo /DLL objects... /OUT:output.dll /IMPLIB:output.lib
@@ -487,10 +485,11 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 	}
 
 	// Execute link.exe
-	result, err := l.executor.RunCommand(ctx, getMSVCLinker(), finalArgs...)
+	linker := l.msvcTool("link.exe")
+	result, err := l.executor.RunCommand(ctx, linker, finalArgs...)
 	if err != nil {
 		// Show full command line on linker errors (per CONTEXT.md)
-		cmdLine := getMSVCLinker() + " " + strings.Join(args, " ")
+		cmdLine := linker + " " + strings.Join(args, " ")
 		return &LinkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
