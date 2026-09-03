@@ -93,6 +93,10 @@ toolchain: {
 - `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
 
+Fetched Git commits and tarball checksums are recorded in `clue.lock`. Commit
+that file so builds use the same dependency revisions; run `clue deps update`
+to resolve configured Git refs again.
+
 ## Common Flags
 
 - `-variant debug|release` - Select build variant (default: debug)

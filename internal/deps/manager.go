@@ -3,6 +3,7 @@ package deps
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 )
 
@@ -15,6 +16,7 @@ type Manager struct {
 	vendoredFetcher *VendoredFetcher
 	resolver        *Resolver
 	verbose         bool
+	lock            *LockFile
 }
 
 // ManagerOptions configures the manager
@@ -46,6 +48,10 @@ func NewManager(projectDir string, deps map[string]Dependency, opts ManagerOptio
 
 	// Initialize resolver
 	resolver := NewResolver(deps)
+	lock, err := loadLockFile(projectDir)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Manager{
 		projectDir:      projectDir,
@@ -55,6 +61,7 @@ func NewManager(projectDir string, deps map[string]Dependency, opts ManagerOptio
 		vendoredFetcher: vendoredFetcher,
 		resolver:        resolver,
 		verbose:         opts.Verbose,
+		lock:            lock,
 	}, nil
 }
 
@@ -87,20 +94,33 @@ func (m *Manager) FetchAll(ctx context.Context) error {
 		}
 
 		// Check cache
-		if m.cache.Has(dep) {
+		cached, err := m.cacheReady(dep, true)
+		if err != nil {
+			return err
+		}
+		if cached {
 			fmt.Printf("  [%d/%d] Using cached %s\n", i+1, len(order), name)
 			continue
 		}
 
 		// Fetch based on type
 		cachePath := m.cache.Path(dep)
+		if dep.Type() == "git" || dep.Type() == "tarball" {
+			if err := os.RemoveAll(cachePath); err != nil {
+				return fmt.Errorf("remove incomplete cache for %q: %w", name, err)
+			}
+		}
 		var fetchErr error
 
 		switch dep.Type() {
 		case "git":
 			gitDep := dep.(*GitDependency)
 			fmt.Printf("  [%d/%d] Cloning %s (git:%s)\n", i+1, len(order), name, gitDep.Ref)
-			fetchErr = m.gitFetcher.Fetch(ctx, dep, cachePath)
+			ref, err := m.lock.gitRef(gitDep)
+			if err != nil {
+				return err
+			}
+			fetchErr = m.gitFetcher.FetchRef(ctx, gitDep, ref, cachePath)
 
 		case "tarball":
 			tarballDep := dep.(*TarballDependency)
@@ -124,6 +144,9 @@ func (m *Manager) FetchAll(ctx context.Context) error {
 		if err := m.cache.MarkFetched(dep); err != nil {
 			return fmt.Errorf("failed to mark %s as fetched: %w", name, err)
 		}
+		if err := m.recordLock(dep); err != nil {
+			return err
+		}
 	}
 
 	fmt.Println("All dependencies ready")
@@ -141,7 +164,11 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 	}
 
 	// Check cache
-	if m.cache.Has(dep) {
+	cached, err := m.cacheReady(dep, true)
+	if err != nil {
+		return err
+	}
+	if cached {
 		if m.verbose {
 			fmt.Printf("Using cached %s\n", name)
 		}
@@ -150,6 +177,11 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 
 	// Fetch based on type
 	cachePath := m.cache.Path(dep)
+	if dep.Type() == "git" || dep.Type() == "tarball" {
+		if err := os.RemoveAll(cachePath); err != nil {
+			return fmt.Errorf("remove incomplete cache for %q: %w", name, err)
+		}
+	}
 	var fetchErr error
 
 	fmt.Printf("Fetching %s...\n", name)
@@ -160,7 +192,11 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 		if m.verbose {
 			fmt.Printf("Cloning from %s (ref: %s)\n", gitDep.Repo, gitDep.Ref)
 		}
-		fetchErr = m.gitFetcher.Fetch(ctx, dep, cachePath)
+		ref, err := m.lock.gitRef(gitDep)
+		if err != nil {
+			return err
+		}
+		fetchErr = m.gitFetcher.FetchRef(ctx, gitDep, ref, cachePath)
 
 	case "tarball":
 		tarballDep := dep.(*TarballDependency)
@@ -188,12 +224,15 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 	if err := m.cache.MarkFetched(dep); err != nil {
 		return fmt.Errorf("failed to mark as fetched: %w", err)
 	}
+	if err := m.recordLock(dep); err != nil {
+		return err
+	}
 
 	fmt.Printf("Dependency %s ready\n", name)
 	return nil
 }
 
-// UpdateAll fetches missing Git dependencies and fast-forwards cached branches.
+// UpdateAll resolves configured Git refs again and rewrites their lock entries.
 func (m *Manager) UpdateAll(ctx context.Context) error {
 	names := make([]string, 0, len(m.resolver.dependencies))
 	for name := range m.resolver.dependencies {
@@ -207,24 +246,15 @@ func (m *Manager) UpdateAll(ctx context.Context) error {
 		if dep.Type() != "git" {
 			continue
 		}
-		if !m.cache.Has(dep) {
-			if err := m.FetchOne(ctx, name); err != nil {
-				return err
-			}
-			updated++
-			continue
+		delete(m.lock.Dependencies, name)
+		if err := os.RemoveAll(m.cache.Path(dep)); err != nil {
+			return fmt.Errorf("remove cached dependency %q: %w", name, err)
 		}
-		changed, err := m.gitFetcher.Update(ctx, m.cache.Path(dep))
-		if err != nil {
-			return fmt.Errorf("failed to update %s: %w", name, err)
+		if err := m.FetchOne(ctx, name); err != nil {
+			return err
 		}
-		if changed {
-			if err := m.cache.MarkFetched(dep); err != nil {
-				return err
-			}
-			fmt.Printf("Updated %s\n", name)
-			updated++
-		}
+		fmt.Printf("Updated %s\n", name)
+		updated++
 	}
 	if updated == 0 {
 		fmt.Println("All dependencies are up to date")
@@ -247,7 +277,7 @@ func (m *Manager) Status() []DepStatus {
 		if dep.Type() == "pkg_config" {
 			status.Status = "system"
 			status.Location = dep.(*PkgConfigDependency).Package
-		} else if m.cache.Has(dep) {
+		} else if cached, _ := m.cacheReady(dep, false); cached {
 			status.Status = "cached"
 		} else {
 			status.Status = "missing"
@@ -267,6 +297,55 @@ func (m *Manager) Status() []DepStatus {
 	}
 
 	return statuses
+}
+
+func (m *Manager) cacheReady(dep Dependency, record bool) (bool, error) {
+	if !m.cache.Has(dep) {
+		return false, nil
+	}
+	entry, locked := m.lock.Dependencies[dep.Name()]
+	if !locked {
+		if record {
+			if err := m.recordLock(dep); err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	}
+	switch configured := dep.(type) {
+	case *GitDependency:
+		if _, err := m.lock.gitRef(configured); err != nil {
+			return false, err
+		}
+		commit, err := gitCommit(m.cache.Path(dep))
+		return err == nil && commit == entry.Commit, err
+	case *TarballDependency:
+		if entry.Type != dep.Type() || entry.URL != configured.URL || entry.Checksum != configured.Checksum {
+			return false, fmt.Errorf("%s entry for %q does not match clue.cue; run 'clue deps update'", LockFileName, dep.Name())
+		}
+	}
+	return true, nil
+}
+
+func (m *Manager) recordLock(dep Dependency) error {
+	var entry LockEntry
+	switch configured := dep.(type) {
+	case *GitDependency:
+		commit, err := gitCommit(m.cache.Path(dep))
+		if err != nil {
+			return fmt.Errorf("resolve commit for %q: %w", dep.Name(), err)
+		}
+		entry = LockEntry{Type: dep.Type(), URL: configured.Repo, Ref: configured.Ref, Commit: commit}
+	case *TarballDependency:
+		entry = LockEntry{Type: dep.Type(), URL: configured.URL, Checksum: configured.Checksum}
+	default:
+		return nil
+	}
+	if m.lock.Dependencies[dep.Name()] == entry {
+		return nil
+	}
+	m.lock.Dependencies[dep.Name()] = entry
+	return m.lock.save(m.projectDir)
 }
 
 // Clean removes the entire .deps directory

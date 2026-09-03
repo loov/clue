@@ -37,9 +37,17 @@ func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath strin
 		fmt.Printf("Cloning %s (%s)...\n", gitDep.Repo, gitDep.Ref)
 	}
 
-	repo, err := cloneGitRef(ctx, gitDep.Repo, gitDep.Ref, targetPath, f.progressWriter())
+	return f.FetchRef(ctx, gitDep, gitDep.Ref, targetPath)
+}
+
+// FetchRef fetches a Git dependency at an already-resolved ref or commit.
+func (f *GitFetcher) FetchRef(ctx context.Context, gitDep *GitDependency, ref, targetPath string) error {
+	if err := gitDep.Validate(); err != nil {
+		return err
+	}
+	repo, err := cloneGitRef(ctx, gitDep.Repo, ref, targetPath, f.progressWriter())
 	if err != nil {
-		return fmt.Errorf("failed to clone %s at %s: %w", gitDep.Repo, gitDep.Ref, err)
+		return fmt.Errorf("failed to clone %s at %s: %w", gitDep.Repo, ref, err)
 	}
 
 	// Get commit hash for verification
@@ -52,6 +60,18 @@ func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath strin
 	}
 
 	return nil
+}
+
+func gitCommit(path string) (string, error) {
+	repo, err := git.PlainOpen(path)
+	if err != nil {
+		return "", err
+	}
+	head, err := repo.Head()
+	if err != nil {
+		return "", err
+	}
+	return head.Hash().String(), nil
 }
 
 // Update fast-forwards a cached branch. Tags and commit hashes stay pinned.

@@ -395,7 +395,7 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 		fmt.Fprintln(os.Stderr, "  fetch      Download dependencies")
 		fmt.Fprintln(os.Stderr, "  build      Build one dependency")
 		fmt.Fprintln(os.Stderr, "  clean      Remove dependency cache")
-		fmt.Fprintln(os.Stderr, "  update     Check for dependency updates (not yet implemented)")
+		fmt.Fprintln(os.Stderr, "  update     Resolve dependency updates and rewrite clue.lock")
 		return 1
 	}
 

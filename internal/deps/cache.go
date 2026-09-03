@@ -26,6 +26,7 @@ type DepMarker struct {
 	Ref       string    `json:"ref,omitempty"`  // for git dependencies
 	URL       string    `json:"url,omitempty"`  // for tarball dependencies
 	Path      string    `json:"path,omitempty"` // for vendored dependencies
+	Checksum  string    `json:"checksum,omitempty"`
 }
 
 // NewCache creates a new dependency cache manager
@@ -54,16 +55,11 @@ func (c *Cache) Has(dep Dependency) bool {
 		if err != nil {
 			return false
 		}
-		markerInfo, err := os.Stat(filepath.Join(cachePath, ".clue-dep"))
-		return err == nil && gitInfo.IsDir() && !markerInfo.IsDir()
+		return gitInfo.IsDir() && c.markerMatches(dep)
 
 	case "tarball":
 		// The directory may be left behind by an interrupted extraction.
-		info, err := os.Stat(filepath.Join(cachePath, ".clue-dep"))
-		if err != nil {
-			return false
-		}
-		return !info.IsDir()
+		return c.markerMatches(dep)
 
 	case "vendored":
 		// For vendored, the path is the original source location
@@ -79,6 +75,25 @@ func (c *Cache) Has(dep Dependency) bool {
 
 	default:
 		return false
+	}
+}
+
+func (c *Cache) markerMatches(dep Dependency) bool {
+	data, err := os.ReadFile(filepath.Join(dep.CachePath(c.baseDir), ".clue-dep"))
+	if err != nil {
+		return false
+	}
+	var marker DepMarker
+	if json.Unmarshal(data, &marker) != nil || marker.Name != dep.Name() || marker.Type != dep.Type() {
+		return false
+	}
+	switch configured := dep.(type) {
+	case *GitDependency:
+		return marker.URL == configured.Repo && marker.Ref == configured.Ref
+	case *TarballDependency:
+		return marker.URL == configured.URL && marker.Checksum == configured.Checksum
+	default:
+		return true
 	}
 }
 
@@ -105,6 +120,7 @@ func (c *Cache) MarkFetched(dep Dependency) error {
 		marker.URL = d.Repo
 	case *TarballDependency:
 		marker.URL = d.URL
+		marker.Checksum = d.Checksum
 	case *VendoredDependency:
 		marker.Path = d.Path
 	}

@@ -45,6 +45,10 @@ func TestCacheGitRequiresCompletionMarker(t *testing.T) {
 	if !cache.Has(dep) {
 		t.Fatal("completed Git cache was reported as missing")
 	}
+	changedRepo := NewGitDependency("repo", "https://example.com/other.git", "main", nil)
+	if cache.Has(changedRepo) {
+		t.Fatal("cache marker from another repository was accepted")
+	}
 }
 
 func TestCacheCleanDepIgnoresShortUnrelatedNames(t *testing.T) {
