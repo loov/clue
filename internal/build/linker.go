@@ -82,26 +82,21 @@ func getMSVCLib() string {
 	return "lib.exe"
 }
 
-// TranslateSysLibForMSVC translates Unix-style system library names to MSVC format.
-// Some libraries don't have Windows equivalents and are skipped.
-func TranslateSysLibForMSVC(lib string) string {
-	// Skip libraries with no Windows equivalent
-	switch lib {
-	case "pthread", "rt", "dl":
-		// pthread: Windows uses native threading
-		// rt: realtime extensions (Linux-specific)
-		// dl: dynamic loading (Windows uses LoadLibrary)
-		return ""
-	case "m":
-		// math library: linked automatically in MSVC
-		return ""
+// SystemLibraryFlag maps a portable system-library name to a compiler flag.
+func SystemLibraryFlag(toolchainName string, platform toolchain.Platform, lib string) string {
+	if platform.OS == "windows" {
+		switch lib {
+		case "pthread", "rt", "dl", "m":
+			return ""
+		}
+		if toolchainName == "msvc" {
+			if strings.HasSuffix(lib, ".lib") {
+				return lib
+			}
+			return lib + ".lib"
+		}
 	}
-
-	// Add .lib suffix if not present
-	if strings.HasSuffix(lib, ".lib") {
-		return lib
-	}
-	return lib + ".lib"
+	return "-l" + lib
 }
 
 // LinkExecutable links object files into an executable binary
@@ -145,7 +140,9 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 
 	// Add system libraries
 	for _, sysLib := range opts.SysLibs {
-		args = append(args, "-l"+sysLib)
+		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+			args = append(args, flag)
+		}
 	}
 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
@@ -207,8 +204,8 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 
 	// Add system libraries (translated to MSVC format)
 	for _, sysLib := range opts.SysLibs {
-		if translated := TranslateSysLibForMSVC(sysLib); translated != "" {
-			args = append(args, translated)
+		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+			args = append(args, flag)
 		}
 	}
 
@@ -396,7 +393,9 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 
 	// Add system libraries
 	for _, sysLib := range opts.SysLibs {
-		args = append(args, "-l"+sysLib)
+		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+			args = append(args, flag)
+		}
 	}
 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
@@ -473,8 +472,8 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 
 	// Add system libraries (translated to MSVC format)
 	for _, sysLib := range opts.SysLibs {
-		if translated := TranslateSysLibForMSVC(sysLib); translated != "" {
-			args = append(args, translated)
+		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+			args = append(args, flag)
 		}
 	}
 

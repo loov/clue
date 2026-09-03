@@ -602,7 +602,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 
 	switch target.Type {
 	case "executable":
-		ldflags := buildLinkerFlagsForNinja(target, append(usage.SysLibs, dependencySysLibs...), buildCfg, tc)
+		ldflags := buildLinkerFlagsForNinja(target, append(usage.SysLibs, dependencySysLibs...), buildCfg, opts.Platform, tc)
 		ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
 		rule := "link_c"
@@ -861,7 +861,7 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 }
 
 // buildLinkerFlagsForNinja builds linker flags for executables
-func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, tc toolchain.Toolchain) []string {
+func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, tc toolchain.Toolchain) []string {
 	var flags []string
 	if tc.Name() == "msvc" {
 		flags = appendMSVCLibraryPaths(flags, tc)
@@ -869,12 +869,8 @@ func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, 
 
 	// System libraries
 	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
-		if tc.Name() == "msvc" {
-			if translated := build.TranslateSysLibForMSVC(sysLib); translated != "" {
-				flags = append(flags, translated)
-			}
-		} else {
-			flags = append(flags, "-l"+sysLib)
+		if flag := build.SystemLibraryFlag(tc.Name(), platform, sysLib); flag != "" {
+			flags = append(flags, flag)
 		}
 	}
 
@@ -904,12 +900,8 @@ func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string,
 
 	// System libraries
 	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
-		if tc.Name() == "msvc" {
-			if translated := build.TranslateSysLibForMSVC(sysLib); translated != "" {
-				flags = append(flags, translated)
-			}
-		} else {
-			flags = append(flags, "-l"+sysLib)
+		if flag := build.SystemLibraryFlag(tc.Name(), platform, sysLib); flag != "" {
+			flags = append(flags, flag)
 		}
 	}
 
