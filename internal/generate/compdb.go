@@ -2,6 +2,7 @@
 package generate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -35,7 +36,7 @@ type CompDBOptions struct {
 }
 
 // CompileCommands creates a compile_commands.json file
-func CompileCommands(opts CompDBOptions) error {
+func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 	// Get working directory with absolute path
 	workDir, err := filepath.Abs(".")
 	if err != nil {
@@ -82,7 +83,7 @@ func CompileCommands(opts CompDBOptions) error {
 	targetModuleOutputs := make(map[string]map[string]string)
 	for _, name := range targetOrder {
 		target := opts.Config.Targets[name]
-		targetCommands, err := buildTargetCommands(workDir, opts, target, variant, tc, targetModuleOutputs)
+		targetCommands, err := buildTargetCommands(ctx, workDir, opts, target, variant, tc, targetModuleOutputs)
 		if err != nil {
 			return err
 		}
@@ -118,7 +119,7 @@ func CompileCommands(opts CompDBOptions) error {
 }
 
 // buildTargetCommands creates compile commands for a target's sources
-func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain, targetModuleOutputs map[string]map[string]string) ([]CompileCommand, error) {
+func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain, targetModuleOutputs map[string]map[string]string) ([]CompileCommand, error) {
 	if target.Type == "custom" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
@@ -131,7 +132,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 
 	plan := build.PlanTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
 	buildCfg, usage := plan.Flags, plan.Usage
-	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
+	dependencyUsage, err := targetDependencyUsage(ctx, opts.Config, target, tc)
 	if err != nil {
 		return nil, err
 	}

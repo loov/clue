@@ -47,20 +47,20 @@ func (d defaultTarget) RequiredVersion() ninja.Version {
 }
 
 // Ninja creates a build.ninja file for the project
-func Ninja(opts NinjaOptions) error {
+func Ninja(ctx context.Context, opts NinjaOptions) error {
 	if opts.OutputPath == "" {
 		opts.OutputPath = "build.ninja"
 	}
 	var buf bytes.Buffer
-	if err := WriteNinjaTo(&buf, opts); err != nil {
+	if err := WriteNinjaTo(ctx, &buf, opts); err != nil {
 		return err
 	}
 	return writeIfChanged(opts.OutputPath, buf.Bytes())
 }
 
 // generateVariantBuilds generates build statements for a single variant
-func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain, emitSharedRules bool) ([]string, error) {
-	outputs, err := generateDependencyBuilds(file, opts, variant, variantConfig, tc, emitSharedRules)
+func generateVariantBuilds(ctx context.Context, file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain, emitSharedRules bool) ([]string, error) {
+	outputs, err := generateDependencyBuilds(ctx, file, opts, variant, variantConfig, tc, emitSharedRules)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 		}
 
 		// Generate build statements for this target
-		targetOutputs, err := generateTargetBuilds(file, opts, variant, variantConfig, target, tc, emitSharedRules, targetModules)
+		targetOutputs, err := generateTargetBuilds(ctx, file, opts, variant, variantConfig, target, tc, emitSharedRules, targetModules)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +83,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 	return outputs, nil
 }
 
-func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
+func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
 	names := slices.Sorted(maps.Keys(opts.Config.Dependencies))
 
 	var outputs []string
@@ -115,7 +115,7 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 		if len(sources) == 0 {
 			return nil, fmt.Errorf("dependency %q has no source files; run 'clue deps fetch' before generating Ninja", name)
 		}
-		dependencyUsage, err := dependencyCompileUsage(dep, opts.Config, tc)
+		dependencyUsage, err := dependencyCompileUsage(ctx, dep, opts.Config, tc)
 		if err != nil {
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
@@ -261,7 +261,7 @@ func dependencyIncludePath(dep deps.Dependency) string {
 	return root
 }
 
-func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config, tc toolchain.Toolchain) (deps.Usage, error) {
+func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *config.Config, tc toolchain.Toolchain) (deps.Usage, error) {
 	var usage deps.Usage
 	seen := make(map[string]bool)
 	var visit func(deps.Dependency) error
@@ -271,7 +271,7 @@ func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config, tc toolchai
 		}
 		seen[current.Name()] = true
 		if pkg, ok := current.(*deps.PkgConfigDependency); ok {
-			resolved, err := resolvePkgConfig(context.Background(), pkg, tc)
+			resolved, err := resolvePkgConfig(ctx, pkg, tc)
 			if err != nil {
 				return err
 			}
@@ -294,7 +294,7 @@ func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config, tc toolchai
 	return usage, nil
 }
 
-func targetDependencyUsage(cfg *config.Config, target config.Target, tc toolchain.Toolchain) (deps.Usage, error) {
+func targetDependencyUsage(ctx context.Context, cfg *config.Config, target config.Target, tc toolchain.Toolchain) (deps.Usage, error) {
 	var usage deps.Usage
 	seen := make(map[string]bool)
 	var visit func(string) error
@@ -315,7 +315,7 @@ func targetDependencyUsage(cfg *config.Config, target config.Target, tc toolchai
 			return nil
 		}
 		if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
-			resolved, err := resolvePkgConfig(context.Background(), pkg, tc)
+			resolved, err := resolvePkgConfig(ctx, pkg, tc)
 			if err != nil {
 				return err
 			}
@@ -453,7 +453,7 @@ func runtimeLibraryFlags(output string, paths []string, platform toolchain.Platf
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain, emitSharedRules bool, targetModuleOutputs map[string]map[string]string) ([]string, error) {
+func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain, emitSharedRules bool, targetModuleOutputs map[string]map[string]string) ([]string, error) {
 	if target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
@@ -473,7 +473,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	}
 	plan := build.PlanTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
 	buildCfg, usage := plan.Flags, plan.Usage
-	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
+	dependencyUsage, err := targetDependencyUsage(ctx, opts.Config, target, tc)
 	if err != nil {
 		return nil, fmt.Errorf("target %q: %w", target.Name, err)
 	}
@@ -1012,7 +1012,7 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 }
 
 // WriteNinjaTo writes Ninja file content to a writer (for testing)
-func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
+func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	// Set defaults
 	if opts.BuildDir == "" {
 		opts.BuildDir = ".build"
@@ -1078,7 +1078,7 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 			return fmt.Errorf("variant %q not found", variant)
 		}
 		file = append(file, ninja.Comment{Lines: []string{"Variant: " + variant}})
-		outputs, err := generateVariantBuilds(&file, opts, variant, variantConfig, targetOrder, toolchain, variantIndex == 0)
+		outputs, err := generateVariantBuilds(ctx, &file, opts, variant, variantConfig, targetOrder, toolchain, variantIndex == 0)
 		if err != nil {
 			return err
 		}

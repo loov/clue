@@ -43,7 +43,7 @@ func TestNinjaBuildsCrossTargetModulesPartitionsAndHeaderUnits(t *testing.T) {
 		Variants: map[string]config.Variant{"debug": {Name: "debug"}},
 	}
 	t.Chdir(dir)
-	if err := Ninja(NinjaOptions{
+	if err := Ninja(t.Context(), NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", OutputPath: "build.ninja", Toolchain: "clang", Platform: toolchain.HostPlatform(),
 	}); err != nil {
 		t.Fatal(err)

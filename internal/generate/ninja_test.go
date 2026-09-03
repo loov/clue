@@ -2,6 +2,8 @@ package generate
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +16,7 @@ import (
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/gccish"
 	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
@@ -46,7 +49,7 @@ func TestNinja_BasicStructure(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.cpp"})
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -113,7 +116,7 @@ func TestNinja_UnityBuild(t *testing.T) {
 	target.Unity = &config.UnityBuild{BatchSize: 8}
 	cfg.Targets["myapp"] = target
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: filepath.Join(dir, ".build"), Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -134,7 +137,7 @@ func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
 		Inputs: []string{"schema.idl"}, Outputs: []string{"generated.cpp"},
 	}
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -191,7 +194,7 @@ func TestNinja_CrossTargetModulesAndHeaderUnits(t *testing.T) {
 		HeaderUnits: []config.HeaderUnit{{Name: "answer.hpp", Path: "answer.hpp"}},
 	}
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang", Platform: toolchain.HostPlatform(),
 	}); err != nil {
 		t.Fatal(err)
@@ -216,7 +219,7 @@ func TestNinja_DefaultVariantWithoutConfiguration(t *testing.T) {
 	cfg.Variants = nil
 
 	var buf bytes.Buffer
-	if err := WriteNinjaTo(&buf, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config: cfg, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -234,7 +237,7 @@ func TestNinja_Depfile(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.c"})
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -293,7 +296,7 @@ func TestNinja_MultiVariant(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug", "release"},
 		BuildDir:  ".build",
@@ -332,7 +335,7 @@ func TestNinja_StaticLibrary(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "static_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -374,7 +377,7 @@ func TestNinja_LinksTargetDependenciesInOrder(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := WriteNinjaTo(&buf, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -413,7 +416,7 @@ func TestNinja_BuildsExternalDependencies(t *testing.T) {
 	cfg.Variants["release"] = config.Variant{Name: "release", Optimization: "fast"}
 
 	var buf bytes.Buffer
-	if err := WriteNinjaTo(&buf, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config: cfg, Variants: []string{"debug", "release"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -452,7 +455,7 @@ func TestNinja_HeaderOnlyDependencyAddsIncludesWithoutLibrary(t *testing.T) {
 		}),
 	}
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -481,7 +484,7 @@ func TestNinja_PrebuiltDependencyLinksExactLibrary(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -508,7 +511,7 @@ func TestNinja_ExternalDependencyUsesClueBuilder(t *testing.T) {
 	cfg.Variants["release"] = config.Variant{Name: "release", Optimization: "fast"}
 
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug", "release"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -550,7 +553,7 @@ Libs: -L${libdir} -lclue-sdk
 	}
 
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -560,6 +563,20 @@ Libs: -L${libdir} -lclue-sdk
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, output.String())
 		}
+	}
+}
+
+func TestTargetDependencyUsage_CancellationStopsPkgConfig(t *testing.T) {
+	dependency := deps.NewPkgConfigDependency("sdk", "clue-sdk", false)
+	target := config.Target{Name: "app", Depends: []string{"sdk"}}
+	cfg := &config.Config{Dependencies: map[string]deps.Dependency{"sdk": dependency}}
+	tc := gccish.New("clang", "clang", "clang++", "ar", toolchain.HostPlatform())
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := targetDependencyUsage(ctx, cfg, target, tc)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("targetDependencyUsage() error = %v, want context.Canceled", err)
 	}
 }
 
@@ -585,7 +602,7 @@ targets: lib: {
 	}
 
 	var buf bytes.Buffer
-	if err := WriteNinjaTo(&buf, NinjaOptions{
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
 		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
 	}); err != nil {
@@ -610,7 +627,7 @@ func TestNinja_SharedLibrary(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -653,7 +670,7 @@ func TestNinja_SharedLibrary_Darwin(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -709,7 +726,7 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 
 	file := ninja.File{}
 	addNinjaRules(&file, true)
-	if _, err := generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true, make(map[string]map[string]string)); err != nil {
+	if _, err := generateTargetBuilds(t.Context(), &file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true, make(map[string]map[string]string)); err != nil {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
@@ -759,7 +776,7 @@ func TestNinja_IncludesAndDefines(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -811,7 +828,7 @@ func TestNinja_ForwardSlashes(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -850,7 +867,7 @@ func TestNinja_WriteFile(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.cpp"})
 
 	outputPath := filepath.Join(tmpDir, "build.ninja")
-	err := Ninja(NinjaOptions{
+	err := Ninja(t.Context(), NinjaOptions{
 		Config:     cfg,
 		Variants:   []string{"debug"},
 		BuildDir:   ".build",
@@ -893,7 +910,7 @@ func TestNinja_WriteIfChanged(t *testing.T) {
 	}
 
 	// Generate first time
-	err := Ninja(opts)
+	err := Ninja(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("First Ninja failed: %v", err)
 	}
@@ -906,7 +923,7 @@ func TestNinja_WriteIfChanged(t *testing.T) {
 	mtime1 := info1.ModTime()
 
 	// Generate second time with same content - should not modify
-	err = Ninja(opts)
+	err = Ninja(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("Second Ninja failed: %v", err)
 	}
@@ -928,7 +945,7 @@ func TestNinja_CCompiler(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.c"})
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -974,7 +991,7 @@ func TestNinja_MixedSources(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := WriteNinjaTo(&buf, NinjaOptions{
+	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
 		Config:    cfg,
 		Variants:  []string{"debug"},
 		BuildDir:  ".build",
@@ -1004,7 +1021,7 @@ func TestNinja_MixedSources(t *testing.T) {
 func TestNinjaUsesResponseFilesForGCCStyleCommands(t *testing.T) {
 	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
 	var output bytes.Buffer
-	if err := WriteNinjaTo(&output, NinjaOptions{Config: cfg, Variants: []string{"debug"}, Toolchain: "clang", Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}}); err != nil {
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{Config: cfg, Variants: []string{"debug"}, Toolchain: "clang", Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}}); err != nil {
 		t.Fatal(err)
 	}
 	content := output.String()

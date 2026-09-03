@@ -485,6 +485,9 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 }
 
 func runGenerate(dir, variant, target string, args []string) int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// Parse subcommand
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "Usage: clue generate <ninja|compile-commands|all> [options]")
@@ -533,14 +536,14 @@ func runGenerate(dir, variant, target string, args []string) int {
 
 	switch subCmd {
 	case "ninja":
-		return generateNinja(dir, cfg, targetPlatform)
+		return generateNinja(ctx, dir, cfg, targetPlatform)
 	case "compile-commands":
-		return generateCompileCommands(dir, cfg, selectedVariant, targetPlatform)
+		return generateCompileCommands(ctx, dir, cfg, selectedVariant, targetPlatform)
 	case "all":
-		if ret := generateNinja(dir, cfg, targetPlatform); ret != 0 {
+		if ret := generateNinja(ctx, dir, cfg, targetPlatform); ret != 0 {
 			return ret
 		}
-		return generateCompileCommands(dir, cfg, selectedVariant, targetPlatform)
+		return generateCompileCommands(ctx, dir, cfg, selectedVariant, targetPlatform)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown generate subcommand: %s\n", subCmd)
 		fmt.Fprintln(os.Stderr, "Available subcommands: ninja, compile-commands, all")
@@ -559,7 +562,7 @@ func printError(err error) {
 	}
 }
 
-func generateNinja(dir string, cfg *config.Config, platform toolchain.Platform) int {
+func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform toolchain.Platform) int {
 	// Collect all variant names
 	variants := slices.Sorted(maps.Keys(cfg.Variants))
 	// If no variants defined, use "debug" as default
@@ -568,7 +571,7 @@ func generateNinja(dir string, cfg *config.Config, platform toolchain.Platform) 
 	}
 
 	outputPath := filepath.Join(dir, "build.ninja")
-	err := generate.Ninja(generate.NinjaOptions{
+	err := generate.Ninja(ctx, generate.NinjaOptions{
 		Config:     cfg,
 		Variants:   variants,
 		BuildDir:   cfg.BuildDir,
@@ -585,9 +588,9 @@ func generateNinja(dir string, cfg *config.Config, platform toolchain.Platform) 
 	return 0
 }
 
-func generateCompileCommands(dir string, cfg *config.Config, variant string, platform toolchain.Platform) int {
+func generateCompileCommands(ctx context.Context, dir string, cfg *config.Config, variant string, platform toolchain.Platform) int {
 	outputPath := filepath.Join(dir, "compile_commands.json")
-	err := generate.CompileCommands(generate.CompDBOptions{
+	err := generate.CompileCommands(ctx, generate.CompDBOptions{
 		Config:     cfg,
 		Variant:    variant,
 		BuildDir:   cfg.BuildDir,

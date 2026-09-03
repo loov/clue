@@ -112,7 +112,7 @@ variants: {
 
 	// Generate ninja file
 	ninjaPath := filepath.Join(tmpDir, "build.ninja")
-	err = Ninja(NinjaOptions{
+	err = Ninja(t.Context(), NinjaOptions{
 		Config:     cfg,
 		Variants:   []string{"debug"},
 		BuildDir:   buildDir,
@@ -228,7 +228,7 @@ variants: {
 
 	// Generate compile_commands.json
 	compdbPath := filepath.Join(tmpDir, "compile_commands.json")
-	err = CompileCommands(CompDBOptions{
+	err = CompileCommands(t.Context(), CompDBOptions{
 		Config:     cfg,
 		Variant:    "debug",
 		BuildDir:   ".build",
@@ -375,7 +375,7 @@ variants: {
 
 	// Generate ninja file
 	ninjaPath := filepath.Join(tmpDir, "build.ninja")
-	err = Ninja(NinjaOptions{
+	err = Ninja(t.Context(), NinjaOptions{
 		Config:     cfg,
 		Variants:   []string{"debug"},
 		BuildDir:   buildDir,

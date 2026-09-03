@@ -60,7 +60,7 @@ func TestCompileCommands_Basic(t *testing.T) {
 		Toolchain:  "clang",
 	}
 
-	err := CompileCommands(opts)
+	err := CompileCommands(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("CompileCommands failed: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestCompileCommands_UnityBuild(t *testing.T) {
 		Variants: map[string]config.Variant{}, Dependencies: map[string]deps.Dependency{},
 	}
 	output := filepath.Join(dir, "compile_commands.json")
-	if err := CompileCommands(CompDBOptions{Config: cfg, Variant: "debug", BuildDir: ".build", OutputPath: output, Toolchain: "clang"}); err != nil {
+	if err := CompileCommands(t.Context(), CompDBOptions{Config: cfg, Variant: "debug", BuildDir: ".build", OutputPath: output, Toolchain: "clang"}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(output)
@@ -187,7 +187,7 @@ func TestCompileCommands_Arguments(t *testing.T) {
 		Toolchain:  "clang",
 	}
 
-	if err := CompileCommands(opts); err != nil {
+	if err := CompileCommands(t.Context(), opts); err != nil {
 		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
@@ -301,7 +301,7 @@ func TestCompileCommands_MultipleTargets(t *testing.T) {
 		OutputPath: outputPath,
 	}
 
-	if err := CompileCommands(opts); err != nil {
+	if err := CompileCommands(t.Context(), opts); err != nil {
 		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
@@ -378,7 +378,7 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 		Toolchain:  "clang",
 	}
 
-	if err := CompileCommands(opts); err != nil {
+	if err := CompileCommands(t.Context(), opts); err != nil {
 		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
@@ -470,7 +470,7 @@ func TestCompileCommands_VariantFlags(t *testing.T) {
 		OutputPath: outputPath,
 	}
 
-	if err := CompileCommands(opts); err != nil {
+	if err := CompileCommands(t.Context(), opts); err != nil {
 		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
@@ -534,7 +534,7 @@ func TestCompileCommands_GCCToolchain(t *testing.T) {
 		Toolchain:  "gcc",
 	}
 
-	if err := CompileCommands(opts); err != nil {
+	if err := CompileCommands(t.Context(), opts); err != nil {
 		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
@@ -609,7 +609,7 @@ func TestCompileCommands_WithDependencies(t *testing.T) {
 		OutputPath: outputPath,
 	}
 
-	if err := CompileCommands(opts); err != nil {
+	if err := CompileCommands(t.Context(), opts); err != nil {
 		t.Fatalf("CompileCommands failed: %v", err)
 	}
 
