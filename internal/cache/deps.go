@@ -95,6 +95,9 @@ func makefileFields(s string) []string {
 	for _, r := range s {
 		switch {
 		case escaped:
+			if !unicode.IsSpace(r) {
+				field.WriteByte('\\')
+			}
 			field.WriteRune(r)
 			escaped = false
 		case r == '\\':

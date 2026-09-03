@@ -341,7 +341,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 
 func writeDependencyFile(output, source string, dependencies []string) (string, error) {
 	escape := func(path string) string {
-		return strings.NewReplacer("\\", "\\\\", " ", "\\ ", "\t", "\\\t").Replace(path)
+		return strings.NewReplacer(" ", "\\ ", "\t", "\\\t").Replace(path)
 	}
 	depFile := strings.TrimSuffix(output, filepath.Ext(output)) + ".d"
 	paths := append([]string{source}, dependencies...)

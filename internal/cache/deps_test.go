@@ -175,6 +175,28 @@ it has no colon
 		}
 	})
 
+	t.Run("preserves Windows path separators", func(t *testing.T) {
+		depFile := filepath.Join(tmpDir, "windows.d")
+		content := "C:\\build\\main.o: C:\\src\\main.cpp C:\\SDK\\include\\header.hpp\n"
+		if err := os.WriteFile(depFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		deps, err := ParseDepFile(depFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if deps.Target != `C:\build\main.o` {
+			t.Errorf("target = %q, want %q", deps.Target, `C:\build\main.o`)
+		}
+		want := []string{`C:\src\main.cpp`, `C:\SDK\include\header.hpp`}
+		for i := range want {
+			if len(deps.Sources) <= i || deps.Sources[i] != want[i] {
+				t.Fatalf("sources = %q, want %q", deps.Sources, want)
+			}
+		}
+	})
+
 	t.Run("handles empty continuation lines", func(t *testing.T) {
 		depFile := filepath.Join(tmpDir, "empty_continuation.d")
 		content := `main.o: src/main.cpp \
