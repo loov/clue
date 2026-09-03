@@ -120,7 +120,7 @@ func EstimateCommandLength(args []string) int {
 // This is used for compatibility with MSVC response file parsing.
 func QuoteResponseFileArg(arg string) string {
 	// Check if quoting is needed
-	needsQuoting := arg == "" || strings.ContainsAny(arg, " \t\n\"")
+	needsQuoting := arg == "" || strings.ContainsAny(arg, " \t\n\"\\")
 	if !needsQuoting {
 		return arg
 	}

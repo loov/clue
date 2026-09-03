@@ -348,7 +348,6 @@ func TestQuoteResponseFileArg_LeavesSimpleArgumentUnquoted(t *testing.T) {
 		{"/nologo", "/nologo"},
 		{"/O2", "/O2"},
 		{"/W4", "/W4"},
-		{"C:\\simple\\path.obj", "C:\\simple\\path.obj"},
 	}
 
 	for _, tt := range tests {
@@ -366,6 +365,7 @@ func TestQuoteResponseFileArg_QuotesWhitespaceAndBackslashes(t *testing.T) {
 	}{
 		{"path with spaces", `"path with spaces"`},
 		{"", `""`},
+		{`C:\simple\path.obj`, `"C:\simple\path.obj"`},
 		{"/I C:\\Program Files\\include", `"/I C:\Program Files\include"`},
 		{"has\ttab", `"has	tab"`},
 		{"has\nnewline", `"has
