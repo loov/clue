@@ -562,9 +562,13 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
-	// Compile with -fPIC (required for shared libraries)
+	// Compile with -fPIC where the platform supports it.
 	libObj := filepath.Join(tmpDir, "lib.o")
-	cmd := exec.Command("clang++", "-fPIC", "-c", libCpp, "-o", libObj)
+	compileArgs := []string{"-c", libCpp, "-o", libObj}
+	if toolchain.HostPlatform().OS != "windows" {
+		compileArgs = append([]string{"-fPIC"}, compileArgs...)
+	}
+	cmd := exec.Command("clang++", compileArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to compile lib.cpp: %v\nOutput: %s", err, output)
 	}
@@ -758,9 +762,13 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 		t.Fatalf("failed to write main.cpp: %v", err)
 	}
 
-	// Compile library with -fPIC
+	// Compile library with -fPIC where the platform supports it.
 	libObj := filepath.Join(tmpDir, "lib.o")
-	cmd := exec.Command("clang++", "-fPIC", "-c", libCpp, "-o", libObj)
+	compileArgs := []string{"-c", libCpp, "-o", libObj}
+	if toolchain.HostPlatform().OS != "windows" {
+		compileArgs = append([]string{"-fPIC"}, compileArgs...)
+	}
+	cmd := exec.Command("clang++", compileArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to compile lib.cpp: %v\nOutput: %s", err, output)
 	}
