@@ -73,13 +73,16 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 	}
 
 	// 4. Execute binary in current working directory
-	cmd := exec.Command(execPath, opts.Args...)
+	cmd := exec.CommandContext(ctx, execPath, opts.Args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	// cmd.Dir defaults to current directory - this is what we want
 
 	err = cmd.Run()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, ctxErr
+	}
 	exitCode := 0
 	if err != nil {
 		var exitErr *exec.ExitError
