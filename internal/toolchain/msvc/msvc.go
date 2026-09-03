@@ -280,5 +280,12 @@ func (t *Toolchain) Environment() map[string]string {
 	if t.installation == nil {
 		return nil
 	}
-	return t.installation.Environment
+	environment := make(map[string]string, len(t.installation.Environment)+1)
+	for key, value := range t.installation.Environment {
+		environment[key] = value
+	}
+	// /showIncludes output is localized. Force the English prefix consumed by
+	// direct builds and generated Ninja files.
+	environment["VSLANG"] = "1033"
+	return environment
 }

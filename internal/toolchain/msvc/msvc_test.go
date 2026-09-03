@@ -49,6 +49,19 @@ func TestToolchain_String(t *testing.T) {
 	}
 }
 
+func TestToolchain_EnvironmentForcesEnglishDiagnostics(t *testing.T) {
+	tc := newTestToolchain()
+	tc.installation.Environment["VSLANG"] = "1041"
+
+	environment := tc.Environment()
+	if got := environment["VSLANG"]; got != "1033" {
+		t.Fatalf("VSLANG = %q, want 1033", got)
+	}
+	if got := tc.installation.Environment["VSLANG"]; got != "1041" {
+		t.Fatalf("Environment mutated installation: VSLANG = %q", got)
+	}
+}
+
 func TestToolchain_IsCrossCompiler(t *testing.T) {
 	tc := newTestToolchain()
 

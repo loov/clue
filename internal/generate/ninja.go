@@ -994,11 +994,11 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	if msvc {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: `"$cc" $cflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
+				Name: "cc", Command: `set "VSLANG=1033"&& "$cc" $cflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: `"$cxx" $cxxflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
+				Name: "cxx", Command: `set "VSLANG=1033"&& "$cxx" $cxxflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CXX $out",
 			},
 			ninja.Rule{Name: "link", Command: `"$link" $in /OUT:"$out" $ldflags`, Description: "LINK $out"},

@@ -373,8 +373,7 @@ func TranslateStdForMSVC(std string) string {
 }
 
 // parseShowIncludes parses MSVC /showIncludes output to extract header dependencies.
-// The format is: "Note: including file: <path>" (English Visual Studio)
-// Note: This is localized in non-English VS - for v0.2.0 we assume English.
+// The toolchain forces VSLANG=1033, so the format is stable across installations.
 func parseShowIncludes(stdout string) []string {
 	var deps []string
 	prefix := "Note: including file:"

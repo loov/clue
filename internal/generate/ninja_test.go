@@ -698,7 +698,7 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	}
 	content := buf.String()
 	checks := []string{
-		`command = "$cc" $cflags /c "$source" /Fo"$object"`,
+		`command = set "VSLANG=1033"&& "$cc" $cflags /c "$source" /Fo"$object"`,
 		"deps = msvc",
 		`/std:c++20 /Iinclude /I"C:\Program Files\VS\include" /IC:\SDK\include /DBUILDING_LIB`,
 		`command = "$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`,
