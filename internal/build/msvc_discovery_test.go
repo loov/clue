@@ -23,7 +23,7 @@ func TestMSVCDiscovery_NotFoundError_OnNonWindows(t *testing.T) {
 	}
 }
 
-func TestMSVCInstallation_Fields(t *testing.T) {
+func TestMSVCInstallation_ExposesDetectedPathsAndEnvironment(t *testing.T) {
 	installation := &MSVCInstallation{
 		InstallPath: `C:\Program Files\Microsoft Visual Studio\2022\Community`,
 		Version:     "17.9.0",
@@ -62,7 +62,7 @@ func TestMSVCInstallation_Fields(t *testing.T) {
 	}
 }
 
-func TestMSVCInstallation_EmptyEnvironment(t *testing.T) {
+func TestMSVCInstallation_AllowsEmptyEnvironment(t *testing.T) {
 	installation := &MSVCInstallation{
 		InstallPath: `C:\VS`,
 		Version:     "17.0",
@@ -83,7 +83,7 @@ func TestMSVCInstallation_EmptyEnvironment(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_MSVC_OnLinux(t *testing.T) {
+func TestNewToolchain_RejectsMSVCOnLinux(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Test is for non-Windows platforms")
 	}
@@ -103,7 +103,7 @@ func TestNewToolchain_MSVC_OnLinux(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_MSVC_WindowsPlatform(t *testing.T) {
+func TestNewToolchain_AcceptsMSVCWindowsTarget(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Test is for non-Windows platforms")
 	}

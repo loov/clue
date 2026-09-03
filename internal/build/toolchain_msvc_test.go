@@ -30,7 +30,7 @@ func newTestMSVCToolchain() *MSVCToolchain {
 	return tc
 }
 
-func TestMSVCToolchain_Environment(t *testing.T) {
+func TestMSVCToolchain_EnvironmentReturnsDetectedValues(t *testing.T) {
 	tc := newTestMSVCToolchain()
 	want := []string{
 		`INCLUDE=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\include`,
@@ -43,7 +43,7 @@ func TestMSVCToolchain_Environment(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_Name(t *testing.T) {
+func TestMSVCToolchain_NameReportsMSVC(t *testing.T) {
 	tc := newTestMSVCToolchain()
 
 	got := tc.Name()
@@ -54,7 +54,7 @@ func TestMSVCToolchain_Name(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_String(t *testing.T) {
+func TestMSVCToolchain_StringReportsNativeMSVC(t *testing.T) {
 	tc := newTestMSVCToolchain()
 
 	got := tc.String()
@@ -65,7 +65,7 @@ func TestMSVCToolchain_String(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_IsCrossCompiler(t *testing.T) {
+func TestMSVCToolchain_IsCrossCompilerReturnsFalse(t *testing.T) {
 	tc := newTestMSVCToolchain()
 
 	// MSVC cross-compilation is deferred to v0.3.0
@@ -74,7 +74,7 @@ func TestMSVCToolchain_IsCrossCompiler(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_CC(t *testing.T) {
+func TestMSVCToolchain_CCUsesCL(t *testing.T) {
 	tc := newTestMSVCToolchain()
 
 	got := tc.CC()
@@ -85,7 +85,7 @@ func TestMSVCToolchain_CC(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_CXX(t *testing.T) {
+func TestMSVCToolchain_CXXUsesCL(t *testing.T) {
 	tc := newTestMSVCToolchain()
 
 	// MSVC uses cl.exe for both C and C++
@@ -97,7 +97,7 @@ func TestMSVCToolchain_CXX(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_AR(t *testing.T) {
+func TestMSVCToolchain_ARUsesLib(t *testing.T) {
 	tc := newTestMSVCToolchain()
 
 	got := tc.AR()
@@ -108,7 +108,7 @@ func TestMSVCToolchain_AR(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_CompilerFlags(t *testing.T) {
+func TestMSVCToolchain_CompilerFlagsMapConfiguration(t *testing.T) {
 	tests := []struct {
 		name         string
 		config       Config
@@ -226,7 +226,7 @@ func TestMSVCToolchain_CompilerFlags(t *testing.T) {
 	}
 }
 
-func TestMSVCToolchain_LinkerFlags(t *testing.T) {
+func TestMSVCToolchain_LinkerFlagsMapConfiguration(t *testing.T) {
 	tests := []struct {
 		name         string
 		config       Config

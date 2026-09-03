@@ -17,7 +17,7 @@ func TestBuilderCustomTarget_RunsOnlyWhenInputsChange(t *testing.T) {
 	t.Setenv("CLUE_CUSTOM_HELPER", "1")
 	target := config.Target{
 		Name: "generate", Type: "custom", Inputs: []string{input}, Outputs: []string{output},
-		Command: []string{os.Args[0], "-test.run=TestBuilderCustomTargetHelper", "--", output},
+		Command: []string{os.Args[0], "-test.run=TestBuilderCustomTargetHelper_CreatesDeclaredOutputs", "--", output},
 	}
 	b := &Builder{executor: NewExecutor(ExecutorConfig{})}
 	for range 2 {
@@ -39,7 +39,7 @@ func TestBuilderCustomTarget_RunsOnlyWhenInputsChange(t *testing.T) {
 	}
 }
 
-func TestBuilderCustomTargetHelper(t *testing.T) {
+func TestBuilderCustomTargetHelper_CreatesDeclaredOutputs(t *testing.T) {
 	if os.Getenv("CLUE_CUSTOM_HELPER") != "1" {
 		return
 	}

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestSetupSignalHandling_CreatesContext(t *testing.T) {
+func TestSetupSignalHandling_ReturnsActiveContext(t *testing.T) {
 	// SetupSignalHandling() creates a context that listens for signals.
 	// Note: We can't easily test actual signal delivery without affecting the test process,
 	// so we test the basic functionality of context creation.
@@ -34,7 +34,7 @@ func TestSetupSignalHandling_CreatesContext(t *testing.T) {
 	}
 }
 
-func TestContext_IsCancelled_InitiallyFalse(t *testing.T) {
+func TestContext_IsCancelledReturnsFalseInitially(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -48,7 +48,7 @@ func TestContext_IsCancelled_InitiallyFalse(t *testing.T) {
 	}
 }
 
-func TestContext_IsCancelled_TrueAfterCancel(t *testing.T) {
+func TestContext_IsCancelledReturnsTrueAfterCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 
 	bc := &Context{
@@ -91,7 +91,7 @@ func TestSetupSignalHandling_CancelStopsContext(t *testing.T) {
 	}
 }
 
-func TestContext_CloseStopsHandler(t *testing.T) {
+func TestContext_CloseCancelsContextAndStopsHandler(t *testing.T) {
 	bc := SetupSignalHandling()
 	bc.Close()
 
@@ -100,7 +100,7 @@ func TestContext_CloseStopsHandler(t *testing.T) {
 	}
 }
 
-func TestExecutor_ProcessGroupSetup(t *testing.T) {
+func TestExecutor_ProcessGroupSetupAllowsCommands(t *testing.T) {
 	// Test that RunCommandWithCleanup works for normal command execution
 	// This validates the SysProcAttr setup doesn't break normal execution
 
@@ -132,7 +132,7 @@ func TestExecutor_ProcessGroupSetup(t *testing.T) {
 	}
 }
 
-func TestExecutor_ProcessGroupSetup_WithArgs(t *testing.T) {
+func TestExecutor_ProcessGroupSetupPassesArguments(t *testing.T) {
 	// Test with multiple arguments to ensure arg passing works
 	executor := NewExecutor(ExecutorConfig{})
 
@@ -149,7 +149,7 @@ func TestExecutor_ProcessGroupSetup_WithArgs(t *testing.T) {
 	}
 }
 
-func TestExecutor_CancellationCleanup(t *testing.T) {
+func TestExecutor_CancellationCleanupReturnsPromptly(t *testing.T) {
 	// Test that cancelling a context properly terminates the command
 
 	executor := NewExecutor(ExecutorConfig{
@@ -190,7 +190,7 @@ func TestExecutor_CancellationCleanup(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_WithSetpgid(t *testing.T) {
+func TestExecutor_RunCommandUsesProcessGroup(t *testing.T) {
 	// Test that the regular RunCommand also has Setpgid and works correctly
 	executor := NewExecutor(ExecutorConfig{})
 
@@ -211,7 +211,7 @@ func TestExecutor_RunCommand_WithSetpgid(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommandWithCleanup_FailingCommand(t *testing.T) {
+func TestExecutor_RunCommandWithCleanupReturnsExitFailure(t *testing.T) {
 	// Test that failing commands return proper exit codes
 	executor := NewExecutor(ExecutorConfig{})
 
@@ -234,7 +234,7 @@ func TestExecutor_RunCommandWithCleanup_FailingCommand(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommandWithCleanup_WorkDir(t *testing.T) {
+func TestExecutor_RunCommandWithCleanupUsesDirectory(t *testing.T) {
 	// Test that working directory is properly set
 	executor := NewExecutor(ExecutorConfig{
 		WorkDir: "/tmp",

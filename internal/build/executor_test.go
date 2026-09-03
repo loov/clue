@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestExecutor_RunCommand_Success(t *testing.T) {
+func TestExecutor_RunCommandReturnsZeroExitCode(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false, // Capture output
 	})
@@ -28,7 +28,7 @@ func TestExecutor_RunCommand_Success(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_Failure(t *testing.T) {
+func TestExecutor_RunCommandReturnsNonzeroExitCode(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
@@ -47,7 +47,7 @@ func TestExecutor_RunCommand_Failure(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_NotFound(t *testing.T) {
+func TestExecutor_RunCommandReturnsMissingCommandError(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
@@ -63,7 +63,7 @@ func TestExecutor_RunCommand_NotFound(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_WithContext(t *testing.T) {
+func TestExecutor_RunCommandUsesActiveContext(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
@@ -83,13 +83,13 @@ func TestExecutor_RunCommand_WithContext(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_CaptureOutput(t *testing.T) {
+func TestExecutor_RunCommandCapturesStdout(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
 
 	result, err := executor.RunCommand(
-		t.Context(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "emit",
+		t.Context(), os.Args[0], "-test.run=^TestExecutorOutputHelper_WritesRequestedStreams$", "emit",
 	)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
@@ -100,12 +100,12 @@ func TestExecutor_RunCommand_CaptureOutput(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_Environment(t *testing.T) {
+func TestExecutor_RunCommandUsesConfiguredEnvironment(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		Environment: append(os.Environ(), "CLUE_EXECUTOR_TEST=configured"),
 	})
 	result, err := executor.RunCommand(
-		t.Context(), os.Args[0], "-test.run=^TestExecutorOutputHelper$", "env",
+		t.Context(), os.Args[0], "-test.run=^TestExecutorOutputHelper_WritesRequestedStreams$", "env",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +115,7 @@ func TestExecutor_RunCommand_Environment(t *testing.T) {
 	}
 }
 
-func TestExecutorOutputHelper(t *testing.T) {
+func TestExecutorOutputHelper_WritesRequestedStreams(t *testing.T) {
 	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "emit" {
 		fmt.Print("captured")
 		os.Exit(0)
@@ -126,7 +126,7 @@ func TestExecutorOutputHelper(t *testing.T) {
 	}
 }
 
-func TestExecutor_ToolExists(t *testing.T) {
+func TestExecutor_ToolExistsReportsPathLookup(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
 
 	// Test for a command that should exist on all systems
@@ -140,7 +140,7 @@ func TestExecutor_ToolExists(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_WorkDir(t *testing.T) {
+func TestExecutor_RunCommandUsesConfiguredDirectory(t *testing.T) {
 	// Create a temporary directory
 	tmpDir := t.TempDir()
 
@@ -161,7 +161,7 @@ func TestExecutor_RunCommand_WorkDir(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_Verbose(t *testing.T) {
+func TestExecutor_RunCommandPrintsCommandWhenVerbose(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		Verbose:      true,
 		StreamOutput: false,
@@ -175,7 +175,7 @@ func TestExecutor_RunCommand_Verbose(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_Duration(t *testing.T) {
+func TestExecutor_RunCommandRecordsDuration(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
@@ -196,7 +196,7 @@ func TestExecutor_RunCommand_Duration(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_Stderr(t *testing.T) {
+func TestExecutor_RunCommandCapturesStderr(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
@@ -215,7 +215,7 @@ func TestExecutor_RunCommand_Stderr(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_MultipleArgs(t *testing.T) {
+func TestExecutor_RunCommandPassesArguments(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
@@ -231,7 +231,7 @@ func TestExecutor_RunCommand_MultipleArgs(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_EmptyCommand(t *testing.T) {
+func TestExecutor_RunCommandRejectsEmptyCommand(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{
 		StreamOutput: false,
 	})
@@ -242,7 +242,7 @@ func TestExecutor_RunCommand_EmptyCommand(t *testing.T) {
 	}
 }
 
-func TestExecutor_RunCommand_StreamingMode(t *testing.T) {
+func TestExecutor_RunCommandStreamsOutput(t *testing.T) {
 	// Save original stdout
 	oldStdout := os.Stdout
 

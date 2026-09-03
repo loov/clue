@@ -76,8 +76,8 @@ targets: {
 	return configPath
 }
 
-// TestPlatformDetection verifies that HostPlatform() returns a valid platform
-func TestPlatformDetection(t *testing.T) {
+// TestHostPlatform_ReportsSupportedRuntimeTarget verifies that HostPlatform() returns a valid platform
+func TestHostPlatform_ReportsSupportedRuntimeTarget(t *testing.T) {
 	host := HostPlatform()
 
 	// Verify the platform string is in expected format (os-arch)
@@ -103,9 +103,9 @@ func TestPlatformDetection(t *testing.T) {
 	t.Logf("Detected host platform: %s", host)
 }
 
-// TestSameConfigMultiplePlatforms verifies that a platform-agnostic config can build successfully
+// TestPlatformAgnosticConfig_BuildsOnHost verifies that a platform-agnostic config can build successfully
 // This test verifies Success Criterion 1: Same config works on different platforms
-func TestSameConfigMultiplePlatforms(t *testing.T) {
+func TestPlatformAgnosticConfig_BuildsOnHost(t *testing.T) {
 	// Skip if no C++ compiler available
 	if !compilerAvailable("clang++") && !compilerAvailable("g++") {
 		t.Skip("no C++ compiler available (clang++ or g++)")
@@ -162,9 +162,9 @@ func TestSameConfigMultiplePlatforms(t *testing.T) {
 	t.Logf("Successfully built platform-agnostic config on %s using %s", HostPlatform(), toolchainName)
 }
 
-// TestCrossCompilationTarget verifies cross-compilation toolchain discovery
+// TestCrossCompilation_UsesTargetTripletTools verifies cross-compilation toolchain discovery
 // This test verifies Success Criterion 2: Cross-compilation uses correct toolchain
-func TestCrossCompilationTarget(t *testing.T) {
+func TestCrossCompilation_UsesTargetTripletTools(t *testing.T) {
 	// Test cross-compilation to linux-arm64 (if on amd64) or linux-amd64 (if on arm64)
 	host := HostPlatform()
 	var targetPlatform Platform
@@ -218,8 +218,8 @@ func TestCrossCompilationTarget(t *testing.T) {
 		targetPlatform, toolchain.CC(), toolchain.CXX(), toolchain.AR())
 }
 
-// TestCrossCompilationValidation verifies upfront validation of cross-compiler availability
-func TestCrossCompilationValidation(t *testing.T) {
+// TestCrossCompilation_RejectsUnavailableCompiler verifies upfront validation of cross-compiler availability
+func TestCrossCompilation_RejectsUnavailableCompiler(t *testing.T) {
 	// Test with an unavailable cross-compiler (darwin from linux)
 	host := HostPlatform()
 	if host.OS != "linux" {
@@ -247,8 +247,8 @@ func TestCrossCompilationValidation(t *testing.T) {
 	t.Logf("Cross-compilation validation correctly failed: %v", err)
 }
 
-// TestCrossCompilerNaming verifies GNU triplet prefix mapping
-func TestCrossCompilerNaming(t *testing.T) {
+// TestCrossCompilerNaming_MapsGNUTriplets verifies GNU triplet prefix mapping
+func TestCrossCompilerNaming_MapsGNUTriplets(t *testing.T) {
 	tests := []struct {
 		platform       Platform
 		expectedPrefix string
@@ -269,9 +269,9 @@ func TestCrossCompilerNaming(t *testing.T) {
 	}
 }
 
-// TestSemanticFlagMapping verifies semantic flag translation to compiler-specific flags
+// TestSemanticFlagMapping_TranslatesCompilerOptions verifies semantic flag translation to compiler-specific flags
 // This test verifies Success Criterion 3: Semantic flags map correctly
-func TestSemanticFlagMapping(t *testing.T) {
+func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 	tests := []struct {
 		name      string
 		config    Config
@@ -359,8 +359,8 @@ func TestSemanticFlagMapping(t *testing.T) {
 	}
 }
 
-// TestSemanticFlagMapping_Linker verifies semantic flag translation for linker
-func TestSemanticFlagMapping_Linker(t *testing.T) {
+// TestSemanticFlagMapping_TranslatesLinkerOptions verifies semantic flag translation for linker
+func TestSemanticFlagMapping_TranslatesLinkerOptions(t *testing.T) {
 	tests := []struct {
 		name      string
 		config    Config
@@ -412,9 +412,9 @@ func TestSemanticFlagMapping_Linker(t *testing.T) {
 	}
 }
 
-// TestPlatformSpecificExtensions verifies platform-specific shared library extensions
+// TestSharedLibraryExtension_UsesPlatformSuffix verifies platform-specific shared library extensions
 // This test verifies Success Criterion 4: Platform-specific file extensions
-func TestPlatformSpecificExtensions(t *testing.T) {
+func TestSharedLibraryExtension_UsesPlatformSuffix(t *testing.T) {
 	tests := []struct {
 		platform Platform
 		expected string
@@ -437,8 +437,8 @@ func TestPlatformSpecificExtensions(t *testing.T) {
 	}
 }
 
-// TestOutputPathExtensions verifies that Builder.OutputPath uses correct extensions
-func TestOutputPathExtensions(t *testing.T) {
+// TestOutputPath_UsesPlatformSuffix verifies that Builder.OutputPath uses correct extensions
+func TestOutputPath_UsesPlatformSuffix(t *testing.T) {
 	tests := []struct {
 		name         string
 		platform     Platform

@@ -10,7 +10,7 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func TestValidConfig(t *testing.T) {
+func TestLoader_AcceptsValidConfiguration(t *testing.T) {
 	// Create temp directory with valid config
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
@@ -311,7 +311,7 @@ targets: generate: {
 	}
 }
 
-func TestInvalidConfig(t *testing.T) {
+func TestLoader_RejectsInvalidConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -334,7 +334,7 @@ func TestInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestMissingConfig(t *testing.T) {
+func TestLoader_ReportsMissingConfiguration(t *testing.T) {
 	dir := t.TempDir() // Empty directory
 
 	loader := NewLoader()
@@ -350,7 +350,7 @@ func TestMissingConfig(t *testing.T) {
 	}
 }
 
-func TestTargetExtraction(t *testing.T) {
+func TestLoader_ExtractsTargets(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -454,7 +454,7 @@ targets: app: {
 	}
 }
 
-func TestLoaderNewLoader(t *testing.T) {
+func TestNewLoader_ReturnsReadyLoader(t *testing.T) {
 	loader := NewLoader()
 	if loader == nil {
 		t.Fatal("NewLoader should not return nil")
@@ -464,7 +464,7 @@ func TestLoaderNewLoader(t *testing.T) {
 	}
 }
 
-func TestSuggestFix(t *testing.T) {
+func TestSuggestFix_ReturnsNearestValidValue(t *testing.T) {
 	loader := NewLoader()
 
 	tests := []struct {
@@ -487,7 +487,7 @@ func TestSuggestFix(t *testing.T) {
 	}
 }
 
-func TestContainsIgnoreCase(t *testing.T) {
+func TestContainsIgnoreCase_MatchesWithoutCase(t *testing.T) {
 	tests := []struct {
 		s      string
 		substr string
@@ -508,7 +508,7 @@ func TestContainsIgnoreCase(t *testing.T) {
 	}
 }
 
-func TestVariantExtraction(t *testing.T) {
+func TestLoader_ExtractsVariants(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -555,7 +555,7 @@ func TestVariantExtraction(t *testing.T) {
 	}
 }
 
-func TestInvalidDirectory(t *testing.T) {
+func TestLoader_RejectsInvalidDirectory(t *testing.T) {
 	loader := NewLoader()
 	_, err := loader.Load("/nonexistent/path/that/does/not/exist")
 	if err == nil {
@@ -563,7 +563,7 @@ func TestInvalidDirectory(t *testing.T) {
 	}
 }
 
-func TestMinimalConfig(t *testing.T) {
+func TestLoader_AcceptsMinimalConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -616,7 +616,7 @@ targets: {
 	}
 }
 
-func TestLoaderAcceptsValidConfig(t *testing.T) {
+func TestLoader_AcceptsSchemaValidConfig(t *testing.T) {
 	dir := t.TempDir()
 	config := `package config
 name: "myproject"
@@ -689,7 +689,7 @@ variants: {
 	}
 }
 
-func TestLoaderErrorMessages(t *testing.T) {
+func TestLoader_ErrorsIncludeFieldContext(t *testing.T) {
 	dir := t.TempDir()
 	config := `package config
 name: "test"

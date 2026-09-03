@@ -8,7 +8,7 @@ import (
 	"github.com/loov/clue/internal/deps"
 )
 
-func TestDependencyExtraction(t *testing.T) {
+func TestLoader_ExtractsDependencyKinds(t *testing.T) {
 	// Create temp directory with test config
 	tmpDir := t.TempDir()
 
@@ -163,7 +163,7 @@ dependencies: {
 	}
 }
 
-func TestDependencyExtraction_InlineDepends(t *testing.T) {
+func TestLoader_ExtractsInlineDependencyEdges(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	configContent := `name: "test-inline-depends"
@@ -231,7 +231,7 @@ dependencies: {
 	}
 }
 
-func TestHeaderOnlyDependencyNeedsNoSources(t *testing.T) {
+func TestLoader_HeaderOnlyDependencyAllowsNoSources(t *testing.T) {
 	dir := t.TempDir()
 	contents := `
 name: "headers"
@@ -263,7 +263,7 @@ dependencies: headers: {
 	}
 }
 
-func TestPrebuiltDependencyNeedsNoSources(t *testing.T) {
+func TestLoader_PrebuiltDependencyAllowsNoSources(t *testing.T) {
 	dir := t.TempDir()
 	contents := `
 name: "prebuilt"
@@ -294,7 +294,7 @@ dependencies: sdk: {
 	}
 }
 
-func TestPkgConfigDependency(t *testing.T) {
+func TestLoader_ExtractsPkgConfigDependency(t *testing.T) {
 	dir := t.TempDir()
 	contents := `
 name: "system"
@@ -323,7 +323,7 @@ dependencies: ssl: {
 	}
 }
 
-func TestExternalBuildDependency(t *testing.T) {
+func TestLoader_ExtractsExternalBuildDependency(t *testing.T) {
 	dir := t.TempDir()
 	contents := `
 name: "external"
@@ -351,7 +351,7 @@ dependencies: foo: {
 	}
 }
 
-func TestDependencyValidation(t *testing.T) {
+func TestLoader_RejectsInvalidDependencies(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {

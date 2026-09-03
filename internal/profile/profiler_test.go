@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestNewProfiler(t *testing.T) {
+func TestNewProfiler_ReturnsProfilerForEitherMode(t *testing.T) {
 	t.Run("enabled", func(t *testing.T) {
 		p := NewProfiler(true)
 		if p == nil {
@@ -23,7 +23,7 @@ func TestNewProfiler(t *testing.T) {
 	})
 }
 
-func TestProfiler_RecordCompilation(t *testing.T) {
+func TestProfiler_RecordCompilationStoresEvents(t *testing.T) {
 	p := NewProfiler(true)
 	now := time.Now()
 
@@ -47,7 +47,7 @@ func TestProfiler_RecordCompilation(t *testing.T) {
 	}
 }
 
-func TestProfiler_RecordCompilation_Disabled(t *testing.T) {
+func TestProfiler_RecordCompilationIgnoresEventsWhenDisabled(t *testing.T) {
 	p := NewProfiler(false)
 	now := time.Now()
 
@@ -62,7 +62,7 @@ func TestProfiler_RecordCompilation_Disabled(t *testing.T) {
 	}
 }
 
-func TestProfiler_SlowestFiles(t *testing.T) {
+func TestProfiler_SlowestFilesSortsByDuration(t *testing.T) {
 	p := NewProfiler(true)
 	now := time.Now()
 
@@ -87,7 +87,7 @@ func TestProfiler_SlowestFiles(t *testing.T) {
 	}
 }
 
-func TestProfiler_SlowestFiles_LessThanN(t *testing.T) {
+func TestProfiler_SlowestFilesReturnsAllWhenLimitExceedsCount(t *testing.T) {
 	p := NewProfiler(true)
 	now := time.Now()
 
@@ -102,7 +102,7 @@ func TestProfiler_SlowestFiles_LessThanN(t *testing.T) {
 	}
 }
 
-func TestProfiler_SlowestFiles_NonPositive(t *testing.T) {
+func TestProfiler_SlowestFilesReturnsNoneForNonpositiveLimit(t *testing.T) {
 	p := NewProfiler(true)
 	p.RecordCompilation("file.cpp", time.Now(), time.Second, 1)
 
@@ -113,7 +113,7 @@ func TestProfiler_SlowestFiles_NonPositive(t *testing.T) {
 	}
 }
 
-func TestFormatDuration(t *testing.T) {
+func TestFormatDuration_UsesAdaptiveUnits(t *testing.T) {
 	tests := []struct {
 		duration time.Duration
 		want     string
@@ -136,7 +136,7 @@ func TestFormatDuration(t *testing.T) {
 	}
 }
 
-func TestProfiler_PrintSlowestFiles(t *testing.T) {
+func TestProfiler_PrintSlowestFilesIncludesNamesAndPercentages(t *testing.T) {
 	p := NewProfiler(true)
 	now := time.Now()
 
@@ -171,7 +171,7 @@ func TestProfiler_PrintSlowestFiles(t *testing.T) {
 	}
 }
 
-func TestProfiler_PrintSlowestFiles_Empty(t *testing.T) {
+func TestProfiler_PrintSlowestFilesWritesNothingWhenEmpty(t *testing.T) {
 	p := NewProfiler(true)
 	// No events recorded
 
@@ -185,7 +185,7 @@ func TestProfiler_PrintSlowestFiles_Empty(t *testing.T) {
 	}
 }
 
-func TestProfiler_TotalBuildTime(t *testing.T) {
+func TestProfiler_TotalBuildTimeReportsElapsedTime(t *testing.T) {
 	p := NewProfiler(true)
 	p.Start()
 

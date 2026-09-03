@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestParseDepFile(t *testing.T) {
+func TestParseDepFile_ParsesMakeDependencies(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	t.Run("parses simple .d file", func(t *testing.T) {

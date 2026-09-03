@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestWriteTrace_ValidJSON(t *testing.T) {
+func TestWriteTrace_WritesValidJSON(t *testing.T) {
 	p := NewProfiler(true)
 	p.Start()
 	now := p.buildStart
@@ -40,7 +40,7 @@ func TestWriteTrace_ValidJSON(t *testing.T) {
 	}
 }
 
-func TestWriteTrace_EventFields(t *testing.T) {
+func TestWriteTrace_PreservesEventMetadata(t *testing.T) {
 	p := NewProfiler(true)
 	p.Start()
 	now := p.buildStart
@@ -108,7 +108,7 @@ func TestWriteTrace_EventFields(t *testing.T) {
 	}
 }
 
-func TestWriteTrace_TimestampMicroseconds(t *testing.T) {
+func TestWriteTrace_ConvertsTimestampsToMicroseconds(t *testing.T) {
 	p := NewProfiler(true)
 	p.Start()
 	now := p.buildStart
@@ -152,7 +152,7 @@ func TestWriteTrace_TimestampMicroseconds(t *testing.T) {
 	}
 }
 
-func TestWriteTrace_EmptyProfile(t *testing.T) {
+func TestWriteTrace_EmptyProfileWritesEmptyEvents(t *testing.T) {
 	p := NewProfiler(true)
 	// No events recorded
 
@@ -184,7 +184,7 @@ func TestWriteTrace_EmptyProfile(t *testing.T) {
 	}
 }
 
-func TestWriteTrace_FileError(t *testing.T) {
+func TestWriteTrace_ReturnsFileCreationError(t *testing.T) {
 	p := NewProfiler(true)
 
 	// Call WriteTrace with invalid path
@@ -201,7 +201,7 @@ func TestWriteTrace_FileError(t *testing.T) {
 	}
 }
 
-func TestChromeTrace_PrettyPrint(t *testing.T) {
+func TestWriteTrace_IndentsJSON(t *testing.T) {
 	p := NewProfiler(true)
 	p.Start()
 	now := p.buildStart

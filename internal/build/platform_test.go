@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestHostPlatform(t *testing.T) {
+func TestHostPlatform_MatchesRuntime(t *testing.T) {
 	host := HostPlatform()
 
 	if host.OS == "" {
@@ -27,7 +27,7 @@ func TestHostPlatform(t *testing.T) {
 	}
 }
 
-func TestPlatformString(t *testing.T) {
+func TestPlatformString_JoinsOSAndArchitecture(t *testing.T) {
 	tests := []struct {
 		name string
 		p    Platform
@@ -70,7 +70,7 @@ func TestPlatformString(t *testing.T) {
 	}
 }
 
-func TestParseTarget_Valid(t *testing.T) {
+func TestParseTarget_AcceptsSupportedPlatforms(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
@@ -121,7 +121,7 @@ func TestParseTarget_Valid(t *testing.T) {
 	}
 }
 
-func TestParseTarget_Invalid(t *testing.T) {
+func TestParseTarget_RejectsMalformedAndUnsupportedPlatforms(t *testing.T) {
 	tests := []struct {
 		name       string
 		input      string
@@ -168,7 +168,7 @@ func TestParseTarget_Invalid(t *testing.T) {
 	}
 }
 
-func TestIsSupportedTarget(t *testing.T) {
+func TestIsSupportedTarget_RecognizesSupportedMatrix(t *testing.T) {
 	tests := []struct {
 		name      string
 		platform  Platform
@@ -223,7 +223,7 @@ func TestIsSupportedTarget(t *testing.T) {
 	}
 }
 
-func TestPlatformIsCrossCompile(t *testing.T) {
+func TestPlatformIsCrossCompile_ComparesWithHost(t *testing.T) {
 	host := HostPlatform()
 
 	tests := []struct {

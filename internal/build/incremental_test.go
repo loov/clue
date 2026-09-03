@@ -30,7 +30,7 @@ func getObjectMtimes(t *testing.T, buildDir, variant, target string, sources []s
 	return mtimes
 }
 
-func TestIncremental_FirstBuild(t *testing.T) {
+func TestIncremental_FirstBuildCompilesAllSources(t *testing.T) {
 	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
@@ -84,7 +84,7 @@ func TestIncremental_FirstBuild(t *testing.T) {
 	}
 }
 
-func TestIncremental_NoChanges(t *testing.T) {
+func TestIncremental_UnchangedBuildReusesCache(t *testing.T) {
 	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
@@ -144,7 +144,7 @@ func TestIncremental_NoChanges(t *testing.T) {
 	}
 }
 
-func TestIncremental_SourceChange(t *testing.T) {
+func TestIncremental_SourceChangeRecompilesObject(t *testing.T) {
 	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
@@ -208,7 +208,7 @@ int get_version() {
 	}
 }
 
-func TestIncremental_HeaderChange(t *testing.T) {
+func TestIncremental_HeaderChangeRecompilesConsumer(t *testing.T) {
 	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
@@ -267,7 +267,7 @@ func TestIncremental_HeaderChange(t *testing.T) {
 	}
 }
 
-func TestIncremental_ForceRebuild(t *testing.T) {
+func TestIncremental_ForceRebuildIgnoresCache(t *testing.T) {
 	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()
@@ -316,7 +316,7 @@ func TestIncremental_ForceRebuild(t *testing.T) {
 	}
 }
 
-func TestIncremental_ContentRevert(t *testing.T) {
+func TestIncremental_ContentRevertRestoresPriorCacheKey(t *testing.T) {
 	testclue.SkipIfNoClang(t)
 
 	tmpDir := t.TempDir()

@@ -15,9 +15,9 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-// TestNinjaIdenticalOutput verifies SC2:
+// TestNinja_ProducesDeterministicOutput verifies SC2:
 // "User runs `clue generate ninja` and gets build.ninja that produces identical results"
-func TestNinjaIdenticalOutput(t *testing.T) {
+func TestNinja_ProducesDeterministicOutput(t *testing.T) {
 	// Skip if ninja not installed
 	if _, err := exec.LookPath("ninja"); err != nil {
 		t.Skip("ninja not installed")
@@ -169,10 +169,10 @@ variants: {
 	t.Logf("Ninja identical output test passed: both executables work correctly")
 }
 
-// TestCompileCommandsIDECompatibility verifies SC3 and SC4:
+// TestCompileCommands_RemainCompatibleWithIDETools verifies SC3 and SC4:
 // "User opens project in VSCode/CLion and sees syntax highlighting, autocomplete"
 // "IDE shows correct include paths and defines from Clue configuration"
-func TestCompileCommandsIDECompatibility(t *testing.T) {
+func TestCompileCommands_RemainCompatibleWithIDETools(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create project with includes and defines
@@ -314,8 +314,8 @@ variants: {
 	t.Logf("  Has -g: %v", strings.Contains(argsStr, "-g"))
 }
 
-// TestNinjaSharedLibrary verifies that Ninja can build shared libraries correctly
-func TestNinjaSharedLibrary(t *testing.T) {
+// TestNinja_SharedLibraryBuildsRunnableConsumer verifies that Ninja can build shared libraries correctly
+func TestNinja_SharedLibraryBuildsRunnableConsumer(t *testing.T) {
 	// Skip if ninja not installed
 	if _, err := exec.LookPath("ninja"); err != nil {
 		t.Skip("ninja not installed")

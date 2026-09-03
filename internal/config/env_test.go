@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestEnvInjection(t *testing.T) {
+func TestResolveEnvVars_InjectsValuesIntoCUE(t *testing.T) {
 	envVars := map[string]string{
 		"USE_OPENSSL": "1",
 		"BUILD_TYPE":  "optimized",
@@ -28,7 +28,7 @@ func TestEnvInjection(t *testing.T) {
 	}
 }
 
-func TestLoaderWithEnvLoadsPackageOverlay(t *testing.T) {
+func TestLoaderWithEnv_AppliesPackageOverlay(t *testing.T) {
 	dir := t.TempDir()
 	contents := `package project
 name: _env.PROJECT_NAME
@@ -46,7 +46,7 @@ targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
 	}
 }
 
-func TestBuildEnvCUE(t *testing.T) {
+func TestBuildEnvCUE_ContainsResolvedVariables(t *testing.T) {
 	envVars := map[string]string{
 		"SIMPLE":         "value",
 		"WITH_SPECIAL":   "path/to/file",
@@ -73,7 +73,7 @@ func TestBuildEnvCUE(t *testing.T) {
 	}
 }
 
-func TestSanitizeKey(t *testing.T) {
+func TestSanitizeKey_ReplacesInvalidCharacters(t *testing.T) {
 	cases := []struct {
 		input    string
 		expected string
@@ -95,7 +95,7 @@ func TestSanitizeKey(t *testing.T) {
 	}
 }
 
-func TestEscapeString(t *testing.T) {
+func TestEscapeString_DoublesBackslashes(t *testing.T) {
 	cases := []struct {
 		input    string
 		expected string
@@ -113,7 +113,7 @@ func TestEscapeString(t *testing.T) {
 	}
 }
 
-func TestEnvResolutionBasics(t *testing.T) {
+func TestResolveEnvVars_UsesEnvironmentAndDefaults(t *testing.T) {
 	// Test with empty config (no env vars defined)
 	cfg := &Config{
 		Name:     "testproject",
@@ -139,7 +139,7 @@ func TestEnvResolutionBasics(t *testing.T) {
 	}
 }
 
-func TestEnvConfigStructure(t *testing.T) {
+func TestResolveEnvVars_TracksValuesAndSources(t *testing.T) {
 	env := &EnvConfig{
 		Variables: map[string]string{
 			"FOO": "bar",
@@ -157,7 +157,7 @@ func TestEnvConfigStructure(t *testing.T) {
 	}
 }
 
-func TestEnvVarPrecedence(t *testing.T) {
+func TestResolveEnvVars_EnvironmentOverridesDefault(t *testing.T) {
 	// Test: When env var is set, it should take precedence over default
 	t.Setenv("TEST_VAR", "from_env")
 
@@ -171,7 +171,7 @@ func TestEnvVarPrecedence(t *testing.T) {
 	}
 }
 
-func TestEnvValue_NotFound(t *testing.T) {
+func TestEnvValue_ReturnsFalseWhenMissing(t *testing.T) {
 	cfg := &Config{
 		Name:     "testproject",
 		Targets:  make(map[string]Target),
@@ -185,7 +185,7 @@ func TestEnvValue_NotFound(t *testing.T) {
 	}
 }
 
-func TestApplyEnvVars_WhenTrue(t *testing.T) {
+func TestApplyEnvVars_SelectsTrueBranch(t *testing.T) {
 	// Create a config with env-conditional defines
 	dir := t.TempDir()
 	configContent := `package config
@@ -248,7 +248,7 @@ env: {
 	}
 }
 
-func TestApplyEnvVars_WhenFalse(t *testing.T) {
+func TestApplyEnvVars_SelectsFalseBranch(t *testing.T) {
 	dir := t.TempDir()
 	configContent := `package config
 
@@ -303,7 +303,7 @@ env: {
 	}
 }
 
-func TestIsTruthy(t *testing.T) {
+func TestIsTruthy_RecognizesSupportedValues(t *testing.T) {
 	truthy := []string{"1", "true", "TRUE", "yes", "YES", "on", "ON"}
 	for _, v := range truthy {
 		if !isTruthy(v) {
@@ -319,7 +319,7 @@ func TestIsTruthy(t *testing.T) {
 	}
 }
 
-func TestApplyEnvVars_NoEnvSection(t *testing.T) {
+func TestApplyEnvVars_LeavesConfigWithoutEnvUnchanged(t *testing.T) {
 	dir := t.TempDir()
 	configContent := `package config
 
@@ -354,7 +354,7 @@ targets: {
 	}
 }
 
-func TestApplyEnvVars_MultipleTargets(t *testing.T) {
+func TestApplyEnvVars_AppliesToEveryTarget(t *testing.T) {
 	dir := t.TempDir()
 	configContent := `package config
 

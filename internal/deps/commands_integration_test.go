@@ -38,8 +38,8 @@ func captureStdout(t *testing.T, run func() error) (string, error) {
 	return output.String(), runErr
 }
 
-// TestDepsList_Integration tests the deps list command with a real project
-func TestDepsList_Integration(t *testing.T) {
+// TestDepsList_PrintsDependencyStatus tests the deps list command with a real project
+func TestDepsList_PrintsDependencyStatus(t *testing.T) {
 	// Setup: use testdata/deps-project
 	projectDir, err := filepath.Abs("../../testdata/deps-project")
 	if err != nil {
@@ -68,8 +68,8 @@ func TestDepsList_Integration(t *testing.T) {
 	}
 }
 
-// TestDepsFetch_Integration tests the deps fetch command with vendored dependency
-func TestDepsFetch_Integration(t *testing.T) {
+// TestDepsFetch_DownloadsConfiguredDependencies tests the deps fetch command with vendored dependency
+func TestDepsFetch_DownloadsConfiguredDependencies(t *testing.T) {
 	// Setup: use testdata/deps-project
 	projectDir, err := filepath.Abs("../../testdata/deps-project")
 	if err != nil {
@@ -103,8 +103,8 @@ func TestDepsFetch_Integration(t *testing.T) {
 	}
 }
 
-// TestDepsClean_Integration tests the deps clean command
-func TestDepsClean_Integration(t *testing.T) {
+// TestDepsClean_RemovesDependencyCache tests the deps clean command
+func TestDepsClean_RemovesDependencyCache(t *testing.T) {
 	// Create a temporary .deps directory with content
 	tempDir := t.TempDir()
 	depsDir := filepath.Join(tempDir, ".deps")
@@ -146,8 +146,8 @@ func TestDepsClean_Integration(t *testing.T) {
 	}
 }
 
-// TestBuildWithDeps_Integration tests the complete workflow end-to-end
-func TestBuildWithDeps_Integration(t *testing.T) {
+// TestBuildWithDeps_LinksFetchedDependency tests the complete workflow end-to-end
+func TestBuildWithDeps_LinksFetchedDependency(t *testing.T) {
 	// This test is essentially the same as TestSuccessCriteria1_VendoredDependency
 	// but focuses on the complete workflow aspect
 

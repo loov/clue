@@ -45,7 +45,7 @@ func createMinimalConfig(targetName, targetType string, sources []string) *confi
 	}
 }
 
-func TestNinja_BasicStructure(t *testing.T) {
+func TestNinja_EmitsRulesVariablesAndDefaultTarget(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.cpp"})
 
 	var buf bytes.Buffer
@@ -103,7 +103,7 @@ func TestNinja_BasicStructure(t *testing.T) {
 	}
 }
 
-func TestNinja_UnityBuild(t *testing.T) {
+func TestNinja_CompilesGeneratedUnitySources(t *testing.T) {
 	dir := t.TempDir()
 	sources := []string{filepath.Join(dir, "a.cpp"), filepath.Join(dir, "b.cpp")}
 	for _, source := range sources {
@@ -175,7 +175,7 @@ func TestTargetModules_WiresProducedBMIsToConsumers(t *testing.T) {
 	}
 }
 
-func TestNinja_CrossTargetModulesAndHeaderUnits(t *testing.T) {
+func TestNinja_ConnectsCrossTargetModulesAndHeaderUnits(t *testing.T) {
 	dir := t.TempDir()
 	for name, content := range map[string]string{
 		"math.cppm":       "export module math;\nimport :detail;\nexport int answer();\n",
@@ -233,7 +233,7 @@ func TestNinja_DefaultVariantWithoutConfiguration(t *testing.T) {
 	}
 }
 
-func TestNinja_Depfile(t *testing.T) {
+func TestNinja_EmitsGCCDependencyMetadata(t *testing.T) {
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.c"})
 
 	var buf bytes.Buffer
@@ -266,7 +266,7 @@ func TestNinja_Depfile(t *testing.T) {
 	}
 }
 
-func TestNinja_MultiVariant(t *testing.T) {
+func TestNinja_EmitsEveryVariant(t *testing.T) {
 	cfg := &config.Config{
 		Name:     "test-project",
 		BuildDir: ".build",
@@ -331,7 +331,7 @@ func TestNinja_MultiVariant(t *testing.T) {
 	}
 }
 
-func TestNinja_StaticLibrary(t *testing.T) {
+func TestNinja_EmitsArchiveRule(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "static_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
@@ -623,7 +623,7 @@ targets: lib: {
 	}
 }
 
-func TestNinja_SharedLibrary(t *testing.T) {
+func TestNinja_EmitsSharedLinkRule(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
@@ -666,7 +666,7 @@ func TestNinja_SharedLibrary(t *testing.T) {
 	}
 }
 
-func TestNinja_SharedLibrary_Darwin(t *testing.T) {
+func TestNinja_SharedLibraryUsesDarwinFlags(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
 
 	var buf bytes.Buffer
@@ -694,7 +694,7 @@ func TestNinja_SharedLibrary_Darwin(t *testing.T) {
 	}
 }
 
-func TestOutputNameForTarget_Windows(t *testing.T) {
+func TestOutputNameForTarget_AddsWindowsExtensions(t *testing.T) {
 	platform := toolchain.Platform{OS: "windows", Arch: "amd64"}
 	tests := map[string]string{
 		"executable":     "app.exe",
@@ -753,7 +753,7 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	}
 }
 
-func TestNinja_IncludesAndDefines(t *testing.T) {
+func TestNinja_PassesTargetUsageToCompiler(t *testing.T) {
 	cfg := &config.Config{
 		Name:     "test-project",
 		BuildDir: ".build",
@@ -806,7 +806,7 @@ func TestNinja_IncludesAndDefines(t *testing.T) {
 	}
 }
 
-func TestNinja_ForwardSlashes(t *testing.T) {
+func TestNinja_NormalizesPathsToForwardSlashes(t *testing.T) {
 	cfg := &config.Config{
 		Name:     "test-project",
 		BuildDir: ".build",
@@ -860,7 +860,7 @@ func TestNinja_ForwardSlashes(t *testing.T) {
 	}
 }
 
-func TestNinja_WriteFile(t *testing.T) {
+func TestNinja_WritesConfiguredOutput(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -895,7 +895,7 @@ func TestNinja_WriteFile(t *testing.T) {
 	}
 }
 
-func TestNinja_WriteIfChanged(t *testing.T) {
+func TestNinja_PreservesUnchangedOutput(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputPath := filepath.Join(tmpDir, "build.ninja")
 
@@ -940,7 +940,7 @@ func TestNinja_WriteIfChanged(t *testing.T) {
 	}
 }
 
-func TestNinja_CCompiler(t *testing.T) {
+func TestNinja_UsesCCForCOnlyTarget(t *testing.T) {
 	// Test that C files use cc rule, not cxx
 	cfg := createMinimalConfig("myapp", "executable", []string{"main.c"})
 
@@ -969,7 +969,7 @@ func TestNinja_CCompiler(t *testing.T) {
 	}
 }
 
-func TestNinja_MixedSources(t *testing.T) {
+func TestNinja_UsesLanguageSpecificCompilers(t *testing.T) {
 	// Test project with both C and C++ files
 	cfg := &config.Config{
 		Name:     "test-project",

@@ -14,8 +14,8 @@ import (
 	"github.com/loov/clue/internal/testclue"
 )
 
-// TestJsonExample_Integration tests the json-example testdata project
-func TestJsonExample_Integration(t *testing.T) {
+// TestJSONExample_BuildsAndRuns tests the json-example testdata project
+func TestJSONExample_BuildsAndRuns(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	projectDir, err := filepath.Abs("../../testdata/json-example")
@@ -90,8 +90,8 @@ func TestJsonExample_Integration(t *testing.T) {
 	}
 }
 
-// TestCatch2Example_Integration tests the catch2-example testdata project
-func TestCatch2Example_Integration(t *testing.T) {
+// TestCatch2Example_BuildsAndRuns tests the catch2-example testdata project
+func TestCatch2Example_BuildsAndRuns(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	projectDir, err := filepath.Abs("../../testdata/catch2-example")
@@ -167,8 +167,8 @@ func TestCatch2Example_Integration(t *testing.T) {
 	}
 }
 
-// TestMultiDepsExample_Integration tests the multi-deps-example testdata project
-func TestMultiDepsExample_Integration(t *testing.T) {
+// TestMultiDependencyExample_BuildsAndRuns tests the multi-deps-example testdata project
+func TestMultiDependencyExample_BuildsAndRuns(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	projectDir, err := filepath.Abs("../../testdata/multi-deps-example")

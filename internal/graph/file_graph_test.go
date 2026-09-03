@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestBuildFileGraph_SingleTarget(t *testing.T) {
+func TestBuildFileGraph_CreatesCompileAndLinkNodes(t *testing.T) {
 	builder := NewFileGraphBuilder()
 
 	targets := []TargetFiles{
@@ -71,7 +71,7 @@ func TestBuildFileGraph_SingleTarget(t *testing.T) {
 	}
 }
 
-func TestBuildFileGraph_MultipleTargets(t *testing.T) {
+func TestBuildFileGraph_ConnectsTargetDependencies(t *testing.T) {
 	builder := NewFileGraphBuilder()
 
 	targets := []TargetFiles{
@@ -122,7 +122,7 @@ func TestBuildFileGraph_MultipleTargets(t *testing.T) {
 	}
 }
 
-func TestBuildFileGraph_CycleDetection(t *testing.T) {
+func TestBuildFileGraph_RejectsTargetCycle(t *testing.T) {
 	builder := NewFileGraphBuilder()
 
 	// Create circular dependency: A depends on B, B depends on A
@@ -150,7 +150,7 @@ func TestBuildFileGraph_CycleDetection(t *testing.T) {
 	}
 }
 
-func TestObjectPath(t *testing.T) {
+func TestObjectPath_PlacesObjectUnderTargetDirectory(t *testing.T) {
 	builder := NewFileGraphBuilder()
 
 	tests := []struct {
@@ -170,7 +170,7 @@ func TestObjectPath(t *testing.T) {
 	}
 }
 
-func TestOutputPath(t *testing.T) {
+func TestOutputPath_UsesTypeSpecificArtifactDirectory(t *testing.T) {
 	builder := NewFileGraphBuilder()
 
 	tests := []struct {

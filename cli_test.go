@@ -82,7 +82,7 @@ func TestCLI_VerboseMode_ShowsCommands(t *testing.T) {
 	}
 }
 
-func TestCLI_MutuallyExclusiveFlags(t *testing.T) {
+func TestCLI_RejectsMutuallyExclusiveFlags(t *testing.T) {
 	testDir := filepath.Join("testdata", "multi-target")
 
 	_, stderr, exitCode := runClue(t, testDir, "--quiet", "-v", "build")
@@ -96,7 +96,7 @@ func TestCLI_MutuallyExclusiveFlags(t *testing.T) {
 	}
 }
 
-func TestCLI_FlagsAfterCommand(t *testing.T) {
+func TestCLI_AcceptsFlagsAfterCommand(t *testing.T) {
 	testDir := filepath.Join("testdata", "sample")
 
 	stdout, stderr, exitCode := runClue(t, ".", "validate", "-dir", testDir, "-variant", "release")
@@ -164,7 +164,7 @@ func TestCLI_BuildRejectsUnknownTarget(t *testing.T) {
 	}
 }
 
-func TestCLI_TimingDisplay(t *testing.T) {
+func TestCLI_VerboseModeShowsCompilationTimes(t *testing.T) {
 	testDir := filepath.Join("testdata", "multi-target")
 
 	// Clean first
@@ -264,7 +264,7 @@ func TestCLI_RunCommand_FailsOnMissingTarget(t *testing.T) {
 	}
 }
 
-func TestCLI_ModuleDetection(t *testing.T) {
+func TestCLI_BuildDetectsModuleInterfaces(t *testing.T) {
 	// Test module detection (doesn't require full compilation)
 	testDir := filepath.Join("testdata", "module-test")
 	if _, err := os.Stat(testDir); os.IsNotExist(err) {
@@ -280,7 +280,7 @@ func TestCLI_ModuleDetection(t *testing.T) {
 	}
 }
 
-func TestCLI_ModuleBuild(t *testing.T) {
+func TestCLI_BuildCompilesModuleConsumer(t *testing.T) {
 	// Check if clang-scan-deps is available
 	if _, err := exec.LookPath("clang-scan-deps"); err != nil {
 		t.Skip("clang-scan-deps not available, skipping module build test")

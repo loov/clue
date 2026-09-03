@@ -15,7 +15,7 @@ func getTestToolchain(t *testing.T, name string) Toolchain {
 	return tc
 }
 
-func TestCompilerFlags_Optimization(t *testing.T) {
+func TestCompilerFlags_MapOptimizationLevels(t *testing.T) {
 	tests := []struct {
 		name     string
 		optimize string
@@ -40,7 +40,7 @@ func TestCompilerFlags_Optimization(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_OptimizationUnknown(t *testing.T) {
+func TestCompilerFlags_OmitUnknownOptimization(t *testing.T) {
 	// Unknown optimization should not panic, just skip the flag
 	tc := getTestToolchain(t, "gcc")
 	config := Config{Optimize: "unknown"}
@@ -54,7 +54,7 @@ func TestCompilerFlags_OptimizationUnknown(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_Warnings(t *testing.T) {
+func TestCompilerFlags_MapWarningLevels(t *testing.T) {
 	tests := []struct {
 		name     string
 		warnings string
@@ -81,7 +81,7 @@ func TestCompilerFlags_Warnings(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_WarningsStrict(t *testing.T) {
+func TestCompilerFlags_StrictEnablesExtraWarnings(t *testing.T) {
 	// Verify strict includes both -Wall and -Wextra
 	tc := getTestToolchain(t, "gcc")
 	config := Config{Warnings: "strict"}
@@ -95,7 +95,7 @@ func TestCompilerFlags_WarningsStrict(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_WarningsPedantic(t *testing.T) {
+func TestCompilerFlags_PedanticEnablesConformanceWarnings(t *testing.T) {
 	// Verify pedantic includes all three flags
 	tc := getTestToolchain(t, "gcc")
 	config := Config{Warnings: "pedantic"}
@@ -108,7 +108,7 @@ func TestCompilerFlags_WarningsPedantic(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_WarningsAsErrors(t *testing.T) {
+func TestCompilerFlags_EnableWarningsAsErrors(t *testing.T) {
 	tests := []struct {
 		name             string
 		warningsAsErrors bool
@@ -132,7 +132,7 @@ func TestCompilerFlags_WarningsAsErrors(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_Debug(t *testing.T) {
+func TestCompilerFlags_MapDebugLevels(t *testing.T) {
 	tests := []struct {
 		name  string
 		debug string
@@ -165,7 +165,7 @@ func TestCompilerFlags_Debug(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_Combined(t *testing.T) {
+func TestCompilerFlags_CombineIndependentOptions(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{
 		Optimize:         "fast",
@@ -184,7 +184,7 @@ func TestCompilerFlags_Combined(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_RawFlags(t *testing.T) {
+func TestCompilerFlags_AppendRawFlags(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{
 		RawCompiler: []string{"-fPIC", "-march=native"},
@@ -200,7 +200,7 @@ func TestCompilerFlags_RawFlags(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_SysLibs(t *testing.T) {
+func TestLinkerFlags_AppendSystemLibraries(t *testing.T) {
 	tests := []struct {
 		name    string
 		sysLibs []string
@@ -235,7 +235,7 @@ func TestLinkerFlags_SysLibs(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_Debug(t *testing.T) {
+func TestLinkerFlags_EnableDebugInfo(t *testing.T) {
 	// Linker should include debug flag for symbol preservation
 	tc := getTestToolchain(t, "gcc")
 	config := Config{Debug: "full"}
@@ -246,7 +246,7 @@ func TestLinkerFlags_Debug(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_RawFlags(t *testing.T) {
+func TestLinkerFlags_AppendRawFlags(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{
 		RawLinker: []string{"-static", "-Wl,-rpath,/opt/lib"},
@@ -262,7 +262,7 @@ func TestLinkerFlags_RawFlags(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_Combined(t *testing.T) {
+func TestLinkerFlags_CombineIndependentOptions(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{
 		Debug:     "full",
@@ -279,7 +279,7 @@ func TestLinkerFlags_Combined(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_Empty(t *testing.T) {
+func TestLinkerFlags_EmptyConfigReturnsNoFlags(t *testing.T) {
 	// No configuration should produce minimal flags
 	tc := getTestToolchain(t, "gcc")
 	config := Config{}
@@ -298,7 +298,7 @@ func contains(slice []string, str string) bool {
 
 // Phase 5 extended flag tests
 
-func TestCompilerFlags_Sanitizers(t *testing.T) {
+func TestCompilerFlags_MapSanitizers(t *testing.T) {
 	tests := []struct {
 		name       string
 		sanitizers []string
@@ -326,7 +326,7 @@ func TestCompilerFlags_Sanitizers(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_MemorySanitizerGCC(t *testing.T) {
+func TestCompilerFlags_GCCRejectsMemorySanitizer(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{Sanitizers: []string{"memory"}}
 	flags := tc.CompilerFlags(config)
@@ -337,7 +337,7 @@ func TestCompilerFlags_MemorySanitizerGCC(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_MemorySanitizerClang(t *testing.T) {
+func TestCompilerFlags_ClangEnablesMemorySanitizer(t *testing.T) {
 	tc := getTestToolchain(t, "clang")
 	config := Config{Sanitizers: []string{"memory"}}
 	flags := tc.CompilerFlags(config)
@@ -348,7 +348,7 @@ func TestCompilerFlags_MemorySanitizerClang(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_LTO(t *testing.T) {
+func TestCompilerFlags_EnableLTO(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{LTO: true}
 	flags := tc.CompilerFlags(config)
@@ -358,7 +358,7 @@ func TestCompilerFlags_LTO(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_PIC(t *testing.T) {
+func TestCompilerFlags_EnablePIC(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{PIC: true}
 	flags := tc.CompilerFlags(config)
@@ -368,7 +368,7 @@ func TestCompilerFlags_PIC(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_CoverageClang(t *testing.T) {
+func TestCompilerFlags_EnableClangCoverage(t *testing.T) {
 	tc := getTestToolchain(t, "clang")
 	config := Config{Coverage: true}
 	flags := tc.CompilerFlags(config)
@@ -381,7 +381,7 @@ func TestCompilerFlags_CoverageClang(t *testing.T) {
 	}
 }
 
-func TestCompilerFlags_CoverageGCC(t *testing.T) {
+func TestCompilerFlags_EnableGCCCoverage(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{Coverage: true}
 	flags := tc.CompilerFlags(config)
@@ -394,7 +394,7 @@ func TestCompilerFlags_CoverageGCC(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_Sanitizers(t *testing.T) {
+func TestLinkerFlags_IncludeSanitizerRuntime(t *testing.T) {
 	tests := []struct {
 		name       string
 		sanitizers []string
@@ -421,7 +421,7 @@ func TestLinkerFlags_Sanitizers(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_LTO(t *testing.T) {
+func TestLinkerFlags_EnableLTO(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
 	config := Config{LTO: true}
 	flags := tc.LinkerFlags(config, nil)
@@ -431,7 +431,7 @@ func TestLinkerFlags_LTO(t *testing.T) {
 	}
 }
 
-func TestLinkerFlags_CoverageClang(t *testing.T) {
+func TestLinkerFlags_EnableClangCoverage(t *testing.T) {
 	tc := getTestToolchain(t, "clang")
 	config := Config{Coverage: true}
 	flags := tc.LinkerFlags(config, nil)

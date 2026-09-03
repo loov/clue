@@ -30,14 +30,14 @@ func captureStderr(t *testing.T, run func()) string {
 	return string(output)
 }
 
-func TestGCCToolchain_Name(t *testing.T) {
+func TestGCCToolchain_NameReportsGCC(t *testing.T) {
 	tc := New("gcc", "g++", "ar", toolchain.Platform{})
 	if got := tc.Name(); got != "gcc" {
 		t.Errorf("Name() = %q, want %q", got, "gcc")
 	}
 }
 
-func TestGCCToolchain_Sanitizers(t *testing.T) {
+func TestGCCToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 	t.Run("memory sanitizer is skipped with warning", func(t *testing.T) {
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
 		config := toolchain.Config{
@@ -76,7 +76,7 @@ func TestGCCToolchain_Sanitizers(t *testing.T) {
 	})
 }
 
-func TestGCCToolchain_Coverage(t *testing.T) {
+func TestGCCToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 	t.Run("coverage flags in compiler flags", func(t *testing.T) {
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
 		config := toolchain.Config{Coverage: true}
@@ -104,7 +104,7 @@ func TestGCCToolchain_Coverage(t *testing.T) {
 	})
 }
 
-func TestGCCToolchain_LinkerSanitizers(t *testing.T) {
+func TestGCCToolchain_LinkerFlagsIncludeSanitizerRuntime(t *testing.T) {
 	tc := New("gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{
 		Sanitizers: []string{"address", "memory"},
@@ -125,7 +125,7 @@ func TestGCCToolchain_LinkerSanitizers(t *testing.T) {
 	}
 }
 
-func TestGCCToolchain_InheritedBehavior(t *testing.T) {
+func TestGCCToolchain_InheritsGCCStyleFlags(t *testing.T) {
 	tc := New("gcc", "g++", "ar", toolchain.Platform{})
 
 	// Verify accessors work via embedding
@@ -145,7 +145,7 @@ func TestGCCToolchain_InheritedBehavior(t *testing.T) {
 	}
 }
 
-func TestGCCToolchain_CrossCompiler(t *testing.T) {
+func TestGCCToolchain_DetectsTargetPrefix(t *testing.T) {
 	tc := New("aarch64-linux-gnu-gcc", "aarch64-linux-gnu-g++", "aarch64-linux-gnu-ar", toolchain.Platform{})
 
 	if !tc.IsCrossCompiler() {

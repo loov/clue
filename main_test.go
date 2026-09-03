@@ -26,7 +26,7 @@ func TestSelectConfiguredTestsByNameAndLabel(t *testing.T) {
 	}
 }
 
-func TestValidateCommand(t *testing.T) {
+func TestValidateCommand_AcceptsValidConfiguration(t *testing.T) {
 	// Build the binary first
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
@@ -64,7 +64,7 @@ func TestValidateCommand(t *testing.T) {
 	}
 }
 
-func TestValidateWithVariant(t *testing.T) {
+func TestValidateCommand_AcceptsSelectedVariant(t *testing.T) {
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
 
@@ -88,7 +88,7 @@ func TestValidateWithVariant(t *testing.T) {
 	}
 }
 
-func TestValidateInvalidConfig(t *testing.T) {
+func TestValidateCommand_ReportsSchemaErrors(t *testing.T) {
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
 
@@ -124,7 +124,7 @@ func TestValidateInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestVersionFlag(t *testing.T) {
+func TestVersionFlag_PrintsVersion(t *testing.T) {
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
 
@@ -144,7 +144,7 @@ func TestVersionFlag(t *testing.T) {
 	}
 }
 
-func TestValidateEmptyProjectError(t *testing.T) {
+func TestValidateCommand_RejectsProjectWithoutTargets(t *testing.T) {
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
 
@@ -166,7 +166,7 @@ func TestValidateEmptyProjectError(t *testing.T) {
 	}
 }
 
-func TestBuildWithoutConfig(t *testing.T) {
+func TestBuild_DiscoversProjectWithoutConfiguration(t *testing.T) {
 	for _, tool := range []string{"clang", "clang++", "ar"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Skipf("%s is not installed", tool)
@@ -201,7 +201,7 @@ func TestBuildWithoutConfig(t *testing.T) {
 	}
 }
 
-func TestCycleDetectionError(t *testing.T) {
+func TestBuild_ReportsDependencyCycle(t *testing.T) {
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
 
@@ -243,7 +243,7 @@ func TestCycleDetectionError(t *testing.T) {
 	}
 }
 
-func TestBuild_MultiTarget(t *testing.T) {
+func TestBuild_BuildsMultipleTargets(t *testing.T) {
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
 	}
@@ -309,7 +309,7 @@ func TestBuild_MultiTarget(t *testing.T) {
 	}
 }
 
-func TestBuild_Verbose(t *testing.T) {
+func TestBuild_VerboseModePrintsCommands(t *testing.T) {
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
 	}
@@ -349,7 +349,7 @@ func TestBuild_Verbose(t *testing.T) {
 	}
 }
 
-func TestClean_AfterBuild(t *testing.T) {
+func TestClean_RemovesBuildArtifacts(t *testing.T) {
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
 	}
@@ -404,7 +404,7 @@ func TestClean_AfterBuild(t *testing.T) {
 	}
 }
 
-func TestBuild_SysLibs(t *testing.T) {
+func TestBuild_LinksSystemLibraries(t *testing.T) {
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
 	}
@@ -461,7 +461,7 @@ func TestBuild_SysLibs(t *testing.T) {
 	}
 }
 
-func TestTargetFlag_Empty(t *testing.T) {
+func TestTargetFlag_UsesHostPlatformWhenEmpty(t *testing.T) {
 	// Test that empty target uses HostPlatform
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
@@ -520,7 +520,7 @@ targets: app: {
 	}
 }
 
-func TestTargetFlag_Valid(t *testing.T) {
+func TestTargetFlag_AcceptsSupportedPlatform(t *testing.T) {
 	// Test that --target=linux-amd64 parses correctly (cross-compile from arm64)
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
@@ -559,7 +559,7 @@ func TestTargetFlag_Valid(t *testing.T) {
 	}
 }
 
-func TestTargetFlag_Invalid(t *testing.T) {
+func TestTargetFlag_RejectsMalformedPlatform(t *testing.T) {
 	// Test that --target=invalid produces error
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")
@@ -601,7 +601,7 @@ func TestTargetFlag_Invalid(t *testing.T) {
 	}
 }
 
-func TestTargetFlag_UnsupportedPlatform(t *testing.T) {
+func TestTargetFlag_RejectsUnsupportedPlatform(t *testing.T) {
 	// Test that --target=freebsd-amd64 produces error with supported platforms list
 	tempDir := t.TempDir()
 	binary := filepath.Join(tempDir, "clue")

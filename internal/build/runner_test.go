@@ -6,7 +6,7 @@ import (
 	"github.com/loov/clue/internal/config"
 )
 
-func TestRunTarget_TargetNotFound(t *testing.T) {
+func TestRunTarget_RejectsMissingTarget(t *testing.T) {
 	cfg := &config.Config{
 		Name:    "test",
 		Version: "1.0.0",
@@ -53,7 +53,7 @@ func TestRunTarget_TargetNotFound(t *testing.T) {
 	}
 }
 
-func TestRunTarget_NotExecutable_StaticLibrary(t *testing.T) {
+func TestRunTarget_RejectsStaticLibrary(t *testing.T) {
 	cfg := &config.Config{
 		Name:    "test",
 		Version: "1.0.0",
@@ -100,7 +100,7 @@ func TestRunTarget_NotExecutable_StaticLibrary(t *testing.T) {
 	}
 }
 
-func TestRunTarget_NotExecutable_SharedLibrary(t *testing.T) {
+func TestRunTarget_RejectsSharedLibrary(t *testing.T) {
 	cfg := &config.Config{
 		Name:    "test",
 		Version: "1.0.0",

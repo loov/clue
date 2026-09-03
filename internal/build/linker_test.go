@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-// TestLinker_LinkExecutable_Integration tests linking an executable from object files
-func TestLinker_LinkExecutable_Integration(t *testing.T) {
+// TestLinker_LinkExecutableProducesRunnableBinary tests linking an executable from object files
+func TestLinker_LinkExecutableProducesRunnableBinary(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -113,8 +113,8 @@ func TestLinkerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	}
 }
 
-// TestLinker_CreateStaticLibrary_Integration tests creating a static library
-func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
+// TestLinker_CreateStaticLibraryProducesArchive tests creating a static library
+func TestLinker_CreateStaticLibraryProducesArchive(t *testing.T) {
 	// Skip if ar not available
 	if _, err := exec.LookPath("ar"); err != nil {
 		t.Skip("ar not available")
@@ -195,8 +195,8 @@ func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 	}
 }
 
-// TestLinker_LinkWithStaticLibrary_Integration tests linking with a static library
-func TestLinker_LinkWithStaticLibrary_Integration(t *testing.T) {
+// TestLinker_LinkWithStaticLibraryResolvesSymbols tests linking with a static library
+func TestLinker_LinkWithStaticLibraryResolvesSymbols(t *testing.T) {
 	// Skip if tools not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -285,8 +285,8 @@ int main() { return add(20, 22); }`
 	}
 }
 
-// TestLinker_LinkWithSystemLib_Integration tests linking with system libraries
-func TestLinker_LinkWithSystemLib_Integration(t *testing.T) {
+// TestLinker_LinkWithSystemLibraryResolvesSymbols tests linking with system libraries
+func TestLinker_LinkWithSystemLibraryResolvesSymbols(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -348,8 +348,8 @@ int main() {
 	}
 }
 
-// TestLinker_OutputNaming tests output naming conventions
-func TestLinker_OutputNaming(t *testing.T) {
+// TestLinker_OutputNamingUsesPlatformExtensions tests output naming conventions
+func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 	// Skip if tools not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -428,8 +428,8 @@ func TestLinker_OutputNaming(t *testing.T) {
 	}
 }
 
-// TestSharedLibraryExtension_Linux verifies .so extension for Linux
-func TestSharedLibraryExtension_Linux(t *testing.T) {
+// TestSharedLibraryExtension_LinuxUsesSO verifies .so extension for Linux
+func TestSharedLibraryExtension_LinuxUsesSO(t *testing.T) {
 	linuxAmd64 := Platform{OS: "linux", Arch: "amd64"}
 	ext := SharedLibraryExtension(linuxAmd64)
 	if ext != ".so" {
@@ -443,8 +443,8 @@ func TestSharedLibraryExtension_Linux(t *testing.T) {
 	}
 }
 
-// TestSharedLibraryExtension_Darwin verifies .dylib extension for macOS
-func TestSharedLibraryExtension_Darwin(t *testing.T) {
+// TestSharedLibraryExtension_DarwinUsesDylib verifies .dylib extension for macOS
+func TestSharedLibraryExtension_DarwinUsesDylib(t *testing.T) {
 	darwinAmd64 := Platform{OS: "darwin", Arch: "amd64"}
 	ext := SharedLibraryExtension(darwinAmd64)
 	if ext != ".dylib" {
@@ -458,8 +458,8 @@ func TestSharedLibraryExtension_Darwin(t *testing.T) {
 	}
 }
 
-// TestLinker_WithToolchain verifies Linker uses Toolchain paths
-func TestLinker_WithToolchain(t *testing.T) {
+// TestLinker_UsesProvidedToolchain verifies Linker uses Toolchain paths
+func TestLinker_UsesProvidedToolchain(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
 	platform := HostPlatform()
 
@@ -492,8 +492,8 @@ func TestLinker_WithToolchain(t *testing.T) {
 	}
 }
 
-// TestLinker_CrossCompiler_AR verifies cross-compiler uses prefixed AR
-func TestLinker_CrossCompiler_AR(t *testing.T) {
+// TestLinker_CrossCompilerUsesPrefixedArchiver verifies cross-compiler uses prefixed AR
+func TestLinker_CrossCompilerUsesPrefixedArchiver(t *testing.T) {
 	// This test verifies the toolchain discovery logic for cross-compilation
 	// Note: Actual cross-compilers may not be installed, so we test the prefix logic
 
@@ -527,8 +527,8 @@ func TestLinker_CrossCompiler_AR(t *testing.T) {
 	}
 }
 
-// TestLinkSharedLibrary_CommandConstruction tests that LinkSharedLibrary constructs correct command
-func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
+// TestLinkSharedLibrary_ConstructsSharedLinkCommand tests that LinkSharedLibrary constructs correct command
+func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -597,8 +597,8 @@ func TestLinkSharedLibrary_CommandConstruction(t *testing.T) {
 	}
 }
 
-// TestLinkSharedLibrary_MacOSInstallName tests macOS install_name handling
-func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
+// TestLinkSharedLibrary_MacOSEmitsInstallName tests macOS install_name handling
+func TestLinkSharedLibrary_MacOSEmitsInstallName(t *testing.T) {
 	// Skip if not on macOS
 	if HostPlatform().OS != "darwin" {
 		t.Skip("macOS-specific test")
@@ -654,8 +654,8 @@ func TestLinkSharedLibrary_MacOSInstallName(t *testing.T) {
 	}
 }
 
-// TestLinkSharedLibrary_LinuxSONAME tests Linux SONAME handling
-func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
+// TestLinkSharedLibrary_LinuxEmitsSONAME tests Linux SONAME handling
+func TestLinkSharedLibrary_LinuxEmitsSONAME(t *testing.T) {
 	// Skip if not on Linux
 	if HostPlatform().OS != "linux" {
 		t.Skip("Linux-specific test")
@@ -716,8 +716,8 @@ func TestLinkSharedLibrary_LinuxSONAME(t *testing.T) {
 	}
 }
 
-// TestLinkSharedLibrary_WithExecutable tests linking executable against shared library
-func TestLinkSharedLibrary_WithExecutable(t *testing.T) {
+// TestLinkSharedLibrary_LinksRunnableConsumer tests linking executable against shared library
+func TestLinkSharedLibrary_LinksRunnableConsumer(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")

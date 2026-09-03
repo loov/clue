@@ -112,7 +112,7 @@ func createTestTarGzWithSymlink(t *testing.T) string {
 	return tmpName
 }
 
-func TestExtractTarGz_Normal(t *testing.T) {
+func TestExtractTarGz_ExtractsRegularFiles(t *testing.T) {
 	// Create test archive
 	files := map[string]string{
 		"file1.txt":         "content1",
@@ -152,7 +152,7 @@ func TestExtractTarGz_Normal(t *testing.T) {
 	}
 }
 
-func TestExtractTarGz_PathTraversal(t *testing.T) {
+func TestExtractTarGz_RejectsPathTraversal(t *testing.T) {
 	// Create malicious archive with path traversal
 	files := map[string]string{
 		"../../../etc/passwd": "malicious",
@@ -178,7 +178,7 @@ func TestExtractTarGz_PathTraversal(t *testing.T) {
 	}
 }
 
-func TestExtractTarGz_AbsolutePath(t *testing.T) {
+func TestExtractTarGz_RejectsAbsolutePath(t *testing.T) {
 	// Create archive with absolute path
 	files := map[string]string{
 		"/tmp/malicious.txt": "bad",
@@ -197,7 +197,7 @@ func TestExtractTarGz_AbsolutePath(t *testing.T) {
 	}
 }
 
-func TestExtractTarGz_SymlinkIgnored(t *testing.T) {
+func TestExtractTarGz_SkipsSymlinks(t *testing.T) {
 	// Create archive with symlink
 	archivePath := createTestTarGzWithSymlink(t)
 
@@ -221,7 +221,7 @@ func TestExtractTarGz_SymlinkIgnored(t *testing.T) {
 	}
 }
 
-func TestStripPrefix(t *testing.T) {
+func TestStripPrefix_RemovesCommonRoot(t *testing.T) {
 	// Create test directory structure
 	targetDir := t.TempDir()
 	prefix := "mylib-1.0.0"
@@ -283,7 +283,7 @@ func TestStripPrefixRejectsTraversal(t *testing.T) {
 	}
 }
 
-func TestDetectArchiveType(t *testing.T) {
+func TestDetectArchiveType_RecognizesSupportedExtensions(t *testing.T) {
 	tests := []struct {
 		path     string
 		expected string
@@ -311,7 +311,7 @@ func TestDetectArchiveType(t *testing.T) {
 	}
 }
 
-func TestExtractZip_Normal(t *testing.T) {
+func TestExtractZip_ExtractsRegularFiles(t *testing.T) {
 	// Create test zip archive
 	tmpName := filepath.Join(t.TempDir(), "test.zip")
 	tmpFile, err := os.Create(tmpName)
@@ -363,7 +363,7 @@ func TestExtractZip_Normal(t *testing.T) {
 	}
 }
 
-func TestExtractZip_PathTraversal(t *testing.T) {
+func TestExtractZip_RejectsPathTraversal(t *testing.T) {
 	// Create malicious zip
 	tmpName := filepath.Join(t.TempDir(), "test.zip")
 	tmpFile, err := os.Create(tmpName)

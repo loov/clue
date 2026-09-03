@@ -9,7 +9,7 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func TestToolchain_AccessorMethods(t *testing.T) {
+func TestToolchain_AccessorsReportConfiguredTools(t *testing.T) {
 	tc := New("gcc", "/usr/bin/gcc", "/usr/bin/g++", "/usr/bin/ar", toolchain.Platform{})
 
 	if got := tc.CC(); got != "/usr/bin/gcc" {
@@ -26,7 +26,7 @@ func TestToolchain_AccessorMethods(t *testing.T) {
 	}
 }
 
-func TestToolchain_ExplicitTargetFlags(t *testing.T) {
+func TestToolchain_CompilerFlagsIncludeExplicitTarget(t *testing.T) {
 	tc := New("clang", "clang", "clang++", "llvm-ar", toolchain.Platform{})
 	tc.ConfigureTarget("aarch64-linux-gnu", "/sdk")
 
@@ -40,7 +40,7 @@ func TestToolchain_ExplicitTargetFlags(t *testing.T) {
 	}
 }
 
-func TestToolchain_IsCrossCompiler(t *testing.T) {
+func TestToolchain_IsCrossCompilerRecognizesTargetPrefixes(t *testing.T) {
 	tests := []struct {
 		name string
 		cc   string
@@ -83,7 +83,7 @@ func TestToolchain_IsCrossCompiler(t *testing.T) {
 	}
 }
 
-func TestToolchain_String(t *testing.T) {
+func TestToolchain_StringDescribesCompilerAndTarget(t *testing.T) {
 	tests := []struct {
 		name     string
 		toolName string
@@ -120,7 +120,7 @@ func TestToolchain_String(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags_Optimization(t *testing.T) {
+func TestToolchain_CompilerFlagsMapOptimizationLevels(t *testing.T) {
 	tests := []struct {
 		level string
 		want  string
@@ -144,7 +144,7 @@ func TestToolchain_CompilerFlags_Optimization(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags_Warnings(t *testing.T) {
+func TestToolchain_CompilerFlagsMapWarningLevels(t *testing.T) {
 	tests := []struct {
 		level string
 		want  []string
@@ -170,7 +170,7 @@ func TestToolchain_CompilerFlags_Warnings(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags_WarningsAsErrors(t *testing.T) {
+func TestToolchain_CompilerFlagsEnableWarningsAsErrors(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{WarningsAsErrors: true}
 	flags := tc.CompilerFlags(config)
@@ -180,7 +180,7 @@ func TestToolchain_CompilerFlags_WarningsAsErrors(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags_Debug(t *testing.T) {
+func TestToolchain_CompilerFlagsMapDebugLevels(t *testing.T) {
 	tests := []struct {
 		level string
 		want  string
@@ -210,7 +210,7 @@ func TestToolchain_CompilerFlags_Debug(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags_LTO(t *testing.T) {
+func TestToolchain_CompilerFlagsEnableLTO(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{LTO: true}
 	flags := tc.CompilerFlags(config)
@@ -220,7 +220,7 @@ func TestToolchain_CompilerFlags_LTO(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags_PIC(t *testing.T) {
+func TestToolchain_CompilerFlagsEnablePIC(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{PIC: true}
 	flags := tc.CompilerFlags(config)
@@ -230,7 +230,7 @@ func TestToolchain_CompilerFlags_PIC(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags_RawCompiler(t *testing.T) {
+func TestToolchain_CompilerFlagsAppendRawFlags(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{RawCompiler: []string{"-march=native", "-DFOO=1"}}
 	flags := tc.CompilerFlags(config)
@@ -243,7 +243,7 @@ func TestToolchain_CompilerFlags_RawCompiler(t *testing.T) {
 	}
 }
 
-func TestToolchain_LinkerFlags_SysLibs(t *testing.T) {
+func TestToolchain_LinkerFlagsAppendSystemLibraries(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{}
 	sysLibs := []string{"pthread", "m", "dl"}
@@ -257,7 +257,7 @@ func TestToolchain_LinkerFlags_SysLibs(t *testing.T) {
 	}
 }
 
-func TestToolchain_LinkerFlags_Debug(t *testing.T) {
+func TestToolchain_LinkerFlagsEnableDebugInfo(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{Debug: "full"}
 	flags := tc.LinkerFlags(config, nil)
@@ -267,7 +267,7 @@ func TestToolchain_LinkerFlags_Debug(t *testing.T) {
 	}
 }
 
-func TestToolchain_LinkerFlags_LTO(t *testing.T) {
+func TestToolchain_LinkerFlagsEnableLTO(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{LTO: true}
 	flags := tc.LinkerFlags(config, nil)
@@ -277,7 +277,7 @@ func TestToolchain_LinkerFlags_LTO(t *testing.T) {
 	}
 }
 
-func TestToolchain_LinkerFlags_RawLinker(t *testing.T) {
+func TestToolchain_LinkerFlagsAppendRawFlags(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
 	config := toolchain.Config{RawLinker: []string{"-Wl,-rpath,/usr/local/lib", "-static"}}
 	flags := tc.LinkerFlags(config, nil)
@@ -290,7 +290,7 @@ func TestToolchain_LinkerFlags_RawLinker(t *testing.T) {
 	}
 }
 
-func TestSanitizerFlags_NoSkip(t *testing.T) {
+func TestSanitizerFlags_IncludesRequestedSanitizers(t *testing.T) {
 	sanitizers := []string{"address", "undefined", "memory"}
 	flags := SanitizerFlags(sanitizers, false)
 
@@ -306,7 +306,7 @@ func TestSanitizerFlags_NoSkip(t *testing.T) {
 	}
 }
 
-func TestSanitizerFlags_SkipMemory(t *testing.T) {
+func TestSanitizerFlags_OmitsMemoryWhenRequested(t *testing.T) {
 	// Capture stderr to verify warning
 	oldStderr := os.Stderr
 	r, w, err := os.Pipe()
@@ -348,7 +348,7 @@ func TestSanitizerFlags_SkipMemory(t *testing.T) {
 	}
 }
 
-func TestSanitizerFlags_Empty(t *testing.T) {
+func TestSanitizerFlags_EmptyInputReturnsNoFlags(t *testing.T) {
 	flags := SanitizerFlags(nil, false)
 	if len(flags) != 0 {
 		t.Errorf("SanitizerFlags(nil) = %v, want empty slice", flags)

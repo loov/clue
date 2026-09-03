@@ -10,7 +10,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-func TestLockFileRoundTrip(t *testing.T) {
+func TestLockFile_RoundTripPreservesEntries(t *testing.T) {
 	dir := t.TempDir()
 	want := LockEntry{Type: "git", URL: "https://example.com/lib.git", Ref: "main", Commit: "012345"}
 	lock := &LockFile{Version: 1, Dependencies: map[string]LockEntry{"lib": want}}

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestRunList_Empty(t *testing.T) {
+func TestRunList_PrintsNoDependencies(t *testing.T) {
 	// Empty dependencies map
 	deps := make(map[string]Dependency)
 
@@ -20,7 +20,7 @@ func TestRunList_Empty(t *testing.T) {
 	}
 }
 
-func TestRunList_WithDeps(t *testing.T) {
+func TestRunList_PrintsEveryDependency(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -43,7 +43,7 @@ func TestRunList_WithDeps(t *testing.T) {
 	// Success if no error
 }
 
-func TestRunList_Verbose(t *testing.T) {
+func TestRunList_VerboseModeIncludesLocations(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -62,7 +62,7 @@ func TestRunList_Verbose(t *testing.T) {
 	}
 }
 
-func TestRunFetch_NoDeps(t *testing.T) {
+func TestRunFetch_ReturnsWithoutDependencies(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -83,7 +83,7 @@ func TestRunFetch_NoDeps(t *testing.T) {
 	}
 }
 
-func TestRunFetch_InvalidDependency(t *testing.T) {
+func TestRunFetch_RejectsUnknownDependency(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -112,7 +112,7 @@ func TestRunFetch_InvalidDependency(t *testing.T) {
 	}
 }
 
-func TestRunClean_NotExists(t *testing.T) {
+func TestRunClean_IgnoresMissingCache(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -129,7 +129,7 @@ func TestRunClean_NotExists(t *testing.T) {
 	}
 }
 
-func TestRunClean_RemovesDir(t *testing.T) {
+func TestRunClean_RemovesCacheDirectory(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -169,7 +169,7 @@ func TestRunClean_RemovesDir(t *testing.T) {
 	}
 }
 
-func TestRunClean_SingleDependency(t *testing.T) {
+func TestRunClean_RemovesSelectedDependency(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -207,7 +207,7 @@ func TestRunClean_SingleDependency(t *testing.T) {
 	}
 }
 
-func TestRunUpdate(t *testing.T) {
+func TestRunUpdate_RefreshesConfiguredDependencies(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 

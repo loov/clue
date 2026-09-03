@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestValidateVerbosityFlags(t *testing.T) {
+func TestValidateVerbosityFlags_RejectsConflictingModes(t *testing.T) {
 	tests := []struct {
 		name    string
 		quiet   bool

@@ -16,7 +16,7 @@ import (
 	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
-func TestCompileCommands_Basic(t *testing.T) {
+func TestCompileCommands_IncludesEverySource(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
@@ -106,7 +106,7 @@ func TestCompileCommands_Basic(t *testing.T) {
 	}
 }
 
-func TestCompileCommands_UnityBuild(t *testing.T) {
+func TestCompileCommands_UsesGeneratedUnitySources(t *testing.T) {
 	dir := t.TempDir()
 	for _, source := range []string{"a.cpp", "b.cpp"} {
 		if err := os.WriteFile(filepath.Join(dir, source), []byte("// source\n"), 0o644); err != nil {
@@ -136,7 +136,7 @@ func TestCompileCommands_UnityBuild(t *testing.T) {
 	}
 }
 
-func TestCompileCommands_Arguments(t *testing.T) {
+func TestCompileCommands_EmitsArgumentArrays(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create config with includes, defines, std setting
@@ -256,7 +256,7 @@ func TestCompileCommands_Arguments(t *testing.T) {
 	}
 }
 
-func TestCompileCommands_MultipleTargets(t *testing.T) {
+func TestCompileCommands_IncludesEveryTarget(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -339,7 +339,7 @@ func TestCompileCommands_MultipleTargets(t *testing.T) {
 	}
 }
 
-func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
+func TestCompileCommands_UsesCXXForCPlusPlus(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -431,7 +431,7 @@ func TestIsCPlusPlusFile_ModuleInterfaces(t *testing.T) {
 	}
 }
 
-func TestCompileCommands_VariantFlags(t *testing.T) {
+func TestCompileCommands_IncludesSelectedVariantFlags(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -497,7 +497,7 @@ func TestCompileCommands_VariantFlags(t *testing.T) {
 	}
 }
 
-func TestCompileCommands_GCCToolchain(t *testing.T) {
+func TestCompileCommands_UsesGCCCommands(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &config.Config{
@@ -559,7 +559,7 @@ func TestCompileCommands_GCCToolchain(t *testing.T) {
 	}
 }
 
-func TestCompileCommands_WithDependencies(t *testing.T) {
+func TestCompileCommands_IncludesDependencyUsage(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create vendored dependency structure
@@ -672,7 +672,7 @@ func TestCompilerForSource(t *testing.T) {
 	}
 }
 
-func TestBuildCompilerArgs_MSVC(t *testing.T) {
+func TestBuildCompilerArgs_MSVCUsesNativeSwitches(t *testing.T) {
 	tc, err := msvc.New(&msvc.Installation{Environment: map[string]string{
 		"INCLUDE": `C:\VS Include;C:\SDK`,
 	}}, toolchain.Platform{OS: "windows", Arch: "amd64"})
@@ -698,7 +698,7 @@ func TestBuildCompilerArgs_MSVC(t *testing.T) {
 	}
 }
 
-func TestBuildCompilerArgs_SystemInclude(t *testing.T) {
+func TestBuildCompilerArgs_EmitsSystemIncludeFlags(t *testing.T) {
 	tc := gcc.New("gcc", "g++", "ar", toolchain.HostPlatform())
 	args := buildCompilerArgs(tc, "c17", nil, []string{"vendor/include"}, nil, "main.c", "main.o", toolchain.Config{})
 	if !containsArg(args, "-isystem") || !containsArg(args, AbsPath("vendor/include")) {

@@ -13,8 +13,8 @@ import (
 	"github.com/loov/clue/internal/testclue"
 )
 
-// TestParallelBuild_20Files tests that a 20-file project builds successfully with parallel compilation
-func TestParallelBuild_20Files(t *testing.T) {
+// TestParallelBuild_CompilesTwentyFiles tests that a 20-file project builds successfully with parallel compilation
+func TestParallelBuild_CompilesTwentyFiles(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	projectDir, cleanup := testclue.CreateLargeTestProject(t)
@@ -75,8 +75,8 @@ func TestParallelBuild_20Files(t *testing.T) {
 	}
 }
 
-// TestParallelBuild_ScalingComparison tests that parallel builds are faster than sequential
-func TestParallelBuild_ScalingComparison(t *testing.T) {
+// TestParallelBuild_UsesMultipleWorkers tests that parallel builds are faster than sequential
+func TestParallelBuild_UsesMultipleWorkers(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	projectDir, cleanup := testclue.CreateLargeTestProject(t)
@@ -145,8 +145,8 @@ func TestParallelBuild_ScalingComparison(t *testing.T) {
 	}
 }
 
-// TestParallelBuild_EndToEnd tests full parallel build pipeline
-func TestParallelBuild_EndToEnd(t *testing.T) {
+// TestParallelBuild_ProducesRunnableBinary tests full parallel build pipeline
+func TestParallelBuild_ProducesRunnableBinary(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	projectDir, cleanup := testclue.CreateLargeTestProject(t)
@@ -201,8 +201,8 @@ func TestParallelBuild_EndToEnd(t *testing.T) {
 	// full build pipeline works end-to-end with parallel compilation.
 }
 
-// TestParallelBuild_Cancellation tests that context cancellation terminates build cleanly
-func TestParallelBuild_Cancellation(t *testing.T) {
+// TestParallelBuild_CancellationStopsWorkers tests that context cancellation terminates build cleanly
+func TestParallelBuild_CancellationStopsWorkers(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	projectDir, cleanup := testclue.CreateLargeTestProject(t)
@@ -264,8 +264,8 @@ func TestParallelBuild_Cancellation(t *testing.T) {
 	// This is hard to test directly, but if we got here without hanging, it worked
 }
 
-// TestParallelBuild_KeepGoing tests that keep-going mode continues despite errors
-func TestParallelBuild_KeepGoing(t *testing.T) {
+// TestParallelBuild_KeepGoingReportsEveryFailure tests that keep-going mode continues despite errors
+func TestParallelBuild_KeepGoingReportsEveryFailure(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 
 	dir := t.TempDir()

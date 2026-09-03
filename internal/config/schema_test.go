@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSchemaEmbedded(t *testing.T) {
+func TestSchemaEmbedded_ContainsCoreDefinitions(t *testing.T) {
 	if Schema == "" {
 		t.Fatal("Schema should not be empty")
 	}
@@ -25,7 +25,7 @@ func TestSchemaEmbedded(t *testing.T) {
 	}
 }
 
-func TestSchemaConstraints(t *testing.T) {
+func TestSchemaConstraints_RejectInvalidValues(t *testing.T) {
 	// Verify key constraints are present
 	constraints := []string{
 		`"executable"`,     // Target type enum

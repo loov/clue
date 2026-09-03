@@ -12,8 +12,8 @@ import (
 	"github.com/loov/clue/internal/deps"
 )
 
-// TestDepBuilder_InlineConfig tests building a dependency with inline configuration
-func TestDepBuilder_InlineConfig(t *testing.T) {
+// TestDepBuilder_InlineConfigBuildsAndCachesLibrary tests building a dependency with inline configuration
+func TestDepBuilder_InlineConfigBuildsAndCachesLibrary(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
 
@@ -215,8 +215,8 @@ extern "C" int answer() { return 42; }
 	}
 }
 
-// TestDepBuilder_ClueConfig tests building a dependency with clue.cue configuration
-func TestDepBuilder_ClueConfig(t *testing.T) {
+// TestDepBuilder_ClueConfigBuildsLibrary tests building a dependency with clue.cue configuration
+func TestDepBuilder_ClueConfigBuildsLibrary(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
 
@@ -293,8 +293,8 @@ targets: {
 	}
 }
 
-// TestDepBuilder_NoConfig tests error when no configuration is available
-func TestDepBuilder_NoConfig(t *testing.T) {
+// TestDepBuilder_RejectsMissingConfiguration tests error when no configuration is available
+func TestDepBuilder_RejectsMissingConfiguration(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
 
@@ -347,8 +347,8 @@ func TestDepBuilder_NoConfig(t *testing.T) {
 	}
 }
 
-// TestDepBuilder_GlobSources tests glob expansion in source patterns
-func TestDepBuilder_GlobSources(t *testing.T) {
+// TestDepBuilder_ExpandsSourceGlobs tests glob expansion in source patterns
+func TestDepBuilder_ExpandsSourceGlobs(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
 
@@ -446,8 +446,8 @@ func TestResolveDepConfig_RejectsAmbiguousTargets(t *testing.T) {
 	}
 }
 
-// TestDepBuilder_IncludePath tests include path determination
-func TestDepBuilder_IncludePath(t *testing.T) {
+// TestDepBuilder_UsesConfiguredIncludePath tests include path determination
+func TestDepBuilder_UsesConfiguredIncludePath(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
 
@@ -514,8 +514,8 @@ int test() { return 42; }
 	}
 }
 
-// TestDepBuilder_HeadersIncludePath tests include path determination with headers field
-func TestDepBuilder_HeadersIncludePath(t *testing.T) {
+// TestDepBuilder_DerivesIncludePathFromHeaders tests include path determination with headers field
+func TestDepBuilder_DerivesIncludePathFromHeaders(t *testing.T) {
 	tests := []struct {
 		name         string
 		inlineConfig *deps.InlineConfig

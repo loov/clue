@@ -27,7 +27,7 @@ func newTestToolchain() *Toolchain {
 	}
 }
 
-func TestToolchain_Name(t *testing.T) {
+func TestToolchain_NameReportsMSVC(t *testing.T) {
 	tc := newTestToolchain()
 
 	got := tc.Name()
@@ -38,7 +38,7 @@ func TestToolchain_Name(t *testing.T) {
 	}
 }
 
-func TestToolchain_String(t *testing.T) {
+func TestToolchain_StringReportsNativeMSVC(t *testing.T) {
 	tc := newTestToolchain()
 
 	got := tc.String()
@@ -62,7 +62,7 @@ func TestToolchain_EnvironmentForcesEnglishDiagnostics(t *testing.T) {
 	}
 }
 
-func TestToolchain_IsCrossCompiler(t *testing.T) {
+func TestToolchain_IsCrossCompilerReturnsFalse(t *testing.T) {
 	tc := newTestToolchain()
 
 	// MSVC cross-compilation is deferred to v0.3.0
@@ -71,7 +71,7 @@ func TestToolchain_IsCrossCompiler(t *testing.T) {
 	}
 }
 
-func TestToolchain_CC(t *testing.T) {
+func TestToolchain_CCUsesCL(t *testing.T) {
 	tc := newTestToolchain()
 
 	got := tc.CC()
@@ -82,7 +82,7 @@ func TestToolchain_CC(t *testing.T) {
 	}
 }
 
-func TestToolchain_CXX(t *testing.T) {
+func TestToolchain_CXXUsesCL(t *testing.T) {
 	tc := newTestToolchain()
 
 	// MSVC uses cl.exe for both C and C++
@@ -94,7 +94,7 @@ func TestToolchain_CXX(t *testing.T) {
 	}
 }
 
-func TestToolchain_AR(t *testing.T) {
+func TestToolchain_ARUsesLib(t *testing.T) {
 	tc := newTestToolchain()
 
 	got := tc.AR()
@@ -105,7 +105,7 @@ func TestToolchain_AR(t *testing.T) {
 	}
 }
 
-func TestToolchain_CompilerFlags(t *testing.T) {
+func TestToolchain_CompilerFlagsMapConfiguration(t *testing.T) {
 	tests := []struct {
 		name         string
 		config       toolchain.Config
@@ -223,7 +223,7 @@ func TestToolchain_CompilerFlags(t *testing.T) {
 	}
 }
 
-func TestToolchain_LinkerFlags(t *testing.T) {
+func TestToolchain_LinkerFlagsMapConfiguration(t *testing.T) {
 	tests := []struct {
 		name         string
 		config       toolchain.Config
@@ -298,7 +298,7 @@ func TestToolchain_LinkerFlags(t *testing.T) {
 	}
 }
 
-func TestFlagMappings(t *testing.T) {
+func TestFlagMappings_ContainSupportedLevels(t *testing.T) {
 	// Test that flag mapping tables are properly defined
 	t.Run("optimization flags", func(t *testing.T) {
 		expected := map[string]string{
@@ -353,14 +353,14 @@ func TestFlagMappings(t *testing.T) {
 	})
 }
 
-func TestNew_NilInstallation(t *testing.T) {
+func TestNew_RejectsNilInstallation(t *testing.T) {
 	_, err := New(nil, toolchain.Platform{OS: "windows", Arch: "amd64"})
 	if err == nil {
 		t.Error("New(nil, ...) should return error")
 	}
 }
 
-func TestNew_ValidInstallation(t *testing.T) {
+func TestNew_CreatesToolchainFromInstallation(t *testing.T) {
 	installation := &Installation{
 		InstallPath: `C:\VS`,
 		Version:     "17.0",
@@ -382,7 +382,7 @@ func TestNew_ValidInstallation(t *testing.T) {
 	}
 }
 
-func TestToolchain_Environment(t *testing.T) {
+func TestToolchain_EnvironmentReturnsDetectedValues(t *testing.T) {
 	tc := newTestToolchain()
 	env := tc.Environment()
 
@@ -403,7 +403,7 @@ func TestToolchain_Environment(t *testing.T) {
 	}
 }
 
-func TestToolchain_Environment_NilInstallation(t *testing.T) {
+func TestToolchain_EnvironmentReturnsNilWithoutInstallation(t *testing.T) {
 	tc := &Toolchain{installation: nil}
 	env := tc.Environment()
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestManager_StatusEmpty(t *testing.T) {
+func TestManager_StatusReturnsEmptyWithoutDependencies(t *testing.T) {
 	// No dependencies configured should return empty status
 	tmpDir := t.TempDir()
 
@@ -23,7 +23,7 @@ func TestManager_StatusEmpty(t *testing.T) {
 	}
 }
 
-func TestManager_StatusMissing(t *testing.T) {
+func TestManager_StatusReportsMissingDependency(t *testing.T) {
 	// Dependencies configured but not fetched should show "missing"
 	tmpDir := t.TempDir()
 
@@ -93,7 +93,7 @@ func TestManager_VendoredAlwaysCached(t *testing.T) {
 	}
 }
 
-func TestFetchAll_SkipsCached(t *testing.T) {
+func TestFetchAll_DoesNotRefetchCachedDependencies(t *testing.T) {
 	// Verify that cached dependencies are not re-fetched
 	tmpDir := t.TempDir()
 
@@ -138,7 +138,7 @@ func TestFetchAll_SkipsCached(t *testing.T) {
 	}
 }
 
-func TestFetchOne_Unknown(t *testing.T) {
+func TestFetchOne_RejectsUnknownDependency(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
@@ -159,7 +159,7 @@ func TestFetchOne_Unknown(t *testing.T) {
 	}
 }
 
-func TestClean(t *testing.T) {
+func TestManager_CleanRemovesDependencyCache(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	deps := map[string]Dependency{
@@ -196,7 +196,7 @@ func TestClean(t *testing.T) {
 	}
 }
 
-func TestCleanOne_Unknown(t *testing.T) {
+func TestCleanOne_RejectsUnknownDependency(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
@@ -212,7 +212,7 @@ func TestCleanOne_Unknown(t *testing.T) {
 	}
 }
 
-func TestManager_BuildOrder(t *testing.T) {
+func TestManager_BuildOrdersDependenciesFirst(t *testing.T) {
 	// Verify that FetchAll uses correct build order
 	tmpDir := t.TempDir()
 

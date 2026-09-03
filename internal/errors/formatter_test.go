@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestRichErrorFormat(t *testing.T) {
+func TestRichErrorFormat_IncludesLocationSnippetAndSuggestion(t *testing.T) {
 	// Disable colors for predictable test output
 	SetNoColor(true)
 	defer SetNoColor(false)
@@ -54,7 +54,7 @@ func TestRichErrorFormat(t *testing.T) {
 	}
 }
 
-func TestRichErrorFormatMinimal(t *testing.T) {
+func TestRichErrorFormat_OmitsMissingContext(t *testing.T) {
 	SetNoColor(true)
 	defer SetNoColor(false)
 
@@ -74,7 +74,7 @@ func TestRichErrorFormatMinimal(t *testing.T) {
 	}
 }
 
-func TestRichErrorInterface(t *testing.T) {
+func TestRichError_ImplementsError(t *testing.T) {
 	err := &RichError{Message: "test error"}
 
 	// Should implement error interface
@@ -85,7 +85,7 @@ func TestRichErrorInterface(t *testing.T) {
 	}
 }
 
-func TestErrorListBasic(t *testing.T) {
+func TestErrorList_AddMarksListNonEmpty(t *testing.T) {
 	SetNoColor(true)
 	defer SetNoColor(false)
 
@@ -107,7 +107,7 @@ func TestErrorListBasic(t *testing.T) {
 	}
 }
 
-func TestErrorListFormat(t *testing.T) {
+func TestErrorList_FormatIncludesEveryError(t *testing.T) {
 	SetNoColor(true)
 	defer SetNoColor(false)
 
@@ -125,7 +125,7 @@ func TestErrorListFormat(t *testing.T) {
 	}
 }
 
-func TestErrorListMaxLimit(t *testing.T) {
+func TestErrorList_FormatHonorsMaximum(t *testing.T) {
 	SetNoColor(true)
 	defer SetNoColor(false)
 
@@ -151,7 +151,7 @@ func TestErrorListMaxLimit(t *testing.T) {
 	}
 }
 
-func TestErrorListInterface(t *testing.T) {
+func TestErrorList_ImplementsError(t *testing.T) {
 	list := NewErrorList()
 	list.Add(&RichError{Message: "test"})
 
@@ -164,7 +164,7 @@ func TestErrorListInterface(t *testing.T) {
 	}
 }
 
-func TestErrorListDefaultMax(t *testing.T) {
+func TestNewErrorList_DefaultsMaximumToTen(t *testing.T) {
 	list := NewErrorList()
 
 	if list.Max != 10 {
@@ -172,7 +172,7 @@ func TestErrorListDefaultMax(t *testing.T) {
 	}
 }
 
-func TestExtractSnippet(t *testing.T) {
+func TestExtractSnippet_ReturnsRequestedSourceLine(t *testing.T) {
 	// Create temp file
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.cue")
@@ -216,14 +216,14 @@ line 4`
 	}
 }
 
-func TestExtractSnippetFileNotFound(t *testing.T) {
+func TestExtractSnippet_ReturnsErrorForMissingFile(t *testing.T) {
 	_, err := ExtractSnippet("/nonexistent/file.cue", 1)
 	if err == nil {
 		t.Error("ExtractSnippet should error on nonexistent file")
 	}
 }
 
-func TestRichErrorFormatWithColors(t *testing.T) {
+func TestRichErrorFormat_IncludesANSIWhenEnabled(t *testing.T) {
 	// Enable colors
 	SetNoColor(false)
 

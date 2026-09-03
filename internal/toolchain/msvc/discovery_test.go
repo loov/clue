@@ -24,7 +24,7 @@ func TestFindMSVC_NotFoundError_OnNonWindows(t *testing.T) {
 	}
 }
 
-func TestError_Error(t *testing.T) {
+func TestError_ErrorReturnsMessage(t *testing.T) {
 	err := &Error{
 		Type:        "not_found",
 		Message:     "MSVC not found. Install Visual Studio: https://visualstudio.microsoft.com/downloads/",
@@ -38,7 +38,7 @@ func TestError_Error(t *testing.T) {
 	}
 }
 
-func TestError_NotFound(t *testing.T) {
+func TestNotFoundError_IncludesInstallInstructions(t *testing.T) {
 	err := newNotFoundError()
 
 	// Verify error type
@@ -62,7 +62,7 @@ func TestError_NotFound(t *testing.T) {
 	}
 }
 
-func TestError_VCVarsFailed(t *testing.T) {
+func TestVCVarsError_IncludesFailureDetails(t *testing.T) {
 	details := "exit code 1"
 	err := newVCVarsError(details)
 
@@ -82,7 +82,7 @@ func TestError_VCVarsFailed(t *testing.T) {
 	}
 }
 
-func TestError_ToolsNotFound(t *testing.T) {
+func TestToolsNotFoundError_IncludesInstallPath(t *testing.T) {
 	vsPath := `C:\Program Files\Microsoft Visual Studio\2022\Community`
 	err := newToolsNotFoundError(vsPath)
 
@@ -102,7 +102,7 @@ func TestError_ToolsNotFound(t *testing.T) {
 	}
 }
 
-func TestInstallation_Fields(t *testing.T) {
+func TestInstallation_ExposesDetectedPathsAndEnvironment(t *testing.T) {
 	installation := &Installation{
 		InstallPath: `C:\Program Files\Microsoft Visual Studio\2022\Community`,
 		Version:     "17.9.0",
@@ -141,7 +141,7 @@ func TestInstallation_Fields(t *testing.T) {
 	}
 }
 
-func TestInstallation_EmptyEnvironment(t *testing.T) {
+func TestInstallation_AllowsEnvironmentInitialization(t *testing.T) {
 	installation := &Installation{
 		InstallPath: `C:\VS`,
 		Version:     "17.0",
@@ -162,7 +162,7 @@ func TestInstallation_EmptyEnvironment(t *testing.T) {
 	}
 }
 
-func TestError_IsErrorInterface(t *testing.T) {
+func TestError_ImplementsErrorAndSupportsErrorsAs(t *testing.T) {
 	var err error = &Error{
 		Type:    "test",
 		Message: "test error",
@@ -184,7 +184,7 @@ func TestError_IsErrorInterface(t *testing.T) {
 	}
 }
 
-func TestInstallLink_Constant(t *testing.T) {
+func TestInstallLink_PointsToVisualStudioDownloads(t *testing.T) {
 	// Verify the install link constant is set correctly
 	if installLink != "https://visualstudio.microsoft.com/downloads/" {
 		t.Errorf("installLink = %q, want Visual Studio download URL", installLink)

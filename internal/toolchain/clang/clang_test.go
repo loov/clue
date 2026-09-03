@@ -9,14 +9,14 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func TestClangToolchain_Name(t *testing.T) {
+func TestClangToolchain_NameReportsClang(t *testing.T) {
 	tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
 	if got := tc.Name(); got != "clang" {
 		t.Errorf("Name() = %q, want %q", got, "clang")
 	}
 }
 
-func TestClangToolchain_Sanitizers(t *testing.T) {
+func TestClangToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 	t.Run("all sanitizers including memory are included", func(t *testing.T) {
 		tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
 		config := toolchain.Config{
@@ -71,7 +71,7 @@ func TestClangToolchain_Sanitizers(t *testing.T) {
 	})
 }
 
-func TestClangToolchain_Coverage(t *testing.T) {
+func TestClangToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 	t.Run("coverage flags in compiler flags", func(t *testing.T) {
 		tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
 		config := toolchain.Config{Coverage: true}
@@ -97,7 +97,7 @@ func TestClangToolchain_Coverage(t *testing.T) {
 	})
 }
 
-func TestClangToolchain_LinkerSanitizers(t *testing.T) {
+func TestClangToolchain_LinkerFlagsIncludeSanitizerRuntime(t *testing.T) {
 	tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
 	config := toolchain.Config{
 		Sanitizers: []string{"address", "memory"},
@@ -113,7 +113,7 @@ func TestClangToolchain_LinkerSanitizers(t *testing.T) {
 	}
 }
 
-func TestClangToolchain_InheritedBehavior(t *testing.T) {
+func TestClangToolchain_InheritsGCCStyleFlags(t *testing.T) {
 	tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
 
 	// Verify accessors work via embedding
@@ -133,7 +133,7 @@ func TestClangToolchain_InheritedBehavior(t *testing.T) {
 	}
 }
 
-func TestClangToolchain_CrossCompiler(t *testing.T) {
+func TestClangToolchain_DetectsTargetPrefix(t *testing.T) {
 	tc := New("aarch64-linux-gnu-clang", "aarch64-linux-gnu-clang++", "aarch64-linux-gnu-llvm-ar", toolchain.Platform{})
 
 	if !tc.IsCrossCompiler() {
@@ -145,7 +145,7 @@ func TestClangToolchain_CrossCompiler(t *testing.T) {
 	}
 }
 
-func TestClangToolchain_BaseFlags(t *testing.T) {
+func TestClangToolchain_CompilerFlagsIncludeClangDefaults(t *testing.T) {
 	tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
 	config := toolchain.Config{
 		Optimize: "fast",

@@ -30,7 +30,7 @@ func TestWriteDependencyFileEscapesPaths(t *testing.T) {
 	}
 }
 
-func TestCompiler_isCPlusPlus(t *testing.T) {
+func TestCompiler_IsCPlusPlusRecognizesExtensions(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
 	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(executor, tc)
@@ -61,7 +61,7 @@ func TestCompiler_isCPlusPlus(t *testing.T) {
 	}
 }
 
-func TestCompiler_WithToolchain(t *testing.T) {
+func TestCompiler_UsesProvidedToolchain(t *testing.T) {
 	executor := NewExecutor(ExecutorConfig{})
 	platform := HostPlatform()
 
@@ -170,7 +170,7 @@ func TestCompilerTracksSystemHeaders(t *testing.T) {
 	t.Fatalf("system header %q missing from dependencies: %v", header, dependencies.Sources)
 }
 
-func TestCompiler_CompileSource_Integration(t *testing.T) {
+func TestCompiler_CompileSourceProducesObject(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -292,7 +292,7 @@ func TestCompilerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	}
 }
 
-func TestCompiler_CompileSource_Error(t *testing.T) {
+func TestCompiler_CompileSourceReturnsCompilerFailure(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -342,7 +342,7 @@ func TestCompiler_CompileSource_Error(t *testing.T) {
 	}
 }
 
-func TestCompiler_CompileSource_WithFlags(t *testing.T) {
+func TestCompiler_CompileSourcePassesFlags(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -392,7 +392,7 @@ func TestCompiler_CompileSource_WithFlags(t *testing.T) {
 	}
 }
 
-func TestCompiler_CompileSource_WithIncludes(t *testing.T) {
+func TestCompiler_CompileSourcePassesIncludePaths(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -460,7 +460,7 @@ int main() { return HEADER_LOADED; }`
 	}
 }
 
-func TestCompileSource_GeneratesDepFile(t *testing.T) {
+func TestCompileSource_WritesDependencyFile(t *testing.T) {
 	// Skip if clang not available
 	if _, err := exec.LookPath("clang"); err != nil {
 		t.Skip("clang not found in PATH")
@@ -539,7 +539,7 @@ int main() { return VERSION; }
 	}
 }
 
-func TestCompileSource_DepFilePath(t *testing.T) {
+func TestCompileSource_UsesRequestedDependencyPath(t *testing.T) {
 	// Unit test - no actual compilation needed
 	// Just verify the path computation logic
 
@@ -555,7 +555,7 @@ func TestCompileSource_DepFilePath(t *testing.T) {
 	}
 }
 
-func TestCompiler_CompileSources_FailFast(t *testing.T) {
+func TestCompiler_CompileSourcesStopsAfterFirstFailure(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -641,8 +641,8 @@ func TestCompiler_CompileSources_FailFast(t *testing.T) {
 	}
 }
 
-// TestCompiler_SharedLibrary_AddsPIC tests that shared_library targets get -fPIC automatically
-func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
+// TestCompiler_SharedLibraryEnablesPIC tests that shared_library targets get -fPIC automatically
+func TestCompiler_SharedLibraryEnablesPIC(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -705,8 +705,8 @@ func TestCompiler_SharedLibrary_AddsPIC(t *testing.T) {
 	}
 }
 
-// TestCompiler_Executable_NoPIC tests that executable targets don't get -fPIC automatically
-func TestCompiler_Executable_NoPIC(t *testing.T) {
+// TestCompiler_ExecutableOmitsPIC tests that executable targets don't get -fPIC automatically
+func TestCompiler_ExecutableOmitsPIC(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")

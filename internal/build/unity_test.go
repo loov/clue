@@ -12,7 +12,7 @@ import (
 	"github.com/loov/clue/internal/testclue"
 )
 
-func TestPrepareUnityTarget(t *testing.T) {
+func TestPrepareUnityTarget_GeneratesBatchesAndPreservesExclusions(t *testing.T) {
 	dir := t.TempDir()
 	paths := make(map[string]string)
 	for name, content := range map[string]string{
@@ -49,7 +49,7 @@ func TestPrepareUnityTarget(t *testing.T) {
 	}
 }
 
-func TestUnityBuild(t *testing.T) {
+func TestUnityBuild_CompilesGeneratedSources(t *testing.T) {
 	testclue.SkipIfNoClangPP(t)
 	dir := t.TempDir()
 	first := filepath.Join(dir, "answer.cpp")

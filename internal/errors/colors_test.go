@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestErrorColor(t *testing.T) {
+func TestError_AddsBoldRedANSI(t *testing.T) {
 	// Enable colors for testing
 	SetNoColor(false)
 
@@ -19,7 +19,7 @@ func TestErrorColor(t *testing.T) {
 	}
 }
 
-func TestWarningColor(t *testing.T) {
+func TestWarning_AddsYellowANSI(t *testing.T) {
 	SetNoColor(false)
 
 	result := Warning("warning message")
@@ -31,7 +31,7 @@ func TestWarningColor(t *testing.T) {
 	}
 }
 
-func TestLocationColor(t *testing.T) {
+func TestLocation_AddsCyanANSI(t *testing.T) {
 	SetNoColor(false)
 
 	result := Location("file.go:%d:%d", 10, 5)
@@ -40,7 +40,7 @@ func TestLocationColor(t *testing.T) {
 	}
 }
 
-func TestLineNumColor(t *testing.T) {
+func TestLineNum_AddsBlueANSI(t *testing.T) {
 	SetNoColor(false)
 
 	result := LineNum(" %4d | ", 10)
@@ -49,7 +49,7 @@ func TestLineNumColor(t *testing.T) {
 	}
 }
 
-func TestHelpColor(t *testing.T) {
+func TestHelp_AddsGreenANSI(t *testing.T) {
 	SetNoColor(false)
 
 	result := Help("try this")
@@ -58,7 +58,7 @@ func TestHelpColor(t *testing.T) {
 	}
 }
 
-func TestNoColorMode(t *testing.T) {
+func TestSetNoColor_DisablesANSI(t *testing.T) {
 	SetNoColor(true)
 	defer SetNoColor(false)
 
@@ -78,7 +78,7 @@ func TestNoColorMode(t *testing.T) {
 	}
 }
 
-func TestNO_COLOREnvVar(t *testing.T) {
+func TestNO_COLOR_DisablesANSI(t *testing.T) {
 	// This test verifies the behavior documented at https://no-color.org/
 	// The init() function checks NO_COLOR env var
 
@@ -97,7 +97,7 @@ func TestNO_COLOREnvVar(t *testing.T) {
 	SetNoColor(originalNoColor)
 }
 
-func TestNoColorGetter(t *testing.T) {
+func TestNoColor_ReportsConfiguredMode(t *testing.T) {
 	SetNoColor(true)
 	if !NoColor() {
 		t.Error("NoColor() should return true after SetNoColor(true)")
@@ -109,7 +109,7 @@ func TestNoColorGetter(t *testing.T) {
 	}
 }
 
-func TestColorizeEmptyString(t *testing.T) {
+func TestColorize_EmptyStringRemainsEmpty(t *testing.T) {
 	SetNoColor(false)
 
 	result := Error("")

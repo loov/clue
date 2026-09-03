@@ -21,7 +21,7 @@ func createTempSource(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-func TestParallelCompiler_SingleFile(t *testing.T) {
+func TestParallelCompiler_CompilesSingleFile(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -88,7 +88,7 @@ func TestParallelCompiler_SingleFile(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_MultipleFiles(t *testing.T) {
+func TestParallelCompiler_CompilesMultipleFiles(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -161,7 +161,7 @@ func TestParallelCompiler_MultipleFiles(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_ConcurrencyLimit(t *testing.T) {
+func TestParallelCompiler_RespectsConcurrencyLimit(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -330,7 +330,7 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_ContextCancellation(t *testing.T) {
+func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
@@ -388,7 +388,7 @@ func TestParallelCompiler_ContextCancellation(t *testing.T) {
 	_ = results
 }
 
-func TestParallelCompiler_EmptySources(t *testing.T) {
+func TestParallelCompiler_EmptySourcesReturnNoResults(t *testing.T) {
 	// Setup compiler
 	tc, _ := NewToolchain("clang", HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
@@ -404,7 +404,7 @@ func TestParallelCompiler_EmptySources(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_Progress(t *testing.T) {
+func TestParallelCompiler_ProgressReportsCompletedWork(t *testing.T) {
 	// Unit test - no compilation needed
 	tc, _ := NewToolchain("clang", HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
@@ -419,7 +419,7 @@ func TestParallelCompiler_Progress(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_Active(t *testing.T) {
+func TestParallelCompiler_ActiveTracksCurrentFiles(t *testing.T) {
 	// Unit test - no compilation needed
 	tc, _ := NewToolchain("clang", HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
@@ -446,7 +446,7 @@ func TestParallelCompiler_Active(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_OutputNotInterleaved(t *testing.T) {
+func TestParallelCompiler_BuffersEachCommandOutput(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")

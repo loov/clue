@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestClean_VariantOnly(t *testing.T) {
+func TestClean_RemovesSelectedVariant(t *testing.T) {
 	// Setup: Create temp directory structure
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -72,7 +72,7 @@ func TestClean_VariantOnly(t *testing.T) {
 	}
 }
 
-func TestClean_All(t *testing.T) {
+func TestClean_RemovesEntireBuildDirectory(t *testing.T) {
 	// Setup: Create temp directory structure
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -123,7 +123,7 @@ func TestClean_All(t *testing.T) {
 	}
 }
 
-func TestClean_NonExistent(t *testing.T) {
+func TestClean_IgnoresMissingBuildDirectory(t *testing.T) {
 	// Test: Clean non-existent directory
 	tmpDir := t.TempDir()
 	nonExistentBuild := filepath.Join(tmpDir, "nonexistent_build_xyz")
@@ -167,7 +167,7 @@ func TestClean_RemovesDanglingSymlink(t *testing.T) {
 	}
 }
 
-func TestClean_EmptyVariant(t *testing.T) {
+func TestClean_RejectsEmptyVariant(t *testing.T) {
 	// Test: Clean with empty variant and All=false should return error
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, ".build")

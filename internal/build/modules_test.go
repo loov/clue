@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestModuleCompileFlagsByToolchain(t *testing.T) {
+func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 	clang, _ := NewToolchain("clang", HostPlatform())
 	gcc, _ := NewToolchain("gcc", HostPlatform())
 	tests := []struct {
@@ -35,7 +35,7 @@ func TestModuleCompileFlagsByToolchain(t *testing.T) {
 	}
 }
 
-func TestMSVCInternalPartitionAndHeaderUnitFlags(t *testing.T) {
+func TestMSVCModuleFlags_IncludePartitionAndHeaderUnitSwitches(t *testing.T) {
 	tc := newTestMSVCToolchain()
 	partition := ModuleCompileFlags(tc, ModuleDependency{InternalPartition: true}, "math-detail.ifc", nil, "")
 	for _, want := range []string{"/internalPartition", "/ifcOutput", "math-detail.ifc"} {
@@ -84,7 +84,7 @@ func TestOrderModuleCompilation_AcceptsDependencyTargetProvider(t *testing.T) {
 	}
 }
 
-func TestDetectModuleSources_ByExtension(t *testing.T) {
+func TestDetectModuleSources_RecognizesModuleExtensions(t *testing.T) {
 	// Create temp files with module extensions
 	tmpDir := t.TempDir()
 
@@ -111,7 +111,7 @@ func TestDetectModuleSources_ByExtension(t *testing.T) {
 	}
 }
 
-func TestDetectModuleSources_ByContent(t *testing.T) {
+func TestDetectModuleSources_RecognizesImportStatements(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a .cpp file with module content
@@ -135,7 +135,7 @@ func TestDetectModuleSources_ByContent(t *testing.T) {
 	}
 }
 
-func TestDetectModuleSources_NamedModuleConsumer(t *testing.T) {
+func TestDetectModuleSources_RecognizesNamedModuleImports(t *testing.T) {
 	moduleFile := filepath.Join(t.TempDir(), "main.cpp")
 	if err := os.WriteFile(moduleFile, []byte("import hello;\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -149,7 +149,7 @@ func TestDetectModuleSources_NamedModuleConsumer(t *testing.T) {
 	}
 }
 
-func TestOrderModuleCompilation(t *testing.T) {
+func TestOrderModuleCompilation_PlacesProvidersBeforeConsumers(t *testing.T) {
 	// Module A provides "modA"
 	// Module B provides "modB", requires "modA"
 	// Module C provides "modC", requires "modB"
@@ -191,7 +191,7 @@ func TestOrderModuleCompilation(t *testing.T) {
 	}
 }
 
-func TestOrderModuleCompilation_CircularDependency(t *testing.T) {
+func TestOrderModuleCompilation_RejectsCycle(t *testing.T) {
 	deps := []ModuleDependency{
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: []string{"modB"}},
 		{Source: "b.cpp", IsModule: true, Provides: "modB", Requires: []string{"modA"}},
@@ -203,7 +203,7 @@ func TestOrderModuleCompilation_CircularDependency(t *testing.T) {
 	}
 }
 
-func TestOrderModuleCompilation_MissingModule(t *testing.T) {
+func TestOrderModuleCompilation_RejectsMissingProvider(t *testing.T) {
 	deps := []ModuleDependency{
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: []string{"nonexistent"}},
 	}
@@ -214,7 +214,7 @@ func TestOrderModuleCompilation_MissingModule(t *testing.T) {
 	}
 }
 
-func TestIsModuleExtension(t *testing.T) {
+func TestIsModuleExtension_RecognizesSupportedSuffixes(t *testing.T) {
 	tests := []struct {
 		path     string
 		expected bool

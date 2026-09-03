@@ -60,7 +60,7 @@ func waitForRebuild(t *testing.T, rebuilt <-chan string, want string) {
 	}
 }
 
-func TestIsRelevantFile(t *testing.T) {
+func TestIsRelevantFile_RecognizesBuildInputs(t *testing.T) {
 	tests := []struct {
 		name     string
 		path     string
@@ -109,7 +109,7 @@ func TestIsRelevantFile(t *testing.T) {
 	}
 }
 
-func TestIsRelevantFileExtensions(t *testing.T) {
+func TestIsRelevantFile_RecognizesEverySupportedExtension(t *testing.T) {
 	// Exhaustive extension test
 	relevantExts := []string{".c", ".s", ".S", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp", ".h", ".hpp", ".hh", ".hxx", ".h++", ".inc", ".inl", ".ipp", ".tpp", ".cue"}
 	irrelevantExts := []string{

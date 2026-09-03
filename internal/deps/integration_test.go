@@ -14,8 +14,8 @@ import (
 	"github.com/loov/clue/internal/deps"
 )
 
-// TestSuccessCriteria1_VendoredDependency verifies that users can build projects with vendored dependencies
-func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
+// TestVendoredDependency_BuildsFromLocalSources verifies that users can build projects with vendored dependencies
+func TestVendoredDependency_BuildsFromLocalSources(t *testing.T) {
 	// Setup: use testdata/deps-project
 	projectDir, err := filepath.Abs("../../testdata/deps-project")
 	if err != nil {
@@ -110,8 +110,8 @@ func TestSuccessCriteria1_VendoredDependency(t *testing.T) {
 	}
 }
 
-// TestSuccessCriteria2_GitDependency verifies config parsing for git dependencies
-func TestSuccessCriteria2_GitDependency(t *testing.T) {
+// TestGitDependency_FetchesPinnedRevision verifies config parsing for git dependencies
+func TestGitDependency_FetchesPinnedRevision(t *testing.T) {
 	// Create a temporary test config with git dependency
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "clue.cue")
@@ -166,8 +166,8 @@ targets: {
 	}
 }
 
-// TestGitDepProject_ConfigParsing verifies config parsing for the git-dep-project testdata
-func TestGitDepProject_ConfigParsing(t *testing.T) {
+// TestGitDependency_LoadsProjectConfiguration verifies config parsing for the git-dep-project testdata
+func TestGitDependency_LoadsProjectConfiguration(t *testing.T) {
 	// Setup: use testdata/git-dep-project
 	projectDir, err := filepath.Abs("../../testdata/git-dep-project")
 	if err != nil {
@@ -258,8 +258,8 @@ func TestGitDepProject_ConfigParsing(t *testing.T) {
 	}
 }
 
-// TestSuccessCriteria3_OfflineBuild verifies offline builds work after initial fetch
-func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
+// TestOfflineBuild_UsesCachedDependencies verifies offline builds work after initial fetch
+func TestOfflineBuild_UsesCachedDependencies(t *testing.T) {
 	// Setup: use testdata/deps-project
 	projectDir, err := filepath.Abs("../../testdata/deps-project")
 	if err != nil {
@@ -344,8 +344,8 @@ func TestSuccessCriteria3_OfflineBuild(t *testing.T) {
 	}
 }
 
-// TestSuccessCriteria4_DependencyBuildOutput verifies build output shows dependency steps
-func TestSuccessCriteria4_DependencyBuildOutput(t *testing.T) {
+// TestDependencyBuildOutput_LinksGeneratedLibrary verifies build output shows dependency steps
+func TestDependencyBuildOutput_LinksGeneratedLibrary(t *testing.T) {
 	// Setup: use testdata/deps-project
 	projectDir, err := filepath.Abs("../../testdata/deps-project")
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func TestNewToolchain_GCC(t *testing.T) {
+func TestNewToolchain_CreatesGCCCompiler(t *testing.T) {
 	host := toolchain.HostPlatform()
 
 	tc, err := NewToolchain("gcc", host)
@@ -32,7 +32,7 @@ func TestNewToolchain_GCC(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_Clang(t *testing.T) {
+func TestNewToolchain_CreatesClangCompiler(t *testing.T) {
 	host := toolchain.HostPlatform()
 
 	tc, err := NewToolchain("clang", host)
@@ -54,7 +54,7 @@ func TestNewToolchain_Clang(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_Unknown(t *testing.T) {
+func TestNewToolchain_RejectsUnknownCompiler(t *testing.T) {
 	host := toolchain.HostPlatform()
 
 	_, err := NewToolchain("unknown-compiler", host)
@@ -68,7 +68,7 @@ func TestNewToolchain_Unknown(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_EnvOverride(t *testing.T) {
+func TestNewToolchain_UsesEnvironmentOverrides(t *testing.T) {
 	host := toolchain.HostPlatform()
 
 	// Test CC override
@@ -172,7 +172,7 @@ func TestNewToolchainRejectsUnconfiguredCrossTarget(t *testing.T) {
 	}
 }
 
-func TestTryToolchains_FirstAvailable(t *testing.T) {
+func TestTryToolchains_ReturnsFirstAvailableCompiler(t *testing.T) {
 	// Skip if no compiler available
 	var availableCompiler string
 	for _, name := range []string{"clang", "gcc"} {
@@ -198,7 +198,7 @@ func TestTryToolchains_FirstAvailable(t *testing.T) {
 	}
 }
 
-func TestTryToolchains_NoneAvailable(t *testing.T) {
+func TestTryToolchains_ReportsUnavailableCompilers(t *testing.T) {
 	host := toolchain.HostPlatform()
 
 	_, err := TryToolchains([]string{"nonexistent-compiler-1", "nonexistent-compiler-2"}, host)

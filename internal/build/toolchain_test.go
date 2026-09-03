@@ -10,7 +10,7 @@ import (
 	"github.com/loov/clue/internal/toolchain/gcc"
 )
 
-func TestNewToolchain_Native(t *testing.T) {
+func TestNewToolchain_CreatesNativeCompiler(t *testing.T) {
 	host := HostPlatform()
 
 	tests := []struct {
@@ -73,7 +73,7 @@ func gnuTripletPrefix(target toolchain.Platform) string {
 	}
 }
 
-func TestNewToolchain_CCEnvOverride(t *testing.T) {
+func TestNewToolchain_UsesCCEnvironmentOverride(t *testing.T) {
 	host := HostPlatform()
 
 	t.Setenv("CC", "/custom/path/gcc")
@@ -93,7 +93,7 @@ func TestNewToolchain_CCEnvOverride(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_CXXEnvOverride(t *testing.T) {
+func TestNewToolchain_UsesCXXEnvironmentOverride(t *testing.T) {
 	host := HostPlatform()
 
 	t.Setenv("CXX", "/custom/path/g++")
@@ -113,7 +113,7 @@ func TestNewToolchain_CXXEnvOverride(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_CrossLinuxArm64(t *testing.T) {
+func TestNewToolchain_CreatesLinuxARM64CrossCompiler(t *testing.T) {
 	target := Platform{OS: "linux", Arch: "arm64"}
 	host := HostPlatform()
 
@@ -165,7 +165,7 @@ func TestNewToolchain_CrossLinuxArm64(t *testing.T) {
 	}
 }
 
-func TestNewToolchain_CrossLinuxAmd64(t *testing.T) {
+func TestNewToolchain_CreatesLinuxAMD64CrossCompiler(t *testing.T) {
 	target := Platform{OS: "linux", Arch: "amd64"}
 
 	tests := []struct {
@@ -255,7 +255,7 @@ func TestCrossPrefix(t *testing.T) {
 	}
 }
 
-func TestValidateToolchain_MissingCompiler(t *testing.T) {
+func TestValidateToolchain_RejectsMissingCompiler(t *testing.T) {
 	// Create a test toolchain with nonexistent paths using factory
 	tc := gcc.New(
 		"nonexistent-gcc",
@@ -278,7 +278,7 @@ func TestValidateToolchain_MissingCompiler(t *testing.T) {
 	}
 }
 
-func TestValidateToolchain_RealCompiler(t *testing.T) {
+func TestValidateToolchain_AcceptsAvailableCompiler(t *testing.T) {
 	// Try to find a real compiler
 	var toolchainName string
 	for _, name := range []string{"clang", "gcc"} {
@@ -303,7 +303,7 @@ func TestValidateToolchain_RealCompiler(t *testing.T) {
 	}
 }
 
-func TestToolchainString(t *testing.T) {
+func TestToolchainString_DescribesCompilerAndTarget(t *testing.T) {
 	host := toolchain.HostPlatform()
 
 	tests := []struct {

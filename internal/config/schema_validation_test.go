@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestSchemaValidation_InvalidTargetType(t *testing.T) {
+func TestSchemaValidation_RejectsInvalidTargetType(t *testing.T) {
 	// Create temp directory with invalid config
 	dir := t.TempDir()
 	configContent := `package config
@@ -42,7 +42,7 @@ targets: {
 	}
 }
 
-func TestSchemaValidation_InvalidTargetName(t *testing.T) {
+func TestSchemaValidation_RejectsInvalidTargetName(t *testing.T) {
 	dir := t.TempDir()
 	// Target name starting with number violates regex
 	configContent := `package config
@@ -73,7 +73,7 @@ targets: {
 	}
 }
 
-func TestSchemaValidation_InvalidOptimization(t *testing.T) {
+func TestSchemaValidation_RejectsInvalidOptimization(t *testing.T) {
 	dir := t.TempDir()
 	configContent := `package config
 
@@ -109,7 +109,7 @@ variants: {
 	}
 }
 
-func TestSchemaValidation_EmptySources(t *testing.T) {
+func TestSchemaValidation_RejectsEmptySources(t *testing.T) {
 	dir := t.TempDir()
 	configContent := `package config
 
@@ -134,7 +134,7 @@ targets: {
 	}
 }
 
-func TestSchemaValidation_ValidConfig(t *testing.T) {
+func TestSchemaValidation_AcceptsValidConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	configContent := `package config
 
@@ -182,7 +182,7 @@ variants: {
 	}
 }
 
-func TestSchemaValidation_AllValidTargetTypes(t *testing.T) {
+func TestSchemaValidation_AcceptsEveryTargetType(t *testing.T) {
 	validTypes := []string{"executable", "static_library", "shared_library"}
 
 	for _, typ := range validTypes {
@@ -242,7 +242,7 @@ targets: headers: {
 	}
 }
 
-func TestSchemaValidation_AllValidOptimizations(t *testing.T) {
+func TestSchemaValidation_AcceptsEveryOptimizationLevel(t *testing.T) {
 	validOpts := []string{"none", "size", "fast", "aggressive"}
 
 	for _, opt := range validOpts {

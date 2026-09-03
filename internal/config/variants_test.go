@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestVariantSelector(t *testing.T) {
+func TestVariantSelector_SelectsConfiguredSources(t *testing.T) {
 	// Test default
 	vs := &VariantSelector{Default: "debug"}
 	if got := vs.Select(); got != "debug" {
@@ -24,7 +24,7 @@ func TestVariantSelector(t *testing.T) {
 	}
 }
 
-func TestVariantSelectorPrecedence(t *testing.T) {
+func TestVariantSelector_CLIOverridesEnvironment(t *testing.T) {
 	// CLI > EnvVar > Default
 	vs := &VariantSelector{
 		CLIFlag: "cli",
@@ -47,7 +47,7 @@ func TestVariantSelectorPrecedence(t *testing.T) {
 	}
 }
 
-func TestNewVariantSelector(t *testing.T) {
+func TestNewVariantSelector_DefaultsToDebug(t *testing.T) {
 	t.Setenv(VariantEnvVar, "")
 
 	vs := NewVariantSelector()
@@ -66,7 +66,7 @@ func TestNewVariantSelector(t *testing.T) {
 	}
 }
 
-func TestSelectVariant(t *testing.T) {
+func TestSelectVariant_AppliesNamedVariant(t *testing.T) {
 	t.Setenv(VariantEnvVar, "")
 
 	// CLI provided
@@ -86,12 +86,7 @@ func TestSelectVariant(t *testing.T) {
 	}
 }
 
-// NOTE: Tests that require full CUE parsing (TestApplyVariant, TestApplyVariantWithFlags,
-// TestInvalidVariant, TestNoVariantsConfigured) are skipped when using the CUE shim.
-// These tests require cuelang.org/go/cue which is unavailable without network access.
-// When the real CUE dependency is available, these tests will work correctly.
-
-func TestApplyVariantNoVariantsConfigured(t *testing.T) {
+func TestApplyVariant_LeavesUnconfiguredVariantsUnchanged(t *testing.T) {
 	// Test with empty config - variant lookup should fail
 	cfg := &Config{
 		Name:     "testproject",
@@ -110,7 +105,7 @@ func TestApplyVariantNoVariantsConfigured(t *testing.T) {
 	}
 }
 
-func TestMergeVariantFlags(t *testing.T) {
+func TestMergeVariantFlags_CombinesBaseAndVariantFlags(t *testing.T) {
 	base := Flags{
 		Compiler: []string{"-Wall", "-Wextra"},
 		Linker:   []string{"-L/usr/lib"},

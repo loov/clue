@@ -9,7 +9,7 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func TestNewManager(t *testing.T) {
+func TestNewManager_CreatesCacheDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -39,7 +39,7 @@ func TestNewManager(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_NotCached(t *testing.T) {
+func TestNeedsRebuild_ReturnsTrueForMissingEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -81,7 +81,7 @@ func TestNeedsRebuild_NotCached(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_Forced(t *testing.T) {
+func TestNeedsRebuild_ReturnsTrueWhenForced(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -123,7 +123,7 @@ func TestNeedsRebuild_Forced(t *testing.T) {
 	}
 }
 
-func TestStoreResult(t *testing.T) {
+func TestStoreResult_PersistsCompileInputs(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -225,7 +225,7 @@ func TestCacheSeparatesOutputsForTheSameSource(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_SourceChanged(t *testing.T) {
+func TestNeedsRebuild_ReturnsTrueWhenSourceChanges(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -294,7 +294,7 @@ func TestNeedsRebuild_SourceChanged(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_HeaderChanged(t *testing.T) {
+func TestNeedsRebuild_ReturnsTrueWhenHeaderChanges(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -384,7 +384,7 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_ConditionalInclude(t *testing.T) {
+func TestNeedsRebuild_TracksConditionalIncludes(t *testing.T) {
 	dir := t.TempDir()
 	manager, err := NewManager(filepath.Join(dir, "build"))
 	if err != nil {
@@ -421,7 +421,7 @@ func TestNeedsRebuild_ConditionalInclude(t *testing.T) {
 	}
 }
 
-func TestManifestPersistence(t *testing.T) {
+func TestManifestPersistence_SurvivesManagerRestart(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -485,7 +485,7 @@ func TestManifestPersistence(t *testing.T) {
 	}
 }
 
-func TestAtomicWrite(t *testing.T) {
+func TestManifestSave_ReplacesFileAtomically(t *testing.T) {
 	tmpDir := t.TempDir()
 	targetPath := filepath.Join(tmpDir, "test.json")
 
@@ -536,7 +536,7 @@ func TestAtomicWrite(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_ObjectMissing(t *testing.T) {
+func TestNeedsRebuild_ReturnsTrueWhenObjectIsMissing(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -596,7 +596,7 @@ func TestNeedsRebuild_ObjectMissing(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_DepFileMissing(t *testing.T) {
+func TestNeedsRebuild_ReturnsTrueWhenDependencyFileIsMissing(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 
@@ -656,7 +656,7 @@ func TestNeedsRebuild_DepFileMissing(t *testing.T) {
 	}
 }
 
-func TestNeedsRebuild_FlagsChanged(t *testing.T) {
+func TestNeedsRebuild_ReturnsTrueWhenFlagsChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")
 

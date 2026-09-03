@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestComputeFileHash(t *testing.T) {
+func TestComputeFileHash_IsStableAndContentSensitive(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
 

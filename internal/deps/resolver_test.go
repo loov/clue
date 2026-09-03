@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestBuildOrder_NoDependencies(t *testing.T) {
+func TestBuildOrder_ReturnsNamesWithoutDependencies(t *testing.T) {
 	// Empty deps map should return empty order
 	resolver := NewResolver(map[string]Dependency{})
 	order, err := resolver.BuildOrder()
@@ -18,7 +18,7 @@ func TestBuildOrder_NoDependencies(t *testing.T) {
 	}
 }
 
-func TestBuildOrder_Independent(t *testing.T) {
+func TestBuildOrder_SortsIndependentDependencies(t *testing.T) {
 	// Multiple deps with no inter-dependencies should return alphabetical order
 	deps := map[string]Dependency{
 		"zlib": NewGitDependency("zlib", "https://github.com/madler/zlib.git", "main", nil),
@@ -45,7 +45,7 @@ func TestBuildOrder_Independent(t *testing.T) {
 	}
 }
 
-func TestBuildOrder_WithDependencies(t *testing.T) {
+func TestBuildOrder_PlacesDependenciesFirst(t *testing.T) {
 	// libB depends on libA, so libA should be built first
 	deps := map[string]Dependency{
 		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", nil),
@@ -74,7 +74,7 @@ func TestBuildOrder_WithDependencies(t *testing.T) {
 	}
 }
 
-func TestBuildOrder_WithDependencies_ReverseName(t *testing.T) {
+func TestBuildOrder_PlacesDependenciesFirstDespiteNames(t *testing.T) {
 	// alpha depends on zeta, so zeta should be built first (reverse of alphabetical)
 	deps := map[string]Dependency{
 		"alpha": NewVendoredDependency("alpha", "vendor/alpha", &InlineConfig{
@@ -105,7 +105,7 @@ func TestBuildOrder_WithDependencies_ReverseName(t *testing.T) {
 	}
 }
 
-func TestBuildOrder_UnknownDependency(t *testing.T) {
+func TestBuildOrder_RejectsUnknownDependency(t *testing.T) {
 	// A dependency declares depends on a nonexistent dependency
 	deps := map[string]Dependency{
 		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", &InlineConfig{
@@ -129,7 +129,7 @@ func TestBuildOrder_UnknownDependency(t *testing.T) {
 	}
 }
 
-func TestBuildOrder_CyclicDependency(t *testing.T) {
+func TestBuildOrder_RejectsDependencyCycle(t *testing.T) {
 	// Two dependencies that depend on each other create a cycle
 	deps := map[string]Dependency{
 		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", &InlineConfig{
@@ -154,7 +154,7 @@ func TestBuildOrder_CyclicDependency(t *testing.T) {
 	}
 }
 
-func TestBuildOrder_CycleDetected(t *testing.T) {
+func TestBuildOrder_ReportsCycleMembers(t *testing.T) {
 	// Cycle detection is now functional - test with explicit cycle
 	deps := map[string]Dependency{
 		"libA": NewGitDependency("libA", "https://github.com/example/a.git", "main", &InlineConfig{
@@ -181,7 +181,7 @@ func TestBuildOrder_CycleDetected(t *testing.T) {
 	}
 }
 
-func TestValidateReferences_Valid(t *testing.T) {
+func TestValidateReferences_AcceptsKnownDependencies(t *testing.T) {
 	deps := map[string]Dependency{
 		"libfoo": NewGitDependency("libfoo", "https://github.com/example/foo.git", "main", nil),
 	}
@@ -208,7 +208,7 @@ func TestValidateReferences_Valid(t *testing.T) {
 	}
 }
 
-func TestValidateReferences_Unknown(t *testing.T) {
+func TestValidateReferences_RejectsUnknownDependency(t *testing.T) {
 	deps := map[string]Dependency{
 		"libfoo": NewGitDependency("libfoo", "https://github.com/example/foo.git", "main", nil),
 	}
@@ -239,7 +239,7 @@ func TestValidateReferences_Unknown(t *testing.T) {
 	}
 }
 
-func TestValidateReferences_TargetToTarget(t *testing.T) {
+func TestValidateReferences_AcceptsTargetDependencies(t *testing.T) {
 	deps := map[string]Dependency{
 		"libfoo": NewGitDependency("libfoo", "https://github.com/example/foo.git", "main", nil),
 	}

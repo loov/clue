@@ -14,7 +14,7 @@ func cleanupResponseFile(t *testing.T, path string) {
 	}
 }
 
-func TestEstimateCommandLength_Empty(t *testing.T) {
+func TestEstimateCommandLength_EmptyArgumentsReturnZero(t *testing.T) {
 	got := EstimateCommandLength(nil)
 	if got != 0 {
 		t.Errorf("EstimateCommandLength(nil) = %d, want 0", got)
@@ -26,7 +26,7 @@ func TestEstimateCommandLength_Empty(t *testing.T) {
 	}
 }
 
-func TestEstimateCommandLength_Single(t *testing.T) {
+func TestEstimateCommandLength_CountsSingleArgument(t *testing.T) {
 	// Single arg "foo" = 3 chars, no trailing space needed
 	got := EstimateCommandLength([]string{"foo"})
 	want := 3
@@ -35,7 +35,7 @@ func TestEstimateCommandLength_Single(t *testing.T) {
 	}
 }
 
-func TestEstimateCommandLength_Multiple(t *testing.T) {
+func TestEstimateCommandLength_IncludesSeparators(t *testing.T) {
 	// "foo bar baz" = 3 + 1(space) + 3 + 1(space) + 3 = 11
 	args := []string{"foo", "bar", "baz"}
 	got := EstimateCommandLength(args)
@@ -45,7 +45,7 @@ func TestEstimateCommandLength_Multiple(t *testing.T) {
 	}
 }
 
-func TestEstimateCommandLength_LongArgs(t *testing.T) {
+func TestEstimateCommandLength_CountsLongArguments(t *testing.T) {
 	// Test with longer args to verify calculation
 	args := []string{"/nologo", "/O2", "/W4", "/EHsc"}
 	// "/nologo" = 7
@@ -60,7 +60,7 @@ func TestEstimateCommandLength_LongArgs(t *testing.T) {
 	}
 }
 
-func TestMaybeUseResponseFile_BelowThreshold(t *testing.T) {
+func TestMaybeUseResponseFile_BelowThresholdKeepsArguments(t *testing.T) {
 	// Create args well below the 8000 char threshold
 	args := []string{"/nologo", "/O2", "/W4", "/EHsc", "/c", "main.cpp"}
 
@@ -87,7 +87,7 @@ func TestMaybeUseResponseFile_BelowThreshold(t *testing.T) {
 	}
 }
 
-func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
+func TestMaybeUseResponseFile_AboveThresholdWritesFile(t *testing.T) {
 	// Create args that exceed 8000 characters
 	// Each long path is ~100 chars, so we need >80 of them
 	var args []string
@@ -147,7 +147,7 @@ func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
 	}
 }
 
-func TestMaybeUseResponseFileInOutputDirectory(t *testing.T) {
+func TestMaybeUseResponseFileIn_WritesBesideOutput(t *testing.T) {
 	dir := t.TempDir()
 	args := []string{strings.Repeat("x", ResponseFileThreshold+1)}
 	resultArgs, cleanupPath, err := MaybeUseResponseFileIn(dir, args)
@@ -160,7 +160,7 @@ func TestMaybeUseResponseFileInOutputDirectory(t *testing.T) {
 	}
 }
 
-func TestMaybeUseResponseFile_ExactThreshold(t *testing.T) {
+func TestMaybeUseResponseFile_ExactThresholdKeepsArguments(t *testing.T) {
 	// Create args that are exactly at the threshold (should NOT create response file)
 	// Threshold is 8000, so we need args totaling exactly 8000 chars
 
@@ -190,7 +190,7 @@ func TestMaybeUseResponseFile_ExactThreshold(t *testing.T) {
 	}
 }
 
-func TestMaybeUseResponseFile_JustAboveThreshold(t *testing.T) {
+func TestMaybeUseResponseFile_JustAboveThresholdWritesFile(t *testing.T) {
 	// Create args that are just above the threshold (should create response file)
 	args := []string{strings.Repeat("a", 8001)}
 
@@ -218,7 +218,7 @@ func TestMaybeUseResponseFile_JustAboveThreshold(t *testing.T) {
 	}
 }
 
-func TestWriteResponseFile(t *testing.T) {
+func TestWriteResponseFile_WritesOneQuotedArgumentPerLine(t *testing.T) {
 	args := []string{"/nologo", "/O2", "/W4", "C:\\Program Files\\project\\main.cpp"}
 
 	path, err := WriteResponseFile(args)
@@ -261,7 +261,7 @@ func TestWriteResponseFile(t *testing.T) {
 	}
 }
 
-func TestWriteResponseFile_EmptyArgs(t *testing.T) {
+func TestWriteResponseFile_EmptyArgumentsCreateEmptyFile(t *testing.T) {
 	path, err := WriteResponseFile([]string{})
 	if err != nil {
 		t.Fatalf("WriteResponseFile failed: %v", err)
@@ -279,7 +279,7 @@ func TestWriteResponseFile_EmptyArgs(t *testing.T) {
 	}
 }
 
-func TestResponseFileFormat_WindowsPaths(t *testing.T) {
+func TestResponseFileFormat_PreservesWindowsPaths(t *testing.T) {
 	// Test that Windows paths with backslashes are handled correctly
 	args := []string{
 		`C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\include`,
@@ -308,7 +308,7 @@ func TestResponseFileFormat_WindowsPaths(t *testing.T) {
 	}
 }
 
-func TestResponseFileFormat_SpecialCharacters(t *testing.T) {
+func TestResponseFileFormat_QuotesSpecialCharacters(t *testing.T) {
 	// Test that special characters don't break the format
 	args := []string{
 		"/DVERSION=\"1.0.0\"",
@@ -338,7 +338,7 @@ func TestResponseFileFormat_SpecialCharacters(t *testing.T) {
 	}
 }
 
-func TestQuoteResponseFileArg_NoQuotingNeeded(t *testing.T) {
+func TestQuoteResponseFileArg_LeavesSimpleArgumentUnquoted(t *testing.T) {
 	tests := []struct {
 		input string
 		want  string
@@ -357,7 +357,7 @@ func TestQuoteResponseFileArg_NoQuotingNeeded(t *testing.T) {
 	}
 }
 
-func TestQuoteResponseFileArg_QuotingNeeded(t *testing.T) {
+func TestQuoteResponseFileArg_QuotesWhitespaceAndBackslashes(t *testing.T) {
 	tests := []struct {
 		input string
 		want  string
@@ -402,7 +402,7 @@ func TestQuoteResponseFileArg_EmbeddedQuotes(t *testing.T) {
 	}
 }
 
-func TestResponseFileThreshold(t *testing.T) {
+func TestResponseFileThreshold_MatchesPlatformLimit(t *testing.T) {
 	// Verify the threshold constant is set correctly
 	if ResponseFileThreshold != 8000 {
 		t.Errorf("ResponseFileThreshold = %d, want 8000", ResponseFileThreshold)

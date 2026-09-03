@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestBuildGraphFromConfig(t *testing.T) {
+func TestBuildGraphFromConfig_ConnectsConfiguredDependencies(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -84,7 +84,7 @@ func TestBuildGraphFromConfig(t *testing.T) {
 	}
 }
 
-func TestBuildGraphCycleDetection(t *testing.T) {
+func TestBuildGraphFromConfig_RejectsCycle(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -131,7 +131,7 @@ func TestBuildGraphCycleDetection(t *testing.T) {
 	}
 }
 
-func TestBuildGraphUnknownDependency(t *testing.T) {
+func TestBuildGraphFromConfig_RejectsUnknownDependency(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 

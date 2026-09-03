@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestParsePkgConfigUsage(t *testing.T) {
+func TestParsePkgConfigUsage_SeparatesCompileAndLinkFlags(t *testing.T) {
 	usage, err := parsePkgConfigUsage(
 		`-I/opt/sdk/include -I '/path with spaces/include' -DSDK=1 -pthread`,
 		`-L/opt/sdk/lib -lsdk -Wl,-rpath,/opt/sdk/lib`,
@@ -23,7 +23,7 @@ func TestParsePkgConfigUsage(t *testing.T) {
 	}
 }
 
-func TestResolvePkgConfigWithRunner(t *testing.T) {
+func TestResolvePkgConfigWithRunner_QueriesFlagsAndLibraries(t *testing.T) {
 	pkg := NewPkgConfigDependency("sdk", "clue-sdk", false)
 	var calls [][]string
 	usage, err := pkg.ResolveWithRunner(t.Context(), func(_ context.Context, name string, args ...string) (string, error) {

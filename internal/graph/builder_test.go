@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSimpleGraph(t *testing.T) {
+func TestBuilder_BuildOrdersDependenciesFirst(t *testing.T) {
 	b := NewBuilder()
 
 	// main depends on lib
@@ -39,7 +39,7 @@ func TestSimpleGraph(t *testing.T) {
 	}
 }
 
-func TestCycleDetection(t *testing.T) {
+func TestBuilder_BuildRejectsCycle(t *testing.T) {
 	b := NewBuilder()
 
 	// Create cycle: a -> b -> c -> a
@@ -59,7 +59,7 @@ func TestCycleDetection(t *testing.T) {
 	}
 }
 
-func TestMissingDependency(t *testing.T) {
+func TestBuilder_BuildRejectsMissingNode(t *testing.T) {
 	b := NewBuilder()
 
 	_ = b.AddNode(Node{ID: "main", Type: NodeTypeExecutable})
@@ -74,7 +74,7 @@ func TestMissingDependency(t *testing.T) {
 	}
 }
 
-func TestDeterministicOrder(t *testing.T) {
+func TestBuildGraph_TopologicalOrderIsStable(t *testing.T) {
 	// Run multiple times to verify stability
 	for range 5 {
 		b := NewBuilder()
@@ -115,7 +115,7 @@ func TestDeterministicOrder(t *testing.T) {
 	}
 }
 
-func TestDependencies(t *testing.T) {
+func TestBuildGraph_DependenciesReturnsDirectPredecessors(t *testing.T) {
 	b := NewBuilder()
 
 	_ = b.AddNode(Node{ID: "base", Type: NodeTypeStatic})
