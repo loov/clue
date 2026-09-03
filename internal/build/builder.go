@@ -15,6 +15,7 @@ import (
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/deps/fetch"
 	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/profile"
 	"github.com/loov/clue/internal/toolchain"
@@ -936,10 +937,10 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 	}
 
 	// Create dependency manager
-	mgr, err := deps.NewManager(
+	mgr, err := fetch.NewManager(
 		".", // Current directory as project root
 		opts.Config.Dependencies,
-		deps.ManagerOptions{
+		fetch.Options{
 			Verbose: opts.Verbosity == VerbosityVerbose,
 		},
 	)

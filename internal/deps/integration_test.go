@@ -1,6 +1,7 @@
 package deps_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -427,4 +428,29 @@ func runExecutable(path string) (string, error) {
 		return "", err
 	}
 	return string(output), nil
+}
+
+func captureStdout(t *testing.T, run func() error) (string, error) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStdout := os.Stdout
+	os.Stdout = w
+	runErr := run()
+	closeErr := w.Close()
+	os.Stdout = oldStdout
+
+	var output bytes.Buffer
+	if _, err := output.ReadFrom(r); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	return output.String(), runErr
 }

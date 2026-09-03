@@ -1,4 +1,4 @@
-package deps
+package fetch
 
 import (
 	"os"
@@ -8,12 +8,13 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/loov/clue/internal/deps"
 )
 
 func TestLockFile_RoundTripPreservesEntries(t *testing.T) {
 	dir := t.TempDir()
-	want := LockEntry{Type: "git", URL: "https://example.com/lib.git", Ref: "main", Commit: "012345"}
-	lock := &LockFile{Version: 1, Dependencies: map[string]LockEntry{"lib": want}}
+	want := lockEntry{Type: "git", URL: "https://example.com/lib.git", Ref: "main", Commit: "012345"}
+	lock := &lockFile{Version: 1, Dependencies: map[string]lockEntry{"lib": want}}
 	if err := lock.save(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -24,19 +25,19 @@ func TestLockFile_RoundTripPreservesEntries(t *testing.T) {
 	if got.Dependencies["lib"] != want {
 		t.Fatalf("lock entry = %+v", got.Dependencies["lib"])
 	}
-	if info, err := os.Stat(filepath.Join(dir, LockFileName)); err != nil || !info.Mode().IsRegular() {
+	if info, err := os.Stat(filepath.Join(dir, lockFileName)); err != nil || !info.Mode().IsRegular() {
 		t.Fatalf("lock file missing: %v", err)
 	}
 }
 
 func TestFetchOneLocksExistingGitCheckout(t *testing.T) {
 	dir := t.TempDir()
-	dependency := NewGitDependency("lib", "https://example.com/lib.git", "main", nil)
-	manager, err := NewManager(dir, map[string]Dependency{"lib": dependency}, ManagerOptions{})
+	dependency := deps.NewGitDependency("lib", "https://example.com/lib.git", "main", nil)
+	manager, err := NewManager(dir, map[string]deps.Dependency{"lib": dependency}, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := manager.cache.Path(dependency)
+	path := manager.cache.path(dependency)
 	repository, err := git.PlainInit(path, false)
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +58,7 @@ func TestFetchOneLocksExistingGitCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.cache.MarkFetched(dependency); err != nil {
+	if err := manager.cache.markFetched(dependency); err != nil {
 		t.Fatal(err)
 	}
 	if err := manager.FetchOne(t.Context(), "lib"); err != nil {
@@ -73,10 +74,10 @@ func TestFetchOneLocksExistingGitCheckout(t *testing.T) {
 }
 
 func TestLockRejectsChangedDependencyIdentity(t *testing.T) {
-	lock := &LockFile{Version: 1, Dependencies: map[string]LockEntry{
+	lock := &lockFile{Version: 1, Dependencies: map[string]lockEntry{
 		"lib": {Type: "git", URL: "https://example.com/old.git", Ref: "main", Commit: "012345"},
 	}}
-	dependency := NewGitDependency("lib", "https://example.com/new.git", "main", nil)
+	dependency := deps.NewGitDependency("lib", "https://example.com/new.git", "main", nil)
 	if _, err := lock.gitRef(dependency); err == nil {
 		t.Fatal("changed repository should require a lock update")
 	}

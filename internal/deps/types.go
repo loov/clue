@@ -1,3 +1,4 @@
+// Package deps defines external dependency configuration and resolution.
 package deps
 
 import (

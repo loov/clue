@@ -1,25 +1,27 @@
-// Package deps provides dependency management including fetching,
-// caching, and building external dependencies.
-package deps
+// Package fetch downloads and caches external dependencies.
+package fetch
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/loov/clue/internal/deps"
 )
 
-// Cache manages the local cache of fetched dependencies
-type Cache struct {
+// cache manages the local cache of fetched dependencies.
+type cache struct {
 	baseDir string // project root directory
 	depsDir string // path to .deps directory
 	verbose bool
 }
 
-// DepMarker represents the .clue-dep marker file content
-type DepMarker struct {
+// depMarker represents the .clue-dep marker file content.
+type depMarker struct {
 	Name      string    `json:"name"`
 	Type      string    `json:"type"`
 	FetchedAt time.Time `json:"fetched_at"`
@@ -29,8 +31,8 @@ type DepMarker struct {
 	Checksum  string    `json:"checksum,omitzero"`
 }
 
-// NewCache creates a new dependency cache manager
-func NewCache(projectDir string, verbose bool) (*Cache, error) {
+// newCache creates a dependency cache manager.
+func newCache(projectDir string, verbose bool) (*cache, error) {
 	depsDir := filepath.Join(projectDir, ".deps")
 
 	// Create .deps directory if it doesn't exist
@@ -38,15 +40,15 @@ func NewCache(projectDir string, verbose bool) (*Cache, error) {
 		return nil, fmt.Errorf("failed to create .deps directory: %w", err)
 	}
 
-	return &Cache{
+	return &cache{
 		baseDir: projectDir,
 		depsDir: depsDir,
 		verbose: verbose,
 	}, nil
 }
 
-// Has checks if a dependency is already fetched and cached
-func (c *Cache) Has(dep Dependency) bool {
+// has reports whether a dependency is fetched and cached.
+func (c *cache) has(dep deps.Dependency) bool {
 	cachePath := dep.CachePath(c.baseDir)
 
 	switch dep.Type() {
@@ -78,36 +80,36 @@ func (c *Cache) Has(dep Dependency) bool {
 	}
 }
 
-func (c *Cache) markerMatches(dep Dependency) bool {
+func (c *cache) markerMatches(dep deps.Dependency) bool {
 	data, err := os.ReadFile(filepath.Join(dep.CachePath(c.baseDir), ".clue-dep"))
 	if err != nil {
 		return false
 	}
-	var marker DepMarker
+	var marker depMarker
 	if json.Unmarshal(data, &marker) != nil || marker.Name != dep.Name() || marker.Type != dep.Type() {
 		return false
 	}
 	switch configured := dep.(type) {
-	case *GitDependency:
+	case *deps.GitDependency:
 		return marker.URL == configured.Repo && marker.Ref == configured.Ref
-	case *TarballDependency:
+	case *deps.TarballDependency:
 		return marker.URL == configured.URL && marker.Checksum == configured.Checksum
 	default:
 		return true
 	}
 }
 
-// Path returns the local path where dependency sources are located
-func (c *Cache) Path(dep Dependency) string {
+// path returns the local path where dependency sources are located.
+func (c *cache) path(dep deps.Dependency) string {
 	return dep.CachePath(c.baseDir)
 }
 
-// MarkFetched creates a marker file in the cache directory to track fetch metadata
-func (c *Cache) MarkFetched(dep Dependency) error {
+// markFetched records fetch metadata in the cache directory.
+func (c *cache) markFetched(dep deps.Dependency) error {
 	cachePath := dep.CachePath(c.baseDir)
 	markerPath := filepath.Join(cachePath, ".clue-dep")
 
-	marker := DepMarker{
+	marker := depMarker{
 		Name:      dep.Name(),
 		Type:      dep.Type(),
 		FetchedAt: time.Now(),
@@ -115,13 +117,13 @@ func (c *Cache) MarkFetched(dep Dependency) error {
 
 	// Add type-specific metadata
 	switch d := dep.(type) {
-	case *GitDependency:
+	case *deps.GitDependency:
 		marker.Ref = d.Ref
 		marker.URL = d.Repo
-	case *TarballDependency:
+	case *deps.TarballDependency:
 		marker.URL = d.URL
 		marker.Checksum = d.Checksum
-	case *VendoredDependency:
+	case *deps.VendoredDependency:
 		marker.Path = d.Path
 	}
 
@@ -141,8 +143,8 @@ func (c *Cache) MarkFetched(dep Dependency) error {
 	return nil
 }
 
-// Clean removes the entire .deps directory
-func (c *Cache) Clean() error {
+// clean removes the entire .deps directory.
+func (c *cache) clean() error {
 	if _, err := os.Lstat(c.depsDir); err != nil {
 		if os.IsNotExist(err) {
 			if c.verbose {
@@ -164,9 +166,9 @@ func (c *Cache) Clean() error {
 	return nil
 }
 
-// CleanDep removes a specific dependency from the cache
-func (c *Cache) CleanDep(name string) error {
-	sanitized := sanitizeName(name)
+// cleanDep removes a specific dependency from the cache.
+func (c *cache) cleanDep(name string) error {
+	sanitized := regexp.MustCompile(`[^a-zA-Z0-9_-]+`).ReplaceAllString(name, "_")
 	found := false
 
 	// Search in git/ subdirectory

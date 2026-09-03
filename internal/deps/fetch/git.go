@@ -1,4 +1,4 @@
-package deps
+package fetch
 
 import (
 	"context"
@@ -9,39 +9,23 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/loov/clue/internal/deps"
 )
 
-// GitFetcher fetches dependencies from git repositories
-type GitFetcher struct {
+// gitFetcher fetches dependencies from Git repositories.
+type gitFetcher struct {
 	verbose bool
 }
 
-// NewGitFetcher creates a new git fetcher
-func NewGitFetcher(verbose bool) *GitFetcher {
-	return &GitFetcher{
+// newGitFetcher creates a Git fetcher.
+func newGitFetcher(verbose bool) *gitFetcher {
+	return &gitFetcher{
 		verbose: verbose,
 	}
 }
 
-// Fetch clones a git repository to the target path
-func (f *GitFetcher) Fetch(ctx context.Context, dep Dependency, targetPath string) error {
-	gitDep, ok := dep.(*GitDependency)
-	if !ok {
-		return fmt.Errorf("expected GitDependency, got %T", dep)
-	}
-	if err := gitDep.Validate(); err != nil {
-		return err
-	}
-
-	if f.verbose {
-		fmt.Printf("Cloning %s (%s)...\n", gitDep.Repo, gitDep.Ref)
-	}
-
-	return f.FetchRef(ctx, gitDep, gitDep.Ref, targetPath)
-}
-
-// FetchRef fetches a Git dependency at an already-resolved ref or commit.
-func (f *GitFetcher) FetchRef(ctx context.Context, gitDep *GitDependency, ref, targetPath string) error {
+// fetchRef fetches a Git dependency at an already-resolved ref or commit.
+func (f *gitFetcher) fetchRef(ctx context.Context, gitDep *deps.GitDependency, ref, targetPath string) error {
 	if err := gitDep.Validate(); err != nil {
 		return err
 	}
@@ -74,33 +58,7 @@ func gitCommit(path string) (string, error) {
 	return head.Hash().String(), nil
 }
 
-// Update fast-forwards a cached branch. Tags and commit hashes stay pinned.
-func (f *GitFetcher) Update(ctx context.Context, targetPath string) (bool, error) {
-	repo, err := git.PlainOpen(targetPath)
-	if err != nil {
-		return false, err
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return false, err
-	}
-	if !head.Name().IsBranch() {
-		return false, nil
-	}
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return false, err
-	}
-	err = worktree.PullContext(ctx, &git.PullOptions{
-		RemoteName: "origin", ReferenceName: head.Name(), SingleBranch: true, Progress: f.progressWriter(),
-	})
-	if errors.Is(err, git.NoErrAlreadyUpToDate) {
-		return false, nil
-	}
-	return err == nil, err
-}
-
-func (f *GitFetcher) progressWriter() io.Writer {
+func (f *gitFetcher) progressWriter() io.Writer {
 	if f.verbose {
 		return os.Stdout
 	}

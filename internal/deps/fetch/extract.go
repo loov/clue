@@ -1,4 +1,4 @@
-package deps
+package fetch
 
 import (
 	"archive/tar"
@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-// ExtractTarGz extracts a tar.gz archive to the target directory
+// extractTarGz extracts a tar.gz archive to the target directory.
 // Validates all paths to prevent directory traversal attacks
-func ExtractTarGz(archivePath, targetDir string) (resultErr error) {
+func extractTarGz(archivePath, targetDir string) (resultErr error) {
 	// Open archive file
 	f, err := os.Open(archivePath)
 	if err != nil {
@@ -114,9 +114,9 @@ func ExtractTarGz(archivePath, targetDir string) (resultErr error) {
 	return nil
 }
 
-// ExtractZip extracts a zip archive to the target directory
+// extractZip extracts a zip archive to the target directory.
 // Validates all paths to prevent directory traversal attacks
-func ExtractZip(archivePath, targetDir string) (resultErr error) {
+func extractZip(archivePath, targetDir string) (resultErr error) {
 	// Open zip archive
 	r, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -195,9 +195,9 @@ func ExtractZip(archivePath, targetDir string) (resultErr error) {
 	return nil
 }
 
-// StripPrefix moves contents from dir/prefix/* to dir/* and removes the prefix directory
+// stripPrefix moves contents from dir/prefix/* to dir/* and removes the prefix directory.
 // Common for GitHub release tarballs that extract to a versioned directory
-func StripPrefix(dir, prefix string) error {
+func stripPrefix(dir, prefix string) error {
 	if !filepath.IsLocal(prefix) {
 		return fmt.Errorf("invalid strip prefix %q", prefix)
 	}
@@ -241,8 +241,8 @@ func StripPrefix(dir, prefix string) error {
 	return nil
 }
 
-// DetectArchiveType returns the archive type based on the file path
-func DetectArchiveType(path string) string {
+// detectArchiveType returns the archive type based on the file path.
+func detectArchiveType(path string) string {
 	lower := strings.ToLower(path)
 	if strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".tgz") {
 		return "tar.gz"

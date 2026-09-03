@@ -1,58 +1,60 @@
-package deps
+package fetch
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/deps"
 )
 
 func TestCacheTarballRequiresCompletionMarker(t *testing.T) {
-	cache, err := NewCache(t.TempDir(), false)
+	cache, err := newCache(t.TempDir(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep := NewTarballDependency("archive", "https://example.com/archive.tar.gz", strings.Repeat("0", 64), "", nil)
-	if err := os.MkdirAll(cache.Path(dep), 0o755); err != nil {
+	dep := deps.NewTarballDependency("archive", "https://example.com/archive.tar.gz", strings.Repeat("0", 64), "", nil)
+	if err := os.MkdirAll(cache.path(dep), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if cache.Has(dep) {
+	if cache.has(dep) {
 		t.Fatal("partial tarball cache was reported as complete")
 	}
-	if err := cache.MarkFetched(dep); err != nil {
+	if err := cache.markFetched(dep); err != nil {
 		t.Fatal(err)
 	}
-	if !cache.Has(dep) {
+	if !cache.has(dep) {
 		t.Fatal("completed tarball cache was reported as missing")
 	}
 }
 
 func TestCacheGitRequiresCompletionMarker(t *testing.T) {
-	cache, err := NewCache(t.TempDir(), false)
+	cache, err := newCache(t.TempDir(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep := NewGitDependency("repo", "https://example.com/repo.git", "main", nil)
-	if err := os.MkdirAll(filepath.Join(cache.Path(dep), ".git"), 0o755); err != nil {
+	dep := deps.NewGitDependency("repo", "https://example.com/repo.git", "main", nil)
+	if err := os.MkdirAll(filepath.Join(cache.path(dep), ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if cache.Has(dep) {
+	if cache.has(dep) {
 		t.Fatal("partial Git cache was reported as complete")
 	}
-	if err := cache.MarkFetched(dep); err != nil {
+	if err := cache.markFetched(dep); err != nil {
 		t.Fatal(err)
 	}
-	if !cache.Has(dep) {
+	if !cache.has(dep) {
 		t.Fatal("completed Git cache was reported as missing")
 	}
-	changedRepo := NewGitDependency("repo", "https://example.com/other.git", "main", nil)
-	if cache.Has(changedRepo) {
+	changedRepo := deps.NewGitDependency("repo", "https://example.com/other.git", "main", nil)
+	if cache.has(changedRepo) {
 		t.Fatal("cache marker from another repository was accepted")
 	}
 }
 
 func TestCacheCleanDepIgnoresShortUnrelatedNames(t *testing.T) {
-	cache, err := NewCache(t.TempDir(), false)
+	cache, err := newCache(t.TempDir(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +65,7 @@ func TestCacheCleanDepIgnoresShortUnrelatedNames(t *testing.T) {
 		}
 	}
 
-	if err := cache.CleanDep("library"); err != nil {
+	if err := cache.cleanDep("library"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(gitDir, "x")); err != nil {
@@ -73,7 +75,7 @@ func TestCacheCleanDepIgnoresShortUnrelatedNames(t *testing.T) {
 
 func TestCacheCleanRemovesDanglingSymlink(t *testing.T) {
 	root := t.TempDir()
-	cache, err := NewCache(root, false)
+	cache, err := newCache(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +86,7 @@ func TestCacheCleanRemovesDanglingSymlink(t *testing.T) {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 
-	if err := cache.Clean(); err != nil {
+	if err := cache.clean(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Lstat(cache.depsDir); !os.IsNotExist(err) {

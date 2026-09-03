@@ -1,4 +1,4 @@
-package deps
+package fetch
 
 import (
 	"context"
@@ -11,24 +11,26 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/loov/clue/internal/deps"
 )
 
 const maxTarballBytes int64 = 1 << 30
 
 var tarballHTTPClient = &http.Client{Timeout: 5 * time.Minute}
 
-// TarballFetcher downloads and extracts tarball dependencies
-type TarballFetcher struct {
+// tarballFetcher downloads and extracts tarball dependencies.
+type tarballFetcher struct {
 	verbose bool
 }
 
-// NewTarballFetcher creates a new tarball fetcher
-func NewTarballFetcher(verbose bool) *TarballFetcher {
-	return &TarballFetcher{verbose: verbose}
+// newTarballFetcher creates a tarball fetcher.
+func newTarballFetcher(verbose bool) *tarballFetcher {
+	return &tarballFetcher{verbose: verbose}
 }
 
-// Fetch downloads, verifies, and extracts a tarball dependency
-func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targetPath string) (resultErr error) {
+// fetch downloads, verifies, and extracts a tarball dependency.
+func (f *tarballFetcher) fetch(ctx context.Context, dep *deps.TarballDependency, targetPath string) (resultErr error) {
 	if err := dep.Validate(); err != nil {
 		return err
 	}
@@ -118,14 +120,14 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 		return fmt.Errorf("failed to create target directory %s: %w", targetPath, err)
 	}
 
-	archiveType := DetectArchiveType(dep.URL)
+	archiveType := detectArchiveType(dep.URL)
 	switch archiveType {
 	case "tar.gz":
-		if err := ExtractTarGz(tmpFileName, targetPath); err != nil {
+		if err := extractTarGz(tmpFileName, targetPath); err != nil {
 			return errors.Join(fmt.Errorf("failed to extract tar.gz: %w", err), os.RemoveAll(targetPath))
 		}
 	case "zip":
-		if err := ExtractZip(tmpFileName, targetPath); err != nil {
+		if err := extractZip(tmpFileName, targetPath); err != nil {
 			return errors.Join(fmt.Errorf("failed to extract zip: %w", err), os.RemoveAll(targetPath))
 		}
 	default:
@@ -137,7 +139,7 @@ func (f *TarballFetcher) Fetch(ctx context.Context, dep *TarballDependency, targ
 		if f.verbose {
 			fmt.Printf("Stripping prefix: %s\n", dep.StripPrefix)
 		}
-		if err := StripPrefix(targetPath, dep.StripPrefix); err != nil {
+		if err := stripPrefix(targetPath, dep.StripPrefix); err != nil {
 			return errors.Join(fmt.Errorf("failed to strip prefix %s: %w", dep.StripPrefix, err), os.RemoveAll(targetPath))
 		}
 	}

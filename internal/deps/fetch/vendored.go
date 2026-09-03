@@ -1,30 +1,32 @@
-package deps
+package fetch
 
 import (
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/loov/clue/internal/deps"
 )
 
-// VendoredFetcher validates local vendored dependencies
-type VendoredFetcher struct {
+// vendoredFetcher validates local vendored dependencies.
+type vendoredFetcher struct {
 	projectDir string
 	verbose    bool
 }
 
-// NewVendoredFetcher creates a new vendored fetcher
-func NewVendoredFetcher(projectDir string, verbose bool) *VendoredFetcher {
-	return &VendoredFetcher{
+// newVendoredFetcher creates a vendored fetcher.
+func newVendoredFetcher(projectDir string, verbose bool) *vendoredFetcher {
+	return &vendoredFetcher{
 		projectDir: projectDir,
 		verbose:    verbose,
 	}
 }
 
-// Fetch validates that the vendored dependency exists at the specified path
+// fetch validates that the vendored dependency exists at the specified path.
 // For vendored dependencies, "fetching" means validation only - no actual copying
-func (f *VendoredFetcher) Fetch(_ context.Context, dep Dependency, _ string) error {
-	vendoredDep, ok := dep.(*VendoredDependency)
+func (f *vendoredFetcher) fetch(_ context.Context, dep deps.Dependency, _ string) error {
+	vendoredDep, ok := dep.(*deps.VendoredDependency)
 	if !ok {
 		return fmt.Errorf("expected VendoredDependency, got %T", dep)
 	}
@@ -95,13 +97,4 @@ func (f *VendoredFetcher) Fetch(_ context.Context, dep Dependency, _ string) err
 	}
 
 	return nil
-}
-
-// Path returns the resolved absolute path for the vendored dependency
-func (f *VendoredFetcher) Path(dep *VendoredDependency) string {
-	absPath := dep.Path
-	if !filepath.IsAbs(absPath) {
-		absPath = filepath.Join(f.projectDir, dep.Path)
-	}
-	return absPath
 }

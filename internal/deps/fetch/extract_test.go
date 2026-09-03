@@ -1,4 +1,4 @@
-package deps
+package fetch
 
 import (
 	"archive/tar"
@@ -127,7 +127,7 @@ func TestExtractTarGz_ExtractsRegularFiles(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Extract
-	if err := ExtractTarGz(archivePath, targetDir); err != nil {
+	if err := extractTarGz(archivePath, targetDir); err != nil {
 		t.Fatalf("ExtractTarGz failed: %v", err)
 	}
 
@@ -162,7 +162,7 @@ func TestExtractTarGz_RejectsPathTraversal(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Extract should fail
-	err := ExtractTarGz(archivePath, targetDir)
+	err := extractTarGz(archivePath, targetDir)
 	if err == nil {
 		t.Fatal("ExtractTarGz should have failed on path traversal")
 	}
@@ -188,7 +188,7 @@ func TestExtractTarGz_RejectsAbsolutePath(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Extract should fail
-	err := ExtractTarGz(archivePath, targetDir)
+	err := extractTarGz(archivePath, targetDir)
 	if err == nil {
 		t.Fatal("ExtractTarGz should have failed on absolute path")
 	}
@@ -204,7 +204,7 @@ func TestExtractTarGz_SkipsSymlinks(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Extract should succeed (symlinks are skipped)
-	if err := ExtractTarGz(archivePath, targetDir); err != nil {
+	if err := extractTarGz(archivePath, targetDir); err != nil {
 		t.Fatalf("ExtractTarGz failed: %v", err)
 	}
 
@@ -239,7 +239,7 @@ func TestStripPrefix_RemovesCommonRoot(t *testing.T) {
 	}
 
 	// Strip prefix
-	if err := StripPrefix(targetDir, prefix); err != nil {
+	if err := stripPrefix(targetDir, prefix); err != nil {
 		t.Fatalf("StripPrefix failed: %v", err)
 	}
 
@@ -275,7 +275,7 @@ func TestStripPrefixRejectsTraversal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := StripPrefix(targetDir, "../outside"); err == nil {
+	if err := stripPrefix(targetDir, "../outside"); err == nil {
 		t.Fatal("StripPrefix accepted a path outside the extraction directory")
 	}
 	if _, err := os.Stat(outsideFile); err != nil {
@@ -303,7 +303,7 @@ func TestDetectArchiveType_RecognizesSupportedExtensions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			result := DetectArchiveType(tt.path)
+			result := detectArchiveType(tt.path)
 			if result != tt.expected {
 				t.Errorf("DetectArchiveType(%q) = %q, want %q", tt.path, result, tt.expected)
 			}
@@ -346,7 +346,7 @@ func TestExtractZip_ExtractsRegularFiles(t *testing.T) {
 
 	// Extract
 	targetDir := t.TempDir()
-	if err := ExtractZip(tmpName, targetDir); err != nil {
+	if err := extractZip(tmpName, targetDir); err != nil {
 		t.Fatalf("ExtractZip failed: %v", err)
 	}
 
@@ -387,7 +387,7 @@ func TestExtractZip_RejectsPathTraversal(t *testing.T) {
 
 	// Extract should fail
 	targetDir := t.TempDir()
-	err = ExtractZip(tmpName, targetDir)
+	err = extractZip(tmpName, targetDir)
 	if err == nil {
 		t.Fatal("ExtractZip should have failed on path traversal")
 	}

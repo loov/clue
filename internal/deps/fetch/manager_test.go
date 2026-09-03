@@ -1,16 +1,18 @@
-package deps
+package fetch
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/loov/clue/internal/deps"
 )
 
 func TestManager_StatusReturnsEmptyWithoutDependencies(t *testing.T) {
 	// No dependencies configured should return empty status
 	tmpDir := t.TempDir()
 
-	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
+	manager, err := NewManager(tmpDir, map[string]deps.Dependency{}, Options{
 		Verbose: false,
 	})
 	if err != nil {
@@ -27,12 +29,12 @@ func TestManager_StatusReportsMissingDependency(t *testing.T) {
 	// Dependencies configured but not fetched should show "missing"
 	tmpDir := t.TempDir()
 
-	deps := map[string]Dependency{
-		"libfoo": NewGitDependency("libfoo", "https://github.com/example/foo.git", "main", nil),
-		"libbar": NewTarballDependency("libbar", "https://example.com/bar.tar.gz", "", "", nil),
+	deps := map[string]deps.Dependency{
+		"libfoo": deps.NewGitDependency("libfoo", "https://github.com/example/foo.git", "main", nil),
+		"libbar": deps.NewTarballDependency("libbar", "https://example.com/bar.tar.gz", "", "", nil),
 	}
 
-	manager, err := NewManager(tmpDir, deps, ManagerOptions{
+	manager, err := NewManager(tmpDir, deps, Options{
 		Verbose: false,
 	})
 	if err != nil {
@@ -68,11 +70,11 @@ func TestManager_VendoredAlwaysCached(t *testing.T) {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
-	deps := map[string]Dependency{
-		"libfoo": NewVendoredDependency("libfoo", vendorPath, nil),
+	deps := map[string]deps.Dependency{
+		"libfoo": deps.NewVendoredDependency("libfoo", vendorPath, nil),
 	}
 
-	manager, err := NewManager(tmpDir, deps, ManagerOptions{
+	manager, err := NewManager(tmpDir, deps, Options{
 		Verbose: false,
 	})
 	if err != nil {
@@ -109,11 +111,11 @@ func TestFetchAll_DoesNotRefetchCachedDependencies(t *testing.T) {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
-	deps := map[string]Dependency{
-		"libfoo": NewVendoredDependency("libfoo", vendorPath, nil),
+	deps := map[string]deps.Dependency{
+		"libfoo": deps.NewVendoredDependency("libfoo", vendorPath, nil),
 	}
 
-	manager, err := NewManager(tmpDir, deps, ManagerOptions{
+	manager, err := NewManager(tmpDir, deps, Options{
 		Verbose: false,
 	})
 	if err != nil {
@@ -141,7 +143,7 @@ func TestFetchAll_DoesNotRefetchCachedDependencies(t *testing.T) {
 func TestFetchOne_RejectsUnknownDependency(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
+	manager, err := NewManager(tmpDir, map[string]deps.Dependency{}, Options{
 		Verbose: false,
 	})
 	if err != nil {
@@ -162,11 +164,11 @@ func TestFetchOne_RejectsUnknownDependency(t *testing.T) {
 func TestManager_CleanRemovesDependencyCache(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	deps := map[string]Dependency{
-		"libfoo": NewGitDependency("libfoo", "https://github.com/example/foo.git", "main", nil),
+	deps := map[string]deps.Dependency{
+		"libfoo": deps.NewGitDependency("libfoo", "https://github.com/example/foo.git", "main", nil),
 	}
 
-	manager, err := NewManager(tmpDir, deps, ManagerOptions{
+	manager, err := NewManager(tmpDir, deps, Options{
 		Verbose: false,
 	})
 	if err != nil {
@@ -199,7 +201,7 @@ func TestManager_CleanRemovesDependencyCache(t *testing.T) {
 func TestCleanOne_RejectsUnknownDependency(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	manager, err := NewManager(tmpDir, map[string]Dependency{}, ManagerOptions{
+	manager, err := NewManager(tmpDir, map[string]deps.Dependency{}, Options{
 		Verbose: false,
 	})
 	if err != nil {
@@ -231,13 +233,13 @@ func TestManager_BuildOrdersDependenciesFirst(t *testing.T) {
 		}
 	}
 
-	deps := map[string]Dependency{
-		"zzz": NewVendoredDependency("zzz", vendorPath2, nil),
-		"aaa": NewVendoredDependency("aaa", vendorPath1, nil),
-		"mmm": NewVendoredDependency("mmm", vendorPath3, nil),
+	deps := map[string]deps.Dependency{
+		"zzz": deps.NewVendoredDependency("zzz", vendorPath2, nil),
+		"aaa": deps.NewVendoredDependency("aaa", vendorPath1, nil),
+		"mmm": deps.NewVendoredDependency("mmm", vendorPath3, nil),
 	}
 
-	manager, err := NewManager(tmpDir, deps, ManagerOptions{
+	manager, err := NewManager(tmpDir, deps, Options{
 		Verbose: false,
 	})
 	if err != nil {

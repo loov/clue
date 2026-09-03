@@ -1,4 +1,4 @@
-package deps
+package fetch
 
 import (
 	"os"
@@ -61,67 +61,11 @@ func TestCloneGitRefDoesNotGuessRefType(t *testing.T) {
 	if err != nil || head.Hash() != hash {
 		t.Fatalf("clone commit resolved to %v, %v", head, err)
 	}
-	if changed, err := NewGitFetcher(false).Update(t.Context(), checkout); err != nil || changed {
-		t.Fatalf("pinned commit update changed=%v, err=%v", changed, err)
-	}
-
 	failed := filepath.Join(t.TempDir(), "failed")
 	if _, err := cloneGitRef(t.Context(), source, "missing", failed, nil); err == nil {
 		t.Fatal("missing ref cloned successfully")
 	}
 	if _, err := os.Stat(failed); !os.IsNotExist(err) {
 		t.Fatalf("failed clone was left in cache: %v", err)
-	}
-}
-
-func TestGitFetcherUpdateFastForwardsBranches(t *testing.T) {
-	source := filepath.Join(t.TempDir(), "source")
-	repo, err := git.PlainInit(source, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	worktree, err := repo.Worktree()
-	if err != nil {
-		t.Fatal(err)
-	}
-	commit := func(content string, when int64) plumbing.Hash {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(source, "file.txt"), []byte(content), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := worktree.Add("file.txt"); err != nil {
-			t.Fatal(err)
-		}
-		hash, err := worktree.Commit(content, &git.CommitOptions{Author: &object.Signature{
-			Name: "Test", Email: "test@example.com", When: time.Unix(when, 0),
-		}})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return hash
-	}
-	first := commit("first", 1)
-	branch := plumbing.NewBranchReferenceName("release")
-	if err := repo.Storer.SetReference(plumbing.NewHashReference(branch, first)); err != nil {
-		t.Fatal(err)
-	}
-
-	checkout := filepath.Join(t.TempDir(), "checkout")
-	cloned, err := cloneGitRef(t.Context(), source, branch.Short(), checkout, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	second := commit("second", 2)
-	if err := repo.Storer.SetReference(plumbing.NewHashReference(branch, second)); err != nil {
-		t.Fatal(err)
-	}
-
-	changed, err := NewGitFetcher(false).Update(t.Context(), checkout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	head, err := cloned.Head()
-	if err != nil || !changed || head.Hash() != second {
-		t.Fatalf("updated branch resolved to %v, changed=%v, err=%v", head, changed, err)
 	}
 }
