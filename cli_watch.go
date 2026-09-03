@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/loov/clue/internal/build"
@@ -21,12 +19,12 @@ type watchCommand struct{ options *options }
 
 func (*watchCommand) Setup(clingy.Parameters) {}
 
-func (c *watchCommand) Execute(context.Context) error {
+func (c *watchCommand) Execute(ctx context.Context) error {
 	o := c.options
-	return result(runWatch(o.dir, o.variant, o.target, o.verbosity(), o.jobs, o.keepGoing))
+	return result(runWatch(ctx, o.dir, o.variant, o.target, o.verbosity(), o.jobs, o.keepGoing))
 }
 
-func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, keepGoing bool) int {
+func runWatch(ctx context.Context, dir, variant, target string, verbosity build.Verbosity, jobs int, keepGoing bool) int {
 	// Load initial config
 	cfg, selectedVariant, targetPlatform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
@@ -52,6 +50,9 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 
 	// Reload config and run build
 	doBuild := func(trigger string, isConfigChange bool) {
+		if ctx.Err() != nil {
+			return
+		}
 		buildMu.Lock()
 		// Cancel any in-progress build
 		if currentCancel != nil {
@@ -80,8 +81,9 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		}
 		fmt.Printf("[%s] Rebuilding...\n", now)
 
-		// Create new context for this build
-		ctx, cancel := context.WithCancel(context.Background())
+		// Create a child context so a new change can interrupt only this build.
+		buildCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		currentCancel = cancel
 		buildMu.Unlock()
 
@@ -103,9 +105,11 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		}
 
 		// Run build
-		_, err = builder.Build(ctx, opts)
-		if errors.Is(ctx.Err(), context.Canceled) {
-			fmt.Println("Build interrupted - new changes detected")
+		_, err = builder.Build(buildCtx, opts)
+		if errors.Is(buildCtx.Err(), context.Canceled) {
+			if ctx.Err() == nil {
+				fmt.Println("Build interrupted - new changes detected")
+			}
 			return
 		}
 		if err != nil {
@@ -116,6 +120,9 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	// Initial build
 	fmt.Println("Starting watch mode...")
 	doBuild("initial build", false)
+	if ctx.Err() != nil {
+		return 1
+	}
 
 	// Setup watcher
 	watcher, err := watch.NewWatcher(watch.Config{
@@ -140,11 +147,8 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	// Show watching status with directory count
 	fmt.Printf("\nWatching %d directories for changes (Ctrl+C to stop)...\n", watcher.WatchCount())
 
-	// Wait for Ctrl+C
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	<-sigChan
+	<-ctx.Done()
 
 	fmt.Println("\nStopping watch mode...")
-	return 0
+	return 1
 }

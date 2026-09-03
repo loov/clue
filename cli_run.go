@@ -21,12 +21,12 @@ func (c *runCommand) Setup(params clingy.Parameters) {
 	c.args = params.Arg("argument", "argument passed to the executable", clingy.Repeated).([]string)
 }
 
-func (c *runCommand) Execute(context.Context) error {
+func (c *runCommand) Execute(ctx context.Context) error {
 	o := c.options
-	return result(runRun(o.dir, o.variant, o.target, o.verbosity(), o.jobs, c.target, c.args))
+	return result(runRun(ctx, o.dir, o.variant, o.target, o.verbosity(), o.jobs, c.target, c.args))
 }
 
-func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, targetName string, execArgs []string) int {
+func runRun(ctx context.Context, dir, variant, target string, verbosity build.Verbosity, jobs int, targetName string, execArgs []string) int {
 	// Load configuration
 	cfg, selectedVariant, platform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
@@ -46,12 +46,7 @@ func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, ta
 		actualJobs = runtime.NumCPU()
 	}
 
-	// Setup signal handling for build phase
-	buildCtx := build.SetupSignalHandling()
-	defer buildCtx.Close()
-
-	// Run target
-	result, err := build.RunTarget(buildCtx.Ctx, build.RunOptions{
+	result, err := build.RunTarget(ctx, build.RunOptions{
 		Config:    cfg,
 		Variant:   selectedVariant,
 		BuildDir:  cfg.BuildDir,
@@ -61,9 +56,8 @@ func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, ta
 		Jobs:      actualJobs,
 	})
 
-	if buildCtx.IsCancelled() {
-		fmt.Println("\nCancelled.")
-		return 130
+	if ctx.Err() != nil {
+		return 1
 	}
 
 	if err != nil {

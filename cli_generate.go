@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"slices"
-	"syscall"
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/generate"
@@ -23,14 +21,11 @@ type generateCommand struct {
 
 func (*generateCommand) Setup(clingy.Parameters) {}
 
-func (c *generateCommand) Execute(context.Context) error {
-	return result(runGenerate(c.options.dir, c.options.variant, c.options.target, c.format))
+func (c *generateCommand) Execute(ctx context.Context) error {
+	return result(runGenerate(ctx, c.options.dir, c.options.variant, c.options.target, c.format))
 }
 
-func runGenerate(dir, variant, target, subCmd string) int {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
+func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
 	targetPlatform, err := parseTargetPlatform(target)
 	if err != nil {
 		printError(err)
@@ -101,6 +96,9 @@ func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform
 		Platform:   platform,
 	})
 	if err != nil {
+		if ctx.Err() != nil {
+			return 1
+		}
 		printError(err)
 		return 1
 	}
@@ -120,6 +118,9 @@ func generateCompileCommands(ctx context.Context, dir string, cfg *config.Config
 		Platform:   platform,
 	})
 	if err != nil {
+		if ctx.Err() != nil {
+			return 1
+		}
 		printError(err)
 		return 1
 	}

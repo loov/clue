@@ -23,12 +23,12 @@ func (c *testCommand) Setup(params clingy.Parameters) {
 	c.selectors = params.Arg("selector", "test name or label", clingy.Repeated).([]string)
 }
 
-func (c *testCommand) Execute(context.Context) error {
+func (c *testCommand) Execute(ctx context.Context) error {
 	o := c.options
-	return result(runTests(o.dir, o.variant, o.target, o.verbosity(), o.jobs, c.selectors))
+	return result(runTests(ctx, o.dir, o.variant, o.target, o.verbosity(), o.jobs, c.selectors))
 }
 
-func runTests(dir, variant, target string, verbosity build.Verbosity, jobs int, selectors []string) int {
+func runTests(ctx context.Context, dir, variant, target string, verbosity build.Verbosity, jobs int, selectors []string) int {
 	cfg, selectedVariant, platform, err := loadConfig(dir, variant, target, build.VerbosityQuiet)
 	if err != nil {
 		printError(err)
@@ -43,7 +43,7 @@ func runTests(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 		printError(err)
 		return 1
 	}
-	if code := runBuild(dir, variant, target, verbosity, false, jobs, false, false, false, 10, targets); code != 0 {
+	if code := runBuild(ctx, dir, variant, target, verbosity, false, jobs, false, false, false, 10, targets); code != 0 {
 		return code
 	}
 
@@ -69,7 +69,7 @@ func runTests(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 			Environment: configured.Environment, WorkingDirectory: workingDirectory,
 		})
 	}
-	summary := build.RunTests(context.Background(), cases, resolvedJobs(jobs), verbosity)
+	summary := build.RunTests(ctx, cases, resolvedJobs(jobs), verbosity)
 	if summary.Failed > 0 {
 		return 1
 	}

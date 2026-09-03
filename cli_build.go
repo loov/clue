@@ -31,9 +31,9 @@ func (c *buildCommand) Setup(params clingy.Parameters) {
 	c.targets = params.Arg("target", "target to build", clingy.Repeated).([]string)
 }
 
-func (c *buildCommand) Execute(context.Context) error {
+func (c *buildCommand) Execute(ctx context.Context) error {
 	o := c.options
-	return result(runBuild(o.dir, o.variant, o.target, o.verbosity(), o.rebuildAll, o.jobs, o.keepGoing, o.profile, o.saveProfile, o.top, c.targets))
+	return result(runBuild(ctx, o.dir, o.variant, o.target, o.verbosity(), o.rebuildAll, o.jobs, o.keepGoing, o.profile, o.saveProfile, o.top, c.targets))
 }
 
 type cleanCommand struct{ options *options }
@@ -94,7 +94,7 @@ func runValidate(dir, variant, target string, verbosity build.Verbosity) int {
 	return 0
 }
 
-func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll bool, jobs int, keepGoing bool, profile, saveProfile bool, topN int, targets []string) int {
+func runBuild(ctx context.Context, dir, variant, target string, verbosity build.Verbosity, rebuildAll bool, jobs int, keepGoing bool, profile, saveProfile bool, topN int, targets []string) int {
 	cfg, selectedVariant, targetPlatform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
 		printError(err)
@@ -142,17 +142,9 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 		TopN:         topN,
 	}
 
-	// Setup signal handling
-	buildCtx := build.SetupSignalHandling()
-	defer buildCtx.Close()
-
-	// Execute build with cancellable context
-	result, err := builder.Build(buildCtx.Ctx, opts)
-
-	// Handle cancellation
-	if buildCtx.IsCancelled() && err == nil {
-		fmt.Println("\nBuild cancelled.")
-		return 130
+	result, err := builder.Build(ctx, opts)
+	if ctx.Err() != nil {
+		return 1
 	}
 
 	if err != nil {

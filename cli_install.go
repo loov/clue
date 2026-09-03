@@ -17,12 +17,12 @@ func (c *installCommand) Setup(params clingy.Parameters) {
 	c.targets = params.Arg("target", "target to install", clingy.Repeated).([]string)
 }
 
-func (c *installCommand) Execute(context.Context) error {
+func (c *installCommand) Execute(ctx context.Context) error {
 	o := c.options
-	return result(runInstall(o.dir, o.variant, o.target, o.prefix, o.destDir, o.verbosity(), o.jobs, c.targets))
+	return result(runInstall(ctx, o.dir, o.variant, o.target, o.prefix, o.destDir, o.verbosity(), o.jobs, c.targets))
 }
 
-func runInstall(dir, variant, target, prefix, destDir string, verbosity build.Verbosity, jobs int, targets []string) int {
+func runInstall(ctx context.Context, dir, variant, target, prefix, destDir string, verbosity build.Verbosity, jobs int, targets []string) int {
 	cfg, selectedVariant, platform, err := loadConfig(dir, variant, target, build.VerbosityQuiet)
 	if err != nil {
 		printError(err)
@@ -33,8 +33,11 @@ func runInstall(dir, variant, target, prefix, destDir string, verbosity build.Ve
 		printError(err)
 		return 1
 	}
-	if code := runBuild(dir, variant, target, verbosity, false, jobs, false, false, false, 10, targets); code != 0 {
+	if code := runBuild(ctx, dir, variant, target, verbosity, false, jobs, false, false, false, 10, targets); code != 0 {
 		return code
+	}
+	if ctx.Err() != nil {
+		return 1
 	}
 	result, err := build.Install(build.InstallOptions{
 		Config: cfg, Variant: selectedVariant, Platform: platform,

@@ -35,11 +35,11 @@ func (c *depsCommand) Setup(params clingy.Parameters) {
 	c.name = params.Arg("name", description).(string)
 }
 
-func (c *depsCommand) Execute(context.Context) error {
-	return result(runDeps(c.options.dir, c.options.target, c.options.verbose, c.action, c.name))
+func (c *depsCommand) Execute(ctx context.Context) error {
+	return result(runDeps(ctx, c.options.dir, c.options.target, c.options.verbose, c.action, c.name))
 }
 
-func runDeps(dir, target string, verbose bool, subCmd, name string) int {
+func runDeps(ctx context.Context, dir, target string, verbose bool, subCmd, name string) int {
 	// Load config
 	verbosity := build.VerbosityNormal
 	if verbose {
@@ -51,9 +51,6 @@ func runDeps(dir, target string, verbose bool, subCmd, name string) int {
 		return 1
 	}
 
-	// Setup context for operations
-	ctx := context.Background()
-
 	switch subCmd {
 	case "list":
 		if err := listDependencies(cfg.Dependencies, verbose); err != nil {
@@ -63,6 +60,9 @@ func runDeps(dir, target string, verbose bool, subCmd, name string) int {
 
 	case "fetch":
 		if err := fetchDependencies(ctx, cfg.Dependencies, verbose, name); err != nil {
+			if ctx.Err() != nil {
+				return 1
+			}
 			printError(err)
 			return 1
 		}
@@ -76,6 +76,9 @@ func runDeps(dir, target string, verbose bool, subCmd, name string) int {
 		if err := builder.BuildDependency(ctx, build.Options{
 			Config: cfg, Variant: variant, BuildDir: cfg.BuildDir, Verbosity: verbosity,
 		}, name); err != nil {
+			if ctx.Err() != nil {
+				return 1
+			}
 			printError(err)
 			return 1
 		}
@@ -87,6 +90,9 @@ func runDeps(dir, target string, verbose bool, subCmd, name string) int {
 
 	case "update":
 		if err := updateDependencies(ctx, cfg.Dependencies); err != nil {
+			if ctx.Err() != nil {
+				return 1
+			}
 			printError(err)
 			return 1
 		}

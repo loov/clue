@@ -4,10 +4,15 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var version = "0.1.0-dev"
 
 func main() {
-	os.Exit(runCLI(context.Background(), os.Args[1:], version))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	code := runCLI(ctx, os.Args[1:], version)
+	stop()
+	os.Exit(code)
 }

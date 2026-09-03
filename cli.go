@@ -101,6 +101,9 @@ func runCLI(ctx context.Context, args []string, version string) int {
 	options := &options{}
 	env := clingy.Environment{Name: "clue", Args: args, Root: &validateCommand{options: options}}
 	env.Wrap = func(ctx context.Context, command clingy.Command) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if options.version {
 			_, err := fmt.Fprintf(clingy.Stdout(ctx), "clue version %s\n", version)
 			return err
@@ -125,6 +128,14 @@ func runCLI(ctx context.Context, args []string, version string) int {
 		options.setup(commands)
 		registerCommands(commands, options)
 	})
+	if err := ctx.Err(); err != nil {
+		if errors.Is(err, context.Canceled) {
+			fmt.Fprintln(os.Stderr, "\nCancelled.")
+			return 130
+		}
+		printError(err)
+		return 1
+	}
 	if err != nil {
 		var exitCode cliExitCode
 		if errors.As(err, &exitCode) {

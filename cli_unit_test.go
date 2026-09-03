@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -8,6 +9,15 @@ import (
 
 	"github.com/loov/clue/internal/config"
 )
+
+func TestRunCLI_CanceledContextReturnsSignalExitCode(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	if code := runCLI(ctx, []string{"--version"}, "test"); code != 130 {
+		t.Fatalf("runCLI() = %d, want 130", code)
+	}
+}
 
 func TestSelectConfiguredTestsByNameAndLabel(t *testing.T) {
 	cfg := &config.Config{Targets: map[string]config.Target{
