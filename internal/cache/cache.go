@@ -11,11 +11,12 @@ import (
 
 // CacheKey contains all inputs that affect compilation output
 type CacheKey struct {
-	SourceHash   string                     `json:"source_hash"`   // xxHash of source file content
-	HeaderHashes map[string]string          `json:"header_hashes"` // path -> hash for all headers
-	CompilerID   toolchain.CompilerIdentity `json:"compiler_id"`   // Compiler identity (path + mtime + size)
-	Flags        []string                   `json:"flags"`         // Ordered compilation inputs
-	IncludePaths []string                   `json:"include_paths"` // Include directories (order preserved)
+	SourceHash          string                     `json:"source_hash"`   // xxHash of source file content
+	HeaderHashes        map[string]string          `json:"header_hashes"` // path -> hash for all headers
+	ConditionalIncludes map[string]bool            `json:"conditional_includes,omitempty"`
+	CompilerID          toolchain.CompilerIdentity `json:"compiler_id"`   // Compiler identity (path + mtime + size)
+	Flags               []string                   `json:"flags"`         // Ordered compilation inputs
+	IncludePaths        []string                   `json:"include_paths"` // Include directories (order preserved)
 }
 
 // CompilerIdentity uniquely identifies a compiler binary

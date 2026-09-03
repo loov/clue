@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 )
 
@@ -22,14 +23,15 @@ type RebuildReason string
 
 // RebuildReason constants define specific reasons for recompilation.
 const (
-	ReasonNotCached       RebuildReason = "not in cache"
-	ReasonSourceChanged   RebuildReason = "source changed"
-	ReasonHeaderChanged   RebuildReason = "header changed"
-	ReasonFlagsChanged    RebuildReason = "flags changed"
-	ReasonCompilerChanged RebuildReason = "compiler changed"
-	ReasonDepFileMissing  RebuildReason = "dependency file missing"
-	ReasonObjectMissing   RebuildReason = "object file missing"
-	ReasonForced          RebuildReason = "--rebuild-all flag"
+	ReasonNotCached          RebuildReason = "not in cache"
+	ReasonSourceChanged      RebuildReason = "source changed"
+	ReasonHeaderChanged      RebuildReason = "header changed"
+	ReasonFlagsChanged       RebuildReason = "flags changed"
+	ReasonCompilerChanged    RebuildReason = "compiler changed"
+	ReasonConditionalInclude RebuildReason = "conditional include requires rebuild"
+	ReasonDepFileMissing     RebuildReason = "dependency file missing"
+	ReasonObjectMissing      RebuildReason = "object file missing"
+	ReasonForced             RebuildReason = "--rebuild-all flag"
 )
 
 // Manager handles compilation caching for incremental builds
@@ -163,6 +165,12 @@ func (cm *Manager) NeedsRebuild(
 	if err != nil {
 		return true, ReasonDepFileMissing, ""
 	}
+	for candidate, existed := range entry.Key.ConditionalIncludes {
+		_, err := os.Stat(candidate)
+		if (err == nil) != existed {
+			return true, ReasonConditionalInclude, candidate
+		}
+	}
 
 	// Check each dependency (headers)
 	for _, dep := range depInfo.Sources {
@@ -284,11 +292,12 @@ func (cm *Manager) StoreResult(
 
 	// Build cache key
 	key := CacheKey{
-		SourceHash:   sourceHash,
-		HeaderHashes: headerHashes,
-		CompilerID:   compilerID,
-		Flags:        append([]string(nil), compilerFlags...),
-		IncludePaths: normalizeIncludePaths(includes),
+		SourceHash:          sourceHash,
+		HeaderHashes:        headerHashes,
+		ConditionalIncludes: conditionalIncludeStates(depInfo.Sources, includes),
+		CompilerID:          compilerID,
+		Flags:               append([]string(nil), compilerFlags...),
+		IncludePaths:        normalizeIncludePaths(includes),
 	}
 
 	// Create cache entry
@@ -304,6 +313,51 @@ func (cm *Manager) StoreResult(
 
 	// Save manifest atomically
 	return cm.saveManifest()
+}
+
+var conditionalIncludePattern = regexp.MustCompile(`__has_include\s*\(\s*([<"])([^>"]+)[>"]\s*\)`)
+
+func conditionalIncludeStates(files, includePaths []string) map[string]bool {
+	searchDirs := normalizeIncludePaths(includePaths)
+	for _, file := range files {
+		searchDirs = append(searchDirs, filepath.Dir(file))
+	}
+	searchDirs = uniqueStrings(searchDirs)
+
+	states := make(map[string]bool)
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		for _, match := range conditionalIncludePattern.FindAllStringSubmatch(string(content), -1) {
+			dirs := searchDirs
+			if match[1] == `"` {
+				dirs = append([]string{filepath.Dir(file)}, dirs...)
+			}
+			for _, dir := range dirs {
+				candidate := filepath.Clean(filepath.Join(dir, match[2]))
+				_, err := os.Stat(candidate)
+				states[candidate] = err == nil
+			}
+		}
+	}
+	// ponytail: macro-expanded __has_include arguments are not portable to
+	// resolve here; use compiler-produced negative dependencies if needed.
+	return states
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = filepath.Clean(value)
+		if !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func cacheEntryID(source, objectPath string) string {

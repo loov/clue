@@ -25,11 +25,12 @@ func linkFingerprint(tc Toolchain, tool string, options any, inputs []string) ([
 		files = append(files, linkInput{Path: path, Hash: hash})
 	}
 	return json.Marshal(struct {
-		Tool      cache.CompilerIdentity `json:"tool"`
-		Toolchain string                 `json:"toolchain,omitempty"`
-		Options   any                    `json:"options"`
-		Inputs    []linkInput            `json:"inputs"`
-	}{toolID, toolchainCacheKey(tc), options, files})
+		Tool        cache.CompilerIdentity `json:"tool"`
+		Toolchain   string                 `json:"toolchain,omitempty"`
+		Environment []string               `json:"environment,omitempty"`
+		Options     any                    `json:"options"`
+		Inputs      []linkInput            `json:"inputs"`
+	}{toolID, toolchainCacheKey(tc), toolchainCacheEnvironment(tc), options, files})
 }
 
 func linkIsCurrent(output string, fingerprint []byte) bool {

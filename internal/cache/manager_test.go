@@ -384,6 +384,43 @@ func TestNeedsRebuild_HeaderChanged(t *testing.T) {
 	}
 }
 
+func TestNeedsRebuild_ConditionalInclude(t *testing.T) {
+	dir := t.TempDir()
+	manager, err := NewManager(filepath.Join(dir, "build"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(dir, "conditional.cpp")
+	object := filepath.Join(dir, "conditional.o")
+	depFile := filepath.Join(dir, "conditional.d")
+	compiler := filepath.Join(dir, "compiler")
+	for path, content := range map[string]string{
+		source:   "#if __has_include(\"optional.hpp\")\n#include \"optional.hpp\"\n#endif\n",
+		object:   "object",
+		depFile:  object + ": " + source + "\n",
+		compiler: "compiler",
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := manager.StoreResult(source, object, depFile, nil, nil, compiler); err != nil {
+		t.Fatal(err)
+	}
+	rebuild, reason, changed := manager.NeedsRebuild(source, object, nil, nil, compiler, false)
+	if rebuild {
+		t.Fatalf("unchanged missing conditional include rebuilt: %q, %q", reason, changed)
+	}
+	optional := filepath.Join(dir, "optional.hpp")
+	if err := os.WriteFile(optional, []byte("#pragma once\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rebuild, reason, changed = manager.NeedsRebuild(source, object, nil, nil, compiler, false)
+	if !rebuild || reason != ReasonConditionalInclude || changed != optional {
+		t.Fatalf("NeedsRebuild() = %v, %q, %q", rebuild, reason, changed)
+	}
+}
+
 func TestManifestPersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	buildDir := filepath.Join(tmpDir, "build")

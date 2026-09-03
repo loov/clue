@@ -17,6 +17,7 @@ import (
 func (c *Compiler) cacheInputs(opts CompileOptions) []string {
 	encoded, _ := json.Marshal(opts)
 	inputs := append([]string{string(encoded), toolchainCacheKey(c.toolchain)}, c.toolchain.CompilerFlags(opts.Flags)...)
+	inputs = append(inputs, toolchainCacheEnvironment(c.toolchain)...)
 	for _, name := range sortedModuleNames(opts.ModuleFiles) {
 		hash, err := cache.ComputeFileHash(opts.ModuleFiles[name])
 		if err != nil {
@@ -132,7 +133,13 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	// 4. Dependency generation flags
 	depFile := filepath.Base(opts.Output[:len(opts.Output)-len(filepath.Ext(opts.Output))]) + ".d"
 	depFile = filepath.Join(filepath.Dir(opts.Output), depFile)
-	args = append(args, "-MMD", "-MP", "-MF", depFile)
+	dependencyMode := "-MD"
+	if toolchainCacheKey(c.toolchain) != "" {
+		// Container system headers are represented by the immutable image ID and
+		// cannot be hashed from the host filesystem.
+		dependencyMode = "-MMD"
+	}
+	args = append(args, dependencyMode, "-MP", "-MF", depFile)
 
 	// 5. Position-independent code for shared libraries (automatic)
 	if opts.TargetType == "shared_library" {

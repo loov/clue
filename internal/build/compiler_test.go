@@ -122,6 +122,56 @@ func TestCompilerCacheInputsIncludeAllCompileOptions(t *testing.T) {
 	}
 }
 
+func TestCompilerCacheInputsIncludeEnvironment(t *testing.T) {
+	t.Setenv("CPATH", "first")
+	tc, _ := NewToolchain("clang", HostPlatform())
+	compiler := NewCompiler(NewExecutor(ExecutorConfig{}), tc)
+	first := strings.Join(compiler.cacheInputs(CompileOptions{}), "\x00")
+
+	t.Setenv("CPATH", "second")
+	second := strings.Join(compiler.cacheInputs(CompileOptions{}), "\x00")
+	if first == second {
+		t.Fatal("cache inputs did not change with CPATH")
+	}
+}
+
+func TestCompilerTracksSystemHeaders(t *testing.T) {
+	if _, err := exec.LookPath("clang++"); err != nil {
+		t.Skip("clang++ not available")
+	}
+	dir := t.TempDir()
+	includeDir := filepath.Join(dir, "system")
+	if err := os.Mkdir(includeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	header := filepath.Join(includeDir, "system.hpp")
+	if err := os.WriteFile(header, []byte("inline int answer() { return 42; }"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(dir, "main.cpp")
+	if err := os.WriteFile(source, []byte("#include <system.hpp>\nint main() { return answer(); }"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	tc, _ := NewToolchain("clang", HostPlatform())
+	result, err := NewCompiler(NewExecutor(ExecutorConfig{}), tc).CompileSource(t.Context(), CompileOptions{
+		Source: source, Output: filepath.Join(dir, "main.o"), SystemIncludes: []string{includeDir},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dependencies, err := cache.ParseDepFile(result.DepFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dependency := range dependencies.Sources {
+		if dependency == header {
+			return
+		}
+	}
+	t.Fatalf("system header %q missing from dependencies: %v", header, dependencies.Sources)
+}
+
 func TestCompiler_CompileSource_Integration(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
