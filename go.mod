@@ -6,7 +6,7 @@ require (
 	cuelang.org/go v0.15.3
 	github.com/Duncaen/go-ninja v0.0.0-20190726135315-8e5210064eb2
 	github.com/dominikbraun/graph v0.23.0
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/zeebo/clingy v0.0.0-20260119143559-4d23ffb0341b
 	github.com/zeebo/xxh3 v1.0.2
