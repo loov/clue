@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -169,7 +170,7 @@ func TestExecutor_CancellationCleanup(t *testing.T) {
 	duration := time.Since(start)
 
 	// Should return with context cancelled error
-	if err != context.Canceled {
+	if !errors.Is(err, context.Canceled) {
 		t.Errorf("Expected context.Canceled error, got: %v", err)
 	}
 

@@ -4,6 +4,7 @@ package msvc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -225,8 +226,8 @@ set
 	cmd := exec.Command("cmd.exe", "/c", tmpPath)
 	output, err := cmd.Output()
 	if err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			return nil, newVCVarsError(fmt.Sprintf("exit code %d", exitErr.ExitCode()))
 		}
 		return nil, newVCVarsError(err.Error())

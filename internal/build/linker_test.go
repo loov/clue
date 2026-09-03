@@ -1,6 +1,7 @@
 package build
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,7 +64,8 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 	// Run executable and verify exit code is 42
 	cmd = exec.Command(exePath)
 	if err := cmd.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() != 42 {
 				t.Fatalf("expected exit code 42, got %d", exitErr.ExitCode())
 			}
@@ -269,7 +271,8 @@ int main() { return add(20, 22); }`
 	// Run executable and verify exit code is 42 (20 + 22)
 	cmd = exec.Command(exePath)
 	if err := cmd.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() != 42 {
 				t.Fatalf("expected exit code 42, got %d", exitErr.ExitCode())
 			}

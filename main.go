@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"maps"
@@ -858,7 +859,7 @@ func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 
 		// Run build
 		_, err = builder.Build(ctx, opts)
-		if ctx.Err() == context.Canceled {
+		if errors.Is(ctx.Err(), context.Canceled) {
 			fmt.Println("Build interrupted - new changes detected")
 			return
 		}

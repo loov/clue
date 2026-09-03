@@ -3,6 +3,7 @@ package build
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -120,7 +121,8 @@ func (e *Executor) RunCommandWithCleanup(ctx context.Context, name string, args 
 func (e *Executor) buildResult(err error, stdout, stderr bytes.Buffer, start time.Time) *CommandResult {
 	exitCode := 0
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 		}
 	}
@@ -137,7 +139,8 @@ func (e *Executor) checkError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if exitErr, ok := err.(*exec.ExitError); ok {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
 		return fmt.Errorf("command exited with code %d", exitErr.ExitCode())
 	}
 	return err

@@ -45,7 +45,7 @@ func ExtractTarGz(archivePath, targetDir string) (resultErr error) {
 	// Extract each entry
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break // End of archive
 		}
 		if err != nil {

@@ -1,6 +1,7 @@
 package build
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -131,7 +132,8 @@ targets: {
 
 	if err := cmd.Run(); err != nil {
 		// Check if it's an exit code error
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			t.Fatalf("Executable returned non-zero exit code: %d", exitErr.ExitCode())
 		}
 		t.Fatalf("Failed to run executable: %v", err)
@@ -193,8 +195,11 @@ func TestCrossTargetModulesAndHeaderUnits(t *testing.T) {
 	}
 	if err := exec.Command(executable).Run(); err == nil {
 		t.Fatal("header-unit change did not rebuild its consumer")
-	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
-		t.Fatalf("changed module executable returned %v", err)
+	} else {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+			t.Fatalf("changed module executable returned %v", err)
+		}
 	}
 }
 
