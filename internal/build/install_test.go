@@ -40,3 +40,21 @@ func TestInstallStagesArtifactsAndPublicHeaders(t *testing.T) {
 		}
 	}
 }
+
+func TestInstallTargets_DoesNotReorderCallerSelection(t *testing.T) {
+	cfg := &config.Config{Targets: map[string]config.Target{
+		"alpha": {Name: "alpha", Type: "static_library"},
+		"zeta":  {Name: "zeta", Type: "static_library"},
+	}}
+	requested := []string{"zeta", "alpha"}
+	selected, err := InstallTargets(cfg, requested)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(selected, []string{"alpha", "zeta"}) {
+		t.Fatalf("selected = %v", selected)
+	}
+	if !slices.Equal(requested, []string{"zeta", "alpha"}) {
+		t.Fatalf("requested mutated to %v", requested)
+	}
+}

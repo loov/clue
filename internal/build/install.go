@@ -66,6 +66,7 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("missing configuration")
 	}
+	requested = slices.Clone(requested)
 	if len(requested) == 0 {
 		for name, target := range cfg.Targets {
 			if target.Type != "custom" && target.Test == nil {
