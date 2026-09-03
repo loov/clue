@@ -305,6 +305,9 @@ int main() { return add(20, 22); }`
 
 // TestLinker_LinkWithSystemLibraryResolvesSymbols tests linking with system libraries
 func TestLinker_LinkWithSystemLibraryResolvesSymbols(t *testing.T) {
+	if toolchain.HostPlatform().OS == "windows" {
+		t.Skip("pthread test requires a POSIX platform")
+	}
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {
 		t.Skip("clang++ not available")
