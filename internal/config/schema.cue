@@ -12,6 +12,12 @@ package config
 	cStd?: string
 	cxxStd?: string
 	depends?: [...string]  // Other target names
+	test?: {
+		args?: [...string]
+		env?: [string]: string
+		workingDirectory?: string
+		labels?: [...string]
+	}
 	public?: {
 		includes?: [...string]
 		systemIncludes?: [...string]
@@ -49,6 +55,9 @@ package config
 	}
 	if type != "custom" && type != "interface_library" {
 		sources: [...string] & [_, ...]
+	}
+	if type != "executable" {
+		test?: _|_
 	}
 }
 

@@ -116,6 +116,15 @@ type Target struct {
 	LTO              *bool
 	PIC              *bool
 	Coverage         *bool
+	Test             *Test
+}
+
+// Test configures an executable target as a test case.
+type Test struct {
+	Args             []string
+	Environment      map[string]string
+	WorkingDirectory string
+	Labels           []string
 }
 
 // Usage contains compile requirements inherited by target consumers.
@@ -492,6 +501,19 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 		t.CXXStd, _ = standard.String()
 	}
 	t.Depends = extractStringList(val, "depends")
+	if test := val.LookupPath(cue.ParsePath("test")); test.Exists() {
+		t.Test = &Test{
+			Args: extractStringList(test, "args"), WorkingDirectory: extractOptionalString(test, "workingDirectory"),
+			Labels: extractStringList(test, "labels"), Environment: make(map[string]string),
+		}
+		if environment := test.LookupPath(cue.ParsePath("env")); environment.Exists() {
+			fields, _ := environment.Fields()
+			for fields.Next() {
+				value, _ := fields.Value().String()
+				t.Test.Environment[fields.Selector().Unquoted()] = value
+			}
+		}
+	}
 	if public := val.LookupPath(cue.ParsePath("public")); public.Exists() {
 		t.Public.Includes = extractStringList(public, "includes")
 		t.Public.SystemIncludes = extractStringList(public, "systemIncludes")

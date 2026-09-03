@@ -90,6 +90,7 @@ toolchain: {
 - `clue build` - Build all targets (use `-variant release` for optimized builds)
 - `clue clean` - Remove build artifacts (use `-all` to clean all variants)
 - `clue run <target>` - Build and run an executable target
+- `clue test [name|label...]` - Build and run configured tests
 - `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
 
@@ -151,6 +152,26 @@ variants: {
     }
 }
 ```
+
+### Tests
+
+Mark executable targets as tests and optionally configure their invocation:
+
+```cue
+targets: unit_tests: {
+    name:    "unit_tests"
+    type:    "executable"
+    sources: ["tests/unit.cpp"]
+    test: {
+        args:   ["--reporter", "console"]
+        env:    TEST_DATA: "tests/data"
+        labels: ["unit", "fast"]
+    }
+}
+```
+
+`clue test` runs every configured test. Positional selectors match either a
+target name or label, and `-j` controls execution parallelism.
 
 Build with a variant:
 

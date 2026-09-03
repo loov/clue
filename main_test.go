@@ -7,7 +7,24 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/config"
 )
+
+func TestSelectConfiguredTestsByNameAndLabel(t *testing.T) {
+	cfg := &config.Config{Targets: map[string]config.Target{
+		"unit": {Name: "unit", Test: &config.Test{Labels: []string{"fast"}}},
+		"slow": {Name: "slow", Test: &config.Test{Labels: []string{"integration"}}},
+		"app":  {Name: "app"},
+	}}
+	got, err := selectConfiguredTests(cfg, []string{"fast", "slow"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got, []string{"slow", "unit"}) {
+		t.Fatalf("selected tests = %v", got)
+	}
+}
 
 func TestValidateCommand(t *testing.T) {
 	// Build the binary first

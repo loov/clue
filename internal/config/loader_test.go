@@ -117,6 +117,34 @@ targets: app: {name: "app", type: "executable", sources: ["main.c"]}
 	}
 }
 
+func TestLoaderExtractsTestMetadata(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "tests"
+targets: unit: {
+	name: "unit"
+	type: "executable"
+	sources: ["unit.cpp"]
+	test: {
+		args: ["--quick"]
+		env: MODE: "test"
+		workingDirectory: "fixtures"
+		labels: ["unit", "fast"]
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	test := cfg.Targets["unit"].Test
+	if test == nil || test.WorkingDirectory != "fixtures" || test.Environment["MODE"] != "test" || len(test.Labels) != 2 {
+		t.Fatalf("test metadata = %+v", test)
+	}
+}
+
 func TestLoaderLoadsWholeCUEPackage(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{

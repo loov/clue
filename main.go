@@ -130,11 +130,13 @@ func main() {
 		os.Exit(runGenerate(opts.dir, opts.variant, opts.target, args))
 	case "run":
 		os.Exit(runRun(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, args))
+	case "test":
+		os.Exit(runTests(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, args))
 	case "watch":
 		os.Exit(runWatch(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, opts.keepGoing))
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
-		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, run, watch")
+		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, run, test, watch")
 		os.Exit(1)
 	}
 }
@@ -659,6 +661,104 @@ func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, ar
 	}
 
 	return result.ExitCode
+}
+
+func runTests(dir, variant, target string, verbosity build.Verbosity, jobs int, selectors []string) int {
+	cfg, selectedVariant, platform, err := loadConfig(dir, variant, target, build.VerbosityQuiet)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+	if platform != toolchain.HostPlatform() {
+		printError(fmt.Errorf("cannot run tests for non-host target %s", platform))
+		return 1
+	}
+	targets, err := selectConfiguredTests(cfg, selectors)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+	if code := runBuild(dir, variant, target, verbosity, false, jobs, false, false, false, 10, targets); code != 0 {
+		return code
+	}
+
+	cases := make([]build.TestCase, 0, len(targets))
+	for _, name := range targets {
+		configured := cfg.Targets[name].Test
+		executable, err := filepath.Abs(filepath.Join(cfg.BuildDir, selectedVariant, "bin", build.ExecutableName(name, platform)))
+		if err != nil {
+			printError(err)
+			return 1
+		}
+		workingDirectory := "."
+		if configured.WorkingDirectory != "" {
+			workingDirectory = configured.WorkingDirectory
+		}
+		workingDirectory, err = filepath.Abs(workingDirectory)
+		if err != nil {
+			printError(err)
+			return 1
+		}
+		cases = append(cases, build.TestCase{
+			Name: name, Executable: executable, Args: configured.Args,
+			Environment: configured.Environment, WorkingDirectory: workingDirectory,
+		})
+	}
+	summary := build.RunTests(context.Background(), cases, resolvedJobs(jobs), verbosity)
+	if summary.Failed > 0 {
+		return 1
+	}
+	return 0
+}
+
+func selectConfiguredTests(cfg *config.Config, selectors []string) ([]string, error) {
+	selected := make(map[string]bool)
+	for _, selector := range selectors {
+		matched := false
+		for name, target := range cfg.Targets {
+			if target.Test == nil {
+				continue
+			}
+			if name == selector {
+				selected[name], matched = true, true
+				continue
+			}
+			for _, label := range target.Test.Labels {
+				if label == selector {
+					selected[name], matched = true, true
+				}
+			}
+		}
+		if !matched {
+			return nil, fmt.Errorf("no test or label matches %q", selector)
+		}
+	}
+	if len(selectors) == 0 {
+		for name, target := range cfg.Targets {
+			if target.Test != nil {
+				selected[name] = true
+			}
+		}
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no tests configured")
+	}
+	names := make([]string, 0, len(selected))
+	for name := range selected {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func resolvedJobs(jobs int) int {
+	if jobs == 0 {
+		return max(runtime.NumCPU()/2, 1)
+	}
+	if jobs < 0 {
+		return runtime.NumCPU()
+	}
+	return jobs
 }
 
 func runWatch(dir, variant, target string, verbosity build.Verbosity, jobs int, keepGoing bool) int {
