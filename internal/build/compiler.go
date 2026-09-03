@@ -78,6 +78,9 @@ func (c *Compiler) compilerCmd(source string) string {
 // CompileSource compiles a single source file to an object file
 func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*CompileResult, error) {
 	start := time.Now()
+	if isMSVC(c.toolchain) && toolchain.IsAssemblySource(opts.Source) {
+		return nil, fmt.Errorf("MSVC cannot compile GNU-style assembly source %q; use a GCC or Clang toolchain", opts.Source)
+	}
 
 	// Create output directory if it doesn't exist
 	outputDir := filepath.Dir(opts.Output)
@@ -135,7 +138,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	}
 
 	// 8. Language standard
-	if opts.Std != "" {
+	if opts.Std != "" && !toolchain.IsAssemblySource(opts.Source) {
 		args = append(args, "-std="+opts.Std)
 	}
 
@@ -212,7 +215,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	}
 
 	// 7. Language standard (MSVC style: /std:)
-	if opts.Std != "" {
+	if opts.Std != "" && !toolchain.IsAssemblySource(opts.Source) {
 		args = append(args, "/std:"+TranslateStdForMSVC(opts.Std))
 	}
 

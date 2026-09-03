@@ -283,7 +283,7 @@ func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, systemInclu
 	}
 
 	// 7. Language standard
-	if std != "" {
+	if std != "" && !toolchain.IsAssemblySource(source) {
 		if msvc {
 			args = append(args, "/std:"+build.TranslateStdForMSVC(std))
 		} else {

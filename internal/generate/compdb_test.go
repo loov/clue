@@ -336,7 +336,7 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 			"mixed": {
 				Name:    "mixed",
 				Type:    "executable",
-				Sources: []string{"main.c", "util.cpp", "helper.cc", "legacy.C"},
+				Sources: []string{"main.c", "util.cpp", "helper.cc", "legacy.C", "startup.S"},
 			},
 		},
 		Variants:     map[string]config.Variant{},
@@ -393,6 +393,7 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 		"util.cpp":  "clang++", // C++ file -> clang++
 		"helper.cc": "clang++", // C++ file -> clang++
 		"legacy.C":  "clang++", // C++ file (uppercase .C) -> clang++
+		"startup.S": "clang",   // Assembly uses the C driver
 	}
 
 	for file, expectedCompiler := range testCases {
@@ -402,6 +403,9 @@ func TestCompileCommands_CPlusPlusDetection(t *testing.T) {
 	}
 	if standards["main.c"] != "-std=c17" || standards["util.cpp"] != "-std=c++23" {
 		t.Errorf("language standards = %v", standards)
+	}
+	if standards["startup.S"] != "" {
+		t.Errorf("assembly received a language standard: %v", standards)
 	}
 }
 

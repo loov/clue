@@ -71,6 +71,9 @@ type DockerToolchain struct {
 // Standard returns the language standard applicable to source. The legacy Std
 // field applies only when it matches the source language.
 func (tc Toolchain) Standard(source string) string {
+	if toolchain.IsAssemblySource(source) {
+		return ""
+	}
 	if toolchain.IsCXXSource(source) {
 		if tc.CXXStd != "" {
 			return tc.CXXStd

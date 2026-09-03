@@ -80,7 +80,8 @@ func TestIsRelevantFile(t *testing.T) {
 
 		// Non-source files - should not match
 		{"object file", "main.o", false},
-		{"assembly", "boot.s", false},
+		{"assembly", "boot.s", true},
+		{"preprocessed assembly", "boot.S", true},
 		{"text file", "readme.txt", false},
 		{"python", "script.py", false},
 		{"go source", "main.go", false},
@@ -110,10 +111,10 @@ func TestIsRelevantFile(t *testing.T) {
 
 func TestIsRelevantFileExtensions(t *testing.T) {
 	// Exhaustive extension test
-	relevantExts := []string{".c", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp", ".h", ".hpp", ".hh", ".hxx", ".h++", ".inc", ".inl", ".ipp", ".tpp", ".cue"}
+	relevantExts := []string{".c", ".s", ".S", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp", ".h", ".hpp", ".hh", ".hxx", ".h++", ".inc", ".inl", ".ipp", ".tpp", ".cue"}
 	irrelevantExts := []string{
 		".o", ".a", ".so", ".dylib", ".dll", ".exe",
-		".s", ".asm", ".txt", ".md", ".py", ".go", ".rs", ".java",
+		".asm", ".txt", ".md", ".py", ".go", ".rs", ".java",
 		".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg",
 	}
 

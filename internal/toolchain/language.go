@@ -18,3 +18,14 @@ func IsCXXSource(source string) bool {
 		return false
 	}
 }
+
+// IsAssemblySource reports whether a source uses GNU-style assembler syntax.
+func IsAssemblySource(source string) bool {
+	ext := filepath.Ext(source)
+	return ext == ".s" || ext == ".S"
+}
+
+// IsSource reports whether a file is a supported compilable source.
+func IsSource(source string) bool {
+	return filepath.Ext(source) == ".c" || IsCXXSource(source) || IsAssemblySource(source)
+}

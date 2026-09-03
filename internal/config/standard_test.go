@@ -10,6 +10,9 @@ func TestToolchainStandard_SelectsSourceLanguage(t *testing.T) {
 	if got := tc.Standard("source.cpp"); got != "c++23" {
 		t.Errorf("C++ standard = %q, want c++23", got)
 	}
+	if got := tc.Standard("startup.S"); got != "" {
+		t.Errorf("assembly standard = %q, want empty", got)
+	}
 }
 
 func TestToolchainStandard_LegacyStandardDoesNotCrossLanguages(t *testing.T) {

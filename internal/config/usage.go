@@ -53,6 +53,9 @@ func CompileUsage(cfg *Config, target Target) Usage {
 
 // CompileStandard returns the target or inherited standard for a source.
 func CompileStandard(project Toolchain, target Target, usage Usage, source string) string {
+	if toolchain.IsAssemblySource(source) {
+		return ""
+	}
 	if toolchain.IsCXXSource(source) {
 		if target.CXXStd != "" {
 			return target.CXXStd

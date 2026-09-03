@@ -898,7 +898,7 @@ func TestNinja_MixedSources(t *testing.T) {
 			"myapp": {
 				Name:    "myapp",
 				Type:    "executable",
-				Sources: []string{"main.cpp", "util.c"},
+				Sources: []string{"main.cpp", "util.c", "startup.S"},
 			},
 		},
 		Variants: map[string]config.Variant{
@@ -928,5 +928,8 @@ func TestNinja_MixedSources(t *testing.T) {
 	// C file should use cc rule
 	if !strings.Contains(content, "build .build/debug/myapp/obj/util.c.o: cc util.c") {
 		t.Errorf("C file should use cc rule, got:\n%s", content)
+	}
+	if !strings.Contains(content, "build .build/debug/myapp/obj/startup.S.o: cc startup.S") {
+		t.Errorf("assembly file should use cc rule, got:\n%s", content)
 	}
 }

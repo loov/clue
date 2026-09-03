@@ -164,7 +164,7 @@ func ignoredDiscoveryDir(name string) bool {
 }
 
 func isSourceFile(path string) bool {
-	return strings.EqualFold(filepath.Ext(path), ".c") || toolchain.IsCXXSource(path)
+	return toolchain.IsSource(path)
 }
 
 func isHeaderFile(path string) bool {

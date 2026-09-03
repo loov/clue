@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // ModuleDependency represents a source file's module information
@@ -50,6 +52,9 @@ func DetectModuleSources(sources []string) ([]string, error) {
 
 // isModuleSource checks if a source file contains module declarations
 func isModuleSource(path string) (_ bool, resultErr error) {
+	if !toolchain.IsCXXSource(path) {
+		return false, nil
+	}
 	// First check by extension - .cppm, .ixx, .mpp are always modules
 	ext := filepath.Ext(path)
 	if ext == ".cppm" || ext == ".ixx" || ext == ".mpp" {

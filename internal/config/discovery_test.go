@@ -104,3 +104,21 @@ func TestLoadOrDiscoverSelectsAnAvailableCompiler(t *testing.T) {
 		t.Fatalf("compiler = %q, candidates = %v, requires C++ = %t", cfg.Toolchain.Compiler, gotNames, gotRequiresCXX)
 	}
 }
+
+func TestLoadOrDiscoverIncludesAssemblySources(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"main.c", "startup.S", "helper.s"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"helper.s", "main.c", "startup.S"}
+	name := discoveredTargetName(dir, ".")
+	if !slices.Equal(cfg.Targets[name].Sources, want) {
+		t.Fatalf("sources = %v, want %v", cfg.Targets[name].Sources, want)
+	}
+}

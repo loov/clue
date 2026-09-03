@@ -251,7 +251,7 @@ func (w *Watcher) fireRebuild() {
 func IsRelevantFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".c", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp",
+	case ".c", ".s", ".cpp", ".cc", ".cxx", ".c++", ".cppm", ".ixx", ".mpp",
 		".h", ".hpp", ".hh", ".hxx", ".h++", ".inc", ".inl", ".ipp", ".tpp", ".cue":
 		return true
 	default:

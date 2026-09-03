@@ -182,6 +182,34 @@ func TestCompiler_CompileSource_Integration(t *testing.T) {
 	}
 }
 
+func TestCompilerCompilesAssemblySources(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang not available")
+	}
+	dir := t.TempDir()
+	tc, err := NewToolchain("clang", HostPlatform())
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler := NewCompiler(NewExecutor(ExecutorConfig{}), tc)
+	for _, name := range []string{"plain.s", "preprocessed.S"} {
+		source := filepath.Join(dir, name)
+		if err := os.WriteFile(source, []byte("\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		result, err := compiler.CompileSource(t.Context(), CompileOptions{
+			Source: source, Output: filepath.Join(dir, name+".o"), Std: "c17",
+			Flags: Config{Warnings: "default"},
+		})
+		if err != nil {
+			t.Fatalf("compile %s: %v", name, err)
+		}
+		if _, err := os.Stat(result.Object); err != nil {
+			t.Fatalf("assembly object %s: %v", result.Object, err)
+		}
+	}
+}
+
 func TestCompiler_CompileSource_Error(t *testing.T) {
 	// Skip if clang++ not available
 	if _, err := exec.LookPath("clang++"); err != nil {

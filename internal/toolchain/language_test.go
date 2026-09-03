@@ -12,3 +12,11 @@ func TestIsCXXSource_RecognizesImplementationsAndModules(t *testing.T) {
 		t.Error("IsCXXSource(\"a.c\") = true, want false")
 	}
 }
+
+func TestAssemblySourceRecognition(t *testing.T) {
+	for _, source := range []string{"start.s", "startup.S"} {
+		if !IsAssemblySource(source) || !IsSource(source) || IsCXXSource(source) {
+			t.Errorf("assembly language classification failed for %q", source)
+		}
+	}
+}
