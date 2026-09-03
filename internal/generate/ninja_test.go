@@ -669,6 +669,8 @@ func TestNinja_EmitsSharedLinkRule(t *testing.T) {
 
 func TestNinja_SharedLibraryUsesDarwinFlags(t *testing.T) {
 	cfg := createMinimalConfig("mylib", "shared_library", []string{"lib.cpp"})
+	cfg.Toolchain.CC = "clang"
+	cfg.Toolchain.CXX = "clang++"
 
 	var buf bytes.Buffer
 	err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{

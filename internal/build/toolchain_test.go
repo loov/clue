@@ -167,6 +167,9 @@ func TestNewToolchain_CreatesLinuxARM64CrossCompiler(t *testing.T) {
 
 func TestNewToolchain_CreatesLinuxAMD64CrossCompiler(t *testing.T) {
 	target := toolchain.Platform{OS: "linux", Arch: "amd64"}
+	if toolchain.HostPlatform() == target {
+		t.Skip("target is the native platform")
+	}
 
 	tests := []struct {
 		name        string

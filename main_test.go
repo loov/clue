@@ -490,7 +490,7 @@ func TestTargetFlag_UsesHostPlatformWhenEmpty(t *testing.T) {
 }
 
 func TestTargetFlag_AcceptsSupportedPlatform(t *testing.T) {
-	// Test that --target=linux-amd64 parses correctly (cross-compile from arm64)
+	// Test that a supported cross-compilation target parses correctly.
 	tempDir := t.TempDir()
 	binary := testExecutablePath(tempDir, "clue")
 
@@ -515,15 +515,18 @@ func TestTargetFlag_AcceptsSupportedPlatform(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Build with target flag (use amd64 which should be cross-compile on arm64 host)
-	cmd = exec.Command(binary, "--target=linux-amd64", "build")
+	target := "linux-amd64"
+	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
+		target = "linux-arm64"
+	}
+	cmd = exec.Command(binary, "--target="+target, "build")
 	cmd.Dir = testdataDir
 	output, _ := cmd.CombinedOutput()
 
 	outputStr := string(output)
 	// Should show cross-compilation message (even if build fails due to missing cross-compiler)
-	if !strings.Contains(outputStr, "Cross-compiling for linux-amd64") &&
-		!strings.Contains(outputStr, "compiler not found: x86_64-linux-gnu") {
+	if !strings.Contains(outputStr, "Cross-compiling for "+target) &&
+		!strings.Contains(outputStr, "compiler not found:") {
 		t.Errorf("Expected cross-compilation message or toolchain error, got:\n%s", outputStr)
 	}
 }
