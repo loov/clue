@@ -105,6 +105,23 @@ Fetched Git commits and tarball checksums are recorded in `clue.lock`. Commit
 that file so builds use the same dependency revisions; run `clue deps update`
 to resolve configured Git refs again.
 
+### Watch mode and build profiles
+
+`clue watch` performs an initial build, then recursively watches the project
+for source, header, module, assembly, and CUE changes. Changes are debounced for
+300 ms; a new change cancels an in-progress build, and CUE changes reload the
+configuration. `.git`, `.deps`, and `.build` directories are ignored.
+
+Watch mode relies on native filesystem notifications. Use a local checkout:
+changes on NFS, SMB, or other network filesystems may not be reported, and very
+large directory trees may exceed the operating system's watcher limit.
+
+To find expensive translation units, use `clue build -profile -v`. Add
+`-top N` to choose how many slow files are displayed. Running with
+`-profile -save-profile` also writes a Chrome Trace file to
+`.build/<variant>/profile.json`, which can be opened in Perfetto or a compatible
+trace viewer.
+
 ## Common Flags
 
 - `-variant debug|release` - Select build variant (default: debug)
@@ -116,6 +133,9 @@ to resolve configured Git refs again.
 - `-target <platform>` - Cross-compile for target platform (e.g., linux-arm64, darwin-amd64, windows-amd64)
 - `-prefix <path>` - Set the installation prefix
 - `-destdir <path>` - Stage an installation for packaging
+- `-profile` - Record compilation timings (`-v` prints the slowest files)
+- `-save-profile` - Write recorded timings as Chrome Trace JSON
+- `-top N` - Number of slowest files printed with profiling (default: 10)
 
 ## Example Configurations
 
@@ -195,6 +215,29 @@ variants: {
     }
 }
 ```
+
+### Unity builds
+
+Unity builds reduce compiler startup and repeated header-parsing work by
+combining sources in configurable batches:
+
+```cue
+targets.app: {
+    name:    "app"
+    type:    "executable"
+    sources: ["src/*.cpp"]
+    unity: {
+        batchSize: 8
+        exclude: ["src/legacy.cpp", "src/generated.cpp"]
+    }
+}
+```
+
+`batchSize` defaults to 8. C and C++ sources are kept in separate batches;
+assembly and C++ module sources remain separate automatically. Use `exclude`
+for files whose macros, anonymous namespaces, or other translation-unit-local
+state conflict when combined. Exclusions accept the same file globs as
+`sources` and must select files in that target.
 
 ### Tests
 
