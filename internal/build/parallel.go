@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -205,17 +206,15 @@ func (p *ParallelCompiler) removeActive(source string) {
 	}
 }
 
-// GetActive returns a copy of the currently active files being compiled
-func (p *ParallelCompiler) GetActive() []string {
+// Active returns a copy of the currently active files being compiled.
+func (p *ParallelCompiler) Active() []string {
 	p.activeMu.Lock()
 	defer p.activeMu.Unlock()
-	result := make([]string, len(p.active))
-	copy(result, p.active)
-	return result
+	return slices.Clone(p.active)
 }
 
-// GetProgress returns the current progress (completed, total)
-func (p *ParallelCompiler) GetProgress() (int64, int) {
+// Progress returns the current progress (completed, total).
+func (p *ParallelCompiler) Progress() (int64, int) {
 	return p.completed.Load(), p.total
 }
 

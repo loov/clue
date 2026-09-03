@@ -57,21 +57,19 @@ func (p *Profiler) RecordCompilation(source string, start time.Time, duration ti
 	})
 }
 
-// GetEvents returns a copy of all recorded events
-func (p *Profiler) GetEvents() []CompileEvent {
+// Events returns a copy of all recorded events.
+func (p *Profiler) Events() []CompileEvent {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	result := make([]CompileEvent, len(p.events))
-	copy(result, p.events)
-	return result
+	return slices.Clone(p.events)
 }
 
-// GetSlowestFiles returns the n slowest compilation events sorted by duration descending
-func (p *Profiler) GetSlowestFiles(n int) []CompileEvent {
+// SlowestFiles returns the n slowest compilation events sorted by duration descending.
+func (p *Profiler) SlowestFiles(n int) []CompileEvent {
 	if n <= 0 {
 		return nil
 	}
-	events := p.GetEvents()
+	events := p.Events()
 	slices.SortFunc(events, func(a, b CompileEvent) int {
 		return cmp.Compare(b.Duration, a.Duration)
 	})
@@ -98,14 +96,14 @@ func formatDuration(d time.Duration) string {
 
 // PrintSlowestFiles prints the n slowest compilation units to the given writer
 func (p *Profiler) PrintSlowestFiles(n int, w io.Writer) {
-	slowest := p.GetSlowestFiles(n)
+	slowest := p.SlowestFiles(n)
 	if len(slowest) == 0 {
 		return
 	}
 
 	// Calculate total compilation time for percentage
 	var totalCompileTime time.Duration
-	for _, e := range p.GetEvents() {
+	for _, e := range p.Events() {
 		totalCompileTime += e.Duration
 	}
 

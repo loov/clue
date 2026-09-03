@@ -237,9 +237,8 @@ func escapeString(s string) string {
 	return strings.ReplaceAll(s, "\\", "\\\\")
 }
 
-// GetEnvValue retrieves an environment variable value from config
-// using the _env struct that was injected
-func GetEnvValue(cfg *Config, name string) (string, bool) {
+// EnvValue returns an environment variable value from the injected _env struct.
+func EnvValue(cfg *Config, name string) (string, bool) {
 	envPath := cue.ParsePath(fmt.Sprintf("_env.%s", sanitizeKey(name)))
 	val := cfg.Raw.LookupPath(envPath)
 	if !val.Exists() {

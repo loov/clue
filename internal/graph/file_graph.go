@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 )
@@ -235,7 +236,7 @@ func (b *FileGraphBuilder) linkerTool(targetType string) string {
 	}
 }
 
-// GetNodes returns all registered file nodes
-func (b *FileGraphBuilder) GetNodes() map[string]FileNode {
-	return b.nodes
+// Nodes returns a copy of all registered file nodes.
+func (b *FileGraphBuilder) Nodes() map[string]FileNode {
+	return maps.Clone(b.nodes)
 }

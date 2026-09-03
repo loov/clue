@@ -100,8 +100,8 @@ func (bg *BuildGraph) TopologicalOrder() ([]string, error) {
 	return order, nil
 }
 
-// GetNode retrieves a node by ID
-func (bg *BuildGraph) GetNode(id string) (Node, error) {
+// Node returns a node by ID.
+func (bg *BuildGraph) Node(id string) (Node, error) {
 	node, err := bg.g.Vertex(id)
 	if err != nil {
 		return Node{}, fmt.Errorf("%w: %s", ErrNodeNotFound, id)

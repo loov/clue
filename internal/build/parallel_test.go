@@ -404,13 +404,13 @@ func TestParallelCompiler_EmptySources(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_GetProgress(t *testing.T) {
+func TestParallelCompiler_Progress(t *testing.T) {
 	// Unit test - no compilation needed
 	tc, _ := NewToolchain("clang", HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Initially zero
-	completed, total := parallel.GetProgress()
+	completed, total := parallel.Progress()
 	if completed != 0 {
 		t.Errorf("Initial completed = %d, want 0", completed)
 	}
@@ -419,13 +419,13 @@ func TestParallelCompiler_GetProgress(t *testing.T) {
 	}
 }
 
-func TestParallelCompiler_GetActive(t *testing.T) {
+func TestParallelCompiler_Active(t *testing.T) {
 	// Unit test - no compilation needed
 	tc, _ := NewToolchain("clang", HostPlatform())
 	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Initially empty
-	active := parallel.GetActive()
+	active := parallel.Active()
 	if len(active) != 0 {
 		t.Errorf("Initial active = %v, want empty", active)
 	}
@@ -434,13 +434,13 @@ func TestParallelCompiler_GetActive(t *testing.T) {
 	parallel.addActive("/path/to/foo.cpp")
 	parallel.addActive("/path/to/bar.cpp")
 
-	active = parallel.GetActive()
+	active = parallel.Active()
 	if len(active) != 2 {
 		t.Errorf("Active count = %d, want 2", len(active))
 	}
 
 	parallel.removeActive("/path/to/foo.cpp")
-	active = parallel.GetActive()
+	active = parallel.Active()
 	if len(active) != 1 {
 		t.Errorf("Active count after remove = %d, want 1", len(active))
 	}

@@ -171,15 +171,15 @@ func TestEnvVarPrecedence(t *testing.T) {
 	}
 }
 
-func TestGetEnvValueNotFound(t *testing.T) {
+func TestEnvValue_NotFound(t *testing.T) {
 	cfg := &Config{
 		Name:     "testproject",
 		Targets:  make(map[string]Target),
 		Variants: make(map[string]Variant),
 	}
 
-	// GetEnvValue should return false for non-existent env var
-	val, ok := GetEnvValue(cfg, "NONEXISTENT")
+	// EnvValue should return false for non-existent env var
+	val, ok := EnvValue(cfg, "NONEXISTENT")
 	if ok {
 		t.Errorf("Expected ok=false for nonexistent env var, got ok=true, val=%s", val)
 	}

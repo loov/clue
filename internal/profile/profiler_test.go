@@ -32,9 +32,9 @@ func TestProfiler_RecordCompilation(t *testing.T) {
 	p.RecordCompilation("/path/to/bar.cpp", now, 200*time.Millisecond, 2)
 	p.RecordCompilation("/path/to/baz.cpp", now, 300*time.Millisecond, 3)
 
-	events := p.GetEvents()
+	events := p.Events()
 	if len(events) != 3 {
-		t.Fatalf("GetEvents() returned %d events, want 3", len(events))
+		t.Fatalf("Events() returned %d events, want 3", len(events))
 	}
 
 	// Verify source paths match
@@ -56,13 +56,13 @@ func TestProfiler_RecordCompilation_Disabled(t *testing.T) {
 	p.RecordCompilation("/path/to/bar.cpp", now, 200*time.Millisecond, 2)
 	p.RecordCompilation("/path/to/baz.cpp", now, 300*time.Millisecond, 3)
 
-	events := p.GetEvents()
+	events := p.Events()
 	if len(events) != 0 {
-		t.Fatalf("GetEvents() on disabled profiler returned %d events, want 0", len(events))
+		t.Fatalf("Events() on disabled profiler returned %d events, want 0", len(events))
 	}
 }
 
-func TestProfiler_GetSlowestFiles(t *testing.T) {
+func TestProfiler_SlowestFiles(t *testing.T) {
 	p := NewProfiler(true)
 	now := time.Now()
 
@@ -73,9 +73,9 @@ func TestProfiler_GetSlowestFiles(t *testing.T) {
 	p.RecordCompilation("/path/to/d.cpp", now, 1*time.Second, 4)
 	p.RecordCompilation("/path/to/e.cpp", now, 50*time.Millisecond, 5)
 
-	slowest := p.GetSlowestFiles(3)
+	slowest := p.SlowestFiles(3)
 	if len(slowest) != 3 {
-		t.Fatalf("GetSlowestFiles(3) returned %d events, want 3", len(slowest))
+		t.Fatalf("SlowestFiles(3) returned %d events, want 3", len(slowest))
 	}
 
 	// Verify order: 1s, 500ms, 200ms (descending)
@@ -87,7 +87,7 @@ func TestProfiler_GetSlowestFiles(t *testing.T) {
 	}
 }
 
-func TestProfiler_GetSlowestFiles_LessThanN(t *testing.T) {
+func TestProfiler_SlowestFiles_LessThanN(t *testing.T) {
 	p := NewProfiler(true)
 	now := time.Now()
 
@@ -96,19 +96,19 @@ func TestProfiler_GetSlowestFiles_LessThanN(t *testing.T) {
 	p.RecordCompilation("/path/to/b.cpp", now, 200*time.Millisecond, 2)
 
 	// Request more than available
-	slowest := p.GetSlowestFiles(10)
+	slowest := p.SlowestFiles(10)
 	if len(slowest) != 2 {
-		t.Fatalf("GetSlowestFiles(10) with 2 events returned %d events, want 2", len(slowest))
+		t.Fatalf("SlowestFiles(10) with 2 events returned %d events, want 2", len(slowest))
 	}
 }
 
-func TestProfiler_GetSlowestFiles_NonPositive(t *testing.T) {
+func TestProfiler_SlowestFiles_NonPositive(t *testing.T) {
 	p := NewProfiler(true)
 	p.RecordCompilation("file.cpp", time.Now(), time.Second, 1)
 
 	for _, n := range []int{0, -1} {
-		if got := p.GetSlowestFiles(n); len(got) != 0 {
-			t.Errorf("GetSlowestFiles(%d) returned %d events, want none", n, len(got))
+		if got := p.SlowestFiles(n); len(got) != 0 {
+			t.Errorf("SlowestFiles(%d) returned %d events, want none", n, len(got))
 		}
 	}
 }
