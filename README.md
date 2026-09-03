@@ -91,6 +91,7 @@ toolchain: {
 - `clue clean` - Remove build artifacts (use `-all` to clean all variants)
 - `clue run <target>` - Build and run an executable target
 - `clue test [name|label...]` - Build and run configured tests
+- `clue install [target...]` - Build and install artifacts and public headers
 - `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
 
@@ -107,6 +108,8 @@ to resolve configured Git refs again.
 - `-rebuild-all` - Force rebuild of all files
 - `-keep-going` - Continue building despite errors
 - `-target <platform>` - Cross-compile for target platform (e.g., linux-arm64, darwin-amd64, windows-amd64)
+- `-prefix <path>` - Set the installation prefix
+- `-destdir <path>` - Stage an installation for packaging
 
 ## Example Configurations
 
@@ -172,6 +175,16 @@ targets: unit_tests: {
 
 `clue test` runs every configured test. Positional selectors match either a
 target name or label, and `-j` controls execution parallelism.
+
+### Installation
+
+`clue install` copies executables to `bin`, libraries to `lib`, and declared
+headers to `include` (preserving paths beneath `public.includes`). The default
+prefix is `/usr/local`; use `-prefix` to change it and `-destdir` to stage a package:
+
+```bash
+clue install -variant release -prefix /usr -destdir ./pkg
+```
 
 Build with a variant:
 

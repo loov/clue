@@ -27,7 +27,7 @@ import (
 var version = "0.1.0-dev"
 
 type cliOptions struct {
-	variant, dir, target                  string
+	variant, dir, target, prefix, destDir string
 	noColor, quiet, verbose, version, all bool
 	rebuildAll, keepGoing                 bool
 	profile, saveProfile                  bool
@@ -46,6 +46,8 @@ func registerFlags(fs *flag.FlagSet, opts *cliOptions) {
 	fs.IntVar(&opts.jobs, "j", 0, "Number of parallel jobs (0 = half of CPU cores, -1 = unlimited)")
 	fs.BoolVar(&opts.keepGoing, "keep-going", false, "Continue building despite errors")
 	fs.StringVar(&opts.target, "target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64, windows-amd64)")
+	fs.StringVar(&opts.prefix, "prefix", "", "Installation prefix (default: /usr/local)")
+	fs.StringVar(&opts.destDir, "destdir", "", "Stage installation beneath this directory")
 	fs.BoolVar(&opts.profile, "profile", false, "Enable build profiling")
 	fs.BoolVar(&opts.saveProfile, "save-profile", false, "Save profile to profile.json in build directory")
 	fs.IntVar(&opts.top, "top", 10, "Number of slowest files to show (used with -v)")
@@ -132,11 +134,13 @@ func main() {
 		os.Exit(runRun(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, args))
 	case "test":
 		os.Exit(runTests(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, args))
+	case "install":
+		os.Exit(runInstall(opts.dir, opts.variant, opts.target, opts.prefix, opts.destDir, verbosity, opts.jobs, args))
 	case "watch":
 		os.Exit(runWatch(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, opts.keepGoing))
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
-		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, run, test, watch")
+		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, install, run, test, watch")
 		os.Exit(1)
 	}
 }
@@ -707,6 +711,34 @@ func runTests(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	summary := build.RunTests(context.Background(), cases, resolvedJobs(jobs), verbosity)
 	if summary.Failed > 0 {
 		return 1
+	}
+	return 0
+}
+
+func runInstall(dir, variant, target, prefix, destDir string, verbosity build.Verbosity, jobs int, targets []string) int {
+	cfg, selectedVariant, platform, err := loadConfig(dir, variant, target, build.VerbosityQuiet)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+	targets, err = build.InstallTargets(cfg, targets)
+	if err != nil {
+		printError(err)
+		return 1
+	}
+	if code := runBuild(dir, variant, target, verbosity, false, jobs, false, false, false, 10, targets); code != 0 {
+		return code
+	}
+	result, err := build.Install(build.InstallOptions{
+		Config: cfg, Variant: selectedVariant, Platform: platform,
+		Prefix: prefix, DestDir: destDir, Targets: targets,
+	})
+	if err != nil {
+		printError(err)
+		return 1
+	}
+	if verbosity >= build.VerbosityNormal {
+		fmt.Printf("Installed %d files to %s\n", len(result.Files), result.Root)
 	}
 	return 0
 }
