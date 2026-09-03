@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"maps"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -24,6 +24,7 @@ import (
 	"github.com/loov/clue/internal/generate"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/watch"
+	"github.com/zeebo/clingy"
 )
 
 var version = "0.1.0-dev"
@@ -36,115 +37,235 @@ type cliOptions struct {
 	jobs, top                             int
 }
 
-func registerFlags(fs *flag.FlagSet, opts *cliOptions) {
-	fs.StringVar(&opts.variant, "variant", "", "Build variant (debug, release, or custom)")
-	fs.StringVar(&opts.dir, "dir", ".", "Project directory")
-	fs.BoolVar(&opts.noColor, "no-color", false, "Disable colored output")
-	fs.BoolVar(&opts.quiet, "quiet", false, "Suppress all non-error output")
-	fs.BoolVar(&opts.verbose, "v", false, "Verbose output")
-	fs.BoolVar(&opts.version, "version", false, "Print version and exit")
-	fs.BoolVar(&opts.all, "all", false, "Clean all build variants (for clean command)")
-	fs.BoolVar(&opts.rebuildAll, "rebuild-all", false, "Force rebuild of all files")
-	fs.IntVar(&opts.jobs, "j", 0, "Number of parallel jobs (0 = half of CPU cores, -1 = unlimited)")
-	fs.BoolVar(&opts.keepGoing, "keep-going", false, "Continue building despite errors")
-	fs.StringVar(&opts.target, "target", "", "Cross-compilation target (e.g., linux-arm64, darwin-amd64, windows-amd64)")
-	fs.StringVar(&opts.prefix, "prefix", "", "Installation prefix (default: /usr/local)")
-	fs.StringVar(&opts.destDir, "destdir", "", "Stage installation beneath this directory")
-	fs.BoolVar(&opts.profile, "profile", false, "Enable build profiling")
-	fs.BoolVar(&opts.saveProfile, "save-profile", false, "Save profile to profile.json in build directory")
-	fs.IntVar(&opts.top, "top", 10, "Number of slowest files to show (used with -v)")
+type cliCommand struct {
+	setup   func(clingy.Parameters)
+	execute func() int
 }
 
-func parseCLI(args []string) (cliOptions, string, []string, error) {
-	// Let flag parse the prefix to locate the command without guessing which
-	// arguments are flag values, then parse both sides of the command together.
-	var probeOptions cliOptions
-	probe := flag.NewFlagSet("clue", flag.ContinueOnError)
-	registerFlags(probe, &probeOptions)
-	if err := probe.Parse(args); err != nil {
-		return cliOptions{}, "", nil, err
+func (c *cliCommand) Setup(params clingy.Parameters) {
+	if c.setup != nil {
+		c.setup(params)
 	}
+}
 
-	command := "validate"
-	commandIndex := len(args)
-	if rest := probe.Args(); len(rest) > 0 {
-		command = rest[0]
-		commandIndex = len(args) - len(rest)
+func (c *cliCommand) Execute(context.Context) error {
+	if code := c.execute(); code != 0 {
+		return cliExitCode(code)
 	}
+	return nil
+}
 
-	flagArgs := append([]string{}, args[:commandIndex]...)
-	if commandIndex < len(args) {
-		flagArgs = append(flagArgs, args[commandIndex+1:]...)
+type cliExitCode int
+
+func (code cliExitCode) Error() string {
+	return fmt.Sprintf("exit code %d", code)
+}
+
+func registerGlobalFlags(flags clingy.Flags, opts *cliOptions) {
+	parseBool := clingy.Transform(strconv.ParseBool)
+	parseInt := clingy.Transform(strconv.Atoi)
+
+	opts.variant = flags.Flag("variant", "build variant (debug, release, or custom)", "").(string)
+	opts.dir = flags.Flag("dir", "project directory", ".").(string)
+	opts.noColor = flags.Flag("no-color", "disable colored output", false, clingy.Boolean, parseBool).(bool)
+	opts.quiet = flags.Flag("quiet", "suppress all non-error output", false, clingy.Boolean, parseBool).(bool)
+	opts.verbose = flags.Flag("verbose", "enable verbose output", false, clingy.Short('v'), clingy.Boolean, parseBool).(bool)
+	opts.version = flags.Flag("version", "print version and exit", false, clingy.Boolean, parseBool).(bool)
+	opts.all = flags.Flag("all", "clean all build variants", false, clingy.Boolean, parseBool).(bool)
+	opts.rebuildAll = flags.Flag("rebuild-all", "force rebuild of all files", false, clingy.Boolean, parseBool).(bool)
+	opts.jobs = flags.Flag("jobs", "number of parallel jobs (0 = half of CPU cores, -1 = unlimited)", 0, clingy.Short('j'), parseInt).(int)
+	opts.keepGoing = flags.Flag("keep-going", "continue building despite errors", false, clingy.Boolean, parseBool).(bool)
+	opts.target = flags.Flag("target", "cross-compilation target (for example linux-arm64)", "").(string)
+	opts.prefix = flags.Flag("prefix", "installation prefix", "").(string)
+	opts.destDir = flags.Flag("destdir", "stage installation beneath this directory", "").(string)
+	opts.profile = flags.Flag("profile", "enable build profiling", false, clingy.Boolean, parseBool).(bool)
+	opts.saveProfile = flags.Flag("save-profile", "save profile to profile.json in build directory", false, clingy.Boolean, parseBool).(bool)
+	opts.top = flags.Flag("top", "number of slowest files to show in verbose mode", 10, parseInt).(int)
+}
+
+func registerCommands(commands clingy.Commands, opts *cliOptions) {
+	commands.New("validate", "validate the project configuration", &cliCommand{
+		execute: func() int {
+			return runValidate(opts.dir, opts.variant, opts.target, opts.verbosity())
+		},
+	})
+
+	var buildTargets []string
+	commands.New("build", "build project targets", &cliCommand{
+		setup: func(params clingy.Parameters) {
+			buildTargets = params.Arg("target", "target to build", clingy.Repeated).([]string)
+		},
+		execute: func() int {
+			return runBuild(opts.dir, opts.variant, opts.target, opts.verbosity(), opts.rebuildAll, opts.jobs, opts.keepGoing, opts.profile, opts.saveProfile, opts.top, buildTargets)
+		},
+	})
+
+	commands.New("clean", "remove build artifacts", &cliCommand{
+		execute: func() int {
+			return runClean(opts.dir, opts.variant, opts.target, opts.all, opts.verbosity())
+		},
+	})
+
+	commands.Group("deps", "manage external dependencies", func() {
+		commands.New("list", "show dependency status", &cliCommand{
+			execute: func() int { return runDeps(opts.dir, opts.target, opts.verbose, "list", "") },
+		})
+
+		var fetchName *string
+		commands.New("fetch", "download dependencies", &cliCommand{
+			setup: func(params clingy.Parameters) {
+				fetchName = params.Arg("name", "dependency to fetch", clingy.Optional).(*string)
+			},
+			execute: func() int {
+				name := ""
+				if fetchName != nil {
+					name = *fetchName
+				}
+				return runDeps(opts.dir, opts.target, opts.verbose, "fetch", name)
+			},
+		})
+
+		var buildName string
+		commands.New("build", "build one dependency", &cliCommand{
+			setup: func(params clingy.Parameters) {
+				buildName = params.Arg("name", "dependency to build").(string)
+			},
+			execute: func() int {
+				return runDeps(opts.dir, opts.target, opts.verbose, "build", buildName)
+			},
+		})
+
+		var cleanName *string
+		commands.New("clean", "remove dependency cache entries", &cliCommand{
+			setup: func(params clingy.Parameters) {
+				cleanName = params.Arg("name", "dependency to clean", clingy.Optional).(*string)
+			},
+			execute: func() int {
+				name := ""
+				if cleanName != nil {
+					name = *cleanName
+				}
+				return runDeps(opts.dir, opts.target, opts.verbose, "clean", name)
+			},
+		})
+
+		commands.New("update", "update dependencies and rewrite clue.lock", &cliCommand{
+			execute: func() int { return runDeps(opts.dir, opts.target, opts.verbose, "update", "") },
+		})
+	})
+
+	commands.Group("generate", "generate build-system integration files", func() {
+		commands.New("ninja", "generate build.ninja", &cliCommand{
+			execute: func() int { return runGenerate(opts.dir, opts.variant, opts.target, "ninja") },
+		})
+		commands.New("compile-commands", "generate compile_commands.json", &cliCommand{
+			execute: func() int {
+				return runGenerate(opts.dir, opts.variant, opts.target, "compile-commands")
+			},
+		})
+		commands.New("all", "generate Ninja and compilation database files", &cliCommand{
+			execute: func() int { return runGenerate(opts.dir, opts.variant, opts.target, "all") },
+		})
+	})
+
+	var runTarget string
+	var runArgs []string
+	commands.New("run", "build and run an executable target", &cliCommand{
+		setup: func(params clingy.Parameters) {
+			runTarget = params.Arg("target", "executable target to run").(string)
+			runArgs = params.Arg("argument", "argument passed to the executable", clingy.Repeated).([]string)
+		},
+		execute: func() int {
+			return runRun(opts.dir, opts.variant, opts.target, opts.verbosity(), opts.jobs, runTarget, runArgs)
+		},
+	})
+
+	var testSelectors []string
+	commands.New("test", "build and run configured tests", &cliCommand{
+		setup: func(params clingy.Parameters) {
+			testSelectors = params.Arg("selector", "test name or label", clingy.Repeated).([]string)
+		},
+		execute: func() int {
+			return runTests(opts.dir, opts.variant, opts.target, opts.verbosity(), opts.jobs, testSelectors)
+		},
+	})
+
+	var installTargets []string
+	commands.New("install", "build and install targets", &cliCommand{
+		setup: func(params clingy.Parameters) {
+			installTargets = params.Arg("target", "target to install", clingy.Repeated).([]string)
+		},
+		execute: func() int {
+			return runInstall(opts.dir, opts.variant, opts.target, opts.prefix, opts.destDir, opts.verbosity(), opts.jobs, installTargets)
+		},
+	})
+
+	commands.New("watch", "rebuild when project files change", &cliCommand{
+		execute: func() int {
+			return runWatch(opts.dir, opts.variant, opts.target, opts.verbosity(), opts.jobs, opts.keepGoing)
+		},
+	})
+}
+
+func (opts cliOptions) verbosity() build.Verbosity {
+	if opts.quiet {
+		return build.VerbosityQuiet
 	}
+	if opts.verbose {
+		return build.VerbosityVerbose
+	}
+	return build.VerbosityNormal
+}
 
+func runCLI(ctx context.Context, args []string) int {
 	var opts cliOptions
-	fs := flag.NewFlagSet("clue", flag.ContinueOnError)
-	registerFlags(fs, &opts)
-	if err := fs.Parse(flagArgs); err != nil {
-		return cliOptions{}, "", nil, err
+	root := &cliCommand{
+		execute: func() int {
+			return runValidate(opts.dir, opts.variant, opts.target, opts.verbosity())
+		},
 	}
-	return opts, command, fs.Args(), nil
+	env := clingy.Environment{Name: "clue", Args: args, Root: root}
+	env.Wrap = func(ctx context.Context, command clingy.Command) error {
+		if opts.version {
+			_, err := fmt.Fprintf(clingy.Stdout(ctx), "clue version %s\n", version)
+			return err
+		}
+		if err := os.Chdir(opts.dir); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to enter project directory %q: %v\n", opts.dir, err)
+			return cliExitCode(1)
+		}
+		opts.dir = "."
+
+		if err := build.ValidateVerbosityFlags(opts.quiet, opts.verbose); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return cliExitCode(1)
+		}
+		if opts.noColor {
+			clerrors.SetNoColor(true)
+		}
+		return command.Execute(ctx)
+	}
+
+	executed, err := env.Run(ctx, func(commands clingy.Commands) {
+		registerGlobalFlags(commands, &opts)
+		registerCommands(commands, &opts)
+	})
+	if err != nil {
+		var exitCode cliExitCode
+		if errors.As(err, &exitCode) {
+			return int(exitCode)
+		}
+		printError(err)
+		return 1
+	}
+	if !executed {
+		return 2
+	}
+	return 0
 }
 
 func main() {
-	opts, command, args, err := parseCLI(os.Args[1:])
-	if err != nil {
-		os.Exit(2)
-	}
-
-	if opts.version {
-		fmt.Printf("clue version %s\n", version)
-		os.Exit(0)
-	}
-	if err := os.Chdir(opts.dir); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to enter project directory %q: %v\n", opts.dir, err)
-		os.Exit(1)
-	}
-	opts.dir = "."
-
-	// Validate verbosity flags
-	if err := build.ValidateVerbosityFlags(opts.quiet, opts.verbose); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	// Configure colors
-	if opts.noColor {
-		clerrors.SetNoColor(true)
-	}
-
-	// Determine verbosity level
-	verbosity := build.VerbosityNormal
-	if opts.quiet {
-		verbosity = build.VerbosityQuiet
-	} else if opts.verbose {
-		verbosity = build.VerbosityVerbose
-	}
-
-	switch command {
-	case "validate":
-		os.Exit(runValidate(opts.dir, opts.variant, opts.target, verbosity))
-	case "build":
-		os.Exit(runBuild(opts.dir, opts.variant, opts.target, verbosity, opts.rebuildAll, opts.jobs, opts.keepGoing, opts.profile, opts.saveProfile, opts.top, args))
-	case "clean":
-		os.Exit(runClean(opts.dir, opts.variant, opts.target, opts.all, verbosity))
-	case "deps":
-		os.Exit(runDeps(opts.dir, opts.target, opts.verbose, args))
-	case "generate":
-		os.Exit(runGenerate(opts.dir, opts.variant, opts.target, args))
-	case "run":
-		os.Exit(runRun(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, args))
-	case "test":
-		os.Exit(runTests(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, args))
-	case "install":
-		os.Exit(runInstall(opts.dir, opts.variant, opts.target, opts.prefix, opts.destDir, verbosity, opts.jobs, args))
-	case "watch":
-		os.Exit(runWatch(opts.dir, opts.variant, opts.target, verbosity, opts.jobs, opts.keepGoing))
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
-		fmt.Fprintln(os.Stderr, "Available commands: validate, build, clean, deps, generate, install, run, test, watch")
-		os.Exit(1)
-	}
+	os.Exit(runCLI(context.Background(), os.Args[1:]))
 }
 
 // isProfilingEnabled checks if profiling should be enabled (precedence: flag > env)
@@ -391,21 +512,7 @@ func runClean(dir, variant, target string, all bool, verbosity build.Verbosity) 
 	return 0
 }
 
-func runDeps(dir, target string, verbose bool, args []string) int {
-	// Parse deps subcommand
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: clue deps <list|fetch|clean|update> [options]")
-		fmt.Fprintln(os.Stderr, "\nSubcommands:")
-		fmt.Fprintln(os.Stderr, "  list       Show dependency status")
-		fmt.Fprintln(os.Stderr, "  fetch      Download dependencies")
-		fmt.Fprintln(os.Stderr, "  build      Build one dependency")
-		fmt.Fprintln(os.Stderr, "  clean      Remove dependency cache")
-		fmt.Fprintln(os.Stderr, "  update     Resolve dependency updates and rewrite clue.lock")
-		return 1
-	}
-
-	subCmd := args[0]
-
+func runDeps(dir, target string, verbose bool, subCmd, name string) int {
 	// Load config
 	verbosity := build.VerbosityNormal
 	if verbose {
@@ -428,11 +535,6 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 		}
 
 	case "fetch":
-		// Parse fetch options
-		name := ""
-		if len(args) > 1 {
-			name = args[1]
-		}
 		if err := deps.RunFetch(ctx, cfg.Dependencies, deps.FetchOptions{
 			Verbose: verbose,
 			Name:    name,
@@ -442,10 +544,6 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 		}
 
 	case "build":
-		if len(args) != 2 {
-			fmt.Fprintln(os.Stderr, "Usage: clue deps build <name>")
-			return 1
-		}
 		builder, err := build.NewConfiguredBuilder(cfg.Toolchain, platform, dir, verbosity, 1, false)
 		if err != nil {
 			printError(err)
@@ -453,17 +551,11 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 		}
 		if err := builder.BuildDependency(ctx, build.Options{
 			Config: cfg, Variant: variant, BuildDir: cfg.BuildDir, Verbosity: verbosity,
-		}, args[1]); err != nil {
+		}, name); err != nil {
 			printError(err)
 			return 1
 		}
 	case "clean":
-		// Parse clean options
-		name := ""
-		if len(args) > 1 {
-			name = args[1]
-		}
-
 		if err := deps.RunClean(cfg.Dependencies, name); err != nil {
 			printError(err)
 			return 1
@@ -484,21 +576,10 @@ func runDeps(dir, target string, verbose bool, args []string) int {
 	return 0
 }
 
-func runGenerate(dir, variant, target string, args []string) int {
+func runGenerate(dir, variant, target, subCmd string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Parse subcommand
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: clue generate <ninja|compile-commands|all> [options]")
-		fmt.Fprintln(os.Stderr, "\nSubcommands:")
-		fmt.Fprintln(os.Stderr, "  ninja              Generate build.ninja")
-		fmt.Fprintln(os.Stderr, "  compile-commands   Generate compile_commands.json")
-		fmt.Fprintln(os.Stderr, "  all                Generate both files")
-		return 1
-	}
-
-	subCmd := args[0]
 	targetPlatform, err := parseTargetPlatform(target)
 	if err != nil {
 		printError(err)
@@ -607,17 +688,7 @@ func generateCompileCommands(ctx context.Context, dir string, cfg *config.Config
 	return 0
 }
 
-func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, args []string) int {
-	// Parse target name (first arg) and remaining args
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: clue run <target> [args...]")
-		fmt.Fprintln(os.Stderr, "\nRuns an executable target, building it first if necessary.")
-		return 1
-	}
-
-	targetName := args[0]
-	execArgs := args[1:]
-
+func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, targetName string, execArgs []string) int {
 	// Load configuration
 	cfg, selectedVariant, platform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {

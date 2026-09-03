@@ -44,6 +44,18 @@ func runClue(t *testing.T, dir string, args ...string) (stdout, stderr string, e
 	return outBuf.String(), errBuf.String(), exitCode
 }
 
+func TestCLI_HelpListsCommandsAndGlobalFlags(t *testing.T) {
+	stdout, stderr, exitCode := runClue(t, ".", "--help")
+	if exitCode != 0 {
+		t.Fatalf("help failed with exit code %d: %s", exitCode, stderr)
+	}
+	for _, text := range []string{"Available commands:", "build", "deps", "generate", "--variant", "--jobs"} {
+		if !strings.Contains(stdout, text) {
+			t.Errorf("help output does not contain %q:\n%s", text, stdout)
+		}
+	}
+}
+
 func TestCLI_QuietMode_NoOutputOnSuccess(t *testing.T) {
 	testDir := filepath.Join("testdata", "multi-target")
 

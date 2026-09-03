@@ -8,6 +8,7 @@ require (
 	github.com/dominikbraun/graph v0.23.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.19.2
+	github.com/zeebo/clingy v0.0.0-20260119143559-4d23ffb0341b
 	github.com/zeebo/xxh3 v1.0.2
 	golang.org/x/sync v0.22.0
 )
@@ -39,6 +40,7 @@ require (
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
+	github.com/zeebo/errs/v2 v2.0.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
