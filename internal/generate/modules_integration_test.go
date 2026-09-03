@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -52,7 +53,7 @@ func TestNinjaBuildsCrossTargetModulesPartitionsAndHeaderUnits(t *testing.T) {
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("ninja failed: %v\n%s", err, output)
 	}
-	if err := exec.Command(filepath.Join(".build", "debug", "bin", "app")).Run(); err != nil {
+	if err := exec.Command(filepath.Join(".build", "debug", "bin", plan.ExecutableName("app", toolchain.HostPlatform()))).Run(); err != nil {
 		t.Fatalf("module executable failed: %v", err)
 	}
 }

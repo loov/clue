@@ -13,6 +13,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -86,13 +87,14 @@ func TestVendoredDependency_BuildsFromLocalSources(t *testing.T) {
 	}
 
 	// Verify dependency library was created
-	libPath := filepath.Join(buildDir, "debug", "deps", "libmath", "lib", "liblibmath.a")
+	platform := toolchain.HostPlatform()
+	libPath := filepath.Join(buildDir, "debug", "deps", "libmath", "lib", plan.StaticLibraryName("libmath", platform))
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Errorf("Dependency library not found at %s", libPath)
 	}
 
 	// Verify executable was created
-	exePath := filepath.Join(buildDir, "debug", "bin", "app")
+	exePath := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("app", platform))
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Fatalf("Executable not found at %s", exePath)
 	}
@@ -340,7 +342,7 @@ func TestOfflineBuild_UsesCachedDependencies(t *testing.T) {
 	}
 
 	// Verify executable was created
-	exePath := filepath.Join(buildDir, "debug", "bin", "app")
+	exePath := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("app", toolchain.HostPlatform()))
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Errorf("Executable not found after offline build at %s", exePath)
 	}
@@ -403,13 +405,14 @@ func TestDependencyBuildOutput_LinksGeneratedLibrary(t *testing.T) {
 	// The build process should show dependency building
 	// Note: The actual output may vary, but we can verify the dependency was processed
 	// by checking that the dependency library exists
-	libPath := filepath.Join(buildDir, "debug", "deps", "libmath", "lib", "liblibmath.a")
+	platform := toolchain.HostPlatform()
+	libPath := filepath.Join(buildDir, "debug", "deps", "libmath", "lib", plan.StaticLibraryName("libmath", platform))
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Errorf("Dependency was not built (library not found): %s", libPath)
 	}
 
 	// Verify main target was built after dependency
-	exePath := filepath.Join(buildDir, "debug", "bin", "app")
+	exePath := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("app", platform))
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Errorf("Main executable not found: %s", exePath)
 	}

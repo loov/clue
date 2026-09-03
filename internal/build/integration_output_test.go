@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/testclue"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -118,7 +119,7 @@ targets: {
 	}
 
 	// Verify executable was built
-	exePath := filepath.Join(buildDir, "debug", "bin", "myapp")
+	exePath := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("myapp", toolchain.HostPlatform()))
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Fatalf("Executable not created: %s", exePath)
 	}
@@ -183,7 +184,7 @@ func TestCrossTargetModulesAndHeaderUnits(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	executable := filepath.Join(cfg.BuildDir, "debug", "bin", "app")
+	executable := filepath.Join(cfg.BuildDir, "debug", "bin", plan.ExecutableName("app", toolchain.HostPlatform()))
 	if err := exec.Command(executable).Run(); err != nil {
 		t.Fatalf("module executable failed: %v", err)
 	}
@@ -320,7 +321,7 @@ func TestBuildLinksTransitiveStaticLibraries(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := exec.Command(filepath.Join(buildDir, "debug", "bin", "app")).Run(); err != nil {
+	if err := exec.Command(filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("app", toolchain.HostPlatform()))).Run(); err != nil {
 		t.Fatalf("transitively linked executable failed: %v", err)
 	}
 }

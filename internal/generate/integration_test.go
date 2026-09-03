@@ -13,6 +13,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -94,7 +95,7 @@ variants: {
 	}
 
 	// Verify clue output exists
-	clueOutput := filepath.Join(buildDir, "debug", "bin", "myapp")
+	clueOutput := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("myapp", toolchain.HostPlatform()))
 	if _, err := os.Stat(clueOutput); os.IsNotExist(err) {
 		t.Fatalf("Clue executable not created: %s", clueOutput)
 	}
@@ -134,7 +135,7 @@ variants: {
 	}
 
 	// Verify ninja output exists
-	ninjaOutput := filepath.Join(buildDir, "debug", "bin", "myapp")
+	ninjaOutput := filepath.Join(buildDir, "debug", "bin", plan.ExecutableName("myapp", toolchain.HostPlatform()))
 	if _, err := os.Stat(ninjaOutput); os.IsNotExist(err) {
 		t.Fatalf("Ninja executable not created: %s", ninjaOutput)
 	}
