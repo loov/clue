@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -208,6 +209,36 @@ targets: {
 				t.Errorf("target type %q should be valid: %v", typ, err)
 			}
 		})
+	}
+
+	dir := t.TempDir()
+	configContent := `package config
+name: "headers"
+targets: headers: {
+	name: "headers"
+	type: "interface_library"
+	public: {
+		includes: ["include"]
+		systemIncludes: ["vendor/include"]
+		compilerFlags: ["-pthread"]
+		linkerFlags: ["-Wl,--as-needed"]
+		sysLibs: ["dl"]
+		cxxStd: "c++20"
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(configContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatalf("interface library without sources should be valid: %v", err)
+	}
+	usage := cfg.Targets["headers"].Public
+	if usage.CXXStd != "c++20" || !slices.Equal(usage.SystemIncludes, []string{"vendor/include"}) ||
+		!slices.Equal(usage.CompilerFlags, []string{"-pthread"}) || !slices.Equal(usage.LinkerFlags, []string{"-Wl,--as-needed"}) ||
+		!slices.Equal(usage.SysLibs, []string{"dl"}) {
+		t.Fatalf("interface usage = %+v", usage)
 	}
 }
 

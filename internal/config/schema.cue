@@ -3,15 +3,24 @@ package config
 // Core target definition - base for all buildable units
 #Target: {
 	name:    string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$"
-	type:    "executable" | "static_library" | "shared_library" | "custom"
+	type:    "executable" | "static_library" | "shared_library" | "interface_library" | "custom"
 	sources?: [...string]
 	headers?: [...string]
 	includes?: [...string]
+	systemIncludes?: [...string]
 	defines?: [...string]
+	cStd?: string
+	cxxStd?: string
 	depends?: [...string]  // Other target names
 	public?: {
 		includes?: [...string]
+		systemIncludes?: [...string]
 		defines?: [...string]
+		compilerFlags?: [...string]
+		linkerFlags?: [...string]
+		sysLibs?: [...string]
+		cStd?: string
+		cxxStd?: string
 	}
 
 	// Semantic build flags (human-friendly)
@@ -38,7 +47,7 @@ package config
 		inputs?: [...string]
 		outputs: [...string] & [_, ...]
 	}
-	if type != "custom" {
+	if type != "custom" && type != "interface_library" {
 		sources: [...string] & [_, ...]
 	}
 }

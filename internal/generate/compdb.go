@@ -109,7 +109,7 @@ func CompileCommands(opts CompDBOptions) error {
 
 // buildTargetCommands creates compile commands for a target's sources
 func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain) ([]CompileCommand, error) {
-	if target.Type == "custom" {
+	if target.Type == "custom" || target.Type == "interface_library" {
 		return nil, nil
 	}
 	var commands []CompileCommand
@@ -117,19 +117,28 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
 	usage := config.CompileUsage(opts.Config, target)
+	buildCfg.RawCompiler = append(buildCfg.RawCompiler, usage.CompilerFlags...)
 	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
 	if err != nil {
 		return nil, err
 	}
 	target.Defines = append(append(usage.Defines, dependencyUsage.Defines...), variant.Defines...)
 	target.Includes = append(usage.Includes, dependencyUsage.Includes...)
+	target.SystemIncludes = usage.SystemIncludes
+	if target.CStd == "" {
+		target.CStd = usage.CStd
+	}
+	if target.CXXStd == "" {
+		target.CXXStd = usage.CXXStd
+	}
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 	objectNames := buildpath.ObjectNames(target.Sources)
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
-		Includes: target.Includes,
-		Defines:  target.Defines,
-		Flags:    buildCfg,
-		Std:      opts.Config.Toolchain.Standard("module.cppm"),
+		Includes:       target.Includes,
+		SystemIncludes: target.SystemIncludes,
+		Defines:        target.Defines,
+		Flags:          buildCfg,
+		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
 	}, filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules"))
 	if err != nil {
 		return nil, err
@@ -140,7 +149,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		objPath := objectPath(opts.BuildDir, opts.Variant, target.Name, objectNames[source])
 
 		// Build compiler arguments
-		args := buildCompilerArgs(tc, opts.Config.Toolchain.Standard(source), target.Includes, target.Defines, source, objPath, buildCfg)
+		args := buildCompilerArgs(tc, config.CompileStandard(opts.Config.Toolchain, target, usage, source), target.Includes, target.SystemIncludes, target.Defines, source, objPath, buildCfg)
 		for _, flag := range modules.flags(source) {
 			if value, ok := strings.CutPrefix(flag, "-fmodule-output="); ok {
 				flag = "-fmodule-output=" + AbsPath(value)
@@ -197,7 +206,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 		objPath := depObjectPath(opts.BuildDir, opts.Variant, dep.Name(), objectNames[source])
 
 		// Build arguments
-		args := buildCompilerArgs(tc, opts.Config.Toolchain.Standard(source), includes, resolved.Defines, srcPath, objPath, buildCfg)
+		args := buildCompilerArgs(tc, opts.Config.Toolchain.Standard(source), includes, nil, resolved.Defines, srcPath, objPath, buildCfg)
 
 		// Make paths absolute
 		srcAbs := AbsPath(srcPath)
@@ -216,7 +225,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 }
 
 // buildCompilerArgs constructs the full compiler command arguments
-func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, defines []string, source, objPath string, buildCfg toolchain.Config) []string {
+func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Config) []string {
 	var args []string
 	msvc := tc.Name() == "msvc"
 
@@ -248,6 +257,14 @@ func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, defines []s
 			prefix = "/I"
 		}
 		args = append(args, prefix+AbsPath(include))
+	}
+	for _, include := range systemIncludes {
+		path := AbsPath(include)
+		if msvc {
+			args = append(args, "/external:I"+path)
+		} else {
+			args = append(args, "-isystem", path)
+		}
 	}
 	if msvc {
 		for _, include := range toolchainEnvironmentPaths(tc, "INCLUDE") {

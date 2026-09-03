@@ -59,7 +59,7 @@ func targetTypeToNodeType(targetType string) graph.NodeType {
 	switch targetType {
 	case "executable":
 		return graph.NodeTypeExecutable
-	case "static_library":
+	case "static_library", "interface_library":
 		return graph.NodeTypeStatic
 	case "shared_library":
 		return graph.NodeTypeShared

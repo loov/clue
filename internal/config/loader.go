@@ -91,18 +91,21 @@ func (tc Toolchain) Standard(source string) string {
 
 // Target represents a buildable unit
 type Target struct {
-	Name     string
-	Type     string // "executable", "static_library", "shared_library", "custom"
-	Sources  []string
-	Headers  []string
-	Command  []string
-	Inputs   []string
-	Outputs  []string
-	Includes []string
-	Defines  []string
-	Depends  []string
-	Public   Usage
-	Flags    Flags
+	Name           string
+	Type           string // "executable", "static_library", "shared_library", "custom"
+	Sources        []string
+	Headers        []string
+	Command        []string
+	Inputs         []string
+	Outputs        []string
+	Includes       []string
+	SystemIncludes []string
+	Defines        []string
+	Depends        []string
+	Public         Usage
+	CStd           string
+	CXXStd         string
+	Flags          Flags
 	// Semantic flags (new)
 	Optimize         string
 	Warnings         string
@@ -117,8 +120,14 @@ type Target struct {
 
 // Usage contains compile requirements inherited by target consumers.
 type Usage struct {
-	Includes []string
-	Defines  []string
+	Includes       []string
+	SystemIncludes []string
+	Defines        []string
+	CompilerFlags  []string
+	LinkerFlags    []string
+	SysLibs        []string
+	CStd           string
+	CXXStd         string
 }
 
 // Flags for compiler and linker
@@ -474,11 +483,28 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.Inputs = extractStringList(val, "inputs")
 	t.Outputs = extractStringList(val, "outputs")
 	t.Includes = extractStringList(val, "includes")
+	t.SystemIncludes = extractStringList(val, "systemIncludes")
 	t.Defines = extractStringList(val, "defines")
+	if standard := val.LookupPath(cue.ParsePath("cStd")); standard.Exists() {
+		t.CStd, _ = standard.String()
+	}
+	if standard := val.LookupPath(cue.ParsePath("cxxStd")); standard.Exists() {
+		t.CXXStd, _ = standard.String()
+	}
 	t.Depends = extractStringList(val, "depends")
 	if public := val.LookupPath(cue.ParsePath("public")); public.Exists() {
 		t.Public.Includes = extractStringList(public, "includes")
+		t.Public.SystemIncludes = extractStringList(public, "systemIncludes")
 		t.Public.Defines = extractStringList(public, "defines")
+		t.Public.CompilerFlags = extractStringList(public, "compilerFlags")
+		t.Public.LinkerFlags = extractStringList(public, "linkerFlags")
+		t.Public.SysLibs = extractStringList(public, "sysLibs")
+		if standard := public.LookupPath(cue.ParsePath("cStd")); standard.Exists() {
+			t.Public.CStd, _ = standard.String()
+		}
+		if standard := public.LookupPath(cue.ParsePath("cxxStd")); standard.Exists() {
+			t.Public.CXXStd, _ = standard.String()
+		}
 	}
 
 	if flags := val.LookupPath(cue.ParsePath("flags")); flags.Exists() {

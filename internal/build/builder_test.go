@@ -1,12 +1,23 @@
 package build
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 )
+
+func TestBuildTargetInterfaceLibraryNeedsNoTools(t *testing.T) {
+	result, err := (&Builder{}).BuildTarget(context.Background(), Options{}, config.Target{Name: "headers", Type: "interface_library"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Success || result.Output != "" {
+		t.Fatalf("result = %+v", result)
+	}
+}
 
 func TestDependencyLinkInputs_PrebuiltLibraryUsesExactPath(t *testing.T) {
 	library := filepath.Join("vendor", "sdk", "custom-name.a")

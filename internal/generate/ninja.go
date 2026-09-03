@@ -363,9 +363,12 @@ func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir,
 	var outputs []string
 	for _, name := range target.Depends {
 		if dependency, ok := cfg.Targets[name]; ok {
-			if dependency.Type == "custom" {
+			switch dependency.Type {
+			case "custom":
 				outputs = append(outputs, dependency.Outputs...)
-			} else {
+			case "interface_library":
+				outputs = append(outputs, targetDependencyOutputs(cfg, dependency, buildDir, variant, platform)...)
+			default:
 				outputs = append(outputs, outputPathForTarget(buildDir, variant, dependency.Name, dependency.Type, platform))
 			}
 			continue
@@ -449,6 +452,9 @@ func runtimeLibraryFlags(output string, paths []string, platform toolchain.Platf
 
 // generateTargetBuilds generates build statements for a single target within a variant
 func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain, emitSharedRules bool) ([]string, error) {
+	if target.Type == "interface_library" {
+		return nil, nil
+	}
 	if target.Type == "custom" {
 		if emitSharedRules {
 			*file = append(*file, ninja.Build{
@@ -461,11 +467,20 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 	usage := config.CompileUsage(opts.Config, target)
+	buildCfg.RawCompiler = append(buildCfg.RawCompiler, usage.CompilerFlags...)
+	buildCfg.RawLinker = append(buildCfg.RawLinker, usage.LinkerFlags...)
 	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
 	if err != nil {
 		return nil, fmt.Errorf("target %q: %w", target.Name, err)
 	}
 	target.Defines = append(append(usage.Defines, dependencyUsage.Defines...), variantConfig.Defines...)
+	target.SystemIncludes = usage.SystemIncludes
+	if target.CStd == "" {
+		target.CStd = usage.CStd
+	}
+	if target.CXXStd == "" {
+		target.CXXStd = usage.CXXStd
+	}
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 
 	// Collect include paths
@@ -476,10 +491,11 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
 	buildDependencies := targetCustomOutputs(opts.Config, target)
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
-		Includes: includes,
-		Defines:  target.Defines,
-		Flags:    buildCfg,
-		Std:      opts.Config.Toolchain.Standard("module.cppm"),
+		Includes:       includes,
+		SystemIncludes: target.SystemIncludes,
+		Defines:        target.Defines,
+		Flags:          buildCfg,
+		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
 	}, filepath.Join(opts.BuildDir, variant, target.Name, "modules"))
 	if err != nil {
 		return nil, err
@@ -529,7 +545,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	switch target.Type {
 	case "executable":
-		ldflags := buildLinkerFlagsForNinja(target, dependencySysLibs, buildCfg, tc)
+		ldflags := buildLinkerFlagsForNinja(target, append(usage.SysLibs, dependencySysLibs...), buildCfg, tc)
 		ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
 		rule := "link_c"
@@ -553,7 +569,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		})
 
 	case "shared_library":
-		ldflags := buildSharedLibLinkerFlags(target, dependencySysLibs, buildCfg, opts.Platform, tc)
+		ldflags := buildSharedLibLinkerFlags(target, append(usage.SysLibs, dependencySysLibs...), buildCfg, opts.Platform, tc)
 		ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
 		rule := "link_shared_c"
@@ -641,7 +657,7 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 	msvc := tc.Name() == "msvc"
 
 	// Language standard
-	if std := cfg.Toolchain.Standard(source); std != "" {
+	if std := config.CompileStandard(cfg.Toolchain, target, config.Usage{}, source); std != "" {
 		if msvc {
 			flags = append(flags, "/std:"+build.TranslateStdForMSVC(std))
 		} else {
@@ -660,6 +676,14 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 			path = quoteMSVCValue(path)
 		}
 		flags = append(flags, prefix+path)
+	}
+	for _, inc := range target.SystemIncludes {
+		path := ninjaPathLocal(inc)
+		if msvc {
+			flags = append(flags, "/external:I"+quoteMSVCValue(path))
+		} else {
+			flags = append(flags, "-isystem", path)
+		}
 	}
 	if msvc {
 		for _, include := range toolchainEnvironmentPaths(tc, "INCLUDE") {

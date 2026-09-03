@@ -22,15 +22,16 @@ func (c *Compiler) cacheInputs(opts CompileOptions) []string {
 
 // CompileOptions holds options for compiling a single source file
 type CompileOptions struct {
-	Source       string            // Source file path
-	Output       string            // Output object file path
-	Includes     []string          // Include directories
-	Defines      []string          // Preprocessor defines
-	Flags        Config            // Semantic flags
-	Std          string            // Language standard (e.g., "c++20", "c17")
-	TargetType   string            // "executable", "static_library", "shared_library"
-	ModuleOutput string            // Path to output precompiled module (.pcm) when compiling module interface
-	ModuleFiles  map[string]string // Map of module name to .pcm path for -fmodule-file flags
+	Source         string            // Source file path
+	Output         string            // Output object file path
+	Includes       []string          // Include directories
+	SystemIncludes []string          // Third-party include directories
+	Defines        []string          // Preprocessor defines
+	Flags          Config            // Semantic flags
+	Std            string            // Language standard (e.g., "c++20", "c17")
+	TargetType     string            // "executable", "static_library", "shared_library"
+	ModuleOutput   string            // Path to output precompiled module (.pcm) when compiling module interface
+	ModuleFiles    map[string]string // Map of module name to .pcm path for -fmodule-file flags
 }
 
 // CompileResult holds the result of a compilation
@@ -124,6 +125,9 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	for _, include := range opts.Includes {
 		args = append(args, "-I"+include)
 	}
+	for _, include := range opts.SystemIncludes {
+		args = append(args, "-isystem", include)
+	}
 
 	// 7. Defines
 	for _, define := range opts.Defines {
@@ -197,6 +201,9 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	// 5. Include paths (MSVC style: /I)
 	for _, include := range opts.Includes {
 		args = append(args, "/I"+include)
+	}
+	for _, include := range opts.SystemIncludes {
+		args = append(args, "/external:I"+include)
 	}
 
 	// 6. Defines (MSVC style: /D)

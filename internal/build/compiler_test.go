@@ -104,7 +104,7 @@ func TestCompilerCacheInputsIncludeAllCompileOptions(t *testing.T) {
 	tc, _ := NewToolchain("clang", HostPlatform())
 	compiler := NewCompiler(NewExecutor(ExecutorConfig{}), tc)
 	base := CompileOptions{
-		Source: "main.cpp", Output: "main.o", Includes: []string{"include"},
+		Source: "main.cpp", Output: "main.o", Includes: []string{"include"}, SystemIncludes: []string{"vendor"},
 		Defines: []string{"MODE=1"}, Std: "c++17", TargetType: "executable",
 	}
 	baseline := compiler.cacheInputs(base)[0]

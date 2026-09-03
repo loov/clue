@@ -673,7 +673,7 @@ func TestBuildCompilerArgs_MSVC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	args := buildCompilerArgs(tc, "c++20", []string{"include"}, []string{"DEBUG"}, "main.cpp", "main.obj", toolchain.Config{})
+	args := buildCompilerArgs(tc, "c++20", []string{"include"}, nil, []string{"DEBUG"}, "main.cpp", "main.obj", toolchain.Config{})
 
 	if args[0] != "cl.exe" {
 		t.Fatalf("expected MSVC compiler, got %v", args)
@@ -689,6 +689,14 @@ func TestBuildCompilerArgs_MSVC(t *testing.T) {
 	}
 	if !containsArg(args, `/IC:\VS Include`) || !containsArg(args, `/IC:\SDK`) {
 		t.Fatalf("expected captured MSVC includes, got %v", args)
+	}
+}
+
+func TestBuildCompilerArgs_SystemInclude(t *testing.T) {
+	tc := gcc.New("gcc", "g++", "ar", toolchain.HostPlatform())
+	args := buildCompilerArgs(tc, "c17", nil, []string{"vendor/include"}, nil, "main.c", "main.o", toolchain.Config{})
+	if !containsArg(args, "-isystem") || !containsArg(args, AbsPath("vendor/include")) {
+		t.Fatalf("system include missing from %v", args)
 	}
 }
 

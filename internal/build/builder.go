@@ -327,6 +327,9 @@ func (b *Builder) addRuntimeLibraryPaths(cfg *Config, output string, paths []str
 
 // BuildTarget builds a single target
 func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.Target, progress *Progress) (*TargetResult, error) {
+	if target.Type == "interface_library" {
+		return &TargetResult{Name: target.Name, Type: target.Type, Success: true}, nil
+	}
 	if target.Type == "custom" {
 		return b.buildCustomTarget(ctx, opts, target)
 	}
@@ -344,6 +347,8 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	// Build configuration from target and variant
 	buildCfg := b.targetToConfig(target, opts.Config.ActiveVariant)
 	usage := config.CompileUsage(opts.Config, target)
+	buildCfg.RawCompiler = append(buildCfg.RawCompiler, usage.CompilerFlags...)
+	buildCfg.RawLinker = append(buildCfg.RawLinker, usage.LinkerFlags...)
 
 	// Collect include paths from external dependencies.
 	includes := usage.Includes
@@ -392,10 +397,11 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	var orderedModules []string
 	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
 	moduleDeps, err := ScanModuleDependencies(b.toolchain, target.Sources, CompileOptions{
-		Includes: includes,
-		Defines:  defines,
-		Flags:    buildCfg,
-		Std:      opts.Config.Toolchain.Standard("module.cppm"),
+		Includes:       includes,
+		SystemIncludes: usage.SystemIncludes,
+		Defines:        defines,
+		Flags:          buildCfg,
+		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("module dependency scan failed: %w", err)
@@ -463,18 +469,20 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		compilerPath string
 	}
 	cacheInputs := make(map[string]sourceCacheInputs, len(target.Sources))
+	includeInputs := append(append([]string(nil), includes...), usage.SystemIncludes...)
 
 	objectNames := buildpath.ObjectNames(target.Sources)
 	for _, source := range sourcesToCompile {
 		objPath := filepath.Join(objDir, objectNames[source])
 		compileOpts := CompileOptions{
-			Source:     source,
-			Output:     objPath,
-			Includes:   includes,
-			Defines:    defines,
-			Flags:      buildCfg,
-			Std:        opts.Config.Toolchain.Standard(source),
-			TargetType: target.Type,
+			Source:         source,
+			Output:         objPath,
+			Includes:       includes,
+			SystemIncludes: usage.SystemIncludes,
+			Defines:        defines,
+			Flags:          buildCfg,
+			Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, source),
+			TargetType:     target.Type,
 		}
 		if module, ok := moduleInfo[source]; ok {
 			compileOpts.ModuleOutput = moduleOutputs[module.Provides]
@@ -492,7 +500,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		cacheInputs[source] = sourceCacheInputs{flags: inputs, compilerPath: compilerPath}
 
 		needsRebuild, reason, changedFile := b.cacheManager.NeedsRebuild(
-			source, objPath, inputs, includes, compilerPath, opts.ForceRebuild,
+			source, objPath, inputs, includeInputs, compilerPath, opts.ForceRebuild,
 		)
 		if !needsRebuild && compileOpts.ModuleOutput != "" {
 			if _, err := os.Stat(compileOpts.ModuleOutput); err != nil {
@@ -515,7 +523,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	}
 	storeResult := func(result ParallelResult) {
 		inputs := cacheInputs[result.Source]
-		err := b.cacheManager.StoreResult(result.Source, result.Object, result.DepFile, inputs.flags, includes, inputs.compilerPath)
+		err := b.cacheManager.StoreResult(result.Source, result.Object, result.DepFile, inputs.flags, includeInputs, inputs.compilerPath)
 		if err != nil && opts.Verbosity == VerbosityVerbose {
 			fmt.Printf("  Warning: failed to cache result: %v\n", err)
 		}
@@ -631,7 +639,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		linkOpts := LinkOptions{
 			Objects:  append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
 			Output:   outputPath,
-			SysLibs:  append(append([]string(nil), target.SysLibs...), dependencyUsage.sysLibs...),
+			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyUsage.sysLibs...),
 			LibPaths: dependencyUsage.libPaths,
 			Libs:     dependencyUsage.libs,
 			Flags:    buildCfg,
@@ -704,7 +712,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		sharedOpts := SharedLibraryOptions{
 			Objects:          append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
 			Output:           outputPath,
-			SysLibs:          append(append([]string(nil), target.SysLibs...), dependencyUsage.sysLibs...),
+			SysLibs:          append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyUsage.sysLibs...),
 			LibPaths:         dependencyUsage.libPaths,
 			Libs:             dependencyUsage.libs,
 			Flags:            buildCfg,

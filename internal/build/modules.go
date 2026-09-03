@@ -209,6 +209,9 @@ func (c *Compiler) moduleScanArgs(source string, opts CompileOptions) []string {
 	for _, inc := range opts.Includes {
 		args = append(args, "-I"+inc)
 	}
+	for _, inc := range opts.SystemIncludes {
+		args = append(args, "-isystem", inc)
+	}
 	for _, define := range opts.Defines {
 		args = append(args, "-D"+define)
 	}

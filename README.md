@@ -192,6 +192,21 @@ dependencies: json: {
 }
 ```
 
+Project-local header-only libraries use an `interface_library` target. Its
+public requirements are inherited transitively by consumers:
+
+```cue
+targets: headers: {
+    name: "headers"
+    type: "interface_library"
+    public: {
+        includes:       ["include"]
+        systemIncludes: ["vendor/include"]
+        cxxStd:         "c++20"
+    }
+}
+```
+
 For an already-built library, point at the exact artifact instead:
 
 ```cue
