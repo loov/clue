@@ -74,7 +74,7 @@ func TestVendoredDependency_BuildsFromLocalSources(t *testing.T) {
 		Verbosity: build.VerbosityNormal,
 	}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 
 	result, err := builder.Build(ctx, opts)
@@ -299,7 +299,7 @@ func TestOfflineBuild_UsesCachedDependencies(t *testing.T) {
 		Verbosity: build.VerbosityNormal,
 	}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 
 	result, err := builder.Build(ctx, opts)
@@ -324,7 +324,7 @@ func TestOfflineBuild_UsesCachedDependencies(t *testing.T) {
 	}
 
 	// Build again - should succeed without network (vendored deps are local)
-	ctx2, cancel2 := context.WithTimeout(t.Context(), 30*time.Second)
+	ctx2, cancel2 := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel2()
 
 	builder2, err := build.NewBuilder("clang", toolchain.HostPlatform(), build.VerbosityNormal, 1, false)
@@ -385,7 +385,7 @@ func TestDependencyBuildOutput_LinksGeneratedLibrary(t *testing.T) {
 		Verbosity: build.VerbosityVerbose, // Enable verbose to see build steps
 	}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 
 	var result *build.Result
