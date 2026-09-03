@@ -96,6 +96,7 @@ func TestLoaderExtractsContainerToolchain(t *testing.T) {
 toolchain: {
 	compiler: "clang"
 	container: {
+		runtime: "podman"
 		image: "project-toolchain:20"
 		workdir: "/src"
 		}
@@ -109,8 +110,22 @@ targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Toolchain.Container == nil || cfg.Toolchain.Container.Image != "project-toolchain:20" || cfg.Toolchain.Container.WorkDir != "/src" {
+	if cfg.Toolchain.Container == nil || cfg.Toolchain.Container.Runtime != "podman" || cfg.Toolchain.Container.Image != "project-toolchain:20" || cfg.Toolchain.Container.WorkDir != "/src" {
 		t.Fatalf("container toolchain = %+v", cfg.Toolchain.Container)
+	}
+}
+
+func TestLoaderAcceptsAutomaticContainerRuntime(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "containerized"
+toolchain: container: {runtime: "", image: "project-toolchain:20"}
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewLoader().Load(dir); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -58,7 +58,10 @@ func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform
 	if settings.Container == nil {
 		return base, nil
 	}
-	return toolchaincontainer.New(base, settings.Container.Image, projectDir, settings.Container.WorkDir, target)
+	return toolchaincontainer.New(base, toolchaincontainer.Config{
+		Runtime: settings.Container.Runtime, Image: settings.Container.Image,
+		ProjectDir: projectDir, WorkDir: settings.Container.WorkDir,
+	}, target)
 }
 
 type commandWrappingToolchain interface {

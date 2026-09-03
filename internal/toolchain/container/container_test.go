@@ -2,7 +2,9 @@ package container
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -11,11 +13,60 @@ import (
 	"github.com/loov/clue/internal/toolchain/clang"
 )
 
+func TestNewUsesConfiguredRuntime(t *testing.T) {
+	dir := t.TempDir()
+	runtimePath := writeRuntime(t, dir, "podman")
+	t.Setenv("PATH", dir)
+
+	tc, err := New(
+		clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
+		Config{Runtime: "podman", Image: "clang:20", ProjectDir: dir},
+		toolchain.HostPlatform(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tc.HostTool() != runtimePath {
+		t.Fatalf("runtime = %q, want %q", tc.HostTool(), runtimePath)
+	}
+}
+
+func TestNewDetectsAvailableRuntime(t *testing.T) {
+	dir := t.TempDir()
+	want := writeRuntime(t, dir, "podman")
+	writeRuntime(t, dir, "container")
+	t.Setenv("PATH", dir)
+
+	tc, err := New(
+		clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
+		Config{Image: "clang:20", ProjectDir: dir},
+		toolchain.HostPlatform(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tc.HostTool() != want {
+		t.Fatalf("runtime = %q, want %q", tc.HostTool(), want)
+	}
+}
+
+func writeRuntime(t *testing.T, dir, name string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if runtime.GOOS == "windows" {
+		path += ".exe"
+	}
+	if err := os.WriteFile(path, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestWrapCommandMountsProjectAndTranslatesAbsolutePaths(t *testing.T) {
 	root := t.TempDir()
 	tc := &Toolchain{
-		base:   clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
-		docker: "docker", image: "clang:20", hostRoot: root, containerRoot: "/workspace",
+		base:        clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
+		runtimePath: "docker", image: "clang:20", hostRoot: root, containerRoot: "/workspace",
 	}
 	name, args := tc.WrapCommand("clang++", []string{"-c", filepath.Join(root, "src", "main.cpp")}, filepath.Join(root, "src"))
 	if name != "docker" {
@@ -32,8 +83,8 @@ func TestWrapCommandMountsProjectAndTranslatesAbsolutePaths(t *testing.T) {
 
 func TestValidateChecksToolsInsideImage(t *testing.T) {
 	tc := &Toolchain{
-		base:   clang.New("clang", "clang++", "llvm-ar", toolchain.HostPlatform()),
-		docker: "docker", image: "toolchain:1",
+		base:        clang.New("clang", "clang++", "llvm-ar", toolchain.HostPlatform()),
+		runtimePath: "docker", image: "toolchain:1",
 	}
 	var calls [][]string
 	tc.run = func(name string, args ...string) ([]byte, error) {
@@ -51,10 +102,29 @@ func TestValidateChecksToolsInsideImage(t *testing.T) {
 	}
 }
 
+func TestValidateUsesPortableImageInspection(t *testing.T) {
+	var calls [][]string
+	tc := &Toolchain{
+		base:        clang.New("clang", "clang++", "llvm-ar", toolchain.HostPlatform()),
+		runtimePath: "container", image: "toolchain:1",
+		run: func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return []byte(`[{"id":"sha256:123"}]`), nil
+		},
+	}
+	if err := tc.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"container", "image", "inspect", "toolchain:1"}
+	if !slices.Equal(calls[0], want) {
+		t.Fatalf("image inspection = %q, want %q", calls[0], want)
+	}
+}
+
 func TestIdentityUsesCompilerInsideImage(t *testing.T) {
 	tc := &Toolchain{
-		base:   clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
-		docker: "docker", image: "toolchain:1",
+		base:        clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
+		runtimePath: "docker", image: "toolchain:1",
 		run: func(string, ...string) ([]byte, error) { return []byte("clang version 22"), nil },
 	}
 	identity, err := tc.Identity()

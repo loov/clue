@@ -64,6 +64,7 @@ type Toolchain struct {
 
 // ContainerToolchain runs toolchain commands in a container image.
 type ContainerToolchain struct {
+	Runtime string
 	Image   string
 	WorkDir string
 }
@@ -461,6 +462,7 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		}
 		if container := tc.LookupPath(cue.ParsePath("container")); container.Exists() {
 			cfg.Toolchain.Container = &ContainerToolchain{WorkDir: "/workspace"}
+			cfg.Toolchain.Container.Runtime, _ = container.LookupPath(cue.ParsePath("runtime")).String()
 			cfg.Toolchain.Container.Image, _ = container.LookupPath(cue.ParsePath("image")).String()
 			if workDir := container.LookupPath(cue.ParsePath("workdir")); workDir.Exists() {
 				cfg.Toolchain.Container.WorkDir, _ = workDir.String()

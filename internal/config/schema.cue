@@ -186,6 +186,7 @@ package config
 		cStd?: string    // e.g., "c17"
 		cxxStd?: string  // e.g., "c++23"
 		container?: {
+			runtime?: string
 			image: string & != ""
 			workdir?: string | *"/workspace"
 		}

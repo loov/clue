@@ -58,20 +58,21 @@ if _target.os == "windows" {
 }
 ```
 
-To run the compiler, linker, archiver, and build commands in Docker, add a pre-pulled image containing the selected toolchain:
+To run the compiler, linker, archiver, and build commands in a container, add a pre-pulled image containing the selected toolchain:
 
 ```cue
 toolchain: {
     compiler: "clang"
     cxxStd:   "c++23"
     container: {
+        runtime: "podman" // optional
         image:   "project-toolchain:20"
         workdir: "/workspace"
     }
 }
 ```
 
-Clue starts a disposable container for each command and mounts the project directory at `workdir`. Compiler tools and `pkg-config` execute in that container, so their headers and libraries must be present in the image. Docker must be installed, the image must already exist locally, and files outside the project directory are not mounted.
+Clue starts a disposable container for each command and mounts the project directory at `workdir`. Compiler tools and `pkg-config` execute in that container, so their headers and libraries must be present in the image. When `runtime` is omitted, Clue uses the first available command from Docker, Podman, Apple container, and nerdctl. Set it to another Docker-compatible executable when needed. The image must already exist in that runtime, and files outside the project directory are not mounted.
 
 Cross-compilers can be selected explicitly. Clue rejects cross targets that
 would otherwise fall back to the host compiler:
