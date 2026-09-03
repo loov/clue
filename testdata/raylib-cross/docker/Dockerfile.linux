@@ -1,0 +1,24 @@
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG RAYLIB_VERSION=6.0
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        git \
+        libasound2-dev \
+        libgl1-mesa-dev \
+        libglu1-mesa-dev \
+        libxcursor-dev \
+        libxi-dev \
+        libxinerama-dev \
+        libxrandr-dev \
+        libx11-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --branch "$RAYLIB_VERSION" --depth 1 https://github.com/raysan5/raylib.git /tmp/raylib \
+    && make --directory=/tmp/raylib/src PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_LIBTYPE=STATIC \
+    && install -D -m 0644 /tmp/raylib/src/libraylib.a /opt/raylib/lib/libraylib.a \
+    && install -D -m 0644 /tmp/raylib/src/raylib.h /opt/raylib/include/raylib.h \
+    && rm -rf /tmp/raylib

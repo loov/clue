@@ -1,0 +1,24 @@
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG RAYLIB_VERSION=6.0
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        binutils-mingw-w64-x86-64 \
+        ca-certificates \
+        gcc-mingw-w64-x86-64 \
+        g++-mingw-w64-x86-64 \
+        git \
+        make \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --branch "$RAYLIB_VERSION" --depth 1 https://github.com/raysan5/raylib.git /tmp/raylib \
+    && make --directory=/tmp/raylib/src \
+        PLATFORM=PLATFORM_DESKTOP_WIN32 \
+        PLATFORM_OS=WINDOWS \
+        CC=x86_64-w64-mingw32-gcc \
+        AR=x86_64-w64-mingw32-ar \
+        RAYLIB_LIBTYPE=STATIC \
+    && install -D -m 0644 /tmp/raylib/src/libraylib.a /opt/raylib/lib/libraylib.a \
+    && install -D -m 0644 /tmp/raylib/src/raylib.h /opt/raylib/include/raylib.h \
+    && rm -rf /tmp/raylib

@@ -1,0 +1,29 @@
+FROM crazymax/osxcross:26.1-r0-ubuntu AS osxcross
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG RAYLIB_VERSION=6.0
+
+COPY --from=osxcross /osxcross /osxcross
+
+ENV PATH="/osxcross/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/osxcross/lib"
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        ca-certificates \
+        clang \
+        git \
+        llvm \
+        make \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --branch "$RAYLIB_VERSION" --depth 1 https://github.com/raysan5/raylib.git /tmp/raylib \
+    && make --directory=/tmp/raylib/src \
+        PLATFORM=PLATFORM_DESKTOP \
+        PLATFORM_OS=OSX \
+        CC=o64-clang \
+        AR=llvm-ar \
+        RAYLIB_LIBTYPE=STATIC \
+    && install -D -m 0644 /tmp/raylib/src/libraylib.a /opt/raylib/lib/libraylib.a \
+    && install -D -m 0644 /tmp/raylib/src/raylib.h /opt/raylib/include/raylib.h \
+    && rm -rf /tmp/raylib
