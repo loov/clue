@@ -13,7 +13,7 @@ func TestSetupSignalHandling_CreatesContext(t *testing.T) {
 	// so we test the basic functionality of context creation.
 
 	bc := SetupSignalHandling()
-	defer bc.Cancel() // Clean up signal handling
+	defer bc.Close()
 
 	// Verify context is not nil
 	if bc.Ctx == nil {
@@ -64,9 +64,6 @@ func TestContext_IsCancelled_TrueAfterCancel(t *testing.T) {
 	// Cancel the context
 	cancel()
 
-	// Give a moment for cancellation to propagate
-	time.Sleep(10 * time.Millisecond)
-
 	// Now should be cancelled
 	if !bc.IsCancelled() {
 		t.Error("IsCancelled() should return true after cancel")
@@ -75,6 +72,7 @@ func TestContext_IsCancelled_TrueAfterCancel(t *testing.T) {
 
 func TestSetupSignalHandling_CancelStopsContext(t *testing.T) {
 	bc := SetupSignalHandling()
+	defer bc.Close()
 
 	// Initially not cancelled
 	if bc.IsCancelled() {
@@ -84,15 +82,21 @@ func TestSetupSignalHandling_CancelStopsContext(t *testing.T) {
 	// Cancel via the exposed Cancel function
 	bc.Cancel()
 
-	// Give a moment for cancellation to propagate
-	time.Sleep(10 * time.Millisecond)
-
 	// Context should now be done
 	select {
 	case <-bc.Ctx.Done():
 		// Good - context is cancelled
 	default:
 		t.Error("Context should be cancelled after calling Cancel()")
+	}
+}
+
+func TestContext_CloseStopsHandler(t *testing.T) {
+	bc := SetupSignalHandling()
+	bc.Close()
+
+	if !bc.IsCancelled() {
+		t.Error("Close() did not cancel the context")
 	}
 }
 

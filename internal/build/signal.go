@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -14,7 +15,10 @@ import (
 type Context struct {
 	Ctx    context.Context
 	Cancel context.CancelFunc
-	stop   func() // internal stop function
+	stop   func()
+	done   chan struct{}
+	once   sync.Once
+	wg     sync.WaitGroup
 }
 
 // SetupSignalHandling creates a Context that responds to SIGINT and SIGTERM.
@@ -26,14 +30,19 @@ func SetupSignalHandling() *Context {
 
 	bc := &Context{
 		Ctx:    ctx,
-		Cancel: func() { stop() }, // expose cancel ability
+		Cancel: stop,
 		stop:   stop,
+		done:   make(chan struct{}),
 	}
 
 	// Handle double Ctrl+C for immediate exit
-	go func() {
-		<-ctx.Done() // First signal received
-		stop()       // Stop signal notifications on this context
+	bc.wg.Go(func() {
+		select {
+		case <-bc.done:
+			return
+		case <-ctx.Done(): // First signal received
+		}
+		stop() // Stop signal notifications on this context
 
 		// Print cancellation message
 		fmt.Fprintf(os.Stderr, "\nBuild cancelled. Waiting for in-flight compilations...\n")
@@ -42,19 +51,33 @@ func SetupSignalHandling() *Context {
 		// Setup for second signal
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		defer signal.Stop(sigChan)
+		timer := time.NewTimer(30 * time.Second)
+		defer timer.Stop()
 
 		select {
+		case <-bc.done:
+			return
 		case <-sigChan:
 			fmt.Fprintf(os.Stderr, "\nForce exit\n")
 			os.Exit(130) // 128 + SIGINT(2)
-		case <-time.After(30 * time.Second):
+		case <-timer.C:
 			// Timeout waiting for graceful shutdown
 			// Let the normal build completion handle this
 			return
 		}
-	}()
+	})
 
 	return bc
+}
+
+// Close releases signal resources and waits for the handler to stop.
+func (bc *Context) Close() {
+	bc.once.Do(func() {
+		close(bc.done)
+		bc.stop()
+	})
+	bc.wg.Wait()
 }
 
 // IsCancelled checks if the build context has been cancelled

@@ -321,6 +321,7 @@ func runBuild(dir, variant, target string, verbosity build.Verbosity, rebuildAll
 
 	// Setup signal handling
 	buildCtx := build.SetupSignalHandling()
+	defer buildCtx.Close()
 
 	// Execute build with cancellable context
 	result, err := builder.Build(buildCtx.Ctx, opts)
@@ -635,6 +636,7 @@ func runRun(dir, variant, target string, verbosity build.Verbosity, jobs int, ar
 
 	// Setup signal handling for build phase
 	buildCtx := build.SetupSignalHandling()
+	defer buildCtx.Close()
 
 	// Run target
 	result, err := build.RunTarget(buildCtx.Ctx, build.RunOptions{
