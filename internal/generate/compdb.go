@@ -117,7 +117,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	// Build Config from target and variant
 	buildCfg := targetToBuildConfig(target, variant)
 	usage := config.CompileUsage(opts.Config, target)
-	dependencyUsage, err := targetDependencyUsage(opts.Config, target)
+	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
 	if err != nil {
 		return nil, err
 	}

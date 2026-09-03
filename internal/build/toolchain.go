@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"sort"
@@ -118,6 +119,21 @@ func wrapToolchainCommand(tc Toolchain, name string, args []string, workDir stri
 // ToolchainCommand wraps a command for the configured toolchain backend.
 func ToolchainCommand(tc Toolchain, name string, args []string) (string, []string) {
 	return wrapToolchainCommand(tc, name, args, "")
+}
+
+// ToolOutput runs a metadata tool in the configured toolchain environment.
+func ToolOutput(ctx context.Context, tc Toolchain, workDir, name string, args ...string) (string, error) {
+	executor := NewExecutor(ExecutorConfig{
+		WorkDir: workDir, Environment: toolchainEnvironment(tc), WrapCommand: toolchainCommandWrapper(tc),
+	})
+	result, err := executor.RunCommand(ctx, name, args...)
+	if err != nil {
+		if result != nil && result.Stderr != "" {
+			return "", fmt.Errorf("%s: %w: %s", name, err, result.Stderr)
+		}
+		return "", fmt.Errorf("%s: %w", name, err)
+	}
+	return result.Stdout, nil
 }
 
 func toolchainCommandWrapper(tc Toolchain) func(string, []string, string) (string, []string) {

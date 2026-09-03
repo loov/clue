@@ -18,10 +18,12 @@ type Toolchain struct {
 	base          toolchain.Toolchain
 	docker        string
 	image         string
+	imageID       string
 	hostRoot      string
 	containerRoot string
 	target        toolchain.Platform
 	user          string
+	run           func(string, ...string) ([]byte, error)
 }
 
 // New creates a Docker-backed toolchain rooted at the project directory.
@@ -70,7 +72,15 @@ func (t *Toolchain) LinkerFlags(config toolchain.Config, sysLibs []string) []str
 }
 
 func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
-	return toolchain.GetCompilerIdentity(t.docker)
+	output, err := t.output("run", "--rm", t.image, t.base.CC(), "--version")
+	if err != nil {
+		return toolchain.CompilerIdentity{}, fmt.Errorf("identify compiler in Docker image %q: %w", t.image, err)
+	}
+	image := t.imageID
+	if image == "" {
+		image = t.image
+	}
+	return toolchain.CompilerIdentity{Path: image + "\x00" + strings.TrimSpace(string(output)), Size: int64(len(output))}, nil
 }
 
 // WrapCommand returns a docker invocation for a toolchain command.
@@ -101,12 +111,16 @@ func (t *Toolchain) HostTool() string { return t.docker }
 
 // CacheKey distinguishes compiler images even when the Docker client is unchanged.
 func (t *Toolchain) CacheKey() string {
-	return t.image + "\x00" + t.containerRoot + "\x00" + t.base.Name()
+	image := t.imageID
+	if image == "" {
+		image = t.image
+	}
+	return image + "\x00" + t.containerRoot + "\x00" + t.base.Name()
 }
 
 // Validate checks that Docker can find the configured image locally.
 func (t *Toolchain) Validate() error {
-	output, err := exec.Command(t.docker, "image", "inspect", t.image).CombinedOutput()
+	output, err := t.output("image", "inspect", "--format", "{{.Id}}", t.image)
 	if err != nil {
 		message := strings.TrimSpace(string(output))
 		if message != "" {
@@ -114,5 +128,23 @@ func (t *Toolchain) Validate() error {
 		}
 		return fmt.Errorf("docker image %q is unavailable: %w", t.image, err)
 	}
+	t.imageID = strings.TrimSpace(string(output))
+	for _, command := range []string{t.base.CC(), t.base.AR()} {
+		output, err := t.output("run", "--rm", t.image, command, "--version")
+		if err != nil {
+			message := strings.TrimSpace(string(output))
+			if message != "" {
+				return fmt.Errorf("tool %q is unavailable in Docker image %q: %s", command, t.image, message)
+			}
+			return fmt.Errorf("tool %q is unavailable in Docker image %q: %w", command, t.image, err)
+		}
+	}
 	return nil
+}
+
+func (t *Toolchain) output(args ...string) ([]byte, error) {
+	if t.run != nil {
+		return t.run(t.docker, args...)
+	}
+	return exec.Command(t.docker, args...).CombinedOutput()
 }

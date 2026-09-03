@@ -17,8 +17,16 @@ type Usage struct {
 	LinkerFlags   []string
 }
 
+// CommandRunner executes pkg-config and returns its standard output.
+type CommandRunner func(context.Context, string, ...string) (string, error)
+
 // Resolve queries pkg-config for the dependency's compile and link metadata.
 func (p *PkgConfigDependency) Resolve(ctx context.Context) (Usage, error) {
+	return p.ResolveWithRunner(ctx, directCommandRunner)
+}
+
+// ResolveWithRunner queries pkg-config through the active toolchain environment.
+func (p *PkgConfigDependency) ResolveWithRunner(ctx context.Context, runner CommandRunner) (Usage, error) {
 	command := os.Getenv("PKG_CONFIG")
 	if command == "" {
 		command = "pkg-config"
@@ -27,18 +35,18 @@ func (p *PkgConfigDependency) Resolve(ctx context.Context) (Usage, error) {
 	if p.Static {
 		args = append(args, "--static")
 	}
-	cflags, err := runPkgConfig(ctx, command, append(args, "--cflags", p.Package)...)
+	cflags, err := runner(ctx, command, append(args, "--cflags", p.Package)...)
 	if err != nil {
 		return Usage{}, err
 	}
-	libs, err := runPkgConfig(ctx, command, append(args, "--libs", p.Package)...)
+	libs, err := runner(ctx, command, append(args, "--libs", p.Package)...)
 	if err != nil {
 		return Usage{}, err
 	}
 	return parsePkgConfigUsage(cflags, libs)
 }
 
-func runPkgConfig(ctx context.Context, command string, args ...string) (string, error) {
+func directCommandRunner(ctx context.Context, command string, args ...string) (string, error) {
 	output, err := exec.CommandContext(ctx, command, args...).CombinedOutput()
 	if err != nil {
 		message := strings.TrimSpace(string(output))

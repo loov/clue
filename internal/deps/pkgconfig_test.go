@@ -1,7 +1,9 @@
 package deps
 
 import (
+	"context"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -18,5 +20,23 @@ func TestParsePkgConfigUsage(t *testing.T) {
 		!reflect.DeepEqual(usage.CompilerFlags, []string{"-pthread"}) ||
 		!reflect.DeepEqual(usage.LinkerFlags, []string{"-L/opt/sdk/lib", "-lsdk", "-Wl,-rpath,/opt/sdk/lib"}) {
 		t.Fatalf("usage = %+v", usage)
+	}
+}
+
+func TestResolvePkgConfigWithRunner(t *testing.T) {
+	pkg := NewPkgConfigDependency("sdk", "clue-sdk", false)
+	var calls [][]string
+	usage, err := pkg.ResolveWithRunner(t.Context(), func(_ context.Context, name string, args ...string) (string, error) {
+		calls = append(calls, append([]string{name}, args...))
+		if slices.Contains(args, "--cflags") {
+			return "-I/container/include -DSDK", nil
+		}
+		return "-L/container/lib -lsdk", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 || !reflect.DeepEqual(usage.Includes, []string{"/container/include"}) {
+		t.Fatalf("calls=%v usage=%+v", calls, usage)
 	}
 }

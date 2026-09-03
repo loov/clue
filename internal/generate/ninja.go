@@ -117,7 +117,7 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 		if len(sources) == 0 {
 			return nil, fmt.Errorf("dependency %q has no source files; run 'clue deps fetch' before generating Ninja", name)
 		}
-		dependencyUsage, err := dependencyCompileUsage(dep, opts.Config)
+		dependencyUsage, err := dependencyCompileUsage(dep, opts.Config, tc)
 		if err != nil {
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
@@ -259,7 +259,7 @@ func dependencyIncludePath(dep deps.Dependency) string {
 	return root
 }
 
-func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config) (deps.Usage, error) {
+func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config, tc toolchain.Toolchain) (deps.Usage, error) {
 	var usage deps.Usage
 	seen := make(map[string]bool)
 	var visit func(deps.Dependency) error
@@ -269,7 +269,7 @@ func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config) (deps.Usage
 		}
 		seen[current.Name()] = true
 		if pkg, ok := current.(*deps.PkgConfigDependency); ok {
-			resolved, err := pkg.Resolve(context.Background())
+			resolved, err := resolvePkgConfig(context.Background(), pkg, tc)
 			if err != nil {
 				return err
 			}
@@ -292,7 +292,7 @@ func dependencyCompileUsage(dep deps.Dependency, cfg *config.Config) (deps.Usage
 	return usage, nil
 }
 
-func targetDependencyUsage(cfg *config.Config, target config.Target) (deps.Usage, error) {
+func targetDependencyUsage(cfg *config.Config, target config.Target, tc toolchain.Toolchain) (deps.Usage, error) {
 	var usage deps.Usage
 	seen := make(map[string]bool)
 	var visit func(string) error
@@ -313,7 +313,7 @@ func targetDependencyUsage(cfg *config.Config, target config.Target) (deps.Usage
 			return nil
 		}
 		if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
-			resolved, err := pkg.Resolve(context.Background())
+			resolved, err := resolvePkgConfig(context.Background(), pkg, tc)
 			if err != nil {
 				return err
 			}
@@ -334,6 +334,12 @@ func targetDependencyUsage(cfg *config.Config, target config.Target) (deps.Usage
 		}
 	}
 	return usage, nil
+}
+
+func resolvePkgConfig(ctx context.Context, pkg *deps.PkgConfigDependency, tc toolchain.Toolchain) (deps.Usage, error) {
+	return pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
+		return build.ToolOutput(ctx, tc, ".", name, args...)
+	})
 }
 
 func mergeDependencyUsage(dst *deps.Usage, src deps.Usage) {
@@ -455,7 +461,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	// Build configuration for flags
 	buildCfg := targetToBuildConfig(target, variantConfig)
 	usage := config.CompileUsage(opts.Config, target)
-	dependencyUsage, err := targetDependencyUsage(opts.Config, target)
+	dependencyUsage, err := targetDependencyUsage(opts.Config, target, tc)
 	if err != nil {
 		return nil, fmt.Errorf("target %q: %w", target.Name, err)
 	}

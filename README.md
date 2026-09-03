@@ -68,7 +68,7 @@ toolchain: {
 }
 ```
 
-Clue starts a disposable container for each command and mounts the project directory at `workdir`. Docker must be installed, the image must already exist locally, and files outside the project directory are not mounted.
+Clue starts a disposable container for each command and mounts the project directory at `workdir`. Compiler tools and `pkg-config` execute in that container, so their headers and libraries must be present in the image. Docker must be installed, the image must already exist locally, and files outside the project directory are not mounted.
 
 Cross-compilers can be selected explicitly. Clue rejects cross targets that
 would otherwise fall back to the host compiler:

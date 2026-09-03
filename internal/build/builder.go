@@ -963,7 +963,9 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 			return nil, fmt.Errorf("dependency %q not found", depName)
 		}
 		if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
-			usage, err := pkg.Resolve(ctx)
+			usage, err := pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
+				return ToolOutput(ctx, b.toolchain, ".", name, args...)
+			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve dependency %q: %w", depName, err)
 			}
