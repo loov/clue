@@ -59,8 +59,8 @@ func NewConfiguredToolchain(settings config.Toolchain, target toolchain.Platform
 		return base, nil
 	}
 	return toolchaincontainer.New(base, toolchaincontainer.Config{
-		Runtime: settings.Container.Runtime, Image: settings.Container.Image,
-		ProjectDir: projectDir, WorkDir: settings.Container.WorkDir,
+		Runtime: settings.Container.Runtime, Image: settings.Container.Image, Containerfile: settings.Container.Containerfile,
+		Platform: settings.Container.Platform, ProjectDir: projectDir, WorkDir: settings.Container.WorkDir,
 	}, target)
 }
 

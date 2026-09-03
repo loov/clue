@@ -1,10 +1,10 @@
 name:    "raylib-cross"
 version: "1.0.0"
 
-_images: {
-	linux:   "clue-raylib-linux:6.0"
-	windows: "clue-raylib-windows:6.0"
-	darwin:  "clue-raylib-macos:6.0"
+_containerfiles: {
+	linux:   "container/Containerfile.linux"
+	windows: "container/Containerfile.windows"
+	darwin:  "container/Containerfile.macos"
 }
 _compilers: {
 	linux:   "gcc"
@@ -53,8 +53,9 @@ toolchain: {
 	ar:       _ar[_target.os]
 	cStd:     "c11"
 	container: {
-		image:   _images[_target.os]
-		workdir: "/workspace"
+		containerfile: _containerfiles[_target.os]
+		platform:      "linux/amd64"
+		workdir:       "/workspace"
 	}
 }
 

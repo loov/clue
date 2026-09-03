@@ -81,6 +81,19 @@ func TestWrapCommandMountsProjectAndTranslatesAbsolutePaths(t *testing.T) {
 	}
 }
 
+func TestWrapCommandSelectsConfiguredPlatform(t *testing.T) {
+	tc := &Toolchain{
+		base:        clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
+		runtimePath: "podman", image: "clang:20", hostRoot: t.TempDir(), containerRoot: "/workspace",
+		platform: "linux/amd64",
+	}
+	_, args := tc.WrapCommand("clang", []string{"--version"}, "")
+	want := []string{"run", "--rm", "--platform", "linux/amd64"}
+	if !slices.Equal(args[:len(want)], want) {
+		t.Fatalf("command prefix = %q, want %q", args[:len(want)], want)
+	}
+}
+
 func TestValidateChecksToolsInsideImage(t *testing.T) {
 	tc := &Toolchain{
 		base:        clang.New("clang", "clang++", "llvm-ar", toolchain.HostPlatform()),
@@ -118,6 +131,62 @@ func TestValidateUsesPortableImageInspection(t *testing.T) {
 	want := []string{"container", "image", "inspect", "toolchain:1"}
 	if !slices.Equal(calls[0], want) {
 		t.Fatalf("image inspection = %q, want %q", calls[0], want)
+	}
+}
+
+func TestValidateChecksToolsOnConfiguredPlatform(t *testing.T) {
+	var calls [][]string
+	tc := &Toolchain{
+		base:        clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
+		runtimePath: "container", image: "toolchain:1", hostRoot: t.TempDir(), containerRoot: "/workspace",
+		platform: "linux/amd64",
+		run: func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return []byte("ok"), nil
+		},
+	}
+	if err := tc.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"container", "run", "--rm", "--platform", "linux/amd64"}
+	if !slices.Equal(calls[1][:len(want)], want) {
+		t.Fatalf("tool check prefix = %q, want %q", calls[1][:len(want)], want)
+	}
+}
+
+func TestValidateBuildsContainerfileBeforeUsingImage(t *testing.T) {
+	dir := t.TempDir()
+	runtimePath := writeRuntime(t, dir, "podman")
+	containerfile := filepath.Join(dir, "Containerfile")
+	if err := os.WriteFile(containerfile, []byte("FROM scratch\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	tc, err := New(
+		clang.New("clang", "clang++", "ar", toolchain.HostPlatform()),
+		Config{Runtime: "podman", Containerfile: "Containerfile", Platform: "linux/amd64", ProjectDir: dir},
+		toolchain.HostPlatform(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls [][]string
+	tc.run = func(name string, args ...string) ([]byte, error) {
+		calls = append(calls, append([]string{name}, args...))
+		return []byte("ok"), nil
+	}
+	if err := tc.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 4 {
+		t.Fatalf("calls = %q", calls)
+	}
+	build := calls[0]
+	if build[0] != runtimePath || !slices.Equal(build[1:6], []string{"build", "--platform", "linux/amd64", "--file", containerfile}) || build[6] != "--tag" || !strings.HasPrefix(build[7], "clue-toolchain:") || build[8] != dir {
+		t.Fatalf("build command = %q", build)
+	}
+	if !slices.Equal(calls[1], []string{runtimePath, "image", "inspect", build[7]}) {
+		t.Fatalf("image inspection = %q", calls[1])
 	}
 }
 

@@ -4,6 +4,7 @@ package container
 import (
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"os/exec"
 	"os/user"
 	"path"
@@ -16,10 +17,12 @@ import (
 
 // Config describes the container environment for a toolchain.
 type Config struct {
-	Runtime    string
-	Image      string
-	ProjectDir string
-	WorkDir    string
+	Runtime       string
+	Image         string
+	Containerfile string
+	Platform      string
+	ProjectDir    string
+	WorkDir       string
 }
 
 // Toolchain decorates a compiler toolchain with container command invocation.
@@ -28,6 +31,8 @@ type Toolchain struct {
 	runtimePath   string
 	image         string
 	imageID       string
+	containerfile string
+	platform      string
 	hostRoot      string
 	containerRoot string
 	target        toolchain.Platform
@@ -37,8 +42,8 @@ type Toolchain struct {
 
 // New creates a container-backed toolchain rooted at the project directory.
 func New(base toolchain.Toolchain, config Config, target toolchain.Platform) (*Toolchain, error) {
-	if config.Image == "" {
-		return nil, fmt.Errorf("container toolchain image is required")
+	if (config.Image == "") == (config.Containerfile == "") {
+		return nil, fmt.Errorf("container toolchain requires exactly one of image or containerfile")
 	}
 	if config.WorkDir == "" {
 		config.WorkDir = "/workspace"
@@ -54,6 +59,23 @@ func New(base toolchain.Toolchain, config Config, target toolchain.Platform) (*T
 	if err != nil {
 		return nil, fmt.Errorf("resolve container project mount: %w", err)
 	}
+	containerfile := ""
+	image := config.Image
+	if config.Containerfile != "" {
+		containerfile = config.Containerfile
+		if !filepath.IsAbs(containerfile) {
+			containerfile = filepath.Join(hostRoot, containerfile)
+		}
+		info, err := os.Stat(containerfile)
+		if err != nil {
+			return nil, fmt.Errorf("open containerfile: %w", err)
+		}
+		if info.IsDir() {
+			return nil, fmt.Errorf("containerfile must be a file")
+		}
+		digest := sha256.Sum256([]byte(containerfile + "\x00" + config.Platform))
+		image = fmt.Sprintf("clue-toolchain:%x", digest[:12])
+	}
 	containerUser := ""
 	if runtime.GOOS != "windows" {
 		if current, err := user.Current(); err == nil && current.Uid != "" && current.Gid != "" {
@@ -61,7 +83,7 @@ func New(base toolchain.Toolchain, config Config, target toolchain.Platform) (*T
 		}
 	}
 	return &Toolchain{
-		base: base, runtimePath: runtimePath, image: config.Image, hostRoot: hostRoot,
+		base: base, runtimePath: runtimePath, image: image, containerfile: containerfile, platform: config.Platform, hostRoot: hostRoot,
 		containerRoot: path.Clean(config.WorkDir), target: target, user: containerUser,
 	}, nil
 }
@@ -100,7 +122,7 @@ func (t *Toolchain) LinkerFlags(config toolchain.Config, sysLibs []string) []str
 }
 
 func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
-	output, err := t.output("run", "--rm", t.image, t.base.CC(), "--version")
+	output, err := t.toolOutput(t.base.CC(), "--version")
 	if err != nil {
 		return toolchain.CompilerIdentity{}, fmt.Errorf("identify compiler in container image %q: %w", t.image, err)
 	}
@@ -119,7 +141,11 @@ func (t *Toolchain) WrapCommand(name string, args []string, workDir string) (str
 			containerWorkDir = t.containerRoot + filepath.ToSlash(strings.TrimPrefix(absolute, t.hostRoot))
 		}
 	}
-	runtimeArgs := []string{"run", "--rm", "-v", t.hostRoot + ":" + t.containerRoot, "-w", containerWorkDir}
+	runtimeArgs := []string{"run", "--rm"}
+	if t.platform != "" {
+		runtimeArgs = append(runtimeArgs, "--platform", t.platform)
+	}
+	runtimeArgs = append(runtimeArgs, "-v", t.hostRoot+":"+t.containerRoot, "-w", containerWorkDir)
 	if t.user != "" {
 		runtimeArgs = append(runtimeArgs, "--user", t.user)
 	}
@@ -143,11 +169,26 @@ func (t *Toolchain) CacheKey() string {
 	if image == "" {
 		image = t.image
 	}
-	return t.runtimePath + "\x00" + image + "\x00" + t.containerRoot + "\x00" + t.base.Name()
+	return t.runtimePath + "\x00" + image + "\x00" + t.platform + "\x00" + t.containerRoot + "\x00" + t.base.Name()
 }
 
 // Validate checks that the runtime can find the configured image locally.
 func (t *Toolchain) Validate() error {
+	if t.containerfile != "" {
+		args := []string{"build"}
+		if t.platform != "" {
+			args = append(args, "--platform", t.platform)
+		}
+		args = append(args, "--file", t.containerfile, "--tag", t.image, t.hostRoot)
+		output, err := t.output(args...)
+		if err != nil {
+			message := strings.TrimSpace(string(output))
+			if message != "" {
+				return fmt.Errorf("build container image with %s: %s", filepath.Base(t.runtimePath), message)
+			}
+			return fmt.Errorf("build container image with %s: %w", filepath.Base(t.runtimePath), err)
+		}
+	}
 	output, err := t.output("image", "inspect", t.image)
 	if err != nil {
 		message := strings.TrimSpace(string(output))
@@ -158,7 +199,7 @@ func (t *Toolchain) Validate() error {
 	}
 	t.imageID = fmt.Sprintf("%x", sha256.Sum256(output))
 	for _, command := range []string{t.base.CC(), t.base.AR()} {
-		output, err := t.output("run", "--rm", t.image, command, "--version")
+		output, err := t.toolOutput(command, "--version")
 		if err != nil {
 			message := strings.TrimSpace(string(output))
 			if message != "" {
@@ -168,6 +209,11 @@ func (t *Toolchain) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (t *Toolchain) toolOutput(name string, args ...string) ([]byte, error) {
+	_, runtimeArgs := t.WrapCommand(name, args, "")
+	return t.output(runtimeArgs...)
 }
 
 func (t *Toolchain) output(args ...string) ([]byte, error) {

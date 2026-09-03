@@ -187,9 +187,15 @@ package config
 		cxxStd?: string  // e.g., "c++23"
 		container?: {
 			runtime?: string
-			image: string & != ""
+			platform?: string & != ""
 			workdir?: string | *"/workspace"
-		}
+		} & ({
+			image: string & != ""
+			containerfile?: _|_
+		} | {
+			image?: _|_
+			containerfile: string & != ""
+		})
 	}
 
 	// Build targets

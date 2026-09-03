@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +16,43 @@ import (
 	"github.com/loov/clue/internal/toolchain/gcc"
 	"github.com/loov/clue/internal/toolchain/msvc"
 )
+
+func TestCompileCommands_BuildsConfiguredContainerfile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runtime is a POSIX shell script")
+	}
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "runtime.log")
+	runtimePath := filepath.Join(dir, "runtime")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + logPath + "\nprintf ok\n"
+	if err := os.WriteFile(runtimePath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "Containerfile"), []byte("FROM scratch\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.c"), []byte("int main(void) { return 0; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	cfg := &config.Config{
+		BuildDir: ".build",
+		Toolchain: config.Toolchain{Compiler: "clang", Container: &config.ContainerToolchain{
+			Runtime: runtimePath, Containerfile: "Containerfile",
+		}},
+		Targets: map[string]config.Target{"app": {Name: "app", Type: "executable", Sources: []string{"main.c"}}},
+	}
+	if err := CompileCommands(t.Context(), CompDBOptions{Config: cfg, OutputPath: "compile_commands.json"}); err != nil {
+		t.Fatal(err)
+	}
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(log), "build --file "+filepath.Join(dir, "Containerfile")) {
+		t.Fatalf("runtime commands = %q", log)
+	}
+}
 
 func TestCompileCommands_IncludesEverySource(t *testing.T) {
 	// Create temp directory

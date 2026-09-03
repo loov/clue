@@ -72,7 +72,20 @@ toolchain: {
 }
 ```
 
-Clue starts a disposable container for each command and mounts the project directory at `workdir`. Compiler tools and `pkg-config` execute in that container, so their headers and libraries must be present in the image. When `runtime` is omitted, Clue uses the first available command from Docker, Podman, Apple container, and nerdctl. Set it to another Docker-compatible executable when needed. The image must already exist in that runtime, and files outside the project directory are not mounted.
+Clue starts a disposable container for each command and mounts the project directory at `workdir`. Compiler tools and `pkg-config` execute in that container, so their headers and libraries must be present in the image. When `runtime` is omitted, Clue uses the first available command from Docker, Podman, Apple container, and nerdctl. Set it to another Docker-compatible executable when needed. When `image` is used, it must already exist in that runtime. Files outside the project directory are not mounted.
+
+Instead of `image`, specify a Containerfile to let Clue build and cache the
+toolchain image. The project directory is its build context:
+
+```cue
+toolchain: container: {
+    containerfile: "toolchain/Containerfile"
+    platform:      "linux/amd64" // optional image platform
+    workdir:       "/workspace"
+}
+```
+
+Exactly one of `image` and `containerfile` is required.
 
 Cross-compilers can be selected explicitly. Clue rejects cross targets that
 would otherwise fall back to the host compiler:

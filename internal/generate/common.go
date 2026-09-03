@@ -7,10 +7,25 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
+
+func configuredToolchain(settings config.Toolchain, name string, platform toolchain.Platform) (toolchain.Toolchain, error) {
+	settings.Compiler = name
+	tc, err := build.NewConfiguredToolchain(settings, platform, ".")
+	if err != nil {
+		return nil, err
+	}
+	if settings.Container != nil {
+		if err := toolchain.ValidateToolchain(tc); err != nil {
+			return nil, fmt.Errorf("prepare container toolchain: %w", err)
+		}
+	}
+	return tc, nil
+}
 
 type targetModules struct {
 	ordered   []string

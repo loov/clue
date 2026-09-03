@@ -64,9 +64,11 @@ type Toolchain struct {
 
 // ContainerToolchain runs toolchain commands in a container image.
 type ContainerToolchain struct {
-	Runtime string
-	Image   string
-	WorkDir string
+	Runtime       string
+	Image         string
+	Containerfile string
+	Platform      string
+	WorkDir       string
 }
 
 // Standard returns the language standard applicable to source. The legacy Std
@@ -464,6 +466,8 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 			cfg.Toolchain.Container = &ContainerToolchain{WorkDir: "/workspace"}
 			cfg.Toolchain.Container.Runtime, _ = container.LookupPath(cue.ParsePath("runtime")).String()
 			cfg.Toolchain.Container.Image, _ = container.LookupPath(cue.ParsePath("image")).String()
+			cfg.Toolchain.Container.Containerfile, _ = container.LookupPath(cue.ParsePath("containerfile")).String()
+			cfg.Toolchain.Container.Platform, _ = container.LookupPath(cue.ParsePath("platform")).String()
 			if workDir := container.LookupPath(cue.ParsePath("workdir")); workDir.Exists() {
 				cfg.Toolchain.Container.WorkDir, _ = workDir.String()
 			}

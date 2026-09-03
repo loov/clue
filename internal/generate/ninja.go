@@ -1028,9 +1028,7 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	}
 
 	// Discover toolchain
-	settings := opts.Config.Toolchain
-	settings.Compiler = opts.Toolchain
-	toolchain, err := build.NewConfiguredToolchain(settings, opts.Platform, ".")
+	toolchain, err := configuredToolchain(opts.Config.Toolchain, opts.Toolchain, opts.Platform)
 	if err != nil {
 		return err
 	}

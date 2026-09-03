@@ -59,9 +59,7 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 	if opts.Platform.OS == "" {
 		opts.Platform = toolchain.HostPlatform()
 	}
-	settings := opts.Config.Toolchain
-	settings.Compiler = opts.Toolchain
-	tc, err := build.NewConfiguredToolchain(settings, opts.Platform, ".")
+	tc, err := configuredToolchain(opts.Config.Toolchain, opts.Toolchain, opts.Platform)
 	if err != nil {
 		return err
 	}

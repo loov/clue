@@ -129,6 +129,48 @@ targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
 	}
 }
 
+func TestLoaderExtractsContainerfileToolchain(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "containerized"
+toolchain: container: {containerfile: "toolchain/Containerfile", platform: "linux/amd64"}
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Toolchain.Container == nil || cfg.Toolchain.Container.Containerfile != "toolchain/Containerfile" || cfg.Toolchain.Container.Platform != "linux/amd64" {
+		t.Fatalf("container toolchain = %+v", cfg.Toolchain.Container)
+	}
+}
+
+func TestLoaderRequiresExactlyOneContainerSource(t *testing.T) {
+	tests := []struct {
+		name, container string
+	}{
+		{"missing", `{}`},
+		{"both", `{image: "toolchain:1", containerfile: "Containerfile"}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			contents := `name: "containerized"
+toolchain: container: ` + test.container + `
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+`
+			if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := NewLoader().Load(dir); err == nil {
+				t.Fatal("expected container source validation error")
+			}
+		})
+	}
+}
+
 func TestLoaderExtractsExplicitToolchain(t *testing.T) {
 	dir := t.TempDir()
 	contents := `name: "cross"
