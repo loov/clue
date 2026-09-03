@@ -204,6 +204,8 @@ func TestNinja_ConnectsCrossTargetModulesAndHeaderUnits(t *testing.T) {
 	for _, want := range []string{
 		"rule header_unit",
 		"rule module_partition",
+		"command = $cxx @$out.rsp",
+		"build .build/debug/modules/modules/math@detail.pcm: module_partition math-detail.cpp",
 		".build/debug/modules/modules/math.pcm",
 		".build/debug/modules/modules/math@detail.pcm",
 		"-fmodule-file=math=.build/debug/modules/modules/math.pcm",
@@ -212,6 +214,9 @@ func TestNinja_ConnectsCrossTargetModulesAndHeaderUnits(t *testing.T) {
 		if !strings.Contains(content, want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, content)
 		}
+	}
+	if strings.Contains(content, " && ") {
+		t.Errorf("Ninja module rule depends on shell command chaining:\n%s", content)
 	}
 }
 

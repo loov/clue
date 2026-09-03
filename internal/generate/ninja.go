@@ -590,10 +590,16 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		}
 		if module, ok := modules.bySource[source]; ok {
 			if output := modules.outputs[module.Provides]; output != "" {
-				statement.OutImplicit = []string{ninjaPathLocal(output)}
+				ninjaOutput := ninjaPathLocal(output)
 				if tc.Name() == "clang" && module.InternalPartition {
-					statement.Rule = "module_partition"
-					statement.Vars = append(statement.Vars, ninja.Var{Key: "bmi", Val: output})
+					partitionVars := append(slices.Clone(statement.Vars), ninja.Var{Key: "bmi", Val: ninjaOutput})
+					*file = append(*file, ninja.Build{
+						Rule: "module_partition", In: []string{srcPath}, InImplicit: statement.InImplicit,
+						InOrderOnly: statement.InOrderOnly, Out: []string{ninjaOutput}, Vars: partitionVars,
+					})
+					statement.InImplicit = append(statement.InImplicit, ninjaOutput)
+				} else {
+					statement.OutImplicit = []string{ninjaOutput}
 				}
 			}
 		}
@@ -993,8 +999,8 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 				Depfile: "$object.d", Deps: ninja.DepsGCC, Description: "CXX $out",
 			},
 			ninja.Rule{
-				Name: "module_partition", Command: `$cxx @$object.rsp -x c++-module --precompile "$source" -o "$bmi" && $cxx @$object.rsp -MD -MF $object.d -c "$source" -o $object`,
-				Rspfile: "$object.rsp", RspfileContent: "$cxxflags", Depfile: "$object.d", Deps: ninja.DepsGCC, Description: "CXX_MODULE_PARTITION $out",
+				Name: "module_partition", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp",
+				RspfileContent: `$cxxflags -x c++-module --precompile "$source" -o "$bmi"`, Description: "CXX_MODULE_PARTITION $out",
 			},
 			ninja.Rule{Name: "link", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
 			ninja.Rule{Name: "link_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
