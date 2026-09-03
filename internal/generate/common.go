@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
 type targetModules struct {
 	ordered   []string
-	bySource  map[string]build.ModuleDependency
+	bySource  map[string]plan.ModuleDependency
 	outputs   map[string]string
 	provided  map[string]string
 	inherited map[string]string
@@ -22,11 +22,11 @@ type targetModules struct {
 	toolchain toolchain.Toolchain
 }
 
-func resolveTargetModules(tc toolchain.Toolchain, sources []string, opts build.CompileOptions, bmiDir string, available map[string]string) (targetModules, error) {
+func resolveTargetModules(tc toolchain.Toolchain, sources []string, bmiDir string, available map[string]string) (targetModules, error) {
 	hasModuleExtension := false
 	allSourcesExist := true
 	for _, source := range sources {
-		hasModuleExtension = hasModuleExtension || build.IsModuleExtension(source)
+		hasModuleExtension = hasModuleExtension || plan.IsModuleExtension(source)
 		if _, err := os.Stat(source); err != nil {
 			allSourcesExist = false
 		}
@@ -34,11 +34,11 @@ func resolveTargetModules(tc toolchain.Toolchain, sources []string, opts build.C
 	if !hasModuleExtension && !allSourcesExist {
 		return targetModules{ordered: sources, outputs: available, toolchain: tc}, nil
 	}
-	dependencies, err := build.ScanModuleDependencies(tc, sources, opts)
+	dependencies, err := plan.ScanModuleDependencies(sources)
 	if err != nil {
 		return targetModules{}, err
 	}
-	ordered, err := build.OrderModuleCompilationWithProviders(dependencies, available)
+	ordered, err := plan.OrderModuleCompilationWithProviders(dependencies, available)
 	if err != nil {
 		return targetModules{}, err
 	}
@@ -53,7 +53,7 @@ func resolveTargetModules(tc toolchain.Toolchain, sources []string, opts build.C
 	}
 	modules := targetModules{
 		ordered:   ordered,
-		bySource:  make(map[string]build.ModuleDependency, len(dependencies)),
+		bySource:  make(map[string]plan.ModuleDependency, len(dependencies)),
 		outputs:   make(map[string]string, len(available)+len(dependencies)),
 		provided:  make(map[string]string, len(dependencies)),
 		inherited: make(map[string]string, len(available)),
@@ -69,14 +69,14 @@ func resolveTargetModules(tc toolchain.Toolchain, sources []string, opts build.C
 			if _, exists := modules.outputs[dependency.Provides]; exists {
 				return targetModules{}, fmt.Errorf("module %q is also provided by a dependency target", dependency.Provides)
 			}
-			output := build.ModuleOutputPathFor(tc, bmiDir, dependency.Provides)
+			output := plan.ModuleOutputPathFor(tc, bmiDir, dependency.Provides)
 			modules.outputs[dependency.Provides] = output
 			modules.provided[dependency.Provides] = output
 		}
 	}
 	if tc.Name() == "gcc" && (len(modules.outputs) > 0 || len(dependencies) > 0) {
 		modules.mapper = filepath.Join(bmiDir, "modules.mapper")
-		if err := build.WriteModuleMapper(modules.mapper, modules.outputs); err != nil {
+		if err := plan.WriteModuleMapper(modules.mapper, modules.outputs); err != nil {
 			return targetModules{}, err
 		}
 	}
@@ -95,7 +95,7 @@ func (m targetModules) flags(source string) []string {
 			requiredOutputs[required] = output
 		}
 	}
-	return build.ModuleCompileFlags(m.toolchain, module, m.outputs[module.Provides], requiredOutputs, m.mapper)
+	return plan.ModuleCompileFlags(m.toolchain, module, m.outputs[module.Provides], requiredOutputs, m.mapper)
 }
 
 func (m targetModules) inputs(source string) []string {
@@ -124,8 +124,8 @@ func (m targetModules) inputs(source string) []string {
 func headerUnitOutputs(tc toolchain.Toolchain, units []config.HeaderUnit, bmiDir string) map[string]string {
 	outputs := make(map[string]string, len(units))
 	for _, unit := range units {
-		name := build.HeaderUnitName(unit.Name, unit.System)
-		outputs[name] = build.ModuleOutputPathFor(tc, bmiDir, name)
+		name := plan.HeaderUnitName(unit.Name, unit.System)
+		outputs[name] = plan.ModuleOutputPathFor(tc, bmiDir, name)
 	}
 	return outputs
 }

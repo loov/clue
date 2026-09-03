@@ -15,6 +15,7 @@ import (
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/profile"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -146,17 +147,12 @@ func newBuilder(tc toolchain.Toolchain, target toolchain.Platform, verbosity Ver
 	}, nil
 }
 
-// ObjectDir returns the path for object files: build/variant/target/obj/
-func (b *Builder) ObjectDir(buildDir, variant, target string) string {
-	return ObjectDir(buildDir, variant, target)
-}
-
 // OutputPath returns the final artifact path
 // Executable: build/variant/bin/target
 // Static lib: build/variant/lib/libtarget.a
 // Shared lib: build/variant/lib/libtarget.so/.dylib (platform-specific)
 func (b *Builder) OutputPath(buildDir, variant, target, targetType string) string {
-	return ArtifactPath(buildDir, variant, target, targetType, b.target)
+	return plan.ArtifactPath(buildDir, variant, target, targetType, b.target)
 }
 
 type dependencyLinkUsage struct {
@@ -293,13 +289,13 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	}
 	start := time.Now()
 	var err error
-	target, err = PrepareUnityTarget(target, opts.BuildDir, opts.Variant)
+	target, err = plan.PrepareUnityTarget(target, opts.BuildDir, opts.Variant)
 	if err != nil {
 		return nil, err
 	}
 
-	plan := PlanTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
-	objDir, outputPath := plan.ObjectDir, plan.Output
+	targetPlan := plan.ForTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
+	objDir, outputPath := targetPlan.ObjectDir, targetPlan.Output
 
 	// Create directories
 	if err := os.MkdirAll(objDir, 0o755); err != nil {
@@ -307,7 +303,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	}
 
 	// Build configuration from the shared plan.
-	buildCfg, usage := plan.Flags, plan.Usage
+	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 
 	// Collect include paths from external dependencies.
 	includes := usage.Includes
@@ -364,21 +360,15 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
 	localModuleOutputs := make(map[string]string)
 	for _, unit := range target.HeaderUnits {
-		name := HeaderUnitName(unit.Name, unit.System)
-		localModuleOutputs[name] = ModuleOutputPathFor(b.toolchain, bmiDir, name)
+		name := plan.HeaderUnitName(unit.Name, unit.System)
+		localModuleOutputs[name] = plan.ModuleOutputPathFor(b.toolchain, bmiDir, name)
 	}
-	moduleDeps, err := ScanModuleDependencies(b.toolchain, target.Sources, CompileOptions{
-		Includes:       includes,
-		SystemIncludes: usage.SystemIncludes,
-		Defines:        defines,
-		Flags:          buildCfg,
-		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-	})
+	moduleDeps, err := plan.ScanModuleDependencies(target.Sources)
 	if err != nil {
 		return nil, fmt.Errorf("module dependency scan failed: %w", err)
 	}
 
-	moduleInfo := make(map[string]ModuleDependency, len(moduleDeps))
+	moduleInfo := make(map[string]plan.ModuleDependency, len(moduleDeps))
 	for _, dependency := range moduleDeps {
 		moduleInfo[dependency.Source] = dependency
 		if dependency.Provides == "" {
@@ -387,7 +377,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		if _, exists := localModuleOutputs[dependency.Provides]; exists {
 			return nil, fmt.Errorf("module %q is provided more than once in target %q", dependency.Provides, target.Name)
 		}
-		localModuleOutputs[dependency.Provides] = ModuleOutputPathFor(b.toolchain, bmiDir, dependency.Provides)
+		localModuleOutputs[dependency.Provides] = plan.ModuleOutputPathFor(b.toolchain, bmiDir, dependency.Provides)
 	}
 	allModuleOutputs := make(map[string]string, len(availableModules)+len(localModuleOutputs))
 	maps.Copy(allModuleOutputs, availableModules)
@@ -403,7 +393,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			fmt.Printf("Detected %d module source(s)\n", len(moduleDeps))
 		}
 
-		orderedModules, err = OrderModuleCompilationWithProviders(moduleDeps, allModuleOutputs)
+		orderedModules, err = plan.OrderModuleCompilationWithProviders(moduleDeps, allModuleOutputs)
 		if err != nil {
 			return nil, err
 		}
@@ -419,18 +409,18 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		mapper := ""
 		if b.toolchain.Name() == "gcc" {
 			mapper = filepath.Join(bmiDir, "modules.mapper")
-			if err := WriteModuleMapper(mapper, allModuleOutputs); err != nil {
+			if err := plan.WriteModuleMapper(mapper, allModuleOutputs); err != nil {
 				return nil, fmt.Errorf("write GCC module mapper: %w", err)
 			}
 		}
 		builtHeaderUnits := make(map[string]string, len(availableModules)+len(target.HeaderUnits))
 		maps.Copy(builtHeaderUnits, availableModules)
 		for _, unit := range target.HeaderUnits {
-			name := HeaderUnitName(unit.Name, unit.System)
+			name := plan.HeaderUnitName(unit.Name, unit.System)
 			if opts.Verbosity == VerbosityVerbose {
 				fmt.Printf("Compiling header unit: %s\n", name)
 			}
-			if err := b.compiler.CompileHeaderUnit(ctx, HeaderUnitOptions{
+			if err := b.compiler.CompileHeaderUnit(ctx, plan.HeaderUnitOptions{
 				Source: unit.Path, Name: name, System: unit.System, Output: localModuleOutputs[name],
 				Includes: includes, SystemIncludes: usage.SystemIncludes, Defines: defines,
 				Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
@@ -481,8 +471,8 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	cacheInputs := make(map[string]sourceCacheInputs, len(target.Sources))
 	includeInputs := append(append([]string(nil), includes...), usage.SystemIncludes...)
 
-	sourcePlans := make(map[string]SourcePlan, len(plan.Sources))
-	for _, source := range plan.Sources {
+	sourcePlans := make(map[string]plan.Source, len(targetPlan.Sources))
+	for _, source := range targetPlan.Sources {
 		sourcePlans[source.Source] = source
 	}
 	for _, source := range sourcesToCompile {
@@ -507,7 +497,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			compileOpts.ModuleFiles = make(map[string]string, len(availableModules)+len(target.HeaderUnits))
 			maps.Copy(compileOpts.ModuleFiles, availableModules)
 			for _, unit := range target.HeaderUnits {
-				name := HeaderUnitName(unit.Name, unit.System)
+				name := plan.HeaderUnitName(unit.Name, unit.System)
 				compileOpts.ModuleFiles[name] = localModuleOutputs[name]
 			}
 			for _, required := range module.Requires {

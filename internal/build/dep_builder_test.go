@@ -10,6 +10,7 @@ import (
 
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	toolchainpkg "github.com/loov/clue/internal/toolchain"
 )
 
@@ -210,7 +211,7 @@ extern "C" int answer() { return 42; }
 	if result.Type != "shared_library" {
 		t.Errorf("type = %q, want shared_library", result.Type)
 	}
-	want := "libanswer" + SharedLibraryExtension(toolchainpkg.HostPlatform())
+	want := "libanswer" + plan.SharedLibraryExtension(toolchainpkg.HostPlatform())
 	if filepath.Base(result.LibPath) != want {
 		t.Errorf("library = %q, want %q", filepath.Base(result.LibPath), want)
 	}

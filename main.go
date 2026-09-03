@@ -22,6 +22,7 @@ import (
 	"github.com/loov/clue/internal/deps"
 	clerrors "github.com/loov/clue/internal/errors"
 	"github.com/loov/clue/internal/generate"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/watch"
 	"github.com/zeebo/clingy"
@@ -758,7 +759,7 @@ func runTests(dir, variant, target string, verbosity build.Verbosity, jobs int, 
 	cases := make([]build.TestCase, 0, len(targets))
 	for _, name := range targets {
 		configured := cfg.Targets[name].Test
-		executable, err := filepath.Abs(filepath.Join(cfg.BuildDir, selectedVariant, "bin", build.ExecutableName(name, platform)))
+		executable, err := filepath.Abs(filepath.Join(cfg.BuildDir, selectedVariant, "bin", plan.ExecutableName(name, platform)))
 		if err != nil {
 			printError(err)
 			return 1

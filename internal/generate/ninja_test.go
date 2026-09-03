@@ -15,6 +15,7 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/gccish"
 	"github.com/loov/clue/internal/toolchain/msvc"
@@ -161,7 +162,7 @@ func TestTargetModules_WiresProducedBMIsToConsumers(t *testing.T) {
 		t.Fatal(err)
 	}
 	modules := targetModules{
-		bySource: map[string]build.ModuleDependency{
+		bySource: map[string]plan.ModuleDependency{
 			"hello.cppm": {Source: "hello.cppm", Provides: "hello"},
 			"main.cpp":   {Source: "main.cpp", Requires: []string{"hello"}},
 		},

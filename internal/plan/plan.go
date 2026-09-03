@@ -1,4 +1,5 @@
-package build
+// Package plan resolves generator-independent build inputs.
+package plan
 
 import (
 	"path/filepath"
@@ -8,36 +9,36 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-// SourcePlan is the canonical source, object, and language-standard mapping.
-type SourcePlan struct {
+// Source is the canonical source, object, and language-standard mapping.
+type Source struct {
 	Source, Object, Standard string
 }
 
-// BuildPlan contains the generator-independent portion of a target build.
-type BuildPlan struct {
+// Target contains the generator-independent portion of a target build.
+type Target struct {
 	Target    config.Target
 	Usage     config.Usage
 	Flags     toolchain.Config
 	ObjectDir string
 	Output    string
-	Sources   []SourcePlan
+	Sources   []Source
 }
 
-// PlanTarget creates the common plan used by direct and generated builds.
-func PlanTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform toolchain.Platform) BuildPlan {
-	objectDir := ObjectDir(buildDir, variantName, target.Name)
+// ForTarget creates the common plan used by direct and generated builds.
+func ForTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform toolchain.Platform) Target {
+	objectDir := objectDir(buildDir, variantName, target.Name)
 	usage := config.CompileUsage(cfg, target)
-	flags := TargetConfig(target, variant)
+	flags := targetConfig(target, variant)
 	flags.RawCompiler = append(flags.RawCompiler, usage.CompilerFlags...)
 	flags.RawLinker = append(flags.RawLinker, usage.LinkerFlags...)
 	objectNames := buildpath.ObjectNames(target.Sources)
-	plan := BuildPlan{
+	plan := Target{
 		Target: target, Usage: usage, Flags: flags, ObjectDir: objectDir,
 		Output:  ArtifactPath(buildDir, variantName, target.Name, target.Type, platform),
-		Sources: make([]SourcePlan, 0, len(target.Sources)),
+		Sources: make([]Source, 0, len(target.Sources)),
 	}
 	for _, source := range target.Sources {
-		plan.Sources = append(plan.Sources, SourcePlan{
+		plan.Sources = append(plan.Sources, Source{
 			Source: source, Object: filepath.Join(objectDir, objectNames[source]),
 			Standard: config.CompileStandard(cfg.Toolchain, target, usage, source),
 		})
@@ -45,8 +46,7 @@ func PlanTarget(cfg *config.Config, target config.Target, variant config.Variant
 	return plan
 }
 
-// ObjectDir returns the target object directory.
-func ObjectDir(buildDir, variant, target string) string {
+func objectDir(buildDir, variant, target string) string {
 	return filepath.Join(buildDir, variant, target, "obj")
 }
 
@@ -65,8 +65,7 @@ func ArtifactPath(buildDir, variant, target, targetType string, platform toolcha
 	return filepath.Join(buildDir, variant, directory, name)
 }
 
-// TargetConfig merges target and variant semantic flags.
-func TargetConfig(target config.Target, variant config.Variant) toolchain.Config {
+func targetConfig(target config.Target, variant config.Variant) toolchain.Config {
 	cfg := toolchain.Config{
 		Optimize: variant.Optimization, Warnings: "default", WarningsAsErrors: true,
 		Debug: "none", RawCompiler: target.Flags.Compiler, RawLinker: target.Flags.Linker,

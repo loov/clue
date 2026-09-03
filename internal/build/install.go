@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -95,13 +96,13 @@ func installArtifacts(opts InstallOptions, target config.Target, root string) []
 	buildRoot := filepath.Join(opts.Config.BuildDir, opts.Variant)
 	switch target.Type {
 	case "executable":
-		name := ExecutableName(target.Name, opts.Platform)
+		name := plan.ExecutableName(target.Name, opts.Platform)
 		return [][2]string{{filepath.Join(buildRoot, "bin", name), filepath.Join(root, "bin", name)}}
 	case "static_library":
-		name := StaticLibraryName(target.Name, opts.Platform)
+		name := plan.StaticLibraryName(target.Name, opts.Platform)
 		return [][2]string{{filepath.Join(buildRoot, "lib", name), filepath.Join(root, "lib", name)}}
 	case "shared_library":
-		name := SharedLibraryName(target.Name, opts.Platform)
+		name := plan.SharedLibraryName(target.Name, opts.Platform)
 		if opts.Platform.OS == "windows" {
 			importLibrary := strings.TrimSuffix(name, filepath.Ext(name)) + ".lib"
 			return [][2]string{

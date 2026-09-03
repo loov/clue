@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -25,7 +26,7 @@ func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			flags := ModuleCompileFlags(test.tc, ModuleDependency{Source: "math.cppm", IsModule: true, Provides: "math"}, test.output, map[string]string{
+			flags := plan.ModuleCompileFlags(test.tc, plan.ModuleDependency{Source: "math.cppm", IsModule: true, Provides: "math"}, test.output, map[string]string{
 				"base": "base.pcm", "<vector>": "vector.pcm",
 			}, test.mapper)
 			for _, want := range test.want {
@@ -39,13 +40,13 @@ func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 
 func TestMSVCModuleFlags_IncludePartitionAndHeaderUnitSwitches(t *testing.T) {
 	tc := newTestMSVCToolchain()
-	partition := ModuleCompileFlags(tc, ModuleDependency{InternalPartition: true}, "math-detail.ifc", nil, "")
+	partition := plan.ModuleCompileFlags(tc, plan.ModuleDependency{InternalPartition: true}, "math-detail.ifc", nil, "")
 	for _, want := range []string{"/internalPartition", "/ifcOutput", "math-detail.ifc"} {
 		if !slices.Contains(partition, want) {
 			t.Errorf("partition flags %q missing %q", partition, want)
 		}
 	}
-	header := HeaderUnitArguments(tc, HeaderUnitOptions{
+	header := plan.HeaderUnitArguments(tc, plan.HeaderUnitOptions{
 		Source: "vector", Name: "<vector>", System: true, Output: "vector.ifc",
 	})
 	for _, want := range []string{"/exportHeader", "/headerName:angle", "/ifcOutput", "vector.ifc"} {
@@ -65,7 +66,7 @@ func TestScanModuleDependencies_PartitionsAndHeaderUnits(t *testing.T) {
 	if err := os.WriteFile(primary, []byte("export module math;\nexport import :detail;\nimport \"numbers.hpp\";\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	dependencies, err := ScanModuleDependencies(nil, []string{primary, partition}, CompileOptions{})
+	dependencies, err := plan.ScanModuleDependencies([]string{primary, partition})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +79,7 @@ func TestScanModuleDependencies_PartitionsAndHeaderUnits(t *testing.T) {
 }
 
 func TestOrderModuleCompilation_AcceptsDependencyTargetProvider(t *testing.T) {
-	order, err := OrderModuleCompilationWithProviders([]ModuleDependency{{
+	order, err := plan.OrderModuleCompilationWithProviders([]plan.ModuleDependency{{
 		Source: "main.cpp", Requires: []string{"math"},
 	}}, map[string]string{"math": "math.pcm"})
 	if err != nil || len(order) != 1 || order[0] != "main.cpp" {
@@ -102,7 +103,7 @@ func TestDetectModuleSources_RecognizesModuleExtensions(t *testing.T) {
 		}
 	}
 
-	moduleSources, err := DetectModuleSources(files)
+	moduleSources, err := plan.DetectModuleSources(files)
 	if err != nil {
 		t.Fatalf("DetectModuleSources failed: %v", err)
 	}
@@ -127,7 +128,7 @@ func TestDetectModuleSources_RecognizesImportStatements(t *testing.T) {
 		t.Fatalf("failed to write regular file: %v", err)
 	}
 
-	moduleSources, err := DetectModuleSources([]string{moduleFile, regularFile})
+	moduleSources, err := plan.DetectModuleSources([]string{moduleFile, regularFile})
 	if err != nil {
 		t.Fatalf("DetectModuleSources failed: %v", err)
 	}
@@ -142,7 +143,7 @@ func TestDetectModuleSources_RecognizesNamedModuleImports(t *testing.T) {
 	if err := os.WriteFile(moduleFile, []byte("import hello;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	moduleSources, err := DetectModuleSources([]string{moduleFile})
+	moduleSources, err := plan.DetectModuleSources([]string{moduleFile})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,13 +156,13 @@ func TestOrderModuleCompilation_PlacesProvidersBeforeConsumers(t *testing.T) {
 	// Module A provides "modA"
 	// Module B provides "modB", requires "modA"
 	// Module C provides "modC", requires "modB"
-	deps := []ModuleDependency{
+	deps := []plan.ModuleDependency{
 		{Source: "c.cpp", IsModule: true, Provides: "modC", Requires: []string{"modB"}},
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: nil},
 		{Source: "b.cpp", IsModule: true, Provides: "modB", Requires: []string{"modA"}},
 	}
 
-	order, err := OrderModuleCompilation(deps)
+	order, err := plan.OrderModuleCompilation(deps)
 	if err != nil {
 		t.Fatalf("OrderModuleCompilation failed: %v", err)
 	}
@@ -194,23 +195,23 @@ func TestOrderModuleCompilation_PlacesProvidersBeforeConsumers(t *testing.T) {
 }
 
 func TestOrderModuleCompilation_RejectsCycle(t *testing.T) {
-	deps := []ModuleDependency{
+	deps := []plan.ModuleDependency{
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: []string{"modB"}},
 		{Source: "b.cpp", IsModule: true, Provides: "modB", Requires: []string{"modA"}},
 	}
 
-	_, err := OrderModuleCompilation(deps)
+	_, err := plan.OrderModuleCompilation(deps)
 	if err == nil {
 		t.Error("expected error for circular dependency")
 	}
 }
 
 func TestOrderModuleCompilation_RejectsMissingProvider(t *testing.T) {
-	deps := []ModuleDependency{
+	deps := []plan.ModuleDependency{
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: []string{"nonexistent"}},
 	}
 
-	_, err := OrderModuleCompilation(deps)
+	_, err := plan.OrderModuleCompilation(deps)
 	if err == nil {
 		t.Error("expected error for missing module")
 	}
@@ -230,7 +231,7 @@ func TestIsModuleExtension_RecognizesSupportedSuffixes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if got := IsModuleExtension(tc.path); got != tc.expected {
+		if got := plan.IsModuleExtension(tc.path); got != tc.expected {
 			t.Errorf("IsModuleExtension(%q) = %v, want %v", tc.path, got, tc.expected)
 		}
 	}

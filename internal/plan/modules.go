@@ -1,4 +1,4 @@
-package build
+package plan
 
 import (
 	"crypto/sha256"
@@ -75,7 +75,7 @@ func IsModuleExtension(path string) bool {
 // so invoking a compiler-specific dependency scanner is unnecessary here.
 // ponytail: conditional imports are scanned conservatively; switch to compiler
 // P1689 output if projects need preprocessor-sensitive module graphs.
-func ScanModuleDependencies(_ toolchain.Toolchain, sources []string, _ CompileOptions) ([]ModuleDependency, error) {
+func ScanModuleDependencies(sources []string) ([]ModuleDependency, error) {
 	moduleSources, err := DetectModuleSources(sources)
 	if err != nil {
 		return nil, err
@@ -190,11 +190,6 @@ func HeaderUnitName(name string, system bool) string {
 
 func isHeaderUnitName(name string) bool {
 	return strings.HasPrefix(name, "<") || strings.HasPrefix(name, `"`)
-}
-
-// ModuleOutputPath returns a Clang-compatible BMI path for backward compatibility.
-func ModuleOutputPath(dir, name string) string {
-	return ModuleOutputPathFor(nil, dir, name)
 }
 
 // ModuleOutputPathFor returns the compiler-specific BMI path for a logical name.

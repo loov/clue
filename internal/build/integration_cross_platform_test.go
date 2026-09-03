@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -429,7 +430,7 @@ func TestSharedLibraryExtension_UsesPlatformSuffix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.platform.String(), func(t *testing.T) {
-			ext := SharedLibraryExtension(tt.platform)
+			ext := plan.SharedLibraryExtension(tt.platform)
 			if ext != tt.expected {
 				t.Errorf("SharedLibraryExtension(%s) = %s, want %s",
 					tt.platform, ext, tt.expected)

@@ -16,6 +16,7 @@ import (
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -227,9 +228,9 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 	}
 
-	libName := StaticLibraryName(dep.Name(), opts.Platform)
+	libName := plan.StaticLibraryName(dep.Name(), opts.Platform)
 	if cfg.Type == "shared_library" {
-		libName = SharedLibraryName(dep.Name(), opts.Platform)
+		libName = plan.SharedLibraryName(dep.Name(), opts.Platform)
 	}
 	libPath := filepath.Join(libDir, libName)
 	var dependencyArtifacts []string

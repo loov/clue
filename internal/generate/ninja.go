@@ -18,6 +18,7 @@ import (
 	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -467,12 +468,12 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		return target.Outputs, nil
 	}
 	var err error
-	target, err = build.PrepareUnityTarget(target, opts.BuildDir, variant)
+	target, err = plan.PrepareUnityTarget(target, opts.BuildDir, variant)
 	if err != nil {
 		return nil, err
 	}
-	plan := build.PlanTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
-	buildCfg, usage := plan.Flags, plan.Usage
+	targetPlan := plan.ForTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
+	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 	dependencyUsage, err := targetDependencyUsage(ctx, opts.Config, target, tc)
 	if err != nil {
 		return nil, fmt.Errorf("target %q: %w", target.Name, err)
@@ -505,13 +506,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		}
 		availableModules[name] = output
 	}
-	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
-		Includes:       includes,
-		SystemIncludes: target.SystemIncludes,
-		Defines:        target.Defines,
-		Flags:          buildCfg,
-		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-	}, bmiDir, availableModules)
+	modules, err := resolveTargetModules(tc, target.Sources, bmiDir, availableModules)
 	if err != nil {
 		return nil, err
 	}
@@ -525,9 +520,9 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		return nil, err
 	}
 	for _, unit := range target.HeaderUnits {
-		name := build.HeaderUnitName(unit.Name, unit.System)
+		name := plan.HeaderUnitName(unit.Name, unit.System)
 		output := headerOutputs[name]
-		arguments := build.HeaderUnitArguments(tc, build.HeaderUnitOptions{
+		arguments := plan.HeaderUnitArguments(tc, plan.HeaderUnitOptions{
 			Source: unit.Path, Name: name, System: unit.System, Output: output,
 			Includes: includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
@@ -546,8 +541,8 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		headerUnitBuilds = append(headerUnitBuilds, output)
 		builtHeaderUnits[name] = output
 	}
-	sourcePlans := make(map[string]build.SourcePlan, len(plan.Sources))
-	for _, source := range plan.Sources {
+	sourcePlans := make(map[string]plan.Source, len(targetPlan.Sources))
+	for _, source := range targetPlan.Sources {
 		sourcePlans[source.Source] = source
 	}
 
@@ -602,7 +597,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 	}
 
 	// Link or archive
-	outputPath := ninjaPathLocal(plan.Output)
+	outputPath := ninjaPathLocal(targetPlan.Output)
 	dependencyInputs, dependencySysLibs, sharedLibraryPaths := targetLinkDependencies(opts.Config, target, opts.BuildDir, variant, opts.Platform)
 	linkInputs := append(append([]string(nil), objects...), dependencyInputs...)
 
@@ -710,7 +705,7 @@ func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildC
 	// Language standard
 	if std := config.CompileStandard(cfg.Toolchain, target, config.Usage{}, source); std != "" {
 		if msvc {
-			flags = append(flags, "/std:"+build.TranslateStdForMSVC(std))
+			flags = append(flags, "/std:"+plan.TranslateStdForMSVC(std))
 		} else {
 			flags = append(flags, "-std="+std)
 		}
@@ -936,17 +931,17 @@ func ninjaPathLocal(path string) string {
 
 // outputPathForTarget returns the output path for a target
 func outputPathForTarget(buildDir, variant, target, targetType string, platform toolchain.Platform) string {
-	return build.ArtifactPath(buildDir, variant, target, targetType, platform)
+	return plan.ArtifactPath(buildDir, variant, target, targetType, platform)
 }
 
 func outputNameForTarget(target, targetType string, platform toolchain.Platform) string {
 	switch targetType {
 	case "executable":
-		return build.ExecutableName(target, platform)
+		return plan.ExecutableName(target, platform)
 	case "static_library":
-		return build.StaticLibraryName(target, platform)
+		return plan.StaticLibraryName(target, platform)
 	case "shared_library":
-		return build.SharedLibraryName(target, platform)
+		return plan.SharedLibraryName(target, platform)
 	default:
 		return target
 	}

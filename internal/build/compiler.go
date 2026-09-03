@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/loov/clue/internal/cache"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -18,7 +21,7 @@ func (c *Compiler) cacheInputs(opts CompileOptions) []string {
 	encoded, _ := json.Marshal(opts)
 	inputs := append([]string{string(encoded), toolchainCacheKey(c.toolchain)}, c.toolchain.CompilerFlags(opts.Flags)...)
 	inputs = append(inputs, toolchainCacheEnvironment(c.toolchain)...)
-	for _, name := range sortedModuleNames(opts.ModuleFiles) {
+	for _, name := range slices.Sorted(maps.Keys(opts.ModuleFiles)) {
 		hash, err := cache.ComputeFileHash(opts.ModuleFiles[name])
 		if err != nil {
 			hash = "missing"
@@ -119,7 +122,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 
 	// 1. Compile only flag
 	args = append(args, "-c")
-	args = append(args, ModuleCompileFlags(c.toolchain, ModuleDependency{
+	args = append(args, plan.ModuleCompileFlags(c.toolchain, plan.ModuleDependency{
 		Source: opts.Source, IsModule: opts.ModuleOutput != "", Provides: opts.ModuleName,
 		InternalPartition: opts.InternalPartition, UsesModules: opts.ModuleAware,
 	}, opts.ModuleOutput, opts.ModuleFiles, opts.ModuleMapper)...)
@@ -229,7 +232,7 @@ func (c *Compiler) precompileClangPartition(ctx context.Context, opts CompileOpt
 		args = append(args, "-D"+define)
 	}
 	args = append(args, c.toolchain.CompilerFlags(opts.Flags)...)
-	args = append(args, ModuleCompileFlags(c.toolchain, ModuleDependency{UsesModules: true}, "", opts.ModuleFiles, "")...)
+	args = append(args, plan.ModuleCompileFlags(c.toolchain, plan.ModuleDependency{UsesModules: true}, "", opts.ModuleFiles, "")...)
 	args = append(args, "-x", "c++-module", "--precompile", opts.Source, "-o", opts.ModuleOutput)
 	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.ModuleOutput), args)
 	if err != nil {
@@ -281,11 +284,11 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 		standard = "c++20"
 	}
 	if standard != "" && !toolchain.IsAssemblySource(opts.Source) {
-		args = append(args, "/std:"+TranslateStdForMSVC(standard))
+		args = append(args, "/std:"+plan.TranslateStdForMSVC(standard))
 	}
 
 	// 8. C++20 Modules
-	args = append(args, ModuleCompileFlags(c.toolchain, ModuleDependency{
+	args = append(args, plan.ModuleCompileFlags(c.toolchain, plan.ModuleDependency{
 		Source: opts.Source, IsModule: opts.ModuleOutput != "", Provides: opts.ModuleName,
 		InternalPartition: opts.InternalPartition, UsesModules: opts.ModuleAware,
 	}, opts.ModuleOutput, opts.ModuleFiles, opts.ModuleMapper)...)
@@ -347,36 +350,6 @@ func writeDependencyFile(output, source string, dependencies []string) (string, 
 	}
 	content := escape(output) + ": " + strings.Join(paths, " ") + "\n"
 	return depFile, os.WriteFile(depFile, []byte(content), 0o644)
-}
-
-// TranslateStdForMSVC translates C/C++ standard names to MSVC format.
-// MSVC uses /std:c++17, /std:c++20, /std:c++latest etc.
-func TranslateStdForMSVC(std string) string {
-	// Handle C++ standards with prefix
-	switch std {
-	case "c++11", "gnu++11":
-		return "c++14" // MSVC minimum is C++14, approximate C++11 with C++14
-	case "c++14", "gnu++14":
-		return "c++14"
-	case "c++17", "gnu++17":
-		return "c++17"
-	case "c++20", "gnu++20":
-		return "c++20"
-	case "c++23", "gnu++23":
-		return "c++latest" // MSVC uses latest for experimental C++23 features
-	// Handle C standards with prefix
-	case "c99", "gnu99", "c9x":
-		return "c11" // Approximate C99 with C11 (MSVC has limited C99)
-	case "c11", "gnu11", "c1x":
-		return "c11"
-	case "c17", "gnu17", "c18":
-		return "c17"
-	case "c2x", "gnu2x", "c23":
-		return "clatest" // C23 via latest
-	default:
-		// Pass through for known MSVC values or fallback
-		return std
-	}
 }
 
 // parseShowIncludes parses MSVC /showIncludes output to extract header dependencies.

@@ -14,6 +14,7 @@ import (
 	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -125,13 +126,13 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 	}
 	var commands []CompileCommand
 	var err error
-	target, err = build.PrepareUnityTarget(target, opts.BuildDir, opts.Variant)
+	target, err = plan.PrepareUnityTarget(target, opts.BuildDir, opts.Variant)
 	if err != nil {
 		return nil, err
 	}
 
-	plan := build.PlanTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
-	buildCfg, usage := plan.Flags, plan.Usage
+	targetPlan := plan.ForTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
+	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 	dependencyUsage, err := targetDependencyUsage(ctx, opts.Config, target, tc)
 	if err != nil {
 		return nil, err
@@ -158,13 +159,7 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 		}
 		availableModules[name] = output
 	}
-	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
-		Includes:       target.Includes,
-		SystemIncludes: target.SystemIncludes,
-		Defines:        target.Defines,
-		Flags:          buildCfg,
-		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-	}, bmiDir, availableModules)
+	modules, err := resolveTargetModules(tc, target.Sources, bmiDir, availableModules)
 	if err != nil {
 		return nil, err
 	}
@@ -177,14 +172,14 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 		return nil, err
 	}
 	for _, unit := range target.HeaderUnits {
-		name := build.HeaderUnitName(unit.Name, unit.System)
-		headerOpts := build.HeaderUnitOptions{
+		name := plan.HeaderUnitName(unit.Name, unit.System)
+		headerOpts := plan.HeaderUnitOptions{
 			Source: unit.Path, Name: name, System: unit.System, Output: headerOutputs[name],
 			Includes: target.Includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
 			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.mapper,
 		}
-		arguments := build.HeaderUnitArguments(tc, absoluteHeaderUnitOptions(headerOpts))
+		arguments := plan.HeaderUnitArguments(tc, absoluteHeaderUnitOptions(headerOpts))
 		command, wrapped := build.ToolchainCommand(tc, tc.CXX(), arguments)
 		file := unit.Path
 		if !unit.System {
@@ -195,8 +190,8 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 		})
 		builtHeaderUnits[name] = headerOutputs[name]
 	}
-	sourcePlans := make(map[string]build.SourcePlan, len(plan.Sources))
-	for _, source := range plan.Sources {
+	sourcePlans := make(map[string]plan.Source, len(targetPlan.Sources))
+	for _, source := range targetPlan.Sources {
 		sourcePlans[source.Source] = source
 	}
 
@@ -223,7 +218,7 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 		if modules.mapper != "" {
 			mapper = AbsPath(modules.mapper)
 		}
-		extra := build.ModuleCompileFlags(tc, module, moduleOutput, moduleFiles, mapper)
+		extra := plan.ModuleCompileFlags(tc, module, moduleOutput, moduleFiles, mapper)
 		standard := sourcePlan.Standard
 		if hasModule && standard == "" {
 			standard = "c++20"
@@ -246,7 +241,7 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 	return commands, nil
 }
 
-func absoluteHeaderUnitOptions(opts build.HeaderUnitOptions) build.HeaderUnitOptions {
+func absoluteHeaderUnitOptions(opts plan.HeaderUnitOptions) plan.HeaderUnitOptions {
 	if !opts.System {
 		opts.Source = AbsPath(opts.Source)
 	}
@@ -383,7 +378,7 @@ func buildCompilerArgsExtra(tc toolchain.Toolchain, std string, includes, system
 	// 7. Language standard
 	if std != "" && !toolchain.IsAssemblySource(source) {
 		if msvc {
-			args = append(args, "/std:"+build.TranslateStdForMSVC(std))
+			args = append(args, "/std:"+plan.TranslateStdForMSVC(std))
 		} else {
 			args = append(args, "-std="+std)
 		}

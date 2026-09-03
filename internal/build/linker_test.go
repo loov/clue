@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -433,13 +434,13 @@ func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 // TestSharedLibraryExtension_LinuxUsesSO verifies .so extension for Linux
 func TestSharedLibraryExtension_LinuxUsesSO(t *testing.T) {
 	linuxAmd64 := toolchain.Platform{OS: "linux", Arch: "amd64"}
-	ext := SharedLibraryExtension(linuxAmd64)
+	ext := plan.SharedLibraryExtension(linuxAmd64)
 	if ext != ".so" {
 		t.Errorf("SharedLibraryExtension(linux-amd64) = %s, want .so", ext)
 	}
 
 	linuxArm64 := toolchain.Platform{OS: "linux", Arch: "arm64"}
-	ext = SharedLibraryExtension(linuxArm64)
+	ext = plan.SharedLibraryExtension(linuxArm64)
 	if ext != ".so" {
 		t.Errorf("SharedLibraryExtension(linux-arm64) = %s, want .so", ext)
 	}
@@ -448,13 +449,13 @@ func TestSharedLibraryExtension_LinuxUsesSO(t *testing.T) {
 // TestSharedLibraryExtension_DarwinUsesDylib verifies .dylib extension for macOS
 func TestSharedLibraryExtension_DarwinUsesDylib(t *testing.T) {
 	darwinAmd64 := toolchain.Platform{OS: "darwin", Arch: "amd64"}
-	ext := SharedLibraryExtension(darwinAmd64)
+	ext := plan.SharedLibraryExtension(darwinAmd64)
 	if ext != ".dylib" {
 		t.Errorf("SharedLibraryExtension(darwin-amd64) = %s, want .dylib", ext)
 	}
 
 	darwinArm64 := toolchain.Platform{OS: "darwin", Arch: "arm64"}
-	ext = SharedLibraryExtension(darwinArm64)
+	ext = plan.SharedLibraryExtension(darwinArm64)
 	if ext != ".dylib" {
 		t.Errorf("SharedLibraryExtension(darwin-arm64) = %s, want .dylib", ext)
 	}
@@ -563,7 +564,7 @@ func TestLinkSharedLibrary_ConstructsSharedLinkCommand(t *testing.T) {
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Determine expected extension
-	ext := SharedLibraryExtension(toolchain.HostPlatform())
+	ext := plan.SharedLibraryExtension(toolchain.HostPlatform())
 	libPath := filepath.Join(tmpDir, "libtest"+ext)
 
 	// Link shared library
@@ -762,7 +763,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
-	ext := SharedLibraryExtension(toolchain.HostPlatform())
+	ext := plan.SharedLibraryExtension(toolchain.HostPlatform())
 	libPath := filepath.Join(tmpDir, "libtest"+ext)
 	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
 		Objects: []string{libObj},
