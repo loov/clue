@@ -75,11 +75,6 @@ Use Go standard commit message format:
   all: fix linter issues
   ```
 
-- **Documentation/planning**: Use `.planning`
-  ```
-  .planning: add phase 3 research
-  ```
-
 - **Other scopes**: `.devcontainer`, `testdata`, `schema`, `docs`
 
 ### Subject Guidelines
@@ -95,7 +90,6 @@ internal/build: add caching for compiled objects
 internal/deps: fix tarball extraction on Windows
 internal/build, internal/config: refactor error types
 all: modernize to Go 1.23 conventions
-.planning: complete phase 2 verification
 ```
 
 ## Verification Requirements
