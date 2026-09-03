@@ -41,6 +41,7 @@ type Watcher struct {
 	config         Config
 	debounceTimer  *time.Timer
 	mu             sync.Mutex // protects timer and pending state
+	loop           sync.WaitGroup
 	done           chan struct{}
 	pendingTrigger string // first file that triggered current debounce window
 	isConfigChange bool   // whether a config file changed in current window
@@ -91,7 +92,7 @@ func NewWatcher(cfg Config) (*Watcher, error) {
 // It processes file system events, filters by relevant extensions,
 // and calls OnRebuild after the debounce window expires.
 func (w *Watcher) Start() error {
-	go w.eventLoop()
+	w.loop.Go(w.eventLoop)
 	return nil
 }
 
@@ -116,6 +117,7 @@ func (w *Watcher) Stop() {
 	if err := w.watcher.Close(); err != nil && w.config.OnError != nil {
 		w.config.OnError(err)
 	}
+	w.loop.Wait()
 }
 
 // eventLoop processes file system events from fsnotify.
