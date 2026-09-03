@@ -17,12 +17,17 @@ const ResponseFileThreshold = 8000
 // Each argument is written on its own line (one-per-line format).
 // The caller is responsible for removing the file after use (defer os.Remove(path)).
 //
-// Response files work with cl.exe, link.exe, and lib.exe using the same syntax:
+// Response files work with GCC, Clang, MSVC, and their linkers/archivers:
 //
 //	tool.exe @response.rsp
 func WriteResponseFile(args []string) (_ string, resultErr error) {
-	// Create temp file with .rsp extension (standard for MSVC response files)
-	tmpfile, err := os.CreateTemp("", "clue-*.rsp")
+	return WriteResponseFileIn("", args)
+}
+
+// WriteResponseFileIn creates a response file in dir so containerized tools can access it.
+func WriteResponseFileIn(dir string, args []string) (_ string, resultErr error) {
+	// Create temp file with .rsp extension (standard across supported tools).
+	tmpfile, err := os.CreateTemp(dir, ".clue-*.rsp")
 	if err != nil {
 		return "", err
 	}
@@ -71,6 +76,11 @@ func WriteResponseFile(args []string) (_ string, resultErr error) {
 //	if cleanup != "" { defer os.Remove(cleanup) }
 //	exec.Command(tool, args...)
 func MaybeUseResponseFile(args []string) ([]string, string, error) {
+	return MaybeUseResponseFileIn("", args)
+}
+
+// MaybeUseResponseFileIn writes long argument lists beneath dir.
+func MaybeUseResponseFileIn(dir string, args []string) ([]string, string, error) {
 	// Calculate total command line length
 	cmdLen := EstimateCommandLength(args)
 
@@ -80,7 +90,7 @@ func MaybeUseResponseFile(args []string) ([]string, string, error) {
 	}
 
 	// Create response file
-	rspPath, err := WriteResponseFile(args)
+	rspPath, err := WriteResponseFileIn(dir, args)
 	if err != nil {
 		return nil, "", err
 	}

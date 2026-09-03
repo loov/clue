@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -207,6 +208,39 @@ func TestCompilerCompilesAssemblySources(t *testing.T) {
 		if _, err := os.Stat(result.Object); err != nil {
 			t.Fatalf("assembly object %s: %v", result.Object, err)
 		}
+	}
+}
+
+func TestCompilerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang not available")
+	}
+	dir := t.TempDir()
+	source := filepath.Join(dir, "long.c")
+	if err := os.WriteFile(source, []byte("int value;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	defines := make([]string, 100)
+	for i := range defines {
+		defines[i] = fmt.Sprintf("CLUE_%03d_%s", i, strings.Repeat("X", 80))
+	}
+	tc, err := NewToolchain("clang", HostPlatform())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := NewCompiler(NewExecutor(ExecutorConfig{}), tc).CompileSource(t.Context(), CompileOptions{
+		Source: source, Output: filepath.Join(dir, "long.o"), Defines: defines,
+		Flags: Config{Warnings: "default"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(result.Object); err != nil {
+		t.Fatal(err)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, ".clue-*.rsp"))
+	if err != nil || len(matches) != 0 {
+		t.Fatalf("response files were not cleaned up: %v, %v", matches, err)
 	}
 }
 

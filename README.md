@@ -98,6 +98,9 @@ toolchain: {
 - `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
 
+Long GCC, Clang, and MSVC compile/link invocations automatically use response
+files, including commands emitted by the Ninja generator.
+
 Fetched Git commits and tarball checksums are recorded in `clue.lock`. Commit
 that file so builds use the same dependency revisions; run `clue deps update`
 to resolve configured Git refs again.

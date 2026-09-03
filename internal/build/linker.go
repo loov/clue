@@ -157,7 +157,7 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 }
 
 // linkExecutableGCC links using GCC/Clang toolchain
-func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start time.Time) (*LinkResult, error) {
+func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start time.Time) (_ *LinkResult, resultErr error) {
 	// Build command arguments
 	var args []string
 
@@ -185,9 +185,16 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{}) // Pass empty sysLibs since we handle them above
 	args = append(args, linkerFlags...)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
+	}
 
 	// Execute the linker
-	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), args...)
+	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), finalArgs...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -240,7 +247,7 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 	}
 
 	// Use response file for long command lines
-	finalArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -292,14 +299,21 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 }
 
 // createStaticLibraryGCC creates a static library using ar
-func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions, start time.Time) (*LinkResult, error) {
+func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions, start time.Time) (_ *LinkResult, resultErr error) {
 	// Build ar command arguments
 	// ar crs: c=create, r=replace/insert, s=create symbol table
 	args := []string{"crs", opts.Output}
 	args = append(args, opts.Objects...)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
+	}
 
 	// Execute the archiver using toolchain AR
-	result, err := l.executor.RunCommand(ctx, l.toolchain.AR(), args...)
+	result, err := l.executor.RunCommand(ctx, l.toolchain.AR(), finalArgs...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -330,7 +344,7 @@ func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOption
 	args = append(args, opts.Objects...)
 
 	// Use response file for many objects
-	finalArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -375,7 +389,7 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 }
 
 // linkSharedLibraryGCC links a shared library using GCC/Clang
-func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (*LinkResult, error) {
+func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (_ *LinkResult, resultErr error) {
 	// Build command arguments
 	var args []string
 
@@ -422,9 +436,16 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{})
 	args = append(args, linkerFlags...)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
+	}
 
 	// Execute the linker
-	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), args...)
+	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), finalArgs...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -492,7 +513,7 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 	}
 
 	// Use response file for long command lines
-	finalArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}

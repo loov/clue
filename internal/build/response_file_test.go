@@ -2,6 +2,7 @@ package build
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -143,6 +144,19 @@ func TestMaybeUseResponseFile_AboveThreshold(t *testing.T) {
 		if line != want {
 			t.Errorf("line %d = %q, want %q", i, line, want)
 		}
+	}
+}
+
+func TestMaybeUseResponseFileInOutputDirectory(t *testing.T) {
+	dir := t.TempDir()
+	args := []string{strings.Repeat("x", ResponseFileThreshold+1)}
+	resultArgs, cleanupPath, err := MaybeUseResponseFileIn(dir, args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cleanupResponseFile(t, cleanupPath) })
+	if filepath.Dir(cleanupPath) != dir || len(resultArgs) != 1 || resultArgs[0] != "@"+cleanupPath {
+		t.Fatalf("response args = %v, path = %q", resultArgs, cleanupPath)
 	}
 }
 

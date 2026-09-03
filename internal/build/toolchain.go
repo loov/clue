@@ -50,10 +50,11 @@ type (
 // Function aliases for internal build package use.
 // External callers should import directly from toolchain package.
 var (
-	HostPlatform         = toolchain.HostPlatform
-	ParseTarget          = toolchain.ParseTarget
-	IsSupportedTarget    = toolchain.IsSupportedTarget
-	MaybeUseResponseFile = toolchain.MaybeUseResponseFile
+	HostPlatform           = toolchain.HostPlatform
+	ParseTarget            = toolchain.ParseTarget
+	IsSupportedTarget      = toolchain.IsSupportedTarget
+	MaybeUseResponseFile   = toolchain.MaybeUseResponseFile
+	MaybeUseResponseFileIn = toolchain.MaybeUseResponseFileIn
 )
 
 // Constant aliases for internal build package use.

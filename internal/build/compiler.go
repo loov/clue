@@ -101,7 +101,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 }
 
 // compileSourceGCC compiles using GCC/Clang toolchain
-func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, start time.Time) (*CompileResult, error) {
+func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, start time.Time) (_ *CompileResult, resultErr error) {
 	// Build command arguments in order
 	var args []string
 
@@ -159,9 +159,16 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 
 	// Get compiler command
 	compiler := c.compilerCmd(opts.Source)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
+	}
 
 	// Execute compilation
-	commandResult, err := c.executor.RunCommand(ctx, compiler, args...)
+	commandResult, err := c.executor.RunCommand(ctx, compiler, finalArgs...)
 
 	duration := time.Since(start)
 	result := &CompileResult{
@@ -224,7 +231,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	// For now, we skip module support in MSVC
 
 	// Use response file for many include paths
-	finalArgs, cleanupPath, err := MaybeUseResponseFile(args)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return &CompileResult{
 			Source:   opts.Source,

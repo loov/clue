@@ -938,18 +938,18 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	} else {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: "$cc -MD -MF $out.d $cflags -c $in -o $out",
+				Name: "cc", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-MD -MF $out.d $cflags -c $in -o $out",
 				Depfile: "$out.d", Deps: ninja.DepsGCC, Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: "$cxx -MD -MF $out.d $cxxflags -c $in -o $out",
+				Name: "cxx", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-MD -MF $out.d $cxxflags -c $in -o $out",
 				Depfile: "$out.d", Deps: ninja.DepsGCC, Description: "CXX $out",
 			},
-			ninja.Rule{Name: "link", Command: "$cxx $in -o $out $ldflags", Description: "LINK $out"},
-			ninja.Rule{Name: "link_c", Command: "$cc $in -o $out $ldflags", Description: "LINK $out"},
-			ninja.Rule{Name: "link_shared", Command: "$cxx -shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
-			ninja.Rule{Name: "link_shared_c", Command: "$cc -shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
-			ninja.Rule{Name: "ar", Command: "$ar crs $out $in", Description: "AR $out"},
+			ninja.Rule{Name: "link", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
+			ninja.Rule{Name: "link_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
+			ninja.Rule{Name: "link_shared", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "link_shared_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "ar", Command: "$ar @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "crs $out $in", Description: "AR $out"},
 		)
 	}
 	*file = append(*file, ninja.Rule{

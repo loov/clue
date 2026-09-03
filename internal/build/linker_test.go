@@ -77,6 +77,41 @@ func TestLinker_LinkExecutable_Integration(t *testing.T) {
 	}
 }
 
+func TestLinkerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang not available")
+	}
+	dir := t.TempDir()
+	source, object := filepath.Join(dir, "main.c"), filepath.Join(dir, "main.o")
+	if err := os.WriteFile(source, []byte("int main(void) { return 0; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command("clang", "-c", source, "-o", object).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v: %s", err, output)
+	}
+	flags := make([]string, 100)
+	for i := range flags {
+		flags[i] = "-L" + filepath.Join(dir, strings.Repeat("unused", 15))
+	}
+	tc, err := NewToolchain("clang", HostPlatform())
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(dir, "app")
+	if _, err := NewLinker(NewExecutor(ExecutorConfig{}), tc, HostPlatform()).LinkExecutable(t.Context(), LinkOptions{
+		Objects: []string{object}, Output: output, Flags: Config{RawLinker: flags},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(output); err != nil {
+		t.Fatal(err)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, ".clue-*.rsp"))
+	if err != nil || len(matches) != 0 {
+		t.Fatalf("response files were not cleaned up: %v, %v", matches, err)
+	}
+}
+
 // TestLinker_CreateStaticLibrary_Integration tests creating a static library
 func TestLinker_CreateStaticLibrary_Integration(t *testing.T) {
 	// Skip if ar not available

@@ -284,8 +284,8 @@ func TestNinja_StaticLibrary(t *testing.T) {
 	}
 
 	// Verify ar command
-	if !strings.Contains(content, "$ar crs $out $in") {
-		t.Error("Missing ar crs command")
+	if !strings.Contains(content, "command = $ar @$out.rsp") || !strings.Contains(content, "rspfile_content = crs $out $in") {
+		t.Error("Missing response-file ar command")
 	}
 
 	// Verify library output uses ar rule
@@ -931,5 +931,19 @@ func TestNinja_MixedSources(t *testing.T) {
 	}
 	if !strings.Contains(content, "build .build/debug/myapp/obj/startup.S.o: cc startup.S") {
 		t.Errorf("assembly file should use cc rule, got:\n%s", content)
+	}
+}
+
+func TestNinjaUsesResponseFilesForGCCStyleCommands(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{Config: cfg, Variants: []string{"debug"}, Toolchain: "clang", Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	for _, want := range []string{"command = $cxx @$out.rsp", "rspfile = $out.rsp", "rspfile_content = $in -o $out $ldflags"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Ninja output missing %q:\n%s", want, content)
+		}
 	}
 }
