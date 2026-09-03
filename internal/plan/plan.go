@@ -4,7 +4,6 @@ package plan
 import (
 	"path/filepath"
 
-	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -31,7 +30,7 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 	flags := targetConfig(target, variant)
 	flags.RawCompiler = append(flags.RawCompiler, usage.CompilerFlags...)
 	flags.RawLinker = append(flags.RawLinker, usage.LinkerFlags...)
-	objectNames := buildpath.ObjectNames(target.Sources)
+	objectNames := ObjectNames(target.Sources)
 	plan := Target{
 		Target: target, Usage: usage, Flags: flags, ObjectDir: objectDir,
 		Output:  ArtifactPath(buildDir, variantName, target.Name, target.Type, platform),

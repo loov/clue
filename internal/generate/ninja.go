@@ -15,7 +15,6 @@ import (
 	"github.com/Duncaen/go-ninja"
 
 	"github.com/loov/clue/internal/build"
-	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
@@ -127,7 +126,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 		if buildCfg.Optimize == "" {
 			buildCfg.Optimize = "none"
 		}
-		objectNames := buildpath.ObjectNames(sources)
+		objectNames := plan.ObjectNames(sources)
 		objects := make([]string, 0, len(sources))
 		dependencyOutputs := externalDependencyOutputs(opts.Config, resolved.Depends, opts.BuildDir, variant, opts.Platform)
 		sourcePaths := make([]string, 0, len(sources))

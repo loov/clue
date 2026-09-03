@@ -12,7 +12,6 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 
-	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
@@ -170,7 +169,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	// Compile each source file to object file
 	var objectFiles []string
 	requiresCXX := false
-	objectNames := buildpath.ObjectNames(cfg.Sources)
+	objectNames := plan.ObjectNames(cfg.Sources)
 	optimization := opts.Optimization
 	if optimization == "" {
 		optimization = "none"

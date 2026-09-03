@@ -11,7 +11,6 @@ import (
 	"slices"
 
 	"github.com/loov/clue/internal/build"
-	"github.com/loov/clue/internal/buildpath"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
@@ -277,7 +276,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 	if err != nil {
 		return nil, err
 	}
-	objectNames := buildpath.ObjectNames(resolved.Sources)
+	objectNames := plan.ObjectNames(resolved.Sources)
 	includes := append(append([]string(nil), resolved.Includes...), dependencyIncludePath(dep))
 
 	optimization := variant.Optimization

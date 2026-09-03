@@ -1,4 +1,4 @@
-package buildpath
+package plan
 
 import "testing"
 

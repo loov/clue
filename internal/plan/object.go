@@ -1,5 +1,4 @@
-// Package buildpath provides shared naming for generated build artifacts.
-package buildpath
+package plan
 
 import (
 	"crypto/sha256"
