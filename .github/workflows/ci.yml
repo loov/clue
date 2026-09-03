@@ -32,6 +32,10 @@ jobs:
       - run: make lint
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
       - run: go test -race ./...
+      - name: GCC integration test
+        run: go test -run '^TestNativeToolchainBuildInPortablePath$' .
+        env:
+          CLUE_TEST_TOOLCHAIN: gcc
 
   platform:
     strategy:
