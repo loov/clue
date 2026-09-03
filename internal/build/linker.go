@@ -54,6 +54,7 @@ type LinkOptions struct {
 	LibPaths []string // Library search paths (-L)
 	Libs     []string // Additional libraries to link
 	Flags    Config   // For raw linker flags and debug info
+	UseCXX   bool     // Use the C++ driver when the link graph contains C++
 }
 
 // SharedLibraryOptions holds options for linking a shared library
@@ -65,6 +66,7 @@ type SharedLibraryOptions struct {
 	Libs             []string // Additional libraries to link
 	Flags            Config   // For raw linker flags and debug info
 	SymbolVisibility string   // "default" or "hidden"
+	UseCXX           bool     // Use the C++ driver when the link graph contains C++
 }
 
 // ArchiveOptions holds options for creating a static library
@@ -185,7 +187,7 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 	args = append(args, linkerFlags...)
 
 	// Execute the linker
-	result, err := l.executor.RunCommand(ctx, l.toolchain.CXX(), args...)
+	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), args...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -422,7 +424,7 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	args = append(args, linkerFlags...)
 
 	// Execute the linker
-	result, err := l.executor.RunCommand(ctx, l.toolchain.CXX(), args...)
+	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), args...)
 	if err != nil {
 		return &LinkResult{
 			Output:   opts.Output,
@@ -436,6 +438,13 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 		Duration: result.Duration,
 		Success:  true,
 	}, nil
+}
+
+func (l *Linker) linkDriver(useCXX bool) string {
+	if useCXX {
+		return l.toolchain.CXX()
+	}
+	return l.toolchain.CC()
 }
 
 // linkSharedLibraryMSVC links a DLL using MSVC link.exe

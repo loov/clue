@@ -528,8 +528,8 @@ targets: lib: {
 		t.Errorf("dependency clue.cue source is missing from Ninja output:\n%s", buf.String())
 	}
 	checks := []string{
-		"build .build/debug/deps/lib/lib/liblib.so: link_shared",
-		"build .build/debug/bin/app: link .build/debug/app/obj/main.c.o .build/debug/deps/lib/lib/liblib.so",
+		"build .build/debug/deps/lib/lib/liblib.so: link_shared_c",
+		"build .build/debug/bin/app: link_c .build/debug/app/obj/main.c.o .build/debug/deps/lib/lib/liblib.so",
 		"-Wl,-rpath,$$ORIGIN/../deps/lib/lib",
 	}
 	for _, check := range checks {

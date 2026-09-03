@@ -198,6 +198,37 @@ type dependencyLinkUsage struct {
 	libPaths, libs, sysLibs, sharedLibPaths, artifacts, linkFiles, flags []string
 }
 
+func (b *Builder) targetUsesCXX(cfg *config.Config, target config.Target) bool {
+	if config.TargetUsesCXX(cfg, target) {
+		return true
+	}
+	seen := make(map[string]bool)
+	var visit func(string) bool
+	visit = func(name string) bool {
+		if seen[name] {
+			return false
+		}
+		seen[name] = true
+		if dependency := b.depResults[name]; dependency != nil {
+			if dependency.RequiresCXX {
+				return true
+			}
+			for _, child := range dependency.Depends {
+				if visit(child) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	for _, name := range target.Depends {
+		if visit(name) {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (dependencyLinkUsage, error) {
 	var usage dependencyLinkUsage
 	seen := make(map[string]bool)
@@ -596,6 +627,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyUsage.flags...)
 
+		useCXX := b.targetUsesCXX(opts.Config, target)
 		linkOpts := LinkOptions{
 			Objects:  append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
 			Output:   outputPath,
@@ -603,8 +635,9 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			LibPaths: dependencyUsage.libPaths,
 			Libs:     dependencyUsage.libs,
 			Flags:    buildCfg,
+			UseCXX:   useCXX,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain, b.toolchain.CXX(), linkOpts, append(objectFiles, dependencyUsage.artifacts...))
+		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), linkOpts, append(objectFiles, dependencyUsage.artifacts...))
 		if err != nil {
 			return nil, err
 		}
@@ -667,6 +700,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyUsage.flags...)
 
+		useCXX := b.targetUsesCXX(opts.Config, target)
 		sharedOpts := SharedLibraryOptions{
 			Objects:          append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
 			Output:           outputPath,
@@ -675,8 +709,9 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			Libs:             dependencyUsage.libs,
 			Flags:            buildCfg,
 			SymbolVisibility: "default", // Could be configurable via target config later
+			UseCXX:           useCXX,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain, b.toolchain.CXX(), sharedOpts, append(objectFiles, dependencyUsage.artifacts...))
+		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), sharedOpts, append(objectFiles, dependencyUsage.artifacts...))
 		if err != nil {
 			return nil, err
 		}

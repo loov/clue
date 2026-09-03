@@ -31,8 +31,9 @@ type Toolchain interface {
 	Identity() (CompilerIdentity, error)
 }
 
-// ValidateToolchain validates that all toolchain components exist in PATH.
-// Returns an error if any of the compiler executables (CC, CXX, AR) cannot be found.
+// ValidateToolchain validates the tools every C or C++ build needs. The language
+// driver itself is checked when a source or link action uses it, so C-only
+// projects do not require a C++ compiler.
 func ValidateToolchain(tc Toolchain) error {
 	if validator, ok := tc.(interface{ Validate() error }); ok {
 		return validator.Validate()
@@ -40,11 +41,6 @@ func ValidateToolchain(tc Toolchain) error {
 	// Validate C compiler
 	if _, err := exec.LookPath(tc.CC()); err != nil {
 		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CC())
-	}
-
-	// Validate C++ compiler
-	if _, err := exec.LookPath(tc.CXX()); err != nil {
-		return fmt.Errorf("compiler not found: %s (ensure it is installed and in PATH)", tc.CXX())
 	}
 
 	// Validate archiver

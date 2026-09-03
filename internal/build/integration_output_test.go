@@ -26,8 +26,8 @@ func TestSharedLibraryBuildAndLink(t *testing.T) {
 
 	// Create library source
 	libSrc := `extern "C" int lib_get_value() {
-    return 42;
-}
+	    return 42;
+	}
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "lib.cpp"), []byte(libSrc), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
@@ -139,6 +139,37 @@ targets: {
 	}
 
 	t.Logf("Shared library test passed: %s linked with %s", exePath, sharedLibPath)
+}
+
+func TestPureCBuildDoesNotRequireCXX(t *testing.T) {
+	cc, err := exec.LookPath("clang")
+	if err != nil {
+		t.Skip("clang not available")
+	}
+	ar, err := exec.LookPath("ar")
+	if err != nil {
+		t.Skip("ar not available")
+	}
+	dir := t.TempDir()
+	source := filepath.Join(dir, "main.c")
+	if err := os.WriteFile(source, []byte("int main(void) { return 0; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		Name: "pure-c", BuildDir: filepath.Join(dir, "build"),
+		Toolchain: config.Toolchain{Compiler: "clang", CC: cc, CXX: "missing-cxx-driver", AR: ar},
+		Targets: map[string]config.Target{
+			"app": {Name: "app", Type: "executable", Sources: []string{source}},
+		},
+		ActiveVariant: config.Variant{Name: "debug"},
+	}
+	builder, err := NewConfiguredBuilder(cfg.Toolchain, HostPlatform(), dir, VerbosityQuiet, 1, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := builder.Build(t.Context(), Options{Config: cfg, Variant: "debug", BuildDir: cfg.BuildDir}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestBuildDisambiguatesDuplicateSourceBasenames(t *testing.T) {

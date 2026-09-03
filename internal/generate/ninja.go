@@ -166,8 +166,12 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 			ldflags := buildSharedLibLinkerFlags(depTarget, nil, buildCfg, opts.Platform, tc)
 			ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 			ldflags = append(ldflags, runtimeLibraryFlags(output, sharedPaths, opts.Platform)...)
+			rule := "link_shared_c"
+			if sourcesUseCXX(sources) {
+				rule = "link_shared"
+			}
 			statement := ninja.Build{
-				Rule: "link_shared", In: inputs, Out: []string{output},
+				Rule: rule, In: inputs, Out: []string{output},
 				Vars: ninja.Vars{{Key: "ldflags", Val: strings.Join(ldflags, " ")}},
 			}
 			addImportLibraryOutput(&statement, output, opts.Platform)
@@ -522,8 +526,12 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		ldflags := buildLinkerFlagsForNinja(target, dependencySysLibs, buildCfg, tc)
 		ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
+		rule := "link_c"
+		if targetUsesCXXForNinja(opts.Config, target) {
+			rule = "link"
+		}
 		*file = append(*file, ninja.Build{
-			Rule: "link",
+			Rule: rule,
 			In:   linkInputs,
 			Out:  []string{outputPath},
 			Vars: ninja.Vars{
@@ -542,8 +550,12 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		ldflags := buildSharedLibLinkerFlags(target, dependencySysLibs, buildCfg, opts.Platform, tc)
 		ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
 		ldflags = append(ldflags, runtimeLibraryFlags(outputPath, sharedLibraryPaths, opts.Platform)...)
+		rule := "link_shared_c"
+		if targetUsesCXXForNinja(opts.Config, target) {
+			rule = "link_shared"
+		}
 		statement := ninja.Build{
-			Rule: "link_shared",
+			Rule: rule,
 			In:   linkInputs,
 			Out:  []string{outputPath},
 			Vars: ninja.Vars{
@@ -555,6 +567,63 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	}
 
 	return []string{outputPath}, nil
+}
+
+func sourcesUseCXX(sources []string) bool {
+	for _, source := range sources {
+		if toolchain.IsCXXSource(source) {
+			return true
+		}
+	}
+	return false
+}
+
+func targetUsesCXXForNinja(cfg *config.Config, target config.Target) bool {
+	if config.TargetUsesCXX(cfg, target) {
+		return true
+	}
+	seen := make(map[string]bool)
+	var visit func(string) bool
+	visit = func(name string) bool {
+		if seen[name] {
+			return false
+		}
+		seen[name] = true
+		if internal, ok := cfg.Targets[name]; ok {
+			if sourcesUseCXX(internal.Sources) {
+				return true
+			}
+			for _, child := range internal.Depends {
+				if visit(child) {
+					return true
+				}
+			}
+			return false
+		}
+		dependency, ok := cfg.Dependencies[name]
+		if !ok {
+			return false
+		}
+		resolved, err := build.ResolveDepConfig(dependency, dependency.CachePath("."))
+		if err != nil {
+			return false
+		}
+		if sourcesUseCXX(resolved.Sources) {
+			return true
+		}
+		for _, child := range resolved.Depends {
+			if visit(child) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, name := range target.Depends {
+		if visit(name) {
+			return true
+		}
+	}
+	return false
 }
 
 // Note: targetToBuildConfig is defined in compdb.go and shared between both generators
@@ -857,7 +926,9 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 				Depfile: "$out.d", Deps: ninja.DepsGCC, Description: "CXX $out",
 			},
 			ninja.Rule{Name: "link", Command: "$cxx $in -o $out $ldflags", Description: "LINK $out"},
+			ninja.Rule{Name: "link_c", Command: "$cc $in -o $out $ldflags", Description: "LINK $out"},
 			ninja.Rule{Name: "link_shared", Command: "$cxx -shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "link_shared_c", Command: "$cc -shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
 			ninja.Rule{Name: "ar", Command: "$ar crs $out $in", Description: "AR $out"},
 		)
 	}

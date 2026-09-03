@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+func TestTargetUsesCXXThroughInternalDependency(t *testing.T) {
+	cfg := &Config{Targets: map[string]Target{
+		"core": {Name: "core", Sources: []string{"core.cpp"}},
+		"app":  {Name: "app", Sources: []string{"main.c"}, Depends: []string{"core"}},
+	}}
+	if !TargetUsesCXX(cfg, cfg.Targets["app"]) {
+		t.Fatal("C target depending on C++ library must use the C++ linker")
+	}
+	cfg.Targets["core"] = Target{Name: "core", Sources: []string{"core.c"}}
+	if TargetUsesCXX(cfg, cfg.Targets["app"]) {
+		t.Fatal("pure C graph must not use the C++ linker")
+	}
+}
+
 func TestCompileUsage_PropagatesOnlyPublicRequirements(t *testing.T) {
 	cfg := &Config{Targets: map[string]Target{
 		"base": {

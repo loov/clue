@@ -16,6 +16,7 @@ import (
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // DepBuildOptions holds options for building a dependency
@@ -41,6 +42,7 @@ type DepBuildResult struct {
 	Usage       deps.Usage    // Compile and link metadata for consumers
 	SourceCount int           // Number of source files compiled
 	Duration    time.Duration // Time taken to build
+	RequiresCXX bool          // Link consumers with the C++ driver
 }
 
 // ResolvedDepConfig is the source-level build configuration used for a dependency.
@@ -166,12 +168,14 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 
 	// Compile each source file to object file
 	var objectFiles []string
+	requiresCXX := false
 	objectNames := buildpath.ObjectNames(cfg.Sources)
 	optimization := opts.Optimization
 	if optimization == "" {
 		optimization = "none"
 	}
 	for _, src := range cfg.Sources {
+		requiresCXX = requiresCXX || toolchain.IsCXXSource(src)
 		absPath := filepath.Join(sourcePath, src)
 		objPath := filepath.Join(objDir, objectNames[src])
 
@@ -261,12 +265,15 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 		for _, name := range cfg.Depends {
 			addLibrary(name)
+			if dependency := builtDeps[name]; dependency != nil {
+				requiresCXX = requiresCXX || dependency.RequiresCXX
+			}
 		}
 		linkOpts := SharedLibraryOptions{
 			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
-			Flags: Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags},
+			Flags: Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
 		}
-		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.toolchain.CXX(), linkOpts, append(objectFiles, dependencyArtifacts...))
+		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.linker.linkDriver(requiresCXX), linkOpts, append(objectFiles, dependencyArtifacts...))
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
 		}
@@ -305,6 +312,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		Depends:     cfg.Depends,
 		SourceCount: len(cfg.Sources),
 		Duration:    time.Since(start),
+		RequiresCXX: requiresCXX,
 	}, nil
 }
 
