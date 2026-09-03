@@ -16,7 +16,7 @@ func runClue(t *testing.T, dir string, args ...string) (stdout, stderr string, e
 
 	// Create temp directory for test binary (auto-cleaned by Go test framework)
 	tmpDir := t.TempDir()
-	binaryPath := filepath.Join(tmpDir, "clue_test_bin")
+	binaryPath := testExecutablePath(tmpDir, "clue_test_bin")
 
 	// Build clue in temp directory (main.go is at project root)
 	clueCmd := exec.Command("go", "build", "-o", binaryPath, ".")
@@ -150,7 +150,7 @@ targets: app: {
 	if exitCode != 0 {
 		t.Fatalf("build failed with exit code %d: %s", exitCode, stderr)
 	}
-	artifact := filepath.Join(projectDir, "output", "debug", "bin", "app")
+	artifact := testExecutablePath(filepath.Join(projectDir, "output", "debug", "bin"), "app")
 	if _, err := os.Stat(artifact); err != nil {
 		t.Errorf("artifact was not written below the project directory: %v", err)
 	}

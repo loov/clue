@@ -4,14 +4,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
+func testExecutablePath(dir, name string) string {
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	return filepath.Join(dir, name)
+}
+
 func TestValidateCommand_AcceptsValidConfiguration(t *testing.T) {
 	// Build the binary first
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	cmd.Dir = "."
@@ -48,7 +56,7 @@ func TestValidateCommand_AcceptsValidConfiguration(t *testing.T) {
 
 func TestValidateCommand_AcceptsSelectedVariant(t *testing.T) {
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -72,7 +80,7 @@ func TestValidateCommand_AcceptsSelectedVariant(t *testing.T) {
 
 func TestValidateCommand_ReportsSchemaErrors(t *testing.T) {
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -108,7 +116,7 @@ func TestValidateCommand_ReportsSchemaErrors(t *testing.T) {
 
 func TestVersionFlag_PrintsVersion(t *testing.T) {
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -128,7 +136,7 @@ func TestVersionFlag_PrintsVersion(t *testing.T) {
 
 func TestValidateCommand_RejectsProjectWithoutTargets(t *testing.T) {
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -156,7 +164,7 @@ func TestBuild_DiscoversProjectWithoutConfiguration(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("Failed to build: %v\n%s", err, out)
 	}
@@ -185,7 +193,7 @@ func TestBuild_DiscoversProjectWithoutConfiguration(t *testing.T) {
 
 func TestBuild_ReportsDependencyCycle(t *testing.T) {
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -231,7 +239,7 @@ func TestBuild_BuildsMultipleTargets(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -266,7 +274,7 @@ func TestBuild_BuildsMultipleTargets(t *testing.T) {
 		t.Errorf("Expected library at %s, but it doesn't exist", libPath)
 	}
 
-	exePath := filepath.Join(testdataDir, ".build", "debug", "bin", "calculator")
+	exePath := testExecutablePath(filepath.Join(testdataDir, ".build", "debug", "bin"), "calculator")
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Errorf("Expected executable at %s, but it doesn't exist", exePath)
 	}
@@ -297,7 +305,7 @@ func TestBuild_VerboseModePrintsCommands(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -337,7 +345,7 @@ func TestClean_RemovesBuildArtifacts(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -392,7 +400,7 @@ func TestBuild_LinksSystemLibraries(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -425,7 +433,7 @@ func TestBuild_LinksSystemLibraries(t *testing.T) {
 	}
 
 	// Verify executable was created and runs
-	exePath := filepath.Join(testdataDir, ".build", "debug", "bin", "mathtest")
+	exePath := testExecutablePath(filepath.Join(testdataDir, ".build", "debug", "bin"), "mathtest")
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Fatalf("executable not found at %s", exePath)
 	}
@@ -446,7 +454,7 @@ func TestBuild_LinksSystemLibraries(t *testing.T) {
 func TestTargetFlag_UsesHostPlatformWhenEmpty(t *testing.T) {
 	// Test that empty target uses HostPlatform
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -484,7 +492,7 @@ func TestTargetFlag_UsesHostPlatformWhenEmpty(t *testing.T) {
 func TestTargetFlag_AcceptsSupportedPlatform(t *testing.T) {
 	// Test that --target=linux-amd64 parses correctly (cross-compile from arm64)
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -523,7 +531,7 @@ func TestTargetFlag_AcceptsSupportedPlatform(t *testing.T) {
 func TestTargetFlag_RejectsMalformedPlatform(t *testing.T) {
 	// Test that --target=invalid produces error
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -565,7 +573,7 @@ func TestTargetFlag_RejectsMalformedPlatform(t *testing.T) {
 func TestTargetFlag_RejectsUnsupportedPlatform(t *testing.T) {
 	// Test that --target=freebsd-amd64 produces error with supported platforms list
 	tempDir := t.TempDir()
-	binary := filepath.Join(tempDir, "clue")
+	binary := testExecutablePath(tempDir, "clue")
 
 	cmd := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
