@@ -141,6 +141,64 @@ targets: {
 	t.Logf("Shared library test passed: %s linked with %s", exePath, sharedLibPath)
 }
 
+func TestCrossTargetModulesAndHeaderUnits(t *testing.T) {
+	testclue.SkipIfNoClangPP(t)
+	dir := t.TempDir()
+	moduleSource := filepath.Join(dir, "math.cppm")
+	partitionSource := filepath.Join(dir, "math-detail.cpp")
+	headerSource := filepath.Join(dir, "answer.hpp")
+	mainSource := filepath.Join(dir, "main.cpp")
+	for path, content := range map[string]string{
+		partitionSource: "module math:detail;\nint detail() { return 40; }\n",
+		moduleSource:    "export module math;\nimport :detail;\nexport int answer() { return detail(); }\n",
+		headerSource:    "inline int header_answer() { return 2; }\n",
+		mainSource:      "import math;\nimport \"answer.hpp\";\nint main() { return answer() + header_answer() - 42; }\n",
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	warningsAsErrors := false
+	cfg := &config.Config{
+		Name: "modules", BuildDir: filepath.Join(dir, ".build"),
+		Toolchain: config.Toolchain{Compiler: "clang", CXXStd: "c++20"},
+		Targets: map[string]config.Target{
+			"math": {Name: "math", Type: "static_library", Sources: []string{moduleSource, partitionSource}, WarningsAsErrors: &warningsAsErrors},
+			"app": {
+				Name: "app", Type: "executable", Sources: []string{mainSource}, Depends: []string{"math"},
+				HeaderUnits: []config.HeaderUnit{{Name: "answer.hpp", Path: headerSource}}, WarningsAsErrors: &warningsAsErrors,
+			},
+		},
+		Variants: map[string]config.Variant{"debug": {Name: "debug"}}, ActiveVariant: config.Variant{Name: "debug"},
+	}
+	builder, err := NewBuilder("clang", HostPlatform(), VerbosityQuiet, 1, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := builder.Build(context.Background(), Options{
+		Config: cfg, Variant: "debug", BuildDir: cfg.BuildDir, Verbosity: VerbosityQuiet, Jobs: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	executable := filepath.Join(cfg.BuildDir, "debug", "bin", "app")
+	if err := exec.Command(executable).Run(); err != nil {
+		t.Fatalf("module executable failed: %v", err)
+	}
+	if err := os.WriteFile(headerSource, []byte("inline int header_answer() { return 3; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := builder.Build(context.Background(), Options{
+		Config: cfg, Variant: "debug", BuildDir: cfg.BuildDir, Verbosity: VerbosityQuiet, Jobs: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command(executable).Run(); err == nil {
+		t.Fatal("header-unit change did not rebuild its consumer")
+	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
+		t.Fatalf("changed module executable returned %v", err)
+	}
+}
+
 func TestPureCBuildDoesNotRequireCXX(t *testing.T) {
 	cc, err := exec.LookPath("clang")
 	if err != nil {

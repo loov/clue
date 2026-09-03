@@ -5,33 +5,44 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
+	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/toolchain"
 )
 
 func (c *Compiler) cacheInputs(opts CompileOptions) []string {
 	encoded, _ := json.Marshal(opts)
-	return append([]string{string(encoded), toolchainCacheKey(c.toolchain)}, c.toolchain.CompilerFlags(opts.Flags)...)
+	inputs := append([]string{string(encoded), toolchainCacheKey(c.toolchain)}, c.toolchain.CompilerFlags(opts.Flags)...)
+	for _, name := range sortedModuleNames(opts.ModuleFiles) {
+		hash, err := cache.ComputeFileHash(opts.ModuleFiles[name])
+		if err != nil {
+			hash = "missing"
+		}
+		inputs = append(inputs, "module:"+name+"="+hash)
+	}
+	return inputs
 }
 
 // CompileOptions holds options for compiling a single source file
 type CompileOptions struct {
-	Source         string            // Source file path
-	Output         string            // Output object file path
-	Includes       []string          // Include directories
-	SystemIncludes []string          // Third-party include directories
-	Defines        []string          // Preprocessor defines
-	Flags          Config            // Semantic flags
-	Std            string            // Language standard (e.g., "c++20", "c17")
-	TargetType     string            // "executable", "static_library", "shared_library"
-	ModuleOutput   string            // Path to output precompiled module (.pcm) when compiling module interface
-	ModuleFiles    map[string]string // Map of module name to .pcm path for -fmodule-file flags
+	Source            string            // Source file path
+	Output            string            // Output object file path
+	Includes          []string          // Include directories
+	SystemIncludes    []string          // Third-party include directories
+	Defines           []string          // Preprocessor defines
+	Flags             Config            // Semantic flags
+	Std               string            // Language standard (e.g., "c++20", "c17")
+	TargetType        string            // "executable", "static_library", "shared_library"
+	ModuleOutput      string            // Path to output binary module interface
+	ModuleFiles       map[string]string // Logical module/header-unit name to BMI path
+	ModuleName        string
+	ModuleMapper      string
+	InternalPartition bool
+	ModuleAware       bool
 }
 
 // CompileResult holds the result of a compilation
@@ -107,6 +118,10 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 
 	// 1. Compile only flag
 	args = append(args, "-c")
+	args = append(args, ModuleCompileFlags(c.toolchain, ModuleDependency{
+		Source: opts.Source, IsModule: opts.ModuleOutput != "", Provides: opts.ModuleName,
+		InternalPartition: opts.InternalPartition, UsesModules: opts.ModuleAware,
+	}, opts.ModuleOutput, opts.ModuleFiles, opts.ModuleMapper)...)
 
 	// 2. Source file
 	args = append(args, opts.Source)
@@ -138,27 +153,28 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	}
 
 	// 8. Language standard
-	if opts.Std != "" && !toolchain.IsAssemblySource(opts.Source) {
-		args = append(args, "-std="+opts.Std)
+	standard := opts.Std
+	if standard == "" && (opts.ModuleAware || opts.ModuleOutput != "" || len(opts.ModuleFiles) > 0) {
+		standard = "c++20"
+	}
+	if standard != "" && !toolchain.IsAssemblySource(opts.Source) {
+		args = append(args, "-std="+standard)
 	}
 
-	// 9. C++20 Module flags
-	if opts.ModuleOutput != "" {
-		// Generate precompiled module interface when compiling module source
-		args = append(args, "-fmodule-output="+opts.ModuleOutput)
-	}
-	for _, modName := range slices.Sorted(maps.Keys(opts.ModuleFiles)) {
-		pcmPath := opts.ModuleFiles[modName]
-		// Reference precompiled modules when compiling consumers
-		args = append(args, fmt.Sprintf("-fmodule-file=%s=%s", modName, pcmPath))
-	}
-
-	// 10. Semantic flags
+	// 9. Semantic flags
 	semanticFlags := c.toolchain.CompilerFlags(opts.Flags)
 	args = append(args, semanticFlags...)
 
 	// Get compiler command
 	compiler := c.compilerCmd(opts.Source)
+	if c.toolchain.Name() == "clang" && opts.InternalPartition {
+		if err := c.precompileClangPartition(ctx, opts); err != nil {
+			return &CompileResult{
+				Source: opts.Source, Object: opts.Output, DepFile: depFile,
+				Duration: time.Since(start), Success: false,
+			}, err
+		}
+	}
 	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
@@ -188,6 +204,37 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	}
 
 	return result, nil
+}
+
+func (c *Compiler) precompileClangPartition(ctx context.Context, opts CompileOptions) (resultErr error) {
+	standard := opts.Std
+	if standard == "" {
+		standard = "c++20"
+	}
+	args := []string{"-std=" + standard}
+	for _, include := range opts.Includes {
+		args = append(args, "-I"+include)
+	}
+	for _, include := range opts.SystemIncludes {
+		args = append(args, "-isystem", include)
+	}
+	for _, define := range opts.Defines {
+		args = append(args, "-D"+define)
+	}
+	args = append(args, c.toolchain.CompilerFlags(opts.Flags)...)
+	args = append(args, ModuleCompileFlags(c.toolchain, ModuleDependency{UsesModules: true}, "", opts.ModuleFiles, "")...)
+	args = append(args, "-x", "c++-module", "--precompile", opts.Source, "-o", opts.ModuleOutput)
+	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.ModuleOutput), args)
+	if err != nil {
+		return fmt.Errorf("create module-partition response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
+	}
+	if _, err := c.executor.RunCommand(ctx, c.toolchain.CXX(), finalArgs...); err != nil {
+		return fmt.Errorf("precompile module partition %s: %w", opts.ModuleName, err)
+	}
+	return nil
 }
 
 // compileSourceMSVC compiles using MSVC toolchain (cl.exe)
@@ -222,13 +269,19 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	}
 
 	// 7. Language standard (MSVC style: /std:)
-	if opts.Std != "" && !toolchain.IsAssemblySource(opts.Source) {
-		args = append(args, "/std:"+TranslateStdForMSVC(opts.Std))
+	standard := opts.Std
+	if standard == "" && (opts.ModuleAware || opts.ModuleOutput != "" || len(opts.ModuleFiles) > 0) {
+		standard = "c++20"
+	}
+	if standard != "" && !toolchain.IsAssemblySource(opts.Source) {
+		args = append(args, "/std:"+TranslateStdForMSVC(standard))
 	}
 
-	// 8. C++20 Modules (MSVC has different module syntax - deferred to v0.3.0)
-	// Note: MSVC uses /interface, /headerUnit, /reference instead of -fmodule-output/-fmodule-file
-	// For now, we skip module support in MSVC
+	// 8. C++20 Modules
+	args = append(args, ModuleCompileFlags(c.toolchain, ModuleDependency{
+		Source: opts.Source, IsModule: opts.ModuleOutput != "", Provides: opts.ModuleName,
+		InternalPartition: opts.InternalPartition, UsesModules: opts.ModuleAware,
+	}, opts.ModuleOutput, opts.ModuleFiles, opts.ModuleMapper)...)
 
 	// Use response file for many include paths
 	finalArgs, cleanupPath, err := MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)

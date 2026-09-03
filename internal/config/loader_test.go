@@ -65,6 +65,31 @@ targets: app: {name: "app", type: "executable", sources: ["main.c", "main.cpp"]}
 	}
 }
 
+func TestLoaderExtractsHeaderUnits(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "modules"
+targets: headers: {
+	name: "headers"
+	type: "interface_library"
+	headerUnits: [
+		{name: "vector", system: true},
+		{name: "project/math.hpp", path: "include/project/math.hpp"},
+	]
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	units := cfg.Targets["headers"].HeaderUnits
+	if len(units) != 2 || !units[0].System || units[0].Path != "vector" || units[1].Path != "include/project/math.hpp" {
+		t.Fatalf("header units = %#v", units)
+	}
+}
+
 func TestLoaderExtractsDockerToolchain(t *testing.T) {
 	dir := t.TempDir()
 	contents := `name: "containerized"

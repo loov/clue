@@ -7,24 +7,80 @@ import (
 	"testing"
 )
 
-func TestModuleScanArgsMatchCompilerConfiguration(t *testing.T) {
-	t.Setenv("CXX", "configured-clang++")
-	tc, err := NewToolchain("clang", HostPlatform())
+func TestModuleCompileFlagsByToolchain(t *testing.T) {
+	clang, _ := NewToolchain("clang", HostPlatform())
+	gcc, _ := NewToolchain("gcc", HostPlatform())
+	tests := []struct {
+		name   string
+		tc     Toolchain
+		output string
+		mapper string
+		want   []string
+	}{
+		{"clang", clang, "math.pcm", "", []string{"-fcxx-modules", "-fmodule-output=math.pcm", "-fmodule-file=base=base.pcm", "-fmodule-file=vector.pcm"}},
+		{"gcc", gcc, "math.gcm", "modules.mapper", []string{"-fmodules-ts", "-x", "c++", "-fmodule-mapper=modules.mapper"}},
+		{"msvc", newTestMSVCToolchain(), "math.ifc", "", []string{"/interface", "/ifcOutput", "/reference", "/headerUnit:angle"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			flags := ModuleCompileFlags(test.tc, ModuleDependency{Source: "math.cppm", IsModule: true, Provides: "math"}, test.output, map[string]string{
+				"base": "base.pcm", "<vector>": "vector.pcm",
+			}, test.mapper)
+			for _, want := range test.want {
+				if !slices.Contains(flags, want) {
+					t.Errorf("flags %q missing %q", flags, want)
+				}
+			}
+		})
+	}
+}
+
+func TestMSVCInternalPartitionAndHeaderUnitFlags(t *testing.T) {
+	tc := newTestMSVCToolchain()
+	partition := ModuleCompileFlags(tc, ModuleDependency{InternalPartition: true}, "math-detail.ifc", nil, "")
+	for _, want := range []string{"/internalPartition", "/ifcOutput", "math-detail.ifc"} {
+		if !slices.Contains(partition, want) {
+			t.Errorf("partition flags %q missing %q", partition, want)
+		}
+	}
+	header := HeaderUnitArguments(tc, HeaderUnitOptions{
+		Source: "vector", Name: "<vector>", System: true, Output: "vector.ifc",
+	})
+	for _, want := range []string{"/exportHeader", "/headerName:angle", "/ifcOutput", "vector.ifc"} {
+		if !slices.Contains(header, want) {
+			t.Errorf("header-unit flags %q missing %q", header, want)
+		}
+	}
+}
+
+func TestScanModuleDependencies_PartitionsAndHeaderUnits(t *testing.T) {
+	dir := t.TempDir()
+	partition := filepath.Join(dir, "math-detail.cppm")
+	primary := filepath.Join(dir, "math.cppm")
+	if err := os.WriteFile(partition, []byte("module math:detail;\nimport <vector>;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(primary, []byte("export module math;\nexport import :detail;\nimport \"numbers.hpp\";\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dependencies, err := ScanModuleDependencies(nil, []string{primary, partition}, CompileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	compiler := NewCompiler(NewExecutor(ExecutorConfig{}), tc)
-	args := compiler.moduleScanArgs("hello.cppm", CompileOptions{
-		Includes: []string{"include"},
-		Defines:  []string{"FEATURE=1"},
-		Flags:    Config{RawCompiler: []string{"-fexperimental-library"}},
-		Std:      "c++23",
-	})
+	if got := dependencies[0]; got.Provides != "math" || !slices.Contains(got.Requires, "math:detail") || !slices.Contains(got.Requires, `"numbers.hpp"`) {
+		t.Fatalf("primary dependency = %#v", got)
+	}
+	if got := dependencies[1]; got.Provides != "math:detail" || !got.InternalPartition || !slices.Contains(got.Requires, "<vector>") {
+		t.Fatalf("partition dependency = %#v", got)
+	}
+}
 
-	for _, want := range []string{"configured-clang++", "-Iinclude", "-DFEATURE=1", "-fexperimental-library", "-std=c++23"} {
-		if !slices.Contains(args, want) {
-			t.Errorf("module scan arguments %q missing %q", args, want)
-		}
+func TestOrderModuleCompilation_AcceptsDependencyTargetProvider(t *testing.T) {
+	order, err := OrderModuleCompilationWithProviders([]ModuleDependency{{
+		Source: "main.cpp", Requires: []string{"math"},
+	}}, map[string]string{"math": "math.pcm"})
+	if err != nil || len(order) != 1 || order[0] != "main.cpp" {
+		t.Fatalf("order = %v, err = %v", order, err)
 	}
 }
 

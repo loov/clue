@@ -58,7 +58,7 @@ if _target.os == "windows" {
 }
 ```
 
-To run the compiler, linker, archiver, module scanner, and build commands in Docker, add a pre-pulled image containing the selected toolchain:
+To run the compiler, linker, archiver, and build commands in Docker, add a pre-pulled image containing the selected toolchain:
 
 ```cue
 toolchain: {
@@ -146,6 +146,40 @@ targets: {
     }
 }
 ```
+
+### C++ modules and header units
+
+Clang, GCC, and MSVC builds support named modules, interface and internal
+partitions, and modules imported across target boundaries. Cross-target imports
+must name the provider in `depends`. Header units are explicit so Clue knows
+which headers require a BMI:
+
+```cue
+toolchain: {compiler: "clang", cxxStd: "c++20"}
+targets: {
+    math: {
+        name:    "math"
+        type:    "static_library"
+        sources: ["math.cppm", "math-detail.cpp"]
+    }
+    app: {
+        name:    "app"
+        type:    "executable"
+        sources: ["main.cpp"]
+        depends: ["math"]
+        headerUnits: [
+            {name: "vector", system: true},
+            {name: "project/config.hpp", path: "include/project/config.hpp"},
+        ]
+    }
+}
+```
+
+Source code imports those headers with `import <vector>;` and
+`import "project/config.hpp";`. GCC module builds use a generated module mapper;
+MSVC builds use IFC references; Clang builds use PCM references. The selected
+compiler and standard library still determine which system headers can be built
+as header units.
 
 ### Build variants
 

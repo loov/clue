@@ -98,6 +98,7 @@ type Target struct {
 	Type           string // "executable", "static_library", "shared_library", "custom"
 	Sources        []string
 	Headers        []string
+	HeaderUnits    []HeaderUnit
 	Command        []string
 	Inputs         []string
 	Outputs        []string
@@ -120,6 +121,13 @@ type Target struct {
 	PIC              *bool
 	Coverage         *bool
 	Test             *Test
+}
+
+// HeaderUnit declares a header that the selected C++ compiler should precompile.
+type HeaderUnit struct {
+	Name   string
+	Path   string
+	System bool
 }
 
 // Test configures an executable target as a test case.
@@ -491,6 +499,22 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 
 	t.Sources = extractStringList(val, "sources")
 	t.Headers = extractStringList(val, "headers")
+	if units := val.LookupPath(cue.ParsePath("headerUnits")); units.Exists() {
+		iter, _ := units.List()
+		for iter.Next() {
+			unit := iter.Value()
+			name, _ := unit.LookupPath(cue.ParsePath("name")).String()
+			path := extractOptionalString(unit, "path")
+			if path == "" {
+				path = name
+			}
+			system := false
+			if value := unit.LookupPath(cue.ParsePath("system")); value.Exists() {
+				system, _ = value.Bool()
+			}
+			t.HeaderUnits = append(t.HeaderUnits, HeaderUnit{Name: name, Path: path, System: system})
+		}
+	}
 	t.Command = extractStringList(val, "command")
 	t.Inputs = extractStringList(val, "inputs")
 	t.Outputs = extractStringList(val, "outputs")

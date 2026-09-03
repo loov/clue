@@ -3,11 +3,10 @@ package generate
 
 import (
 	"encoding/json"
-	"maps"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/buildpath"
@@ -75,9 +74,14 @@ func CompileCommands(opts CompDBOptions) error {
 	var commands []CompileCommand
 
 	// Add commands for all project targets
-	for _, name := range slices.Sorted(maps.Keys(opts.Config.Targets)) {
+	targetOrder, err := config.GetBuildOrder(opts.Config)
+	if err != nil {
+		return err
+	}
+	targetModuleOutputs := make(map[string]map[string]string)
+	for _, name := range targetOrder {
 		target := opts.Config.Targets[name]
-		targetCommands, err := buildTargetCommands(workDir, opts, target, variant, tc)
+		targetCommands, err := buildTargetCommands(workDir, opts, target, variant, tc, targetModuleOutputs)
 		if err != nil {
 			return err
 		}
@@ -85,7 +89,12 @@ func CompileCommands(opts CompDBOptions) error {
 	}
 
 	// Add commands for all dependencies with build config
-	for _, name := range slices.Sorted(maps.Keys(opts.Config.Dependencies)) {
+	dependencyNames := make([]string, 0, len(opts.Config.Dependencies))
+	for name := range opts.Config.Dependencies {
+		dependencyNames = append(dependencyNames, name)
+	}
+	slices.Sort(dependencyNames)
+	for _, name := range dependencyNames {
 		dep := opts.Config.Dependencies[name]
 		if _, ok := dep.(*deps.PkgConfigDependency); ok {
 			continue
@@ -108,8 +117,8 @@ func CompileCommands(opts CompDBOptions) error {
 }
 
 // buildTargetCommands creates compile commands for a target's sources
-func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain) ([]CompileCommand, error) {
-	if target.Type == "custom" || target.Type == "interface_library" {
+func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain, targetModuleOutputs map[string]map[string]string) ([]CompileCommand, error) {
+	if target.Type == "custom" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
 	var commands []CompileCommand
@@ -130,15 +139,58 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		target.CXXStd = usage.CXXStd
 	}
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
+	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
+	availableModules, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	if err != nil {
+		return nil, err
+	}
+	headerOutputs := headerUnitOutputs(tc, target.HeaderUnits, bmiDir)
+	for name, output := range headerOutputs {
+		if _, exists := availableModules[name]; exists {
+			return nil, fmt.Errorf("header unit %q is also provided by a dependency target", name)
+		}
+		availableModules[name] = output
+	}
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
 		Includes:       target.Includes,
 		SystemIncludes: target.SystemIncludes,
 		Defines:        target.Defines,
 		Flags:          buildCfg,
 		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-	}, filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules"))
+	}, bmiDir, availableModules)
 	if err != nil {
 		return nil, err
+	}
+	providedModules := make(map[string]string, len(headerOutputs)+len(modules.provided))
+	for name, output := range headerOutputs {
+		providedModules[name] = output
+	}
+	for name, output := range modules.provided {
+		providedModules[name] = output
+	}
+	targetModuleOutputs[target.Name] = providedModules
+	builtHeaderUnits, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	if err != nil {
+		return nil, err
+	}
+	for _, unit := range target.HeaderUnits {
+		name := build.HeaderUnitName(unit.Name, unit.System)
+		headerOpts := build.HeaderUnitOptions{
+			Source: unit.Path, Name: name, System: unit.System, Output: headerOutputs[name],
+			Includes: target.Includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
+			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
+			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.mapper,
+		}
+		arguments := build.HeaderUnitArguments(tc, absoluteHeaderUnitOptions(headerOpts))
+		command, wrapped := build.ToolchainCommand(tc, tc.CXX(), arguments)
+		file := unit.Path
+		if !unit.System {
+			file = AbsPath(file)
+		}
+		commands = append(commands, CompileCommand{
+			Directory: workDir, File: file, Arguments: append([]string{command}, wrapped...), Output: AbsPath(headerOutputs[name]),
+		})
+		builtHeaderUnits[name] = headerOutputs[name]
 	}
 	sourcePlans := make(map[string]build.SourcePlan, len(plan.Sources))
 	for _, source := range plan.Sources {
@@ -150,18 +202,30 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		objPath := sourcePlan.Object
 
 		// Build compiler arguments
-		args := buildCompilerArgs(tc, sourcePlan.Standard, target.Includes, target.SystemIncludes, target.Defines, source, objPath, buildCfg)
-		for _, flag := range modules.flags(source) {
-			if value, ok := strings.CutPrefix(flag, "-fmodule-output="); ok {
-				flag = "-fmodule-output=" + AbsPath(value)
-			} else if value, ok := strings.CutPrefix(flag, "-fmodule-file="); ok {
-				name, path, found := strings.Cut(value, "=")
-				if found {
-					flag = "-fmodule-file=" + name + "=" + AbsPath(path)
-				}
-			}
-			args = append(args, flag)
+		module, hasModule := modules.bySource[source]
+		moduleFiles := make(map[string]string, len(modules.inherited)+len(module.Requires))
+		for name, output := range modules.inherited {
+			moduleFiles[name] = AbsPath(output)
 		}
+		for _, required := range module.Requires {
+			if output := modules.outputs[required]; output != "" {
+				moduleFiles[required] = AbsPath(output)
+			}
+		}
+		moduleOutput := ""
+		if hasModule && module.Provides != "" {
+			moduleOutput = AbsPath(modules.outputs[module.Provides])
+		}
+		mapper := ""
+		if modules.mapper != "" {
+			mapper = AbsPath(modules.mapper)
+		}
+		extra := build.ModuleCompileFlags(tc, module, moduleOutput, moduleFiles, mapper)
+		standard := sourcePlan.Standard
+		if hasModule && standard == "" {
+			standard = "c++20"
+		}
+		args := buildCompilerArgsExtra(tc, standard, target.Includes, target.SystemIncludes, target.Defines, source, objPath, buildCfg, extra)
 
 		// Make paths absolute for IDE compatibility
 		srcAbs := AbsPath(source)
@@ -177,6 +241,32 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	}
 
 	return commands, nil
+}
+
+func absoluteHeaderUnitOptions(opts build.HeaderUnitOptions) build.HeaderUnitOptions {
+	if !opts.System {
+		opts.Source = AbsPath(opts.Source)
+	}
+	opts.Output = AbsPath(opts.Output)
+	includes := make([]string, len(opts.Includes))
+	for index, include := range opts.Includes {
+		includes[index] = AbsPath(include)
+	}
+	opts.Includes = includes
+	systemIncludes := make([]string, len(opts.SystemIncludes))
+	for index, include := range opts.SystemIncludes {
+		systemIncludes[index] = AbsPath(include)
+	}
+	opts.SystemIncludes = systemIncludes
+	moduleFiles := make(map[string]string, len(opts.ModuleFiles))
+	for name, output := range opts.ModuleFiles {
+		moduleFiles[name] = AbsPath(output)
+	}
+	opts.ModuleFiles = moduleFiles
+	if opts.ModuleMapper != "" {
+		opts.ModuleMapper = AbsPath(opts.ModuleMapper)
+	}
+	return opts
 }
 
 // buildDependencyCommands creates compile commands for a dependency's sources
@@ -227,6 +317,10 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 
 // buildCompilerArgs constructs the full compiler command arguments
 func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Config) []string {
+	return buildCompilerArgsExtra(tc, std, includes, systemIncludes, defines, source, objPath, buildCfg, nil)
+}
+
+func buildCompilerArgsExtra(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Config, extra []string) []string {
 	var args []string
 	msvc := tc.Name() == "msvc"
 
@@ -240,6 +334,7 @@ func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, systemInclu
 	} else {
 		args = append(args, "-c")
 	}
+	args = append(args, extra...)
 
 	// 3. Source file (absolute path)
 	args = append(args, AbsPath(source))

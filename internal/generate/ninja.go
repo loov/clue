@@ -64,6 +64,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 		return nil, err
 	}
 
+	targetModules := make(map[string]map[string]string)
 	for _, targetName := range targetOrder {
 		target, exists := opts.Config.Targets[targetName]
 		if !exists {
@@ -71,7 +72,7 @@ func generateVariantBuilds(file *ninja.File, opts NinjaOptions, variant string, 
 		}
 
 		// Generate build statements for this target
-		targetOutputs, err := generateTargetBuilds(file, opts, variant, variantConfig, target, tc, emitSharedRules)
+		targetOutputs, err := generateTargetBuilds(file, opts, variant, variantConfig, target, tc, emitSharedRules, targetModules)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +155,11 @@ func generateDependencyBuilds(file *ninja.File, opts NinjaOptions, variant strin
 			}
 			*file = append(*file, ninja.Build{
 				Rule: rule, In: []string{ninjaPathLocal(srcPath)}, InOrderOnly: dependencyOutputs, Out: []string{objPath},
-				Vars: ninja.Vars{{Key: flagKey, Val: strings.Join(compilerFlags, " ")}},
+				Vars: ninja.Vars{
+					{Key: "source", Val: ninjaPathLocal(srcPath)},
+					{Key: "object", Val: objPath},
+					{Key: flagKey, Val: strings.Join(compilerFlags, " ")},
+				},
 			})
 			objects = append(objects, objPath)
 		}
@@ -451,8 +456,8 @@ func runtimeLibraryFlags(output string, paths []string, platform toolchain.Platf
 }
 
 // generateTargetBuilds generates build statements for a single target within a variant
-func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain, emitSharedRules bool) ([]string, error) {
-	if target.Type == "interface_library" {
+func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain, emitSharedRules bool, targetModuleOutputs map[string]map[string]string) ([]string, error) {
+	if target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
 	if target.Type == "custom" {
@@ -486,15 +491,66 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	var objects []string
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
 	buildDependencies := targetCustomOutputs(opts.Config, target)
+	bmiDir := filepath.Join(opts.BuildDir, variant, target.Name, "modules")
+	availableModules, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	if err != nil {
+		return nil, err
+	}
+	headerOutputs := headerUnitOutputs(tc, target.HeaderUnits, bmiDir)
+	for name, output := range headerOutputs {
+		if _, exists := availableModules[name]; exists {
+			return nil, fmt.Errorf("header unit %q is also provided by a dependency target", name)
+		}
+		availableModules[name] = output
+	}
 	modules, err := resolveTargetModules(tc, target.Sources, build.CompileOptions{
 		Includes:       includes,
 		SystemIncludes: target.SystemIncludes,
 		Defines:        target.Defines,
 		Flags:          buildCfg,
 		Std:            config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-	}, filepath.Join(opts.BuildDir, variant, target.Name, "modules"))
+	}, bmiDir, availableModules)
 	if err != nil {
 		return nil, err
+	}
+	providedModules := make(map[string]string, len(headerOutputs)+len(modules.provided))
+	for name, output := range headerOutputs {
+		providedModules[name] = output
+	}
+	for name, output := range modules.provided {
+		providedModules[name] = output
+	}
+	targetModuleOutputs[target.Name] = providedModules
+	headerUnitBuilds := make([]string, 0, len(target.HeaderUnits))
+	builtHeaderUnits, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	if err != nil {
+		return nil, err
+	}
+	for _, unit := range target.HeaderUnits {
+		name := build.HeaderUnitName(unit.Name, unit.System)
+		output := headerOutputs[name]
+		arguments := build.HeaderUnitArguments(tc, build.HeaderUnitOptions{
+			Source: unit.Path, Name: name, System: unit.System, Output: output,
+			Includes: includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
+			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
+			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.mapper,
+		})
+		headerInputs := make([]string, 0, len(builtHeaderUnits))
+		for _, input := range builtHeaderUnits {
+			headerInputs = append(headerInputs, input)
+		}
+		sort.Strings(headerInputs)
+		statement := ninja.Build{
+			Rule: "header_unit", Out: []string{output}, InImplicit: headerInputs,
+			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
+			Vars:        ninja.Vars{{Key: "huflags", Val: ninjaResponseArguments(arguments)}},
+		}
+		if !unit.System {
+			statement.In = []string{ninjaPathLocal(unit.Path)}
+		}
+		*file = append(*file, statement)
+		headerUnitBuilds = append(headerUnitBuilds, output)
+		builtHeaderUnits[name] = output
 	}
 	sourcePlans := make(map[string]build.SourcePlan, len(plan.Sources))
 	for _, source := range plan.Sources {
@@ -503,6 +559,13 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	for _, source := range modules.ordered {
 		compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc, source)
+		if _, moduleAware := modules.bySource[source]; moduleAware && config.CompileStandard(opts.Config.Toolchain, target, usage, source) == "" {
+			if tc.Name() == "msvc" {
+				compilerFlags = append(compilerFlags, "/std:c++20")
+			} else {
+				compilerFlags = append(compilerFlags, "-std=c++20")
+			}
+		}
 		if target.Type == "shared_library" && tc.Name() != "msvc" {
 			compilerFlags = append(compilerFlags, "-fPIC")
 		}
@@ -527,12 +590,18 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
 			Out:         []string{objPath},
 			Vars: ninja.Vars{
+				{Key: "source", Val: srcPath},
+				{Key: "object", Val: objPath},
 				{Key: flagKey, Val: strings.Join(append(append([]string(nil), compilerFlags...), modules.flags(source)...), " ")},
 			},
 		}
 		if module, ok := modules.bySource[source]; ok {
 			if output := modules.outputs[module.Provides]; output != "" {
 				statement.OutImplicit = []string{output}
+				if tc.Name() == "clang" && module.InternalPartition {
+					statement.Rule = "module_partition"
+					statement.Vars = append(statement.Vars, ninja.Var{Key: "bmi", Val: output})
+				}
 			}
 		}
 		*file = append(*file, statement)
@@ -588,7 +657,18 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		*file = append(*file, statement)
 	}
 
-	return []string{outputPath}, nil
+	if target.Type == "interface_library" {
+		return headerUnitBuilds, nil
+	}
+	return append([]string{outputPath}, headerUnitBuilds...), nil
+}
+
+func ninjaResponseArguments(arguments []string) string {
+	quoted := make([]string, len(arguments))
+	for index, argument := range arguments {
+		quoted[index] = strings.ReplaceAll(build.QuoteResponseFileArg(argument), "$", "$$")
+	}
+	return strings.Join(quoted, " ")
 }
 
 func sourcesUseCXX(sources []string) bool {
@@ -900,16 +980,6 @@ func outputNameForTarget(target, targetType string, platform toolchain.Platform)
 
 // Note: isCPlusPlusFile is defined in compdb.go and shared between both generators
 
-// getSortedTargetNames returns target names in deterministic order
-func getSortedTargetNames(cfg *config.Config) []string {
-	names := make([]string, 0, len(cfg.Targets))
-	for name := range cfg.Targets {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
 // writeIfChanged writes content to file only if it differs from existing content
 func writeIfChanged(path string, content []byte) error {
 	existing, err := os.ReadFile(path)
@@ -924,32 +994,38 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	if msvc {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: `"$cc" $cflags /c $in /Fo"$out"`, Deps: ninja.DepsMSVC,
+				Name: "cc", Command: `"$cc" $cflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: `"$cxx" $cxxflags /c $in /Fo"$out"`, Deps: ninja.DepsMSVC,
+				Name: "cxx", Command: `"$cxx" $cxxflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CXX $out",
 			},
 			ninja.Rule{Name: "link", Command: `"$link" $in /OUT:"$out" $ldflags`, Description: "LINK $out"},
 			ninja.Rule{Name: "link_shared", Command: `"$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`, Description: "LINK_SHARED $out"},
 			ninja.Rule{Name: "ar", Command: `"$ar" /nologo /OUT:"$out" $in`, Description: "LIB $out"},
+			ninja.Rule{Name: "header_unit", Command: `"$cxx" @$out.rsp`, Rspfile: "$out.rsp", RspfileContent: "$huflags", Description: "HEADER_UNIT $out"},
 		)
 	} else {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-MD -MF $out.d $cflags -c $in -o $out",
-				Depfile: "$out.d", Deps: ninja.DepsGCC, Description: "CC $out",
+				Name: "cc", Command: "$cc @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "-MD -MF $object.d $cflags -c $source -o $object",
+				Depfile: "$object.d", Deps: ninja.DepsGCC, Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-MD -MF $out.d $cxxflags -c $in -o $out",
-				Depfile: "$out.d", Deps: ninja.DepsGCC, Description: "CXX $out",
+				Name: "cxx", Command: "$cxx @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "-MD -MF $object.d $cxxflags -c $source -o $object",
+				Depfile: "$object.d", Deps: ninja.DepsGCC, Description: "CXX $out",
+			},
+			ninja.Rule{
+				Name: "module_partition", Command: `$cxx @$object.rsp -x c++-module --precompile "$source" -o "$bmi" && $cxx @$object.rsp -MD -MF $object.d -c "$source" -o $object`,
+				Rspfile: "$object.rsp", RspfileContent: "$cxxflags", Depfile: "$object.d", Deps: ninja.DepsGCC, Description: "CXX_MODULE_PARTITION $out",
 			},
 			ninja.Rule{Name: "link", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
 			ninja.Rule{Name: "link_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
 			ninja.Rule{Name: "link_shared", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
 			ninja.Rule{Name: "link_shared_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
-			ninja.Rule{Name: "ar", Command: "$ar @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "crs $out $in", Description: "AR $out"},
+			ninja.Rule{Name: "ar", Command: "$ar crs $out $in", Description: "AR $out"},
+			ninja.Rule{Name: "header_unit", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$huflags", Description: "HEADER_UNIT $out"},
 		)
 	}
 	*file = append(*file, ninja.Rule{
@@ -1016,7 +1092,10 @@ func WriteNinjaTo(w io.Writer, opts NinjaOptions) error {
 	addNinjaRules(&file, toolchain.Name() == "msvc")
 	file = append(file, ninja.Build{Rule: "phony", Out: []string{"force_external"}})
 
-	targetOrder := getSortedTargetNames(opts.Config)
+	targetOrder, err := config.GetBuildOrder(opts.Config)
+	if err != nil {
+		return err
+	}
 	variantOutputs := make(map[string][]string)
 
 	for variantIndex, variant := range opts.Variants {

@@ -6,6 +6,11 @@ package config
 	type:    "executable" | "static_library" | "shared_library" | "interface_library" | "custom"
 	sources?: [...string]
 	headers?: [...string]
+	headerUnits?: [...{
+		name: string & != ""
+		path?: string
+		system?: bool | *false
+	}]
 	includes?: [...string]
 	systemIncludes?: [...string]
 	defines?: [...string]

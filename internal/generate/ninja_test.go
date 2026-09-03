@@ -129,18 +129,65 @@ func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
 }
 
 func TestTargetModules_WiresProducedBMIsToConsumers(t *testing.T) {
+	tc, err := build.NewToolchain("clang", toolchain.HostPlatform())
+	if err != nil {
+		t.Fatal(err)
+	}
 	modules := targetModules{
 		bySource: map[string]build.ModuleDependency{
 			"hello.cppm": {Source: "hello.cppm", Provides: "hello"},
 			"main.cpp":   {Source: "main.cpp", Requires: []string{"hello"}},
 		},
-		outputs: map[string]string{"hello": ".build/debug/app/modules/hello.pcm"},
+		outputs: map[string]string{"hello": ".build/debug/app/modules/hello.pcm"}, toolchain: tc,
 	}
-	if got := strings.Join(modules.flags("main.cpp"), " "); got != "-fmodule-file=hello=.build/debug/app/modules/hello.pcm" {
+	if got := strings.Join(modules.flags("main.cpp"), " "); got != "-fcxx-modules -fmodule-file=hello=.build/debug/app/modules/hello.pcm" {
 		t.Fatalf("consumer flags = %q", got)
 	}
 	if got := modules.inputs("main.cpp"); len(got) != 1 || got[0] != ".build/debug/app/modules/hello.pcm" {
 		t.Fatalf("consumer inputs = %v", got)
+	}
+}
+
+func TestNinja_CrossTargetModulesAndHeaderUnits(t *testing.T) {
+	dir := t.TempDir()
+	for name, content := range map[string]string{
+		"math.cppm":       "export module math;\nimport :detail;\nexport int answer();\n",
+		"math-detail.cpp": "module math:detail;\n",
+		"main.cpp":        "import math;\nimport \"answer.hpp\";\nint main() { return answer(); }\n",
+		"answer.hpp":      "inline int header_answer() { return 42; }\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	cfg := createMinimalConfig("modules", "static_library", []string{"math.cppm", "math-detail.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"modules"},
+		HeaderUnits: []config.HeaderUnit{{Name: "answer.hpp", Path: "answer.hpp"}},
+	}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(&output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang", Platform: toolchain.HostPlatform(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	for _, want := range []string{
+		"rule header_unit",
+		"rule module_partition",
+		".build/debug/modules/modules/math.pcm",
+		".build/debug/modules/modules/math@detail.pcm",
+		"-fmodule-file=math=.build/debug/modules/modules/math.pcm",
+		"-fmodule-file=.build/debug/app/modules/header-answer.hpp-",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Ninja output missing %q:\n%s", want, content)
+		}
 	}
 }
 
@@ -181,8 +228,8 @@ func TestNinja_Depfile(t *testing.T) {
 	content := buf.String()
 
 	// Verify depfile in cc rule
-	if !strings.Contains(content, "depfile = $out.d") {
-		t.Error("Missing depfile = $out.d in rules")
+	if !strings.Contains(content, "depfile = $object.d") {
+		t.Error("Missing depfile = $object.d in rules")
 	}
 
 	// Verify deps = gcc
@@ -191,8 +238,8 @@ func TestNinja_Depfile(t *testing.T) {
 	}
 
 	// Verify -MD -MF in command
-	if !strings.Contains(content, "-MD -MF $out.d") {
-		t.Error("Missing -MD -MF $out.d in compile command")
+	if !strings.Contains(content, "-MD -MF $object.d") {
+		t.Error("Missing -MD -MF $object.d in compile command")
 	}
 }
 
@@ -284,8 +331,8 @@ func TestNinja_StaticLibrary(t *testing.T) {
 	}
 
 	// Verify ar command
-	if !strings.Contains(content, "command = $ar @$out.rsp") || !strings.Contains(content, "rspfile_content = crs $out $in") {
-		t.Error("Missing response-file ar command")
+	if !strings.Contains(content, "command = $ar crs $out $in") {
+		t.Error("Missing ar command")
 	}
 
 	// Verify library output uses ar rule
@@ -642,7 +689,7 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 
 	file := ninja.File{}
 	addNinjaRules(&file, true)
-	if _, err := generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true); err != nil {
+	if _, err := generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true, make(map[string]map[string]string)); err != nil {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
@@ -651,7 +698,7 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	}
 	content := buf.String()
 	checks := []string{
-		`command = "$cc" $cflags /c $in /Fo"$out"`,
+		`command = "$cc" $cflags /c "$source" /Fo"$object"`,
 		"deps = msvc",
 		`/std:c++20 /Iinclude /I"C:\Program Files\VS\include" /IC:\SDK\include /DBUILDING_LIB`,
 		`command = "$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`,
@@ -941,7 +988,7 @@ func TestNinjaUsesResponseFilesForGCCStyleCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := output.String()
-	for _, want := range []string{"command = $cxx @$out.rsp", "rspfile = $out.rsp", "rspfile_content = $in -o $out $ldflags"} {
+	for _, want := range []string{"command = $cxx @$object.rsp", "rspfile = $object.rsp", "rspfile_content = $in -o $out $ldflags"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, content)
 		}

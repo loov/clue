@@ -51,15 +51,50 @@ type Result struct {
 
 // Builder orchestrates the build process
 type Builder struct {
-	executor         *Executor
-	compiler         *Compiler
-	linker           *Linker
-	cacheManager     *cache.Manager
-	parallelCompiler *ParallelCompiler
-	toolchain        Toolchain
-	target           Platform
-	depResults       map[string]*DepBuildResult // Built dependencies
-	profiler         *profile.Profiler
+	executor            *Executor
+	compiler            *Compiler
+	linker              *Linker
+	cacheManager        *cache.Manager
+	parallelCompiler    *ParallelCompiler
+	toolchain           Toolchain
+	target              Platform
+	depResults          map[string]*DepBuildResult // Built dependencies
+	profiler            *profile.Profiler
+	targetModuleOutputs map[string]map[string]string
+}
+
+func dependencyModuleOutputs(cfg *config.Config, target config.Target, outputs map[string]map[string]string) (map[string]string, error) {
+	result := make(map[string]string)
+	seen := make(map[string]bool)
+	var visit func(string) error
+	visit = func(name string) error {
+		if seen[name] {
+			return nil
+		}
+		seen[name] = true
+		dependency, ok := cfg.Targets[name]
+		if !ok {
+			return nil
+		}
+		for module, path := range outputs[name] {
+			if previous, exists := result[module]; exists && previous != path {
+				return fmt.Errorf("module %q is provided by multiple dependencies", module)
+			}
+			result[module] = path
+		}
+		for _, child := range dependency.Depends {
+			if err := visit(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, name := range target.Depends {
+		if err := visit(name); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
@@ -254,7 +289,7 @@ func (b *Builder) addRuntimeLibraryPaths(cfg *Config, output string, paths []str
 
 // BuildTarget builds a single target
 func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.Target, progress *Progress) (*TargetResult, error) {
-	if target.Type == "interface_library" {
+	if target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return &TargetResult{Name: target.Name, Type: target.Type, Success: true}, nil
 	}
 	if target.Type == "custom" {
@@ -317,8 +352,20 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, externalUsage.CompilerFlags...)
 
 	// Module compilation setup
+	if b.targetModuleOutputs == nil {
+		b.targetModuleOutputs = make(map[string]map[string]string)
+	}
+	availableModules, err := dependencyModuleOutputs(opts.Config, target, b.targetModuleOutputs)
+	if err != nil {
+		return nil, err
+	}
 	var orderedModules []string
 	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
+	localModuleOutputs := make(map[string]string)
+	for _, unit := range target.HeaderUnits {
+		name := HeaderUnitName(unit.Name, unit.System)
+		localModuleOutputs[name] = ModuleOutputPathFor(b.toolchain, bmiDir, name)
+	}
 	moduleDeps, err := ScanModuleDependencies(b.toolchain, target.Sources, CompileOptions{
 		Includes:       includes,
 		SystemIncludes: usage.SystemIncludes,
@@ -330,13 +377,34 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		return nil, fmt.Errorf("module dependency scan failed: %w", err)
 	}
 
-	if len(moduleDeps) > 0 {
+	moduleInfo := make(map[string]ModuleDependency, len(moduleDeps))
+	for _, dependency := range moduleDeps {
+		moduleInfo[dependency.Source] = dependency
+		if dependency.Provides == "" {
+			continue
+		}
+		if _, exists := localModuleOutputs[dependency.Provides]; exists {
+			return nil, fmt.Errorf("module %q is provided more than once in target %q", dependency.Provides, target.Name)
+		}
+		localModuleOutputs[dependency.Provides] = ModuleOutputPathFor(b.toolchain, bmiDir, dependency.Provides)
+	}
+	allModuleOutputs := make(map[string]string, len(availableModules)+len(localModuleOutputs))
+	for name, output := range availableModules {
+		allModuleOutputs[name] = output
+	}
+	for name, output := range localModuleOutputs {
+		if previous, exists := allModuleOutputs[name]; exists && previous != output {
+			return nil, fmt.Errorf("module %q is provided by target %q and one of its dependencies", name, target.Name)
+		}
+		allModuleOutputs[name] = output
+	}
+
+	if len(moduleDeps) > 0 || len(target.HeaderUnits) > 0 {
 		if opts.Verbosity == VerbosityVerbose {
 			fmt.Printf("Detected %d module source(s)\n", len(moduleDeps))
 		}
 
-		// Order module sources
-		orderedModules, err = OrderModuleCompilation(moduleDeps)
+		orderedModules, err = OrderModuleCompilationWithProviders(moduleDeps, allModuleOutputs)
 		if err != nil {
 			return nil, err
 		}
@@ -348,6 +416,32 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		// Create BMI directory
 		if err := os.MkdirAll(bmiDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create BMI directory: %w", err)
+		}
+		mapper := ""
+		if b.toolchain.Name() == "gcc" {
+			mapper = filepath.Join(bmiDir, "modules.mapper")
+			if err := WriteModuleMapper(mapper, allModuleOutputs); err != nil {
+				return nil, fmt.Errorf("write GCC module mapper: %w", err)
+			}
+		}
+		builtHeaderUnits := make(map[string]string, len(availableModules)+len(target.HeaderUnits))
+		for name, output := range availableModules {
+			builtHeaderUnits[name] = output
+		}
+		for _, unit := range target.HeaderUnits {
+			name := HeaderUnitName(unit.Name, unit.System)
+			if opts.Verbosity == VerbosityVerbose {
+				fmt.Printf("Compiling header unit: %s\n", name)
+			}
+			if err := b.compiler.CompileHeaderUnit(ctx, HeaderUnitOptions{
+				Source: unit.Path, Name: name, System: unit.System, Output: localModuleOutputs[name],
+				Includes: includes, SystemIncludes: usage.SystemIncludes, Defines: defines,
+				Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
+				ModuleFiles: builtHeaderUnits, ModuleMapper: mapper,
+			}); err != nil {
+				return nil, err
+			}
+			builtHeaderUnits[name] = localModuleOutputs[name]
 		}
 	}
 
@@ -375,13 +469,9 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			fmt.Printf("Compilation order: %v\n", sourcesToCompile)
 		}
 	}
-	moduleInfo := make(map[string]ModuleDependency, len(moduleDeps))
-	moduleOutputs := make(map[string]string, len(moduleDeps))
-	for _, dependency := range moduleDeps {
-		moduleInfo[dependency.Source] = dependency
-		if dependency.Provides != "" {
-			moduleOutputs[dependency.Provides] = ModuleOutputPath(bmiDir, dependency.Provides)
-		}
+	mapper := ""
+	if b.toolchain.Name() == "gcc" && len(allModuleOutputs) > 0 {
+		mapper = filepath.Join(bmiDir, "modules.mapper")
 	}
 
 	// Collect compile options for all sources that need rebuilding
@@ -412,12 +502,21 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			TargetType:     target.Type,
 		}
 		if module, ok := moduleInfo[source]; ok {
-			compileOpts.ModuleOutput = moduleOutputs[module.Provides]
+			compileOpts.ModuleAware = true
+			compileOpts.ModuleOutput = localModuleOutputs[module.Provides]
+			compileOpts.ModuleName = module.Provides
+			compileOpts.InternalPartition = module.InternalPartition
+			compileOpts.ModuleMapper = mapper
+			compileOpts.ModuleFiles = make(map[string]string, len(availableModules)+len(target.HeaderUnits))
+			for name, output := range availableModules {
+				compileOpts.ModuleFiles[name] = output
+			}
+			for _, unit := range target.HeaderUnits {
+				name := HeaderUnitName(unit.Name, unit.System)
+				compileOpts.ModuleFiles[name] = localModuleOutputs[name]
+			}
 			for _, required := range module.Requires {
-				if pcm, ok := moduleOutputs[required]; ok {
-					if compileOpts.ModuleFiles == nil {
-						compileOpts.ModuleFiles = make(map[string]string)
-					}
+				if pcm, ok := allModuleOutputs[required]; ok {
 					compileOpts.ModuleFiles[required] = pcm
 				}
 			}
@@ -677,6 +776,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	duration := time.Since(start)
 
 	// Get cache stats from progress
+	b.targetModuleOutputs[target.Name] = localModuleOutputs
 	_, cachedCount := progress.Stats()
 	progress.Complete(outputPath, len(target.Sources), cachedCount, duration)
 
@@ -714,6 +814,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 
 	// Initialize cache manager
 	var err error
+	b.targetModuleOutputs = make(map[string]map[string]string)
 	b.cacheManager, err = cache.NewManager(opts.BuildDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize cache manager: %w", err)
