@@ -64,7 +64,7 @@ func TestNeedsRebuild_ReturnsTrueForMissingEntry(t *testing.T) {
 		filepath.Join(buildDir, "test.o"),
 		[]string{},
 		[]string{},
-		"/usr/bin/clang",
+		os.Args[0],
 		false,
 	)
 
@@ -106,7 +106,7 @@ func TestNeedsRebuild_ReturnsTrueWhenForced(t *testing.T) {
 		filepath.Join(buildDir, "test.o"),
 		[]string{},
 		[]string{},
-		"/usr/bin/clang",
+		os.Args[0],
 		true, // forceRebuild
 	)
 
@@ -160,8 +160,8 @@ func TestStoreResult_PersistsCompileInputs(t *testing.T) {
 		t.Fatalf("failed to write dep file: %v", err)
 	}
 
-	// Create fake compiler
-	compilerPath := "/usr/bin/clang"
+	// Any existing executable provides stable compiler metadata for this test.
+	compilerPath := os.Args[0]
 
 	// Generate flags using toolchain
 	flags := toolchain.OptimizationFlag("fast")
@@ -260,7 +260,7 @@ func TestNeedsRebuild_ReturnsTrueWhenSourceChanges(t *testing.T) {
 		t.Fatalf("failed to write dep file: %v", err)
 	}
 
-	compilerPath := "/usr/bin/clang"
+	compilerPath := os.Args[0]
 
 	// Store the result
 	err = cm.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
@@ -571,7 +571,7 @@ func TestNeedsRebuild_ReturnsTrueWhenObjectIsMissing(t *testing.T) {
 		t.Fatalf("failed to write dep file: %v", err)
 	}
 
-	compilerPath := "/usr/bin/clang"
+	compilerPath := os.Args[0]
 
 	// Store result
 	err = cm.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
@@ -631,7 +631,7 @@ func TestNeedsRebuild_ReturnsTrueWhenDependencyFileIsMissing(t *testing.T) {
 		t.Fatalf("failed to write dep file: %v", err)
 	}
 
-	compilerPath := "/usr/bin/clang"
+	compilerPath := os.Args[0]
 
 	// Store result
 	err = cm.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
@@ -691,7 +691,7 @@ func TestNeedsRebuild_ReturnsTrueWhenFlagsChange(t *testing.T) {
 		t.Fatalf("failed to write dep file: %v", err)
 	}
 
-	compilerPath := "/usr/bin/clang"
+	compilerPath := os.Args[0]
 
 	// Store result with one set of flags
 	flags1 := []string{"-DFIRST", "-DSECOND"}
