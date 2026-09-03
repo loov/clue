@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Test
+        run: go test ./...
+      - name: Build release archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "tag must be a semantic version such as v1.2.3 or v1.2.3-rc.1" >&2
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            name="clue-${version}-${os}-${arch}"
+            binary="clue"
+            if [[ "$os" == windows ]]; then binary="clue.exe"; fi
+            work="$RUNNER_TEMP/$name"
+            mkdir -p "$work"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
+              -ldflags="-s -w -X main.version=$version" -o "$work/$binary" .
+            if [[ "$os" == windows ]]; then
+              (cd "$work" && zip -q "$GITHUB_WORKSPACE/dist/$name.zip" "$binary")
+            else
+              tar -C "$work" -czf "dist/$name.tar.gz" "$binary"
+            fi
+          done
+          (cd dist && sha256sum clue-* > checksums.txt)
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          flags=(--verify-tag --generate-notes --title "Clue $GITHUB_REF_NAME")
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" dist/* "${flags[@]}"

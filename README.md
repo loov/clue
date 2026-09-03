@@ -10,6 +10,9 @@ Install from source:
 go install github.com/loov/clue@latest
 ```
 
+Tagged versions are also available as Linux, macOS, and Windows archives with
+SHA-256 checksums on the [GitHub releases page](https://github.com/loov/clue/releases).
+
 Or build locally for development:
 
 ```bash
