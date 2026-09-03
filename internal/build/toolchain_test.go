@@ -12,6 +12,10 @@ import (
 
 func TestNewToolchain_CreatesNativeCompiler(t *testing.T) {
 	host := toolchain.HostPlatform()
+	clangAR := "ar"
+	if host.OS == "windows" {
+		clangAR = "llvm-ar"
+	}
 
 	tests := []struct {
 		name         string
@@ -26,7 +30,7 @@ func TestNewToolchain_CreatesNativeCompiler(t *testing.T) {
 			toolchain:    "clang",
 			expectedCC:   "clang",
 			expectedCXX:  "clang++",
-			expectedAR:   "ar",
+			expectedAR:   clangAR,
 			expectedName: "clang",
 		},
 		{
