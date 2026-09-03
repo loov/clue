@@ -2,6 +2,7 @@ package generate
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +39,7 @@ func TestNinja_ProducesDeterministicOutput(t *testing.T) {
 
 	// Create CUE config with absolute path
 	mainPath := filepath.Join(tmpDir, "main.cpp")
-	cueConfig := `name: "ninja-test"
+	cueConfig := fmt.Sprintf(`name: "ninja-test"
 toolchain: {
     compiler: "clang"
     std: "c++17"
@@ -47,13 +48,13 @@ targets: {
     myapp: {
         name: "myapp"
         type: "executable"
-        sources: ["` + mainPath + `"]
+        sources: [%q]
     }
 }
 variants: {
     debug: { name: "debug", debug_info: true }
 }
-`
+`, mainPath)
 	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
@@ -341,7 +342,7 @@ func TestNinja_SharedLibraryBuildsRunnableConsumer(t *testing.T) {
 
 	// Create CUE config with absolute path
 	libPath := filepath.Join(tmpDir, "lib.cpp")
-	cueConfig := `name: "ninja-shared-test"
+	cueConfig := fmt.Sprintf(`name: "ninja-shared-test"
 toolchain: {
     compiler: "clang"
     std: "c++17"
@@ -350,13 +351,13 @@ targets: {
     mysharedlib: {
         name: "mysharedlib"
         type: "shared_library"
-        sources: ["` + libPath + `"]
+        sources: [%q]
     }
 }
 variants: {
     debug: { name: "debug", debug_info: true }
 }
-`
+`, libPath)
 	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}

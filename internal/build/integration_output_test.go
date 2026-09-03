@@ -2,6 +2,7 @@ package build
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,7 +48,7 @@ int main() {
 	// Create CUE config with absolute paths
 	libPath := filepath.Join(tmpDir, "lib.cpp")
 	mainPath := filepath.Join(tmpDir, "main.cpp")
-	cueConfig := `name: "sharedlib-test"
+	cueConfig := fmt.Sprintf(`name: "sharedlib-test"
 
 toolchain: {
     compiler: "clang"
@@ -58,16 +59,16 @@ targets: {
     mylib: {
         name: "mylib"
         type: "shared_library"
-        sources: ["` + libPath + `"]
+        sources: [%q]
     }
     myapp: {
         name: "myapp"
         type: "executable"
-        sources: ["` + mainPath + `"]
+        sources: [%q]
         depends: ["mylib"]
     }
 }
-`
+`, libPath, mainPath)
 	if err := os.WriteFile(filepath.Join(tmpDir, "clue.cue"), []byte(cueConfig), 0o644); err != nil {
 		t.Fatalf("failed to write clue.cue: %v", err)
 	}
