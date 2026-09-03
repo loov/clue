@@ -70,8 +70,8 @@ func targetTypeToNodeType(targetType string) graph.NodeType {
 	}
 }
 
-// GetBuildOrder returns targets in dependency order (dependencies first)
-func GetBuildOrder(cfg *Config) ([]string, error) {
+// ComputeBuildOrder returns targets in dependency order (dependencies first).
+func ComputeBuildOrder(cfg *Config) ([]string, error) {
 	g, err := BuildGraphFromConfig(cfg)
 	if err != nil {
 		return nil, err

@@ -15,7 +15,7 @@ type linkInput struct {
 
 func linkFingerprint(tc Toolchain, tool string, options any, inputs []string) ([]byte, error) {
 	toolPath := toolIdentityPath(tc, tool)
-	toolID, _ := cache.GetCompilerIdentity(toolPath)
+	toolID, _ := cache.ComputeCompilerIdentity(toolPath)
 	files := make([]linkInput, 0, len(inputs))
 	for _, path := range inputs {
 		hash, err := cache.ComputeFileHash(path)

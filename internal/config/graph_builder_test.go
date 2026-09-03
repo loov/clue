@@ -166,7 +166,7 @@ func TestBuildGraphUnknownDependency(t *testing.T) {
 	}
 }
 
-func TestGetBuildOrder(t *testing.T) {
+func TestComputeBuildOrder_OrdersDependenciesFirst(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -197,7 +197,7 @@ func TestGetBuildOrder(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	order, err := GetBuildOrder(cfg)
+	order, err := ComputeBuildOrder(cfg)
 	if err != nil {
 		t.Fatalf("GetBuildOrder failed: %v", err)
 	}

@@ -243,7 +243,7 @@ func runValidate(dir, variant, target string, verbosity build.Verbosity) int {
 	_ = selectedVariant // Not used in validate
 
 	// Build dependency graph
-	order, err := config.GetBuildOrder(cfg)
+	order, err := config.ComputeBuildOrder(cfg)
 	if err != nil {
 		printError(err)
 		return 1

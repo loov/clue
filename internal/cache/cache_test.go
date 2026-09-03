@@ -70,7 +70,7 @@ func TestComputeFileHash(t *testing.T) {
 	})
 }
 
-func TestGetCompilerIdentity(t *testing.T) {
+func TestComputeCompilerIdentity_ReportsFileMetadataAndMissingFiles(t *testing.T) {
 	// Use go binary as test compiler (known to exist)
 	goBinary, err := os.Executable()
 	if err != nil {
@@ -78,7 +78,7 @@ func TestGetCompilerIdentity(t *testing.T) {
 	}
 
 	t.Run("returns compiler identity", func(t *testing.T) {
-		identity, err := GetCompilerIdentity(goBinary)
+		identity, err := ComputeCompilerIdentity(goBinary)
 		if err != nil {
 			t.Fatalf("GetCompilerIdentity failed: %v", err)
 		}
@@ -97,7 +97,7 @@ func TestGetCompilerIdentity(t *testing.T) {
 	})
 
 	t.Run("returns error for nonexistent compiler", func(t *testing.T) {
-		_, err := GetCompilerIdentity("/nonexistent/compiler")
+		_, err := ComputeCompilerIdentity("/nonexistent/compiler")
 		if err == nil {
 			t.Error("expected error for nonexistent compiler")
 		}

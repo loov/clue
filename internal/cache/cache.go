@@ -34,5 +34,5 @@ func ComputeFileHash(path string) (string, error) {
 	return hex.EncodeToString(hashBytes[:]), nil
 }
 
-// GetCompilerIdentity returns the identity of a compiler binary
-var GetCompilerIdentity = toolchain.GetCompilerIdentity
+// ComputeCompilerIdentity returns the identity of a compiler binary.
+var ComputeCompilerIdentity = toolchain.ComputeCompilerIdentity

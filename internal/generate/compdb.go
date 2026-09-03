@@ -76,7 +76,7 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 	var commands []CompileCommand
 
 	// Add commands for all project targets
-	targetOrder, err := config.GetBuildOrder(opts.Config)
+	targetOrder, err := config.ComputeBuildOrder(opts.Config)
 	if err != nil {
 		return err
 	}

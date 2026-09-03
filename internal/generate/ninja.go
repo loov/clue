@@ -1066,7 +1066,7 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	addNinjaRules(&file, toolchain.Name() == "msvc")
 	file = append(file, ninja.Build{Rule: "phony", Out: []string{"force_external"}})
 
-	targetOrder, err := config.GetBuildOrder(opts.Config)
+	targetOrder, err := config.ComputeBuildOrder(opts.Config)
 	if err != nil {
 		return err
 	}

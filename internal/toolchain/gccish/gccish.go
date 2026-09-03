@@ -106,7 +106,7 @@ func (t *Toolchain) String() string {
 
 // Identity returns the compiler identity for cache keys.
 func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
-	return toolchain.GetCompilerIdentity(t.cc)
+	return toolchain.ComputeCompilerIdentity(t.cc)
 }
 
 // CompilerFlags generates compiler flags shared by GCC and Clang.

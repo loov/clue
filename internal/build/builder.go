@@ -825,7 +825,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// Get build order from config
-	buildOrder, err := config.GetBuildOrder(opts.Config)
+	buildOrder, err := config.ComputeBuildOrder(opts.Config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine build order: %w", err)
 	}

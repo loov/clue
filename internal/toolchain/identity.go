@@ -14,9 +14,9 @@ type CompilerIdentity struct {
 	Size  int64  `json:"size"`  // File size in bytes
 }
 
-// GetCompilerIdentity returns the identity of a compiler binary.
+// ComputeCompilerIdentity returns the identity of a compiler binary.
 // This is used by Toolchain implementations to provide cache keys.
-func GetCompilerIdentity(compilerPath string) (CompilerIdentity, error) {
+func ComputeCompilerIdentity(compilerPath string) (CompilerIdentity, error) {
 	info, err := os.Stat(compilerPath)
 	if err != nil {
 		return CompilerIdentity{}, fmt.Errorf("failed to stat compiler %s: %w", compilerPath, err)

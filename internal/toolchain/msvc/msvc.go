@@ -186,7 +186,7 @@ func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
 	// The captured environment PATH contains the cl.exe location
 	fullPath := t.findToolFullPath("cl.exe")
 	if fullPath != "" {
-		return toolchain.GetCompilerIdentity(fullPath)
+		return toolchain.ComputeCompilerIdentity(fullPath)
 	}
 
 	// Fallback: use the version from installation for a synthetic identity
@@ -244,10 +244,10 @@ func envMapToSlice(env map[string]string) []string {
 	return result
 }
 
-// GetVersion extracts the MSVC compiler version from cl.exe output.
+// DetectVersion extracts the MSVC compiler version from cl.exe output.
 // The banner format is: "Microsoft (R) C/C++ Optimizing Compiler Version 19.40..."
 // This is used for display purposes; Identity() uses file stats for cache keys.
-func GetVersion(installation *Installation) (string, error) {
+func DetectVersion(installation *Installation) (string, error) {
 	if installation == nil {
 		return "", fmt.Errorf("nil installation")
 	}

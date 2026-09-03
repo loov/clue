@@ -137,7 +137,7 @@ func (cm *Manager) NeedsRebuild(
 	}
 
 	// Get current compiler identity
-	compilerID, err := GetCompilerIdentity(compilerPath)
+	compilerID, err := ComputeCompilerIdentity(compilerPath)
 	if err != nil {
 		return true, ReasonCompilerChanged, ""
 	}
@@ -253,7 +253,7 @@ func (cm *Manager) StoreResult(
 	}
 
 	// Get compiler identity
-	compilerID, err := GetCompilerIdentity(compilerPath)
+	compilerID, err := ComputeCompilerIdentity(compilerPath)
 	if err != nil {
 		return fmt.Errorf("failed to get compiler identity: %w", err)
 	}
