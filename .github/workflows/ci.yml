@@ -30,6 +30,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends clang-tools-22
           echo /usr/lib/llvm-22/bin >> "$GITHUB_PATH"
       - run: make lint
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
       - run: go test -race ./...
 
   platform:
