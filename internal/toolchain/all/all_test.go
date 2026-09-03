@@ -54,6 +54,19 @@ func TestNewToolchain_CreatesClangCompiler(t *testing.T) {
 	}
 }
 
+func TestNewConfiguredToolchain_ClangWindows_UsesLLVMArchiver(t *testing.T) {
+	target := toolchain.Platform{OS: "windows", Arch: "amd64"}
+	tc, err := NewConfiguredToolchain("clang", target, Config{
+		CC: "clang", CXX: "clang++", TargetTriple: "x86_64-pc-windows-msvc",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tc.AR() != "llvm-ar" {
+		t.Fatalf("AR() = %q, want %q", tc.AR(), "llvm-ar")
+	}
+}
+
 func TestNewToolchain_RejectsUnknownCompiler(t *testing.T) {
 	host := toolchain.HostPlatform()
 

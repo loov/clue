@@ -45,7 +45,11 @@ func NewConfiguredToolchain(name string, target toolchain.Platform, config Confi
 		return tc, nil
 
 	case "clang":
-		tc := clang.New(configuredCommand(config.CC, "CC", prefix+"clang"), configuredCommand(config.CXX, "CXX", prefix+"clang++"), configuredArchive(config.AR, prefix+"ar"), target)
+		archiver := prefix + "ar"
+		if target.OS == "windows" && prefix == "" {
+			archiver = "llvm-ar"
+		}
+		tc := clang.New(configuredCommand(config.CC, "CC", prefix+"clang"), configuredCommand(config.CXX, "CXX", prefix+"clang++"), configuredArchive(config.AR, archiver), target)
 		tc.ConfigureTarget(config.TargetTriple, config.Sysroot)
 		return tc, nil
 
