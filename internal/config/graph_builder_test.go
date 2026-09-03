@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestBuildGraphFromConfig_ConnectsConfiguredDependencies(t *testing.T) {
+func TestComputeBuildOrder_ConnectsConfiguredDependencies(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -44,15 +44,9 @@ func TestBuildGraphFromConfig_ConnectsConfiguredDependencies(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	g, err := BuildGraphFromConfig(cfg)
+	order, err := ComputeBuildOrder(cfg)
 	if err != nil {
-		t.Fatalf("BuildGraphFromConfig failed: %v", err)
-	}
-
-	// Check topological order
-	order, err := g.TopologicalOrder()
-	if err != nil {
-		t.Fatalf("TopologicalOrder failed: %v", err)
+		t.Fatalf("ComputeBuildOrder failed: %v", err)
 	}
 
 	// Verify dependencies come before dependents
@@ -84,7 +78,7 @@ func TestBuildGraphFromConfig_ConnectsConfiguredDependencies(t *testing.T) {
 	}
 }
 
-func TestBuildGraphFromConfig_RejectsCycle(t *testing.T) {
+func TestComputeBuildOrder_RejectsCycle(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -122,7 +116,7 @@ func TestBuildGraphFromConfig_RejectsCycle(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	_, err = BuildGraphFromConfig(cfg)
+	_, err = ComputeBuildOrder(cfg)
 	if err == nil {
 		t.Fatal("Expected cycle detection error")
 	}
@@ -131,7 +125,7 @@ func TestBuildGraphFromConfig_RejectsCycle(t *testing.T) {
 	}
 }
 
-func TestBuildGraphFromConfig_RejectsUnknownDependency(t *testing.T) {
+func TestComputeBuildOrder_RejectsUnknownDependency(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "clue.cue")
 
@@ -157,7 +151,7 @@ func TestBuildGraphFromConfig_RejectsUnknownDependency(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	_, err = BuildGraphFromConfig(cfg)
+	_, err = ComputeBuildOrder(cfg)
 	if err == nil {
 		t.Fatal("Expected unknown dependency error")
 	}

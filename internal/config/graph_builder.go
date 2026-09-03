@@ -1,80 +1,44 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
-	"github.com/loov/clue/internal/graph"
+	"github.com/dominikbraun/graph"
 )
-
-// BuildGraphFromConfig constructs a dependency graph from parsed configuration
-func BuildGraphFromConfig(cfg *Config) (*graph.BuildGraph, error) {
-	builder := graph.NewBuilder()
-
-	// Add all targets as nodes
-	for name, target := range cfg.Targets {
-		nodeType := targetTypeToNodeType(target.Type)
-		node := graph.Node{
-			ID:   name,
-			Type: nodeType,
-			Path: "", // Will be set during build phase
-			Metadata: map[string]any{
-				"sources":  target.Sources,
-				"headers":  target.Headers,
-				"includes": target.Includes,
-				"defines":  target.Defines,
-				"flags":    target.Flags,
-			},
-		}
-		if err := builder.AddNode(node); err != nil {
-			return nil, fmt.Errorf("failed to add target %q: %w", name, err)
-		}
-	}
-
-	// Add dependency edges
-	for name, target := range cfg.Targets {
-		for _, dep := range target.Depends {
-			// Check if it's a target dependency (not an external dependency)
-			if _, exists := cfg.Targets[dep]; exists {
-				// Target-to-target dependency - add edge to build graph
-				builder.AddDependency(name, dep)
-			} else if _, exists := cfg.Dependencies[dep]; !exists {
-				// Not a target dependency and not an external dependency - unknown
-				return nil, fmt.Errorf("target %q depends on unknown target %q", name, dep)
-			}
-			// External dependencies are handled separately in the builder
-		}
-	}
-
-	// Build the graph (will detect cycles)
-	g, err := builder.Build()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build dependency graph: %w", err)
-	}
-
-	return g, nil
-}
-
-// targetTypeToNodeType converts config target type to graph node type
-func targetTypeToNodeType(targetType string) graph.NodeType {
-	switch targetType {
-	case "executable":
-		return graph.NodeTypeExecutable
-	case "static_library", "interface_library":
-		return graph.NodeTypeStatic
-	case "shared_library":
-		return graph.NodeTypeShared
-	case "custom":
-		return graph.NodeTypeCommand
-	default:
-		return graph.NodeTypeExecutable // Default fallback
-	}
-}
 
 // ComputeBuildOrder returns targets in dependency order (dependencies first).
 func ComputeBuildOrder(cfg *Config) ([]string, error) {
-	g, err := BuildGraphFromConfig(cfg)
-	if err != nil {
-		return nil, err
+	g := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
+	names := slices.Sorted(maps.Keys(cfg.Targets))
+	for _, name := range names {
+		if err := g.AddVertex(name); err != nil {
+			return nil, fmt.Errorf("add target %q: %w", name, err)
+		}
 	}
-	return g.TopologicalOrder()
+
+	for _, name := range names {
+		for _, dependency := range cfg.Targets[name].Depends {
+			if _, ok := cfg.Targets[dependency]; ok {
+				if err := g.AddEdge(dependency, name); err != nil {
+					if errors.Is(err, graph.ErrEdgeCreatesCycle) {
+						return nil, fmt.Errorf("cyclic dependency detected: %s -> %s", name, dependency)
+					}
+					return nil, fmt.Errorf("add dependency %s -> %s: %w", name, dependency, err)
+				}
+				continue
+			}
+			if _, ok := cfg.Dependencies[dependency]; !ok {
+				return nil, fmt.Errorf("target %q depends on unknown target %q", name, dependency)
+			}
+		}
+	}
+
+	order, err := graph.StableTopologicalSort(g, func(a, b string) bool { return a < b })
+	if err != nil {
+		return nil, fmt.Errorf("compute build order: %w", err)
+	}
+	return order, nil
 }
