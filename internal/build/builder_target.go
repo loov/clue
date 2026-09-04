@@ -11,7 +11,6 @@ import (
 
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
-	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
 )
 
@@ -33,6 +32,10 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	targetPlan := plan.ForTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
 	target = targetPlan.Target
 	objDir, outputPath := targetPlan.ObjectDir, targetPlan.Output
+	dependencyPlan, err := b.resolveDependencies(opts, target)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create directories
 	if err := os.MkdirAll(objDir, 0o755); err != nil {
@@ -42,48 +45,9 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	// Build configuration from the shared plan.
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 
-	// Collect include paths from external dependencies.
-	includes := target.Includes
-	var externalUsage deps.Usage
-	seenIncludes := make(map[string]bool)
-	seenDependencies := make(map[string]bool)
-	var addDependencyIncludes func(string)
-	addDependencyIncludes = func(name string) {
-		if seenDependencies[name] {
-			return
-		}
-		seenDependencies[name] = true
-		result, ok := b.depResults[name]
-		if !ok {
-			if internal, exists := opts.Config.Targets[name]; exists {
-				for _, dependency := range internal.Depends {
-					addDependencyIncludes(dependency)
-				}
-			}
-			return
-		}
-		if result.IncludePath != "" && !seenIncludes[result.IncludePath] {
-			seenIncludes[result.IncludePath] = true
-			includes = append(includes, result.IncludePath)
-		}
-		for _, include := range result.Usage.Includes {
-			if !seenIncludes[include] {
-				seenIncludes[include] = true
-				externalUsage.Includes = append(externalUsage.Includes, include)
-			}
-		}
-		externalUsage.Defines = append(externalUsage.Defines, result.Usage.Defines...)
-		externalUsage.CompilerFlags = append(externalUsage.CompilerFlags, result.Usage.CompilerFlags...)
-		for _, dependency := range result.Depends {
-			addDependencyIncludes(dependency)
-		}
-	}
-	for _, dependency := range target.Depends {
-		addDependencyIncludes(dependency)
-	}
-	includes = append(includes, externalUsage.Includes...)
-	defines := append(append([]string(nil), target.Defines...), externalUsage.Defines...)
-	buildCfg.RawCompiler = append(buildCfg.RawCompiler, externalUsage.CompilerFlags...)
+	includes := append(target.Includes, dependencyPlan.Usage.Includes...)
+	defines := append(append([]string(nil), target.Defines...), dependencyPlan.Usage.Defines...)
+	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyPlan.Usage.CompilerFlags...)
 
 	// Module compilation setup
 	if b.targetModuleOutputs == nil {
@@ -320,28 +284,24 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	// Link or archive based on target type
 	switch target.Type {
 	case "executable":
-		dependencyUsage, err := b.dependencyLinkInputs(opts, target)
+		runtimeFlags, err := plan.RuntimeLibraryFlags(outputPath, dependencyPlan.SharedLibraryPaths, b.target)
 		if err != nil {
 			return nil, err
 		}
+		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyPlan.Usage.LinkerFlags...)
+		buildCfg.RawLinker = append(buildCfg.RawLinker, runtimeFlags...)
 
-		// Add rpath for shared library dependencies
-		if err := b.addRuntimeLibraryPaths(&buildCfg, outputPath, dependencyUsage.sharedLibPaths); err != nil {
-			return nil, err
-		}
-		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyUsage.flags...)
-
-		useCXX := b.targetUsesCXX(opts.Config, target)
+		useCXX := dependencyPlan.UsesCXX
 		linkOpts := linkOptions{
-			Objects:  append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
+			Objects:  append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
 			Output:   outputPath,
-			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyUsage.sysLibs...),
-			LibPaths: dependencyUsage.libPaths,
-			Libs:     dependencyUsage.libs,
+			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
+			LibPaths: dependencyPlan.LibraryPaths,
+			Libs:     dependencyPlan.Libraries,
 			Flags:    buildCfg,
 			UseCXX:   useCXX,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), linkOpts, append(objectFiles, dependencyUsage.artifacts...))
+		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), linkOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}
@@ -395,27 +355,25 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 	case "shared_library":
-		dependencyUsage, err := b.dependencyLinkInputs(opts, target)
+		runtimeFlags, err := plan.RuntimeLibraryFlags(outputPath, dependencyPlan.SharedLibraryPaths, b.target)
 		if err != nil {
 			return nil, err
 		}
-		if err := b.addRuntimeLibraryPaths(&buildCfg, outputPath, dependencyUsage.sharedLibPaths); err != nil {
-			return nil, err
-		}
-		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyUsage.flags...)
+		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyPlan.Usage.LinkerFlags...)
+		buildCfg.RawLinker = append(buildCfg.RawLinker, runtimeFlags...)
 
-		useCXX := b.targetUsesCXX(opts.Config, target)
+		useCXX := dependencyPlan.UsesCXX
 		sharedOpts := sharedLibraryOptions{
-			Objects:          append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
+			Objects:          append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
 			Output:           outputPath,
-			SysLibs:          append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyUsage.sysLibs...),
-			LibPaths:         dependencyUsage.libPaths,
-			Libs:             dependencyUsage.libs,
+			SysLibs:          append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
+			LibPaths:         dependencyPlan.LibraryPaths,
+			Libs:             dependencyPlan.Libraries,
 			Flags:            buildCfg,
 			SymbolVisibility: "default", // Could be configurable via target config later
 			UseCXX:           useCXX,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), sharedOpts, append(objectFiles, dependencyUsage.artifacts...))
+		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}

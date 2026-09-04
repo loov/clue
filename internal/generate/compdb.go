@@ -61,6 +61,10 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 	if err != nil {
 		return err
 	}
+	external, err := resolveExternalDependencies(ctx, opts.Config, tc, opts.BuildDir, opts.Variant, opts.Platform)
+	if err != nil {
+		return err
+	}
 
 	// Get variant config
 	variant, ok := opts.Config.Variants[opts.Variant]
@@ -79,7 +83,7 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 	targetModuleOutputs := make(map[string]map[string]string)
 	for _, name := range targetOrder {
 		target := opts.Config.Targets[name]
-		targetCommands, err := buildTargetCommands(ctx, workDir, opts, target, variant, tc, targetModuleOutputs)
+		targetCommands, err := buildTargetCommands(workDir, opts, target, variant, tc, targetModuleOutputs, external)
 		if err != nil {
 			return err
 		}
@@ -115,7 +119,7 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 }
 
 // buildTargetCommands creates compile commands for a target's sources
-func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain, targetModuleOutputs map[string]map[string]string) ([]CompileCommand, error) {
+func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain, targetModuleOutputs map[string]map[string]string, external map[string]plan.ExternalDependency) ([]CompileCommand, error) {
 	if target.Type == "custom" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
@@ -129,13 +133,13 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 	targetPlan := plan.ForTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
 	target = targetPlan.Target
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
-	dependencyUsage, err := targetDependencyUsage(ctx, opts.Config, target, tc)
+	dependencyPlan, err := plan.ResolveDependencies(opts.Config, target, opts.BuildDir, opts.Variant, opts.Platform, external)
 	if err != nil {
 		return nil, err
 	}
-	target.Defines = append(target.Defines, dependencyUsage.Defines...)
-	target.Includes = append(target.Includes, dependencyUsage.Includes...)
-	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
+	target.Defines = append(target.Defines, dependencyPlan.Usage.Defines...)
+	target.Includes = append(target.Includes, dependencyPlan.Usage.Includes...)
+	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyPlan.Usage.CompilerFlags...)
 	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
 	availableModules, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {

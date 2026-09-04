@@ -40,7 +40,11 @@ func Ninja(ctx context.Context, opts NinjaOptions) error {
 
 // generateVariantBuilds generates build statements for a single variant
 func generateVariantBuilds(ctx context.Context, file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, targetOrder []string, tc toolchain.Toolchain, emitSharedRules bool) ([]string, error) {
-	outputs, err := generateDependencyBuilds(ctx, file, opts, variant, variantConfig, tc, emitSharedRules)
+	external, err := resolveExternalDependencies(ctx, opts.Config, tc, opts.BuildDir, variant, opts.Platform)
+	if err != nil {
+		return nil, err
+	}
+	outputs, err := generateDependencyBuilds(ctx, file, opts, variant, variantConfig, tc, emitSharedRules, external)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +57,7 @@ func generateVariantBuilds(ctx context.Context, file *ninja.File, opts NinjaOpti
 		}
 
 		// Generate build statements for this target
-		targetOutputs, err := generateTargetBuilds(ctx, file, opts, variant, variantConfig, target, tc, emitSharedRules, targetModules)
+		targetOutputs, err := generateTargetBuilds(file, opts, variant, variantConfig, target, tc, emitSharedRules, targetModules, external)
 		if err != nil {
 			return nil, err
 		}

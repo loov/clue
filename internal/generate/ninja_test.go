@@ -568,17 +568,19 @@ Libs: -L${libdir} -lclue-sdk
 	}
 }
 
-func TestTargetDependencyUsage_CancellationStopsPkgConfig(t *testing.T) {
+func TestResolveExternalDependencies_CancellationStopsPkgConfig(t *testing.T) {
 	dependency := deps.NewPkgConfigDependency("sdk", "clue-sdk", false)
-	target := config.Target{Name: "app", Depends: []string{"sdk"}}
-	cfg := &config.Config{Dependencies: map[string]deps.Dependency{"sdk": dependency}}
+	cfg := &config.Config{
+		Targets:      map[string]config.Target{"app": {Name: "app", Depends: []string{"sdk"}}},
+		Dependencies: map[string]deps.Dependency{"sdk": dependency},
+	}
 	tc := gccish.New("clang", "clang", "clang++", "ar", toolchain.HostPlatform())
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := targetDependencyUsage(ctx, cfg, target, tc)
+	_, err := resolveExternalDependencies(ctx, cfg, tc, ".build", "debug", toolchain.HostPlatform())
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("targetDependencyUsage() error = %v, want context.Canceled", err)
+		t.Fatalf("resolveExternalDependencies() error = %v, want context.Canceled", err)
 	}
 }
 
@@ -736,7 +738,7 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 
 	file := ninja.File{}
 	addNinjaRules(&file, true)
-	if _, err := generateTargetBuilds(t.Context(), &file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true, make(map[string]map[string]string)); err != nil {
+	if _, err := generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true, make(map[string]map[string]string), nil); err != nil {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer

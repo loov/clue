@@ -15,7 +15,7 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, tc toolchain.Toolchain, emitFetchRules bool) ([]string, error) {
+func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, tc toolchain.Toolchain, emitFetchRules bool, external map[string]plan.ExternalDependency) ([]string, error) {
 	names := slices.Sorted(maps.Keys(opts.Config.Dependencies))
 
 	var outputs []string
@@ -95,11 +95,19 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 
 		output := ninjaPathLocal(dependencyOutputPath(opts.BuildDir, variant, dep, opts.Platform))
 		if resolved.Type == "shared_library" {
-			dependencyInputs, sharedPaths := externalDependencyLinkInputs(opts.Config, resolved.Depends, opts.BuildDir, variant, opts.Platform)
+			dependencyPlan, err := plan.ResolveDependencies(opts.Config, config.Target{Depends: resolved.Depends}, opts.BuildDir, variant, opts.Platform, external)
+			if err != nil {
+				return nil, err
+			}
+			dependencyInputs := ninjaArtifactPaths(dependencyPlan.Artifacts, opts.Platform)
 			inputs := append(objects, dependencyInputs...)
 			ldflags := buildSharedLibLinkerFlags(depTarget, nil, buildCfg, opts.Platform, tc)
 			ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
-			ldflags = append(ldflags, runtimeLibraryFlags(output, sharedPaths, opts.Platform)...)
+			runtimeFlags, err := runtimeLibraryFlags(output, dependencyPlan.SharedLibraryPaths, opts.Platform)
+			if err != nil {
+				return nil, err
+			}
+			ldflags = append(ldflags, runtimeFlags...)
 			rule := "link_shared_c"
 			if sourcesUseCXX(sources) {
 				rule = "link_shared"
@@ -195,50 +203,6 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 	return usage, nil
 }
 
-func targetDependencyUsage(ctx context.Context, cfg *config.Config, target config.Target, tc toolchain.Toolchain) (deps.Usage, error) {
-	var usage deps.Usage
-	seen := make(map[string]bool)
-	var visit func(string) error
-	visit = func(name string) error {
-		if seen[name] {
-			return nil
-		}
-		seen[name] = true
-		dep, ok := cfg.Dependencies[name]
-		if !ok {
-			if internal, exists := cfg.Targets[name]; exists {
-				for _, child := range internal.Depends {
-					if err := visit(child); err != nil {
-						return err
-					}
-				}
-			}
-			return nil
-		}
-		if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
-			resolved, err := resolvePkgConfig(ctx, pkg, tc)
-			if err != nil {
-				return err
-			}
-			mergeDependencyUsage(&usage, resolved)
-			return nil
-		}
-		usage.Includes = append(usage.Includes, deps.IncludePath(dep, dep.CachePath(".")))
-		for _, child := range dependencyDepends(dep) {
-			if err := visit(child); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	for _, name := range target.Depends {
-		if err := visit(name); err != nil {
-			return deps.Usage{}, err
-		}
-	}
-	return usage, nil
-}
-
 func resolvePkgConfig(ctx context.Context, pkg *deps.PkgConfigDependency, tc toolchain.Toolchain) (deps.Usage, error) {
 	return pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
 		return toolchain.Output(ctx, tc, ".", name, args...)
@@ -250,6 +214,75 @@ func mergeDependencyUsage(dst *deps.Usage, src deps.Usage) {
 	dst.Defines = append(dst.Defines, src.Defines...)
 	dst.CompilerFlags = append(dst.CompilerFlags, src.CompilerFlags...)
 	dst.LinkerFlags = append(dst.LinkerFlags, src.LinkerFlags...)
+}
+
+func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc toolchain.Toolchain, buildDir, variant string, platform toolchain.Platform) (map[string]plan.ExternalDependency, error) {
+	resolved := make(map[string]plan.ExternalDependency, len(cfg.Dependencies))
+	var roots []string
+	for _, name := range slices.Sorted(maps.Keys(cfg.Dependencies)) {
+		dependency := cfg.Dependencies[name]
+		if _, ok := dependency.(*deps.PkgConfigDependency); ok {
+			continue
+		}
+		build, err := deps.ResolveBuildConfig(dependency, dependency.CachePath("."))
+		if err != nil {
+			return nil, fmt.Errorf("dependency %q: %w", name, err)
+		}
+		resolved[name] = plan.ExternalDependency{
+			Name: name, Type: build.Type, Output: dependencyOutputPath(buildDir, variant, dependency, platform),
+			Include: deps.IncludePath(dependency, dependency.CachePath(".")), Depends: build.Depends,
+			RequiresCXX: sourcesUseCXX(build.Sources),
+		}
+		roots = append(roots, name)
+	}
+	for _, name := range slices.Sorted(maps.Keys(cfg.Targets)) {
+		target := cfg.Targets[name]
+		roots = append(roots, target.Depends...)
+	}
+	seen := make(map[string]bool)
+	var visit func(string) error
+	visit = func(name string) error {
+		if seen[name] {
+			return nil
+		}
+		seen[name] = true
+		if dependency, ok := resolved[name]; ok {
+			for _, child := range dependency.Depends {
+				if err := visit(child); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if target, ok := cfg.Targets[name]; ok {
+			for _, child := range target.Depends {
+				if err := visit(child); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		dependency, ok := cfg.Dependencies[name]
+		if !ok {
+			return nil
+		}
+		pkg, ok := dependency.(*deps.PkgConfigDependency)
+		if !ok {
+			return nil
+		}
+		usage, err := resolvePkgConfig(ctx, pkg, tc)
+		if err != nil {
+			return fmt.Errorf("dependency %q: %w", name, err)
+		}
+		resolved[name] = plan.ExternalDependency{Name: name, Type: "pkg_config", Usage: usage}
+		return nil
+	}
+	for _, name := range roots {
+		if err := visit(name); err != nil {
+			return nil, err
+		}
+	}
+	return resolved, nil
 }
 
 func targetCustomOutputs(cfg *config.Config, target config.Target) []string {
@@ -295,38 +328,4 @@ func externalDependencyOutputs(cfg *config.Config, names []string, buildDir, var
 		}
 	}
 	return outputs
-}
-
-func externalDependencyLinkInputs(cfg *config.Config, names []string, buildDir, variant string, platform toolchain.Platform) ([]string, []string) {
-	var inputs, sharedPaths []string
-	seen := map[string]bool{}
-	var visit func(string)
-	visit = func(name string) {
-		if seen[name] {
-			return
-		}
-		seen[name] = true
-		dep, ok := cfg.Dependencies[name]
-		if !ok {
-			return
-		}
-		if _, ok := dep.(*deps.PkgConfigDependency); ok {
-			return
-		}
-		targetType := dependencyTargetType(dep)
-		if rawOutput := dependencyOutputPath(buildDir, variant, dep, platform); rawOutput != "" {
-			output := ninjaPathLocal(rawOutput)
-			inputs = append(inputs, linkInputPath(output, targetType, platform))
-			if targetType == "shared_library" {
-				sharedPaths = append(sharedPaths, filepath.Dir(output))
-			}
-		}
-		for _, child := range dependencyDepends(dep) {
-			visit(child)
-		}
-	}
-	for _, name := range names {
-		visit(name)
-	}
-	return inputs, sharedPaths
 }
