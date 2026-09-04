@@ -431,8 +431,8 @@ func TestBuild_LinksSystemLibraries(t *testing.T) {
 		t.Fatalf("build failed: %v\nOutput:\n%s", err, output)
 	}
 
-	// Verify -lm appears in linker command
-	if !strings.Contains(string(output), "-lm") {
+	// Windows provides these C runtime symbols without a separate math library.
+	if runtime.GOOS != "windows" && !strings.Contains(string(output), "-lm") {
 		t.Errorf("expected linker command to contain -lm, got:\n%s", output)
 	}
 
