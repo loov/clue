@@ -27,6 +27,21 @@ type Target struct {
 func ForTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform toolchain.Platform) Target {
 	objectDir := objectDir(buildDir, variantName, target.Name)
 	usage := config.CompileUsage(cfg, target)
+	target.Includes = append([]string(nil), usage.Includes...)
+	target.SystemIncludes = append([]string(nil), usage.SystemIncludes...)
+	target.Defines = append(append([]string(nil), usage.Defines...), variant.Defines...)
+	if target.CStd == "" {
+		target.CStd = usage.CStd
+		if target.CStd == "" {
+			target.CStd = cfg.Toolchain.Standard("source.c")
+		}
+	}
+	if target.CXXStd == "" {
+		target.CXXStd = usage.CXXStd
+		if target.CXXStd == "" {
+			target.CXXStd = cfg.Toolchain.Standard("source.cpp")
+		}
+	}
 	flags := targetConfig(target, variant)
 	flags.RawCompiler = append(flags.RawCompiler, usage.CompilerFlags...)
 	flags.RawLinker = append(flags.RawLinker, usage.LinkerFlags...)

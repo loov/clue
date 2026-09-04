@@ -472,49 +472,43 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		return nil, err
 	}
 	targetPlan := plan.ForTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
+	target = targetPlan.Target
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 	dependencyUsage, err := targetDependencyUsage(ctx, opts.Config, target, tc)
 	if err != nil {
 		return nil, fmt.Errorf("target %q: %w", target.Name, err)
 	}
-	target.Defines = append(append(usage.Defines, dependencyUsage.Defines...), variantConfig.Defines...)
-	target.SystemIncludes = usage.SystemIncludes
-	if target.CStd == "" {
-		target.CStd = usage.CStd
-	}
-	if target.CXXStd == "" {
-		target.CXXStd = usage.CXXStd
-	}
+	target.Defines = append(target.Defines, dependencyUsage.Defines...)
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 
 	// Collect include paths
-	includes := append(usage.Includes, dependencyUsage.Includes...)
+	includes := append(target.Includes, dependencyUsage.Includes...)
 
 	var objects []string
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
 	buildDependencies := targetCustomOutputs(opts.Config, target)
 	bmiDir := filepath.Join(opts.BuildDir, variant, target.Name, "modules")
-	availableModules, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	availableModules, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {
 		return nil, err
 	}
-	headerOutputs := headerUnitOutputs(tc, target.HeaderUnits, bmiDir)
+	headerOutputs := plan.HeaderUnitOutputs(tc, target.HeaderUnits, bmiDir)
 	for name, output := range headerOutputs {
 		if _, exists := availableModules[name]; exists {
 			return nil, fmt.Errorf("header unit %q is also provided by a dependency target", name)
 		}
 		availableModules[name] = output
 	}
-	modules, err := resolveTargetModules(tc, target.Sources, bmiDir, availableModules)
+	modules, err := plan.ResolveModules(tc, target.Sources, bmiDir, availableModules)
 	if err != nil {
 		return nil, err
 	}
-	providedModules := make(map[string]string, len(headerOutputs)+len(modules.provided))
+	providedModules := make(map[string]string, len(headerOutputs)+len(modules.Provided))
 	maps.Copy(providedModules, headerOutputs)
-	maps.Copy(providedModules, modules.provided)
+	maps.Copy(providedModules, modules.Provided)
 	targetModuleOutputs[target.Name] = providedModules
 	headerUnitBuilds := make([]string, 0, len(target.HeaderUnits))
-	builtHeaderUnits, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	builtHeaderUnits, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {
 		return nil, err
 	}
@@ -525,7 +519,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 			Source: unit.Path, Name: name, System: unit.System, Output: output,
 			Includes: includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.mapper,
+			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.Mapper,
 		})
 		headerInputs := ninjaPaths(slices.Sorted(maps.Values(builtHeaderUnits)))
 		ninjaOutput := ninjaPathLocal(output)
@@ -546,9 +540,9 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		sourcePlans[source.Source] = source
 	}
 
-	for _, source := range modules.ordered {
+	for _, source := range modules.Sources {
 		compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc, source)
-		if _, moduleAware := modules.bySource[source]; moduleAware && config.CompileStandard(opts.Config.Toolchain, target, usage, source) == "" {
+		if _, moduleAware := modules.BySource[source]; moduleAware && config.CompileStandard(opts.Config.Toolchain, target, usage, source) == "" {
 			if tc.Name() == "msvc" {
 				compilerFlags = append(compilerFlags, "/std:c++20")
 			} else {
@@ -572,14 +566,14 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 			flagKey = "cxxflags"
 		}
 
-		moduleFlags := modules.flags(source)
+		moduleFlags := modules.Flags(source)
 		for index := range moduleFlags {
 			moduleFlags[index] = strings.ReplaceAll(moduleFlags[index], `\`, "/")
 		}
 		statement := ninja.Build{
 			Rule:        rule,
 			In:          []string{srcPath},
-			InImplicit:  ninjaPaths(modules.inputs(source)),
+			InImplicit:  ninjaPaths(modules.Inputs(source)),
 			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
 			Out:         []string{objPath},
 			Vars: ninja.Vars{
@@ -588,8 +582,8 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 				{Key: flagKey, Val: strings.Join(append(append([]string(nil), compilerFlags...), moduleFlags...), " ")},
 			},
 		}
-		if module, ok := modules.bySource[source]; ok {
-			if output := modules.outputs[module.Provides]; output != "" {
+		if module, ok := modules.BySource[source]; ok {
+			if output := modules.Outputs[module.Provides]; output != "" {
 				ninjaOutput := ninjaPathLocal(output)
 				if tc.Name() == "clang" && module.InternalPartition {
 					partitionVars := append(slices.Clone(statement.Vars), ninja.Var{Key: "bmi", Val: ninjaOutput})

@@ -157,17 +157,17 @@ func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
 
 func TestTargetModules_WiresProducedBMIsToConsumers(t *testing.T) {
 	tc := gccish.New("clang", "clang", "clang++", "llvm-ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
-	modules := targetModules{
-		bySource: map[string]plan.ModuleDependency{
+	modules := plan.Modules{
+		BySource: map[string]plan.ModuleDependency{
 			"hello.cppm": {Source: "hello.cppm", Provides: "hello"},
 			"main.cpp":   {Source: "main.cpp", Requires: []string{"hello"}},
 		},
-		outputs: map[string]string{"hello": ".build/debug/app/modules/hello.pcm"}, toolchain: tc,
+		Outputs: map[string]string{"hello": ".build/debug/app/modules/hello.pcm"}, Toolchain: tc,
 	}
-	if got := strings.Join(modules.flags("main.cpp"), " "); got != "-fcxx-modules -fmodule-file=hello=.build/debug/app/modules/hello.pcm" {
+	if got := strings.Join(modules.Flags("main.cpp"), " "); got != "-fcxx-modules -fmodule-file=hello=.build/debug/app/modules/hello.pcm" {
 		t.Fatalf("consumer flags = %q", got)
 	}
-	if got := modules.inputs("main.cpp"); len(got) != 1 || got[0] != ".build/debug/app/modules/hello.pcm" {
+	if got := modules.Inputs("main.cpp"); len(got) != 1 || got[0] != ".build/debug/app/modules/hello.pcm" {
 		t.Fatalf("consumer inputs = %v", got)
 	}
 }

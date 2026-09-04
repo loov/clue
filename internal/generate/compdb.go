@@ -129,42 +129,36 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 	}
 
 	targetPlan := plan.ForTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
+	target = targetPlan.Target
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 	dependencyUsage, err := targetDependencyUsage(ctx, opts.Config, target, tc)
 	if err != nil {
 		return nil, err
 	}
-	target.Defines = append(append(usage.Defines, dependencyUsage.Defines...), variant.Defines...)
-	target.Includes = append(usage.Includes, dependencyUsage.Includes...)
-	target.SystemIncludes = usage.SystemIncludes
-	if target.CStd == "" {
-		target.CStd = usage.CStd
-	}
-	if target.CXXStd == "" {
-		target.CXXStd = usage.CXXStd
-	}
+	target.Defines = append(target.Defines, dependencyUsage.Defines...)
+	target.Includes = append(target.Includes, dependencyUsage.Includes...)
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
-	availableModules, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	availableModules, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {
 		return nil, err
 	}
-	headerOutputs := headerUnitOutputs(tc, target.HeaderUnits, bmiDir)
+	headerOutputs := plan.HeaderUnitOutputs(tc, target.HeaderUnits, bmiDir)
 	for name, output := range headerOutputs {
 		if _, exists := availableModules[name]; exists {
 			return nil, fmt.Errorf("header unit %q is also provided by a dependency target", name)
 		}
 		availableModules[name] = output
 	}
-	modules, err := resolveTargetModules(tc, target.Sources, bmiDir, availableModules)
+	modules, err := plan.ResolveModules(tc, target.Sources, bmiDir, availableModules)
 	if err != nil {
 		return nil, err
 	}
-	providedModules := make(map[string]string, len(headerOutputs)+len(modules.provided))
+	providedModules := make(map[string]string, len(headerOutputs)+len(modules.Provided))
 	maps.Copy(providedModules, headerOutputs)
-	maps.Copy(providedModules, modules.provided)
+	maps.Copy(providedModules, modules.Provided)
 	targetModuleOutputs[target.Name] = providedModules
-	builtHeaderUnits, err := dependencyTargetModuleOutputs(opts.Config, target, targetModuleOutputs)
+	builtHeaderUnits, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +168,7 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 			Source: unit.Path, Name: name, System: unit.System, Output: headerOutputs[name],
 			Includes: target.Includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.mapper,
+			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.Mapper,
 		}
 		arguments := plan.HeaderUnitArguments(tc, absoluteHeaderUnitOptions(headerOpts))
 		command, wrapped := build.ToolchainCommand(tc, tc.CXX(), arguments)
@@ -192,28 +186,28 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 		sourcePlans[source.Source] = source
 	}
 
-	for _, source := range modules.ordered {
+	for _, source := range modules.Sources {
 		sourcePlan := sourcePlans[source]
 		objPath := sourcePlan.Object
 
 		// Build compiler arguments
-		module, hasModule := modules.bySource[source]
-		moduleFiles := make(map[string]string, len(modules.inherited)+len(module.Requires))
-		for name, output := range modules.inherited {
+		module, hasModule := modules.BySource[source]
+		moduleFiles := make(map[string]string, len(modules.Inherited)+len(module.Requires))
+		for name, output := range modules.Inherited {
 			moduleFiles[name] = AbsPath(output)
 		}
 		for _, required := range module.Requires {
-			if output := modules.outputs[required]; output != "" {
+			if output := modules.Outputs[required]; output != "" {
 				moduleFiles[required] = AbsPath(output)
 			}
 		}
 		moduleOutput := ""
 		if hasModule && module.Provides != "" {
-			moduleOutput = AbsPath(modules.outputs[module.Provides])
+			moduleOutput = AbsPath(modules.Outputs[module.Provides])
 		}
 		mapper := ""
-		if modules.mapper != "" {
-			mapper = AbsPath(modules.mapper)
+		if modules.Mapper != "" {
+			mapper = AbsPath(modules.Mapper)
 		}
 		extra := plan.ModuleCompileFlags(tc, module, moduleOutput, moduleFiles, mapper)
 		standard := sourcePlan.Standard

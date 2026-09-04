@@ -68,40 +68,6 @@ type Builder struct {
 	targetModuleOutputs map[string]map[string]string
 }
 
-func dependencyModuleOutputs(cfg *config.Config, target config.Target, outputs map[string]map[string]string) (map[string]string, error) {
-	result := make(map[string]string)
-	seen := make(map[string]bool)
-	var visit func(string) error
-	visit = func(name string) error {
-		if seen[name] {
-			return nil
-		}
-		seen[name] = true
-		dependency, ok := cfg.Targets[name]
-		if !ok {
-			return nil
-		}
-		for module, path := range outputs[name] {
-			if previous, exists := result[module]; exists && previous != path {
-				return fmt.Errorf("module %q is provided by multiple dependencies", module)
-			}
-			result[module] = path
-		}
-		for _, child := range dependency.Depends {
-			if err := visit(child); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	for _, name := range target.Depends {
-		if err := visit(name); err != nil {
-			return nil, err
-		}
-	}
-	return result, nil
-}
-
 // NewBuilder creates a new Builder with the specified toolchain and target platform
 func NewBuilder(toolchainName string, target toolchain.Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
 	toolchain, err := NewToolchain(toolchainName, target)
@@ -296,6 +262,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	}
 
 	targetPlan := plan.ForTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
+	target = targetPlan.Target
 	objDir, outputPath := targetPlan.ObjectDir, targetPlan.Output
 
 	// Create directories
@@ -307,7 +274,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 
 	// Collect include paths from external dependencies.
-	includes := usage.Includes
+	includes := target.Includes
 	var externalUsage deps.Usage
 	seenIncludes := make(map[string]bool)
 	seenDependencies := make(map[string]bool)
@@ -346,120 +313,71 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		addDependencyIncludes(dependency)
 	}
 	includes = append(includes, externalUsage.Includes...)
-	defines := append(append(usage.Defines, externalUsage.Defines...), opts.Config.ActiveVariant.Defines...)
+	defines := append(append([]string(nil), target.Defines...), externalUsage.Defines...)
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, externalUsage.CompilerFlags...)
 
 	// Module compilation setup
 	if b.targetModuleOutputs == nil {
 		b.targetModuleOutputs = make(map[string]map[string]string)
 	}
-	availableModules, err := dependencyModuleOutputs(opts.Config, target, b.targetModuleOutputs)
+	dependencyModules, err := plan.DependencyModuleOutputs(opts.Config, target, b.targetModuleOutputs)
 	if err != nil {
 		return nil, err
 	}
-	var orderedModules []string
 	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
-	localModuleOutputs := make(map[string]string)
-	for _, unit := range target.HeaderUnits {
-		name := plan.HeaderUnitName(unit.Name, unit.System)
-		localModuleOutputs[name] = plan.ModuleOutputPathFor(b.toolchain, bmiDir, name)
+	headerOutputs := plan.HeaderUnitOutputs(b.toolchain, target.HeaderUnits, bmiDir)
+	availableModules := make(map[string]string, len(dependencyModules)+len(headerOutputs))
+	maps.Copy(availableModules, dependencyModules)
+	for name, output := range headerOutputs {
+		if _, exists := availableModules[name]; exists {
+			return nil, fmt.Errorf("header unit %q is also provided by a dependency target", name)
+		}
+		availableModules[name] = output
 	}
-	moduleDeps, err := plan.ScanModuleDependencies(target.Sources)
+	modules, err := plan.ResolveModules(b.toolchain, target.Sources, bmiDir, availableModules)
 	if err != nil {
 		return nil, fmt.Errorf("module dependency scan failed: %w", err)
 	}
+	providedModules := make(map[string]string, len(headerOutputs)+len(modules.Provided))
+	maps.Copy(providedModules, headerOutputs)
+	maps.Copy(providedModules, modules.Provided)
 
-	moduleInfo := make(map[string]plan.ModuleDependency, len(moduleDeps))
-	for _, dependency := range moduleDeps {
-		moduleInfo[dependency.Source] = dependency
-		if dependency.Provides == "" {
-			continue
-		}
-		if _, exists := localModuleOutputs[dependency.Provides]; exists {
-			return nil, fmt.Errorf("module %q is provided more than once in target %q", dependency.Provides, target.Name)
-		}
-		localModuleOutputs[dependency.Provides] = plan.ModuleOutputPathFor(b.toolchain, bmiDir, dependency.Provides)
-	}
-	allModuleOutputs := make(map[string]string, len(availableModules)+len(localModuleOutputs))
-	maps.Copy(allModuleOutputs, availableModules)
-	for name, output := range localModuleOutputs {
-		if previous, exists := allModuleOutputs[name]; exists && previous != output {
-			return nil, fmt.Errorf("module %q is provided by target %q and one of its dependencies", name, target.Name)
-		}
-		allModuleOutputs[name] = output
-	}
-
-	if len(moduleDeps) > 0 || len(target.HeaderUnits) > 0 {
+	if len(modules.BySource) > 0 || len(target.HeaderUnits) > 0 {
 		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("Detected %d module source(s)\n", len(moduleDeps))
-		}
-
-		orderedModules, err = plan.OrderModuleCompilationWithProviders(moduleDeps, allModuleOutputs)
-		if err != nil {
-			return nil, err
+			fmt.Printf("Detected %d module source(s)\n", len(modules.BySource))
 		}
 
 		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("Module compilation order: %v\n", orderedModules)
+			fmt.Printf("Compilation order: %v\n", modules.Sources)
 		}
 
 		// Create BMI directory
 		if err := os.MkdirAll(bmiDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create BMI directory: %w", err)
 		}
-		mapper := ""
-		if b.toolchain.Name() == "gcc" {
-			mapper = filepath.Join(bmiDir, "modules.mapper")
-			if err := plan.WriteModuleMapper(mapper, allModuleOutputs); err != nil {
-				return nil, fmt.Errorf("write GCC module mapper: %w", err)
-			}
-		}
-		builtHeaderUnits := make(map[string]string, len(availableModules)+len(target.HeaderUnits))
-		maps.Copy(builtHeaderUnits, availableModules)
+		builtHeaderUnits := make(map[string]string, len(dependencyModules)+len(target.HeaderUnits))
+		maps.Copy(builtHeaderUnits, dependencyModules)
 		for _, unit := range target.HeaderUnits {
 			name := plan.HeaderUnitName(unit.Name, unit.System)
 			if opts.Verbosity == VerbosityVerbose {
 				fmt.Printf("Compiling header unit: %s\n", name)
 			}
 			if err := b.compiler.CompileHeaderUnit(ctx, plan.HeaderUnitOptions{
-				Source: unit.Path, Name: name, System: unit.System, Output: localModuleOutputs[name],
+				Source: unit.Path, Name: name, System: unit.System, Output: headerOutputs[name],
 				Includes: includes, SystemIncludes: usage.SystemIncludes, Defines: defines,
 				Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-				ModuleFiles: builtHeaderUnits, ModuleMapper: mapper,
+				ModuleFiles: builtHeaderUnits, ModuleMapper: modules.Mapper,
 			}); err != nil {
 				return nil, err
 			}
-			builtHeaderUnits[name] = localModuleOutputs[name]
+			builtHeaderUnits[name] = headerOutputs[name]
 		}
 	}
 
-	// Determine compilation order: use ordered modules if available, otherwise original sources
+	// Module providers precede consumers; non-module sources retain their order.
 	sourcesToCompile := target.Sources
-	if len(orderedModules) > 0 {
-		// Build set of module sources for quick lookup
-		moduleSet := make(map[string]bool)
-		for _, src := range orderedModules {
-			moduleSet[src] = true
-		}
-
-		// Reorder: module interfaces first (in dependency order), then non-module sources
-		// Module interfaces must be compiled before any file that imports them
-		var reordered []string
-		reordered = append(reordered, orderedModules...)
-		for _, src := range target.Sources {
-			if !moduleSet[src] {
-				reordered = append(reordered, src)
-			}
-		}
-		sourcesToCompile = reordered
-
-		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("Compilation order: %v\n", sourcesToCompile)
-		}
-	}
-	mapper := ""
-	if b.toolchain.Name() == "gcc" && len(allModuleOutputs) > 0 {
-		mapper = filepath.Join(bmiDir, "modules.mapper")
+	if len(modules.BySource) > 0 {
+		sourcesToCompile = modules.Sources
 	}
 
 	// Collect compile options for all sources that need rebuilding
@@ -490,20 +408,16 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			TargetType:     target.Type,
 			Platform:       b.target,
 		}
-		if module, ok := moduleInfo[source]; ok {
+		if module, ok := modules.BySource[source]; ok {
 			compileOpts.ModuleAware = true
-			compileOpts.ModuleOutput = localModuleOutputs[module.Provides]
+			compileOpts.ModuleOutput = modules.Outputs[module.Provides]
 			compileOpts.ModuleName = module.Provides
 			compileOpts.InternalPartition = module.InternalPartition
-			compileOpts.ModuleMapper = mapper
-			compileOpts.ModuleFiles = make(map[string]string, len(availableModules)+len(target.HeaderUnits))
-			maps.Copy(compileOpts.ModuleFiles, availableModules)
-			for _, unit := range target.HeaderUnits {
-				name := plan.HeaderUnitName(unit.Name, unit.System)
-				compileOpts.ModuleFiles[name] = localModuleOutputs[name]
-			}
+			compileOpts.ModuleMapper = modules.Mapper
+			compileOpts.ModuleFiles = make(map[string]string, len(modules.Inherited)+len(module.Requires))
+			maps.Copy(compileOpts.ModuleFiles, modules.Inherited)
 			for _, required := range module.Requires {
-				if pcm, ok := allModuleOutputs[required]; ok {
+				if pcm, ok := modules.Outputs[required]; ok {
 					compileOpts.ModuleFiles[required] = pcm
 				}
 			}
@@ -547,11 +461,11 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	var compileErr error
 	if len(toCompile) > 0 {
 		// Check if we have modules that need sequential compilation
-		if len(orderedModules) > 0 {
+		if len(modules.BySource) > 0 {
 			// Build maps for module compilation
 			moduleSet := make(map[string]bool)
-			for _, dep := range moduleDeps {
-				moduleSet[dep.Source] = true
+			for source := range modules.BySource {
+				moduleSet[source] = true
 			}
 
 			var moduleCompile []CompileOptions
@@ -763,7 +677,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	duration := time.Since(start)
 
 	// Get cache stats from progress
-	b.targetModuleOutputs[target.Name] = localModuleOutputs
+	b.targetModuleOutputs[target.Name] = providedModules
 	_, cachedCount := progress.Stats()
 	progress.Complete(outputPath, len(target.Sources), cachedCount, duration)
 
