@@ -19,7 +19,7 @@ func TestBuilderCustomTarget_RunsOnlyWhenInputsChange(t *testing.T) {
 		Name: "generate", Type: "custom", Inputs: []string{input}, Outputs: []string{output},
 		Command: []string{os.Args[0], "-test.run=TestBuilderCustomTargetHelper_CreatesDeclaredOutputs", "--", output},
 	}
-	b := &Builder{executor: NewExecutor(ExecutorConfig{})}
+	b := &Builder{executor: newExecutor(executorConfig{})}
 	for range 2 {
 		if _, err := b.buildCustomTarget(t.Context(), Options{}, target); err != nil {
 			t.Fatal(err)

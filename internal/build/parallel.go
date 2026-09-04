@@ -17,7 +17,7 @@ import (
 )
 
 // ParallelResult holds the result of a single compilation in parallel mode
-type ParallelResult struct {
+type parallelResult struct {
 	Source   string        // Source file path
 	Object   string        // Output object file path
 	DepFile  string        // Dependency file path
@@ -27,7 +27,7 @@ type ParallelResult struct {
 }
 
 // ParallelCompiler handles parallel compilation of multiple source files
-type ParallelCompiler struct {
+type parallelCompiler struct {
 	toolchain toolchain.Toolchain
 	jobs      int
 	keepGoing bool
@@ -42,8 +42,8 @@ type ParallelCompiler struct {
 }
 
 // NewParallelCompiler creates a new ParallelCompiler instance
-func NewParallelCompiler(toolchain toolchain.Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *ParallelCompiler {
-	return &ParallelCompiler{
+func newParallelCompiler(toolchain toolchain.Toolchain, jobs int, keepGoing bool, verbosity Verbosity) *parallelCompiler {
+	return &parallelCompiler{
 		toolchain: toolchain,
 		jobs:      jobs,
 		keepGoing: keepGoing,
@@ -52,7 +52,7 @@ func NewParallelCompiler(toolchain toolchain.Toolchain, jobs int, keepGoing bool
 }
 
 // CompileParallel compiles multiple source files in parallel with bounded concurrency
-func (p *ParallelCompiler) CompileParallel(ctx context.Context, sources []CompileOptions) ([]ParallelResult, error) {
+func (p *parallelCompiler) CompileParallel(ctx context.Context, sources []compileOptions) ([]parallelResult, error) {
 	if len(sources) == 0 {
 		return nil, nil
 	}
@@ -68,7 +68,7 @@ func (p *ParallelCompiler) CompileParallel(ctx context.Context, sources []Compil
 	g.SetLimit(p.jobs)
 
 	// Channel to collect results
-	results := make(chan ParallelResult, len(sources))
+	results := make(chan parallelResult, len(sources))
 
 	// Launch workers for each source file
 	for _, opts := range sources {
@@ -94,7 +94,7 @@ func (p *ParallelCompiler) CompileParallel(ctx context.Context, sources []Compil
 	close(results)
 
 	// Collect all results
-	var collected []ParallelResult
+	var collected []parallelResult
 	for result := range results {
 		collected = append(collected, result)
 	}
@@ -111,12 +111,12 @@ func (p *ParallelCompiler) CompileParallel(ctx context.Context, sources []Compil
 }
 
 // compileWithBuffering compiles a single source file and captures output to a buffer
-func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts CompileOptions) ParallelResult {
+func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts compileOptions) parallelResult {
 	var buf bytes.Buffer
 	start := time.Now()
 
 	// Create a capturing executor (doesn't stream to stdout)
-	captureExecutor := NewExecutor(ExecutorConfig{
+	captureExecutor := newExecutor(executorConfig{
 		Verbose:      p.verbosity == VerbosityVerbose,
 		StreamOutput: false, // Capture, don't stream
 		WorkDir:      "",
@@ -125,7 +125,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 	})
 
 	// Create temporary compiler with capturing executor
-	tempCompiler := NewCompiler(captureExecutor, p.toolchain)
+	tempCompiler := newCompiler(captureExecutor, p.toolchain)
 
 	result, err := tempCompiler.CompileSource(ctx, opts)
 
@@ -168,7 +168,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 		depFile = result.DepFile
 	}
 
-	return ParallelResult{
+	return parallelResult{
 		Source:   opts.Source,
 		Object:   opts.Output,
 		DepFile:  depFile,
@@ -179,7 +179,7 @@ func (p *ParallelCompiler) compileWithBuffering(ctx context.Context, opts Compil
 }
 
 // printResults prints all buffered outputs atomically
-func (p *ParallelCompiler) printResults(results []ParallelResult) {
+func (p *parallelCompiler) printResults(results []parallelResult) {
 	for _, r := range results {
 		if r.Output.Len() > 0 {
 			fmt.Print(r.Output.String())
@@ -188,14 +188,14 @@ func (p *ParallelCompiler) printResults(results []ParallelResult) {
 }
 
 // addActive adds a file to the active compilation list
-func (p *ParallelCompiler) addActive(source string) {
+func (p *parallelCompiler) addActive(source string) {
 	p.activeMu.Lock()
 	defer p.activeMu.Unlock()
 	p.active = append(p.active, filepath.Base(source))
 }
 
 // removeActive removes a file from the active compilation list
-func (p *ParallelCompiler) removeActive(source string) {
+func (p *parallelCompiler) removeActive(source string) {
 	p.activeMu.Lock()
 	defer p.activeMu.Unlock()
 	basename := filepath.Base(source)
@@ -208,14 +208,14 @@ func (p *ParallelCompiler) removeActive(source string) {
 }
 
 // Active returns a copy of the currently active files being compiled.
-func (p *ParallelCompiler) Active() []string {
+func (p *parallelCompiler) Active() []string {
 	p.activeMu.Lock()
 	defer p.activeMu.Unlock()
 	return slices.Clone(p.active)
 }
 
 // Progress returns the current progress (completed, total).
-func (p *ParallelCompiler) Progress() (int64, int) {
+func (p *parallelCompiler) Progress() (int64, int) {
 	return p.completed.Load(), p.total
 }
 

@@ -503,7 +503,7 @@ func TestOutputPath_UsesPlatformSuffix(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			builder := &Builder{target: tt.platform}
-			outputPath := builder.OutputPath("/build", "debug", "mylib", tt.targetType)
+			outputPath := builder.outputPath("/build", "debug", "mylib", tt.targetType)
 
 			// Verify extension
 			if tt.expectedExt != "" {

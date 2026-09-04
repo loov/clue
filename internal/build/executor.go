@@ -12,7 +12,7 @@ import (
 )
 
 // CommandResult holds the result of a command execution
-type CommandResult struct {
+type commandResult struct {
 	ExitCode int           // Exit code from the process
 	Stdout   string        // Captured stdout (if not streaming)
 	Stderr   string        // Captured stderr (if not streaming)
@@ -20,7 +20,7 @@ type CommandResult struct {
 }
 
 // ExecutorConfig configures command execution behavior
-type ExecutorConfig struct {
+type executorConfig struct {
 	Verbose      bool   // If true, print commands before execution
 	StreamOutput bool   // If true, stream to os.Stdout/Stderr; if false, capture
 	WorkDir      string // Working directory for commands
@@ -29,19 +29,19 @@ type ExecutorConfig struct {
 }
 
 // Executor handles subprocess execution with configurable behavior
-type Executor struct {
-	config ExecutorConfig
+type executor struct {
+	config executorConfig
 }
 
 // NewExecutor creates a new Executor with the given configuration
-func NewExecutor(config ExecutorConfig) *Executor {
-	return &Executor{
+func newExecutor(config executorConfig) *executor {
+	return &executor{
 		config: config,
 	}
 }
 
 // RunCommand executes a command with the configured behavior
-func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) (*CommandResult, error) {
+func (e *executor) RunCommand(ctx context.Context, name string, args ...string) (*commandResult, error) {
 	start := time.Now()
 	if e.config.WrapCommand != nil {
 		name, args = e.config.WrapCommand(name, args, e.config.WorkDir)
@@ -107,7 +107,7 @@ func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) 
 }
 
 // ToolExists checks if a tool is available in PATH
-func (e *Executor) ToolExists(name string) bool {
+func (e *executor) ToolExists(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
 }
@@ -115,12 +115,12 @@ func (e *Executor) ToolExists(name string) bool {
 // RunCommandWithCleanup executes a command with proper process group cleanup on cancellation.
 // On context cancellation, it sends SIGTERM first for graceful shutdown, then SIGKILL if
 // the process doesn't exit within 100ms.
-func (e *Executor) RunCommandWithCleanup(ctx context.Context, name string, args ...string) (*CommandResult, error) {
+func (e *executor) RunCommandWithCleanup(ctx context.Context, name string, args ...string) (*commandResult, error) {
 	return e.RunCommand(ctx, name, args...)
 }
 
 // buildResult creates a CommandResult from command execution
-func (e *Executor) buildResult(err error, stdout, stderr bytes.Buffer, start time.Time) *CommandResult {
+func (e *executor) buildResult(err error, stdout, stderr bytes.Buffer, start time.Time) *commandResult {
 	exitCode := 0
 	if err != nil {
 		var exitErr *exec.ExitError
@@ -128,7 +128,7 @@ func (e *Executor) buildResult(err error, stdout, stderr bytes.Buffer, start tim
 			exitCode = exitErr.ExitCode()
 		}
 	}
-	return &CommandResult{
+	return &commandResult{
 		ExitCode: exitCode,
 		Stdout:   stdout.String(),
 		Stderr:   stderr.String(),
@@ -137,7 +137,7 @@ func (e *Executor) buildResult(err error, stdout, stderr bytes.Buffer, start tim
 }
 
 // checkError converts a command error to a user-friendly error
-func (e *Executor) checkError(err error) error {
+func (e *executor) checkError(err error) error {
 	if err == nil {
 		return nil
 	}

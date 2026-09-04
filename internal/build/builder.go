@@ -57,14 +57,14 @@ type Result struct {
 
 // Builder orchestrates the build process
 type Builder struct {
-	executor            *Executor
-	compiler            *Compiler
-	linker              *Linker
+	executor            *executor
+	compiler            *compiler
+	linker              *linker
 	cacheManager        *cache.Manager
-	parallelCompiler    *ParallelCompiler
+	parallelCompiler    *parallelCompiler
 	toolchain           toolchain.Toolchain
 	target              toolchain.Platform
-	depResults          map[string]*DepBuildResult // Built dependencies
+	depResults          map[string]*depBuildResult // Built dependencies
 	profiler            *profile.Profiler
 	targetModuleOutputs map[string]map[string]string
 }
@@ -95,7 +95,7 @@ func newBuilder(tc toolchain.Toolchain, target toolchain.Platform, verbosity Ver
 
 	verbose := verbosity == VerbosityVerbose
 
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      verbose,
 		StreamOutput: true,
 		WorkDir:      "",
@@ -103,13 +103,13 @@ func newBuilder(tc toolchain.Toolchain, target toolchain.Platform, verbosity Ver
 		WrapCommand:  toolchainCommandWrapper(tc),
 	})
 
-	compiler := NewCompiler(executor, tc)
+	compiler := newCompiler(executor, tc)
 
 	return &Builder{
 		executor:         executor,
 		compiler:         compiler,
-		linker:           NewLinker(executor, tc, target),
-		parallelCompiler: NewParallelCompiler(tc, jobs, keepGoing, verbosity),
+		linker:           newLinker(executor, tc, target),
+		parallelCompiler: newParallelCompiler(tc, jobs, keepGoing, verbosity),
 		toolchain:        tc,
 		target:           target,
 	}, nil
@@ -119,7 +119,7 @@ func newBuilder(tc toolchain.Toolchain, target toolchain.Platform, verbosity Ver
 // Executable: build/variant/bin/target
 // Static lib: build/variant/lib/libtarget.a
 // Shared lib: build/variant/lib/libtarget.so/.dylib (platform-specific)
-func (b *Builder) OutputPath(buildDir, variant, target, targetType string) string {
+func (b *Builder) outputPath(buildDir, variant, target, targetType string) string {
 	return plan.ArtifactPath(buildDir, variant, target, targetType, b.target)
 }
 
@@ -197,7 +197,7 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (depe
 			return fmt.Errorf("unknown dependency or target: %q", name)
 		}
 		if dependency.Type == "static_library" || dependency.Type == "shared_library" {
-			usage.artifacts = append(usage.artifacts, b.OutputPath(opts.BuildDir, opts.Variant, name, dependency.Type))
+			usage.artifacts = append(usage.artifacts, b.outputPath(opts.BuildDir, opts.Variant, name, dependency.Type))
 			path := filepath.Join(opts.BuildDir, opts.Variant, "lib")
 			if !seenPaths[path] {
 				seenPaths[path] = true
@@ -248,7 +248,7 @@ func (b *Builder) addRuntimeLibraryPaths(cfg *toolchain.Config, output string, p
 }
 
 // BuildTarget builds a single target
-func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.Target, progress *Progress) (*TargetResult, error) {
+func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.Target, progress *progress) (*TargetResult, error) {
 	if target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return &TargetResult{Name: target.Name, Type: target.Type, Success: true}, nil
 	}
@@ -382,7 +382,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	}
 
 	// Collect compile options for all sources that need rebuilding
-	var toCompile []CompileOptions
+	var toCompile []compileOptions
 	var preExistingObjects []string
 	type sourceCacheInputs struct {
 		flags        []string
@@ -398,7 +398,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 	for _, source := range sourcesToCompile {
 		sourcePlan := sourcePlans[source]
 		objPath := sourcePlan.Object
-		compileOpts := CompileOptions{
+		compileOpts := compileOptions{
 			Source:         source,
 			Output:         objPath,
 			Includes:       includes,
@@ -449,7 +449,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 
 		toCompile = append(toCompile, compileOpts)
 	}
-	storeResult := func(result ParallelResult) {
+	storeResult := func(result parallelResult) {
 		inputs := cacheInputs[result.Source]
 		err := b.cacheManager.StoreResult(result.Source, result.Object, result.DepFile, inputs.flags, includeInputs, inputs.compilerPath)
 		if err != nil && opts.Verbosity == VerbosityVerbose {
@@ -469,8 +469,8 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 				moduleSet[source] = true
 			}
 
-			var moduleCompile []CompileOptions
-			var otherCompile []CompileOptions
+			var moduleCompile []compileOptions
+			var otherCompile []compileOptions
 			for _, opt := range toCompile {
 				if moduleSet[opt.Source] {
 					moduleCompile = append(moduleCompile, opt)
@@ -482,7 +482,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 			// Compile modules SEQUENTIALLY in dependency order
 			// This ensures each module interface is built before files that import it
 			for _, opt := range moduleCompile {
-				results, err := b.parallelCompiler.CompileParallel(ctx, []CompileOptions{opt})
+				results, err := b.parallelCompiler.CompileParallel(ctx, []compileOptions{opt})
 				if err != nil {
 					compileErr = errors.Join(compileErr, err)
 					if !opts.KeepGoing {
@@ -564,7 +564,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyUsage.flags...)
 
 		useCXX := b.targetUsesCXX(opts.Config, target)
-		linkOpts := LinkOptions{
+		linkOpts := linkOptions{
 			Objects:  append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
 			Output:   outputPath,
 			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyUsage.sysLibs...),
@@ -598,7 +598,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 	case "static_library":
-		archiveOpts := ArchiveOptions{
+		archiveOpts := archiveOptions{
 			Objects: objectFiles,
 			Output:  outputPath,
 		}
@@ -637,7 +637,7 @@ func (b *Builder) BuildTarget(ctx context.Context, opts Options, target config.T
 		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyUsage.flags...)
 
 		useCXX := b.targetUsesCXX(opts.Config, target)
-		sharedOpts := SharedLibraryOptions{
+		sharedOpts := sharedLibraryOptions{
 			Objects:          append(append([]string(nil), objectFiles...), dependencyUsage.linkFiles...),
 			Output:           outputPath,
 			SysLibs:          append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyUsage.sysLibs...),
@@ -729,7 +729,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 			return nil, fmt.Errorf("failed to build dependencies: %w", err)
 		}
 	} else {
-		b.depResults = make(map[string]*DepBuildResult)
+		b.depResults = make(map[string]*depBuildResult)
 	}
 
 	// Get build order from config
@@ -769,7 +769,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// Create progress tracker
-	progress := NewProgress(totalSources, opts.Verbosity)
+	progress := newProgress(totalSources, opts.Verbosity)
 
 	// Build each target in order
 	var results []TargetResult
@@ -781,7 +781,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 		target := opts.Config.Targets[targetName]
 
 		// Build the target
-		result, err := b.BuildTarget(ctx, opts, target, progress)
+		result, err := b.buildTarget(ctx, opts, target, progress)
 		if err != nil {
 			// Fail-fast: report error and stop
 			progress.Error(targetName, err)
@@ -842,10 +842,10 @@ func (b *Builder) BuildDependency(ctx context.Context, opts Options, name string
 	return err
 }
 
-func (b *Builder) buildDependencies(ctx context.Context, opts Options, only string) (map[string]*DepBuildResult, error) {
+func (b *Builder) buildDependencies(ctx context.Context, opts Options, only string) (map[string]*depBuildResult, error) {
 	// Check if there are any dependencies
 	if len(opts.Config.Dependencies) == 0 {
-		return make(map[string]*DepBuildResult), nil
+		return make(map[string]*depBuildResult), nil
 	}
 
 	if opts.Verbosity >= VerbosityNormal {
@@ -887,11 +887,11 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 	}
 
 	// Create dependency builder
-	depBuilder := NewDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbosity)
+	depBuilder := newDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbosity)
 	depBuilder.cache = b.cacheManager
 
 	// Build each dependency
-	results := make(map[string]*DepBuildResult)
+	results := make(map[string]*depBuildResult)
 	totalFiles := 0
 	depStart := time.Now()
 
@@ -907,7 +907,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve dependency %q: %w", depName, err)
 			}
-			results[depName] = &DepBuildResult{Name: depName, Type: "pkg_config", Usage: usage}
+			results[depName] = &depBuildResult{Name: depName, Type: "pkg_config", Usage: usage}
 			continue
 		}
 
@@ -915,7 +915,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 		sourcePath := dep.CachePath(".")
 
 		// Build dependency
-		buildOpts := DepBuildOptions{
+		buildOpts := depBuildOptions{
 			Variant:      opts.Variant,
 			Platform:     b.target,
 			BuildDir:     opts.BuildDir,

@@ -13,7 +13,7 @@ import (
 )
 
 // LinkOptions holds options for linking an executable
-type LinkOptions struct {
+type linkOptions struct {
 	Objects  []string         // Object files to link
 	Output   string           // Output executable path
 	SysLibs  []string         // System libraries (pthread, m, dl)
@@ -24,7 +24,7 @@ type LinkOptions struct {
 }
 
 // SharedLibraryOptions holds options for linking a shared library
-type SharedLibraryOptions struct {
+type sharedLibraryOptions struct {
 	Objects          []string         // Object files to link
 	Output           string           // Output .so/.dylib path
 	SysLibs          []string         // System libraries (pthread, m, dl)
@@ -36,13 +36,13 @@ type SharedLibraryOptions struct {
 }
 
 // ArchiveOptions holds options for creating a static library
-type ArchiveOptions struct {
+type archiveOptions struct {
 	Objects []string // Object files to archive
 	Output  string   // Output static library path (e.g., libfoo.a)
 }
 
 // LinkResult holds the result of a link or archive operation
-type LinkResult struct {
+type linkResult struct {
 	Output      string
 	ImportLib   string // Import library path for DLLs
 	Duration    time.Duration
@@ -51,15 +51,15 @@ type LinkResult struct {
 }
 
 // Linker handles linking object files into executables and creating static libraries
-type Linker struct {
-	executor  *Executor
+type linker struct {
+	executor  *executor
 	toolchain toolchain.Toolchain
 	target    toolchain.Platform
 }
 
 // NewLinker creates a new Linker with the given executor and toolchain
-func NewLinker(executor *Executor, toolchain toolchain.Toolchain, target toolchain.Platform) *Linker {
-	return &Linker{
+func newLinker(executor *executor, toolchain toolchain.Toolchain, target toolchain.Platform) *linker {
+	return &linker{
 		executor:  executor,
 		toolchain: toolchain,
 		target:    target,
@@ -72,7 +72,7 @@ func isMSVC(tc toolchain.Toolchain) bool {
 }
 
 // LinkExecutable links object files into an executable binary
-func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkResult, error) {
+func (l *linker) LinkExecutable(ctx context.Context, opts linkOptions) (*linkResult, error) {
 	start := time.Now()
 
 	// Create output directory if needed
@@ -90,7 +90,7 @@ func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkRes
 }
 
 // linkExecutableGCC links using GCC/Clang toolchain
-func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start time.Time) (_ *LinkResult, resultErr error) {
+func (l *linker) linkExecutableGCC(ctx context.Context, opts linkOptions, start time.Time) (_ *linkResult, resultErr error) {
 	// Build command arguments
 	var args []string
 
@@ -131,14 +131,14 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 	// Execute the linker
 	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), finalArgs...)
 	if err != nil {
-		return &LinkResult{
+		return &linkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("linker failed: %w", err)
 	}
 
-	return &LinkResult{
+	return &linkResult{
 		Output:   opts.Output,
 		Duration: result.Duration,
 		Success:  true,
@@ -146,7 +146,7 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 }
 
 // linkExecutableMSVC links using MSVC toolchain (link.exe)
-func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start time.Time) (_ *LinkResult, resultErr error) {
+func (l *linker) linkExecutableMSVC(ctx context.Context, opts linkOptions, start time.Time) (_ *linkResult, resultErr error) {
 	// Build MSVC-style command: link.exe /nologo objects... /OUT:output.exe libs...
 	var args []string
 
@@ -196,14 +196,14 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 	if err != nil {
 		// Show full command line on linker errors (per CONTEXT.md)
 		cmdLine := linker + " " + strings.Join(args, " ")
-		return &LinkResult{
+		return &linkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("linker failed: %w\nCommand: %s", err, cmdLine)
 	}
 
-	return &LinkResult{
+	return &linkResult{
 		Output:   opts.Output,
 		Duration: result.Duration,
 		Success:  true,
@@ -211,7 +211,7 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 }
 
 // CreateStaticLibrary archives object files into a static library
-func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (*LinkResult, error) {
+func (l *linker) CreateStaticLibrary(ctx context.Context, opts archiveOptions) (*linkResult, error) {
 	start := time.Now()
 
 	// Create output directory if needed
@@ -235,7 +235,7 @@ func (l *Linker) CreateStaticLibrary(ctx context.Context, opts ArchiveOptions) (
 }
 
 // createStaticLibraryGCC creates a static library using ar
-func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions, start time.Time) (_ *LinkResult, resultErr error) {
+func (l *linker) createStaticLibraryGCC(ctx context.Context, opts archiveOptions, start time.Time) (_ *linkResult, resultErr error) {
 	// Build ar command arguments
 	// ar crs: c=create, r=replace/insert, s=create symbol table
 	args := []string{"crs", opts.Output}
@@ -251,14 +251,14 @@ func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions
 	// Execute the archiver using toolchain AR
 	result, err := l.executor.RunCommand(ctx, l.toolchain.AR(), finalArgs...)
 	if err != nil {
-		return &LinkResult{
+		return &linkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("archiver failed: %w", err)
 	}
 
-	return &LinkResult{
+	return &linkResult{
 		Output:   opts.Output,
 		Duration: result.Duration,
 		Success:  true,
@@ -266,7 +266,7 @@ func (l *Linker) createStaticLibraryGCC(ctx context.Context, opts ArchiveOptions
 }
 
 // createStaticLibraryMSVC creates a static library using lib.exe
-func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOptions, start time.Time) (_ *LinkResult, resultErr error) {
+func (l *linker) createStaticLibraryMSVC(ctx context.Context, opts archiveOptions, start time.Time) (_ *linkResult, resultErr error) {
 	// Build lib.exe command: lib.exe /nologo /OUT:output.lib objects...
 	var args []string
 
@@ -291,14 +291,14 @@ func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOption
 	// Execute lib.exe
 	result, err := l.executor.RunCommand(ctx, l.toolchain.AR(), finalArgs...)
 	if err != nil {
-		return &LinkResult{
+		return &linkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("archiver failed: %w", err)
 	}
 
-	return &LinkResult{
+	return &linkResult{
 		Output:   opts.Output,
 		Duration: result.Duration,
 		Success:  true,
@@ -306,7 +306,7 @@ func (l *Linker) createStaticLibraryMSVC(ctx context.Context, opts ArchiveOption
 }
 
 // LinkSharedLibrary links object files into a shared library (.so on Linux, .dylib on macOS, .dll on Windows)
-func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOptions) (*LinkResult, error) {
+func (l *linker) LinkSharedLibrary(ctx context.Context, opts sharedLibraryOptions) (*linkResult, error) {
 	start := time.Now()
 
 	// Create output directory if needed
@@ -325,7 +325,7 @@ func (l *Linker) LinkSharedLibrary(ctx context.Context, opts SharedLibraryOption
 }
 
 // linkSharedLibraryGCC links a shared library using GCC/Clang
-func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (_ *LinkResult, resultErr error) {
+func (l *linker) linkSharedLibraryGCC(ctx context.Context, opts sharedLibraryOptions, start time.Time) (_ *linkResult, resultErr error) {
 	// Build command arguments
 	var args []string
 
@@ -395,14 +395,14 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	// Execute the linker
 	result, err := l.executor.RunCommand(ctx, l.linkDriver(opts.UseCXX), finalArgs...)
 	if err != nil {
-		return &LinkResult{
+		return &linkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("linker failed: %w", err)
 	}
 
-	return &LinkResult{
+	return &linkResult{
 		Output:    opts.Output,
 		ImportLib: importLibPath,
 		Duration:  result.Duration,
@@ -410,14 +410,14 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	}, nil
 }
 
-func (l *Linker) linkDriver(useCXX bool) string {
+func (l *linker) linkDriver(useCXX bool) string {
 	if useCXX {
 		return l.toolchain.CXX()
 	}
 	return l.toolchain.CC()
 }
 
-func (l *Linker) msvcTool(name string) string {
+func (l *linker) msvcTool(name string) string {
 	compiler := l.toolchain.CC()
 	if filepath.IsAbs(compiler) {
 		return filepath.Join(filepath.Dir(compiler), name)
@@ -426,7 +426,7 @@ func (l *Linker) msvcTool(name string) string {
 }
 
 // linkSharedLibraryMSVC links a DLL using MSVC link.exe
-func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOptions, start time.Time) (_ *LinkResult, resultErr error) {
+func (l *linker) linkSharedLibraryMSVC(ctx context.Context, opts sharedLibraryOptions, start time.Time) (_ *linkResult, resultErr error) {
 	// Build MSVC-style command: link.exe /nologo /DLL objects... /OUT:output.dll /IMPLIB:output.lib
 	var args []string
 
@@ -484,14 +484,14 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 	if err != nil {
 		// Show full command line on linker errors (per CONTEXT.md)
 		cmdLine := linker + " " + strings.Join(args, " ")
-		return &LinkResult{
+		return &linkResult{
 			Output:   opts.Output,
 			Duration: time.Since(start),
 			Success:  false,
 		}, fmt.Errorf("linker failed: %w\nCommand: %s", err, cmdLine)
 	}
 
-	return &LinkResult{
+	return &linkResult{
 		Output:    opts.Output,
 		ImportLib: importLibPath,
 		Duration:  result.Duration,

@@ -13,7 +13,7 @@ func TestExecutor_ProcessGroupSetupAllowsCommands(t *testing.T) {
 	// Test that RunCommandWithCleanup works for normal command execution
 	// This validates the SysProcAttr setup doesn't break normal execution
 
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 	})
@@ -43,7 +43,7 @@ func TestExecutor_ProcessGroupSetupAllowsCommands(t *testing.T) {
 
 func TestExecutor_ProcessGroupSetupPassesArguments(t *testing.T) {
 	// Test with multiple arguments to ensure arg passing works
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 
 	ctx := t.Context()
 
@@ -61,7 +61,7 @@ func TestExecutor_ProcessGroupSetupPassesArguments(t *testing.T) {
 func TestExecutor_CancellationCleanupReturnsPromptly(t *testing.T) {
 	// Test that cancelling a context properly terminates the command
 
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 	})
@@ -101,7 +101,7 @@ func TestExecutor_CancellationCleanupReturnsPromptly(t *testing.T) {
 
 func TestExecutor_RunCommandUsesProcessGroup(t *testing.T) {
 	// Test that the regular RunCommand also has Setpgid and works correctly
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 
 	ctx := t.Context()
 
@@ -122,7 +122,7 @@ func TestExecutor_RunCommandUsesProcessGroup(t *testing.T) {
 
 func TestExecutor_RunCommandWithCleanupReturnsExitFailure(t *testing.T) {
 	// Test that failing commands return proper exit codes
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 
 	ctx := t.Context()
 
@@ -145,7 +145,7 @@ func TestExecutor_RunCommandWithCleanupReturnsExitFailure(t *testing.T) {
 
 func TestExecutor_RunCommandWithCleanupUsesDirectory(t *testing.T) {
 	dir := t.TempDir()
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		WorkDir: dir,
 	})
 

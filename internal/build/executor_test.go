@@ -10,7 +10,7 @@ import (
 )
 
 func TestExecutor_RunCommandReturnsZeroExitCode(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false, // Capture output
 	})
 
@@ -29,7 +29,7 @@ func TestExecutor_RunCommandReturnsZeroExitCode(t *testing.T) {
 }
 
 func TestExecutor_RunCommandReturnsNonzeroExitCode(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -48,7 +48,7 @@ func TestExecutor_RunCommandReturnsNonzeroExitCode(t *testing.T) {
 }
 
 func TestExecutor_RunCommandReturnsMissingCommandError(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -64,7 +64,7 @@ func TestExecutor_RunCommandReturnsMissingCommandError(t *testing.T) {
 }
 
 func TestExecutor_RunCommandUsesActiveContext(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -84,7 +84,7 @@ func TestExecutor_RunCommandUsesActiveContext(t *testing.T) {
 }
 
 func TestExecutor_RunCommandCapturesStdout(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -101,7 +101,7 @@ func TestExecutor_RunCommandCapturesStdout(t *testing.T) {
 }
 
 func TestExecutor_RunCommandUsesConfiguredEnvironment(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Environment: append(os.Environ(), "CLUE_EXECUTOR_TEST=configured"),
 	})
 	result, err := executor.RunCommand(
@@ -135,7 +135,7 @@ func TestExecutorOutputHelper_WritesRequestedStreams(t *testing.T) {
 }
 
 func TestExecutor_ToolExistsReportsPathLookup(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 
 	// Test for a command that should exist on all systems
 	if !executor.ToolExists("sh") {
@@ -152,7 +152,7 @@ func TestExecutor_RunCommandUsesConfiguredDirectory(t *testing.T) {
 	// Create a temporary directory
 	tmpDir := t.TempDir()
 
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
@@ -172,7 +172,7 @@ func TestExecutor_RunCommandUsesConfiguredDirectory(t *testing.T) {
 }
 
 func TestExecutor_RunCommandPrintsCommandWhenVerbose(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      true,
 		StreamOutput: false,
 	})
@@ -186,7 +186,7 @@ func TestExecutor_RunCommandPrintsCommandWhenVerbose(t *testing.T) {
 }
 
 func TestExecutor_RunCommandRecordsDuration(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -207,7 +207,7 @@ func TestExecutor_RunCommandRecordsDuration(t *testing.T) {
 }
 
 func TestExecutor_RunCommandCapturesStderr(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -226,7 +226,7 @@ func TestExecutor_RunCommandCapturesStderr(t *testing.T) {
 }
 
 func TestExecutor_RunCommandPassesArguments(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -242,7 +242,7 @@ func TestExecutor_RunCommandPassesArguments(t *testing.T) {
 }
 
 func TestExecutor_RunCommandRejectsEmptyCommand(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: false,
 	})
 
@@ -256,7 +256,7 @@ func TestExecutor_RunCommandStreamsOutput(t *testing.T) {
 	// Save original stdout
 	oldStdout := os.Stdout
 
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		StreamOutput: true, // Enable streaming
 	})
 

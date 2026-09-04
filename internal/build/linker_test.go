@@ -36,17 +36,17 @@ func TestLinker_LinkExecutableProducesRunnableBinary(t *testing.T) {
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link main.o to executable
 	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
-	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
+	result, err := linker.LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{mainObj},
 		Output:  exePath,
 		Flags:   toolchain.Config{},
@@ -102,7 +102,7 @@ func TestLinkerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := filepath.Join(dir, plan.ExecutableName("app", toolchain.HostPlatform()))
-	if _, err := NewLinker(NewExecutor(ExecutorConfig{}), tc, toolchain.HostPlatform()).LinkExecutable(t.Context(), LinkOptions{
+	if _, err := newLinker(newExecutor(executorConfig{}), tc, toolchain.HostPlatform()).LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{object}, Output: output, Flags: toolchain.Config{RawLinker: flags},
 	}); err != nil {
 		t.Fatal(err)
@@ -149,17 +149,17 @@ func TestLinker_CreateStaticLibraryProducesArchive(t *testing.T) {
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Archive add.o to libadd.a
 	libPath := filepath.Join(tmpDir, "libadd.a")
-	result, err := linker.CreateStaticLibrary(t.Context(), ArchiveOptions{
+	result, err := linker.CreateStaticLibrary(t.Context(), archiveOptions{
 		Objects: []string{addObj, staleObj},
 		Output:  libPath,
 	})
@@ -175,7 +175,7 @@ func TestLinker_CreateStaticLibraryProducesArchive(t *testing.T) {
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Fatalf("static library not created at %s", libPath)
 	}
-	if _, err := linker.CreateStaticLibrary(t.Context(), ArchiveOptions{
+	if _, err := linker.CreateStaticLibrary(t.Context(), archiveOptions{
 		Objects: []string{addObj},
 		Output:  libPath,
 	}); err != nil {
@@ -239,17 +239,17 @@ int main() { return add(20, 22); }`
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Archive add.o to libadd.a
 	libPath := filepath.Join(tmpDir, "libadd.a")
-	if _, err := linker.CreateStaticLibrary(t.Context(), ArchiveOptions{
+	if _, err := linker.CreateStaticLibrary(t.Context(), archiveOptions{
 		Objects: []string{addObj},
 		Output:  libPath,
 	}); err != nil {
@@ -258,7 +258,7 @@ int main() { return add(20, 22); }`
 
 	// Link main.o with libadd.a to create executable
 	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
-	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
+	result, err := linker.LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{mainObj, libPath},
 		Output:  exePath,
 		Flags:   toolchain.Config{},
@@ -323,17 +323,17 @@ int main() {
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link with pthread
 	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
-	result, err := linker.LinkExecutable(t.Context(), LinkOptions{
+	result, err := linker.LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{mainObj},
 		Output:  exePath,
 		SysLibs: []string{"pthread"},
@@ -380,17 +380,17 @@ func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 		t.Fatalf("failed to compile: %v\nOutput: %s", err, output)
 	}
 
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Test executable has no extension on Linux
 	exePath := filepath.Join(tmpDir, "myapp")
-	if _, err := linker.LinkExecutable(t.Context(), LinkOptions{
+	if _, err := linker.LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{objFile},
 		Output:  exePath,
 		Flags:   toolchain.Config{},
@@ -410,7 +410,7 @@ func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 
 	// Test static library uses lib prefix and .a extension
 	libPath := filepath.Join(tmpDir, "libmylib.a")
-	if _, err := linker.CreateStaticLibrary(t.Context(), ArchiveOptions{
+	if _, err := linker.CreateStaticLibrary(t.Context(), archiveOptions{
 		Objects: []string{objFile},
 		Output:  libPath,
 	}); err != nil {
@@ -466,7 +466,7 @@ func TestSharedLibraryExtension_DarwinUsesDylib(t *testing.T) {
 
 // TestLinker_UsesProvidedToolchain verifies Linker uses Toolchain paths
 func TestLinker_UsesProvidedToolchain(t *testing.T) {
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 	platform := toolchain.HostPlatform()
 
 	// Test with clang toolchain
@@ -475,7 +475,7 @@ func TestLinker_UsesProvidedToolchain(t *testing.T) {
 		t.Fatalf("NewToolchain(clang) failed: %v", err)
 	}
 
-	linker := NewLinker(executor, clangTC, platform)
+	linker := newLinker(executor, clangTC, platform)
 	if linker.toolchain.CC() != clangTC.CC() {
 		t.Errorf("Linker.toolchain.CC() = %s, want %s", linker.toolchain.CC(), clangTC.CC())
 	}
@@ -489,7 +489,7 @@ func TestLinker_UsesProvidedToolchain(t *testing.T) {
 		t.Fatalf("NewToolchain(gcc) failed: %v", err)
 	}
 
-	linker = NewLinker(executor, gccTC, platform)
+	linker = newLinker(executor, gccTC, platform)
 	if linker.toolchain.CC() != gccTC.CC() {
 		t.Errorf("Linker.toolchain.CC() = %s, want %s", linker.toolchain.CC(), gccTC.CC())
 	}
@@ -567,18 +567,18 @@ CLUE_EXPORT int lib_func() { return 42; }`
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{
+	executor := newExecutor(executorConfig{
 		Verbose:      false,
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	libPath := filepath.Join(tmpDir, plan.SharedLibraryName("test", toolchain.HostPlatform()))
 
 	// Link shared library
-	result, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
+	result, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
 		Flags:   toolchain.Config{},
@@ -650,13 +650,13 @@ CLUE_EXPORT int lib_func() { return 42; }`
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
 	libPath := filepath.Join(tmpDir, "libtest.dylib")
-	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
+	_, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
 		Flags:   toolchain.Config{},
@@ -712,13 +712,13 @@ func TestLinkSharedLibrary_LinuxEmitsSONAME(t *testing.T) {
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
 	libPath := filepath.Join(tmpDir, "libtest.so")
-	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
+	_, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
 		Flags:   toolchain.Config{},
@@ -792,13 +792,13 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 	}
 
 	// Create linker
-	executor := NewExecutor(ExecutorConfig{})
+	executor := newExecutor(executorConfig{})
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	linker := NewLinker(executor, tc, toolchain.HostPlatform())
+	linker := newLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
 	libPath := filepath.Join(tmpDir, plan.SharedLibraryName("test", toolchain.HostPlatform()))
-	_, err := linker.LinkSharedLibrary(t.Context(), SharedLibraryOptions{
+	_, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
 		Flags:   toolchain.Config{},
@@ -809,7 +809,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 
 	// Link executable against shared library
 	exePath := filepath.Join(tmpDir, plan.ExecutableName("main", toolchain.HostPlatform()))
-	_, err = linker.LinkExecutable(t.Context(), LinkOptions{
+	_, err = linker.LinkExecutable(t.Context(), linkOptions{
 		Objects:  []string{mainObj},
 		Output:   exePath,
 		LibPaths: []string{tmpDir},

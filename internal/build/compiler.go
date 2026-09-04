@@ -17,7 +17,7 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func (c *Compiler) cacheInputs(opts CompileOptions) []string {
+func (c *compiler) cacheInputs(opts compileOptions) []string {
 	encoded, _ := json.Marshal(opts)
 	inputs := append([]string{string(encoded), toolchainCacheKey(c.toolchain)}, c.toolchain.CompilerFlags(opts.Flags)...)
 	inputs = append(inputs, toolchainCacheEnvironment(c.toolchain)...)
@@ -32,7 +32,7 @@ func (c *Compiler) cacheInputs(opts CompileOptions) []string {
 }
 
 // CompileOptions holds options for compiling a single source file
-type CompileOptions struct {
+type compileOptions struct {
 	Source            string           // Source file path
 	Output            string           // Output object file path
 	Includes          []string         // Include directories
@@ -51,7 +51,7 @@ type CompileOptions struct {
 }
 
 // CompileResult holds the result of a compilation
-type CompileResult struct {
+type compileResult struct {
 	Source       string
 	Object       string
 	DepFile      string   // Path to generated .d file (GCC/Clang)
@@ -63,26 +63,26 @@ type CompileResult struct {
 }
 
 // Compiler handles source file compilation
-type Compiler struct {
-	executor  *Executor
+type compiler struct {
+	executor  *executor
 	toolchain toolchain.Toolchain
 }
 
 // NewCompiler creates a new Compiler instance
-func NewCompiler(executor *Executor, toolchain toolchain.Toolchain) *Compiler {
-	return &Compiler{
+func newCompiler(executor *executor, toolchain toolchain.Toolchain) *compiler {
+	return &compiler{
 		executor:  executor,
 		toolchain: toolchain,
 	}
 }
 
 // isCPlusPlus detects if a source file is C++ based on extension
-func (c *Compiler) isCPlusPlus(source string) bool {
+func (c *compiler) isCPlusPlus(source string) bool {
 	return toolchain.IsCXXSource(source)
 }
 
 // compilerCmd returns the appropriate compiler command for a source file
-func (c *Compiler) compilerCmd(source string) string {
+func (c *compiler) compilerCmd(source string) string {
 	isCPP := c.isCPlusPlus(source)
 
 	if isCPP {
@@ -92,7 +92,7 @@ func (c *Compiler) compilerCmd(source string) string {
 }
 
 // CompileSource compiles a single source file to an object file
-func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*CompileResult, error) {
+func (c *compiler) CompileSource(ctx context.Context, opts compileOptions) (*compileResult, error) {
 	start := time.Now()
 	if isMSVC(c.toolchain) && toolchain.IsAssemblySource(opts.Source) {
 		return nil, fmt.Errorf("MSVC cannot compile GNU-style assembly source %q; use a GCC or Clang toolchain", opts.Source)
@@ -101,7 +101,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 	// Create output directory if it doesn't exist
 	outputDir := filepath.Dir(opts.Output)
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return &CompileResult{
+		return &compileResult{
 			Source:   opts.Source,
 			Object:   opts.Output,
 			Duration: time.Since(start),
@@ -117,7 +117,7 @@ func (c *Compiler) CompileSource(ctx context.Context, opts CompileOptions) (*Com
 }
 
 // compileSourceGCC compiles using GCC/Clang toolchain
-func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, start time.Time) (_ *CompileResult, resultErr error) {
+func (c *compiler) compileSourceGCC(ctx context.Context, opts compileOptions, start time.Time) (_ *compileResult, resultErr error) {
 	// Build command arguments in order
 	var args []string
 
@@ -184,7 +184,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	compiler := c.compilerCmd(opts.Source)
 	if c.toolchain.Name() == "clang" && opts.InternalPartition {
 		if err := c.precompileClangPartition(ctx, opts); err != nil {
-			return &CompileResult{
+			return &compileResult{
 				Source: opts.Source, Object: opts.Output, DepFile: depFile,
 				Duration: time.Since(start), Success: false,
 			}, err
@@ -202,7 +202,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	commandResult, err := c.executor.RunCommand(ctx, compiler, finalArgs...)
 
 	duration := time.Since(start)
-	result := &CompileResult{
+	result := &compileResult{
 		Source:   opts.Source,
 		Object:   opts.Output,
 		DepFile:  depFile,
@@ -221,7 +221,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 	return result, nil
 }
 
-func (c *Compiler) precompileClangPartition(ctx context.Context, opts CompileOptions) (resultErr error) {
+func (c *compiler) precompileClangPartition(ctx context.Context, opts compileOptions) (resultErr error) {
 	standard := opts.Std
 	if standard == "" {
 		standard = "c++20"
@@ -253,7 +253,7 @@ func (c *Compiler) precompileClangPartition(ctx context.Context, opts CompileOpt
 }
 
 // compileSourceMSVC compiles using MSVC toolchain (cl.exe)
-func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, start time.Time) (_ *CompileResult, resultErr error) {
+func (c *compiler) compileSourceMSVC(ctx context.Context, opts compileOptions, start time.Time) (_ *compileResult, resultErr error) {
 	// Build MSVC-style command: cl.exe /nologo /c source.cpp /Fooutput.obj /Iinclude
 	var args []string
 
@@ -301,7 +301,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	// Use response file for many include paths
 	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
-		return &CompileResult{
+		return &compileResult{
 			Source:   opts.Source,
 			Object:   opts.Output,
 			Duration: time.Since(start),
@@ -320,7 +320,7 @@ func (c *Compiler) compileSourceMSVC(ctx context.Context, opts CompileOptions, s
 	commandResult, err := c.executor.RunCommand(ctx, compiler, finalArgs...)
 
 	duration := time.Since(start)
-	result := &CompileResult{
+	result := &compileResult{
 		Source:   opts.Source,
 		Object:   opts.Output,
 		Duration: duration,
@@ -378,8 +378,8 @@ func parseShowIncludes(stdout string) []string {
 
 // CompileSources compiles multiple source files with fail-fast behavior
 // On first error, stops and returns error with all successful results up to the failure
-func (c *Compiler) CompileSources(ctx context.Context, sources []CompileOptions) ([]CompileResult, error) {
-	var results []CompileResult
+func (c *compiler) CompileSources(ctx context.Context, sources []compileOptions) ([]compileResult, error) {
+	var results []compileResult
 
 	for _, opts := range sources {
 		result, err := c.CompileSource(ctx, opts)
@@ -391,4 +391,30 @@ func (c *Compiler) CompileSources(ctx context.Context, sources []CompileOptions)
 	}
 
 	return results, nil
+}
+
+// CompileHeaderUnit builds one header unit BMI.
+func (c *compiler) CompileHeaderUnit(ctx context.Context, opts plan.HeaderUnitOptions) (resultErr error) {
+	if err := os.MkdirAll(filepath.Dir(opts.Output), 0o755); err != nil {
+		return fmt.Errorf("create header-unit output directory: %w", err)
+	}
+	arguments := plan.HeaderUnitArguments(c.toolchain, opts)
+	responseFile := toolchain.MaybeUseGNUResponseFileIn
+	if isMSVC(c.toolchain) {
+		responseFile = toolchain.MaybeUseResponseFileIn
+	}
+	args, cleanupPath, err := responseFile(filepath.Dir(opts.Output), arguments)
+	if err != nil {
+		return fmt.Errorf("create header-unit response file: %w", err)
+	}
+	if cleanupPath != "" {
+		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
+	}
+	if _, err = c.executor.RunCommand(ctx, c.toolchain.CXX(), args...); err != nil {
+		return fmt.Errorf("compile header unit %s: %w", opts.Name, err)
+	}
+	if _, err = os.Stat(opts.Output); err != nil {
+		return fmt.Errorf("compiler did not produce header unit %s at %s: %w", opts.Name, opts.Output, err)
+	}
+	return nil
 }

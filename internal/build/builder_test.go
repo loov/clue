@@ -10,7 +10,7 @@ import (
 )
 
 func TestBuildTargetInterfaceLibraryNeedsNoTools(t *testing.T) {
-	result, err := (&Builder{}).BuildTarget(t.Context(), Options{}, config.Target{Name: "headers", Type: "interface_library"}, nil)
+	result, err := (&Builder{}).buildTarget(t.Context(), Options{}, config.Target{Name: "headers", Type: "interface_library"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,7 +21,7 @@ func TestBuildTargetInterfaceLibraryNeedsNoTools(t *testing.T) {
 
 func TestDependencyLinkInputs_PrebuiltLibraryUsesExactPath(t *testing.T) {
 	library := filepath.Join("vendor", "sdk", "custom-name.a")
-	b := &Builder{depResults: map[string]*DepBuildResult{
+	b := &Builder{depResults: map[string]*depBuildResult{
 		"sdk": {Name: "sdk", Type: "prebuilt_static", LibPath: library},
 	}}
 	cfg := &config.Config{
@@ -42,7 +42,7 @@ func TestDependencyLinkInputs_PrebuiltLibraryUsesExactPath(t *testing.T) {
 }
 
 func TestDependencyLinkInputs_PkgConfigFlags(t *testing.T) {
-	b := &Builder{depResults: map[string]*DepBuildResult{
+	b := &Builder{depResults: map[string]*depBuildResult{
 		"ssl": {Name: "ssl", Type: "pkg_config", Usage: deps.Usage{LinkerFlags: []string{"-lssl", "-lcrypto"}}},
 	}}
 	cfg := &config.Config{

@@ -36,11 +36,11 @@ func TestParallelCompiler_CompilesSingleFile(t *testing.T) {
 
 	// Setup compiler
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	sources := []CompileOptions{
+	sources := []compileOptions{
 		{
 			Source: source,
 			Output: filepath.Join(objDir, "main.o"),
@@ -107,14 +107,14 @@ func TestParallelCompiler_CompilesMultipleFiles(t *testing.T) {
 
 	// Setup compiler
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []CompileOptions
+	var opts []compileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, CompileOptions{
+		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Config{Optimize: "none"},
@@ -188,14 +188,14 @@ func TestParallelCompiler_RespectsConcurrencyLimit(t *testing.T) {
 	// Setup compiler with limited concurrency
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	jobs := 2
-	parallel := NewParallelCompiler(tc, jobs, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, jobs, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []CompileOptions
+	var opts []compileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, CompileOptions{
+		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Config{Optimize: "none"},
@@ -232,11 +232,11 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 
 	// Setup compiler with keepGoing=true
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 2, true, VerbosityNormal) // keepGoing=true
+	parallel := newParallelCompiler(tc, 2, true, VerbosityNormal) // keepGoing=true
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	opts := []CompileOptions{
+	opts := []compileOptions{
 		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: toolchain.Config{Optimize: "none"}},
 		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Config{Optimize: "none"}},
 		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: toolchain.Config{Optimize: "none"}},
@@ -301,11 +301,11 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 
 	// Setup compiler with keepGoing=false (fail fast)
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 1, false, VerbosityNormal) // jobs=1 to ensure order
+	parallel := newParallelCompiler(tc, 1, false, VerbosityNormal) // jobs=1 to ensure order
 
 	// Create compile options - bad file first
 	objDir := filepath.Join(tmpDir, "obj")
-	opts := []CompileOptions{
+	opts := []compileOptions{
 		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Config{Optimize: "none"}},
 		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: toolchain.Config{Optimize: "none"}},
 	}
@@ -354,14 +354,14 @@ func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 
 	// Setup compiler with limited concurrency
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []CompileOptions
+	var opts []compileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, CompileOptions{
+		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Config{Optimize: "none"},
@@ -393,7 +393,7 @@ func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 func TestParallelCompiler_EmptySourcesReturnNoResults(t *testing.T) {
 	// Setup compiler
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Compile empty list
 	results, err := parallel.CompileParallel(t.Context(), nil)
@@ -409,7 +409,7 @@ func TestParallelCompiler_EmptySourcesReturnNoResults(t *testing.T) {
 func TestParallelCompiler_ProgressReportsCompletedWork(t *testing.T) {
 	// Unit test - no compilation needed
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Initially zero
 	completed, total := parallel.Progress()
@@ -424,7 +424,7 @@ func TestParallelCompiler_ProgressReportsCompletedWork(t *testing.T) {
 func TestParallelCompiler_ActiveTracksCurrentFiles(t *testing.T) {
 	// Unit test - no compilation needed
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 2, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, 2, false, VerbosityNormal)
 
 	// Initially empty
 	active := parallel.Active()
@@ -470,14 +470,14 @@ func TestParallelCompiler_BuffersEachCommandOutput(t *testing.T) {
 
 	// Setup compiler with max concurrency
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	parallel := NewParallelCompiler(tc, 4, false, VerbosityNormal)
+	parallel := newParallelCompiler(tc, 4, false, VerbosityNormal)
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []CompileOptions
+	var opts []compileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, CompileOptions{
+		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Config{Optimize: "none"},

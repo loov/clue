@@ -48,11 +48,11 @@ int add(int a, int b) {
 		t.Skipf("clang not available: %v", err)
 	}
 
-	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
-	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
+	executor := newExecutor(executorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
+	compiler := newCompiler(executor, toolchain)
+	linker := newLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
+	depBuilder := newDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
@@ -60,7 +60,7 @@ int add(int a, int b) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := DepBuildOptions{
+	opts := depBuildOptions{
 		Variant:   "debug",
 		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
@@ -125,7 +125,7 @@ func TestDepBuilder_HeaderOnlyDependencyNeedsNoCompiler(t *testing.T) {
 	dep := deps.NewVendoredDependency("headers", root, &deps.InlineConfig{
 		Type: "header_only", Includes: []string{"include"},
 	})
-	result, err := (&DepBuilder{}).BuildDep(t.Context(), dep, root, DepBuildOptions{}, nil)
+	result, err := (&depBuilder{}).BuildDep(t.Context(), dep, root, depBuildOptions{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestDepBuilder_PrebuiltDependencyNeedsNoCompiler(t *testing.T) {
 	dep := deps.NewVendoredDependency("custom", root, &deps.InlineConfig{
 		Type: "prebuilt_static", Library: "libcustom.a",
 	})
-	result, err := (&DepBuilder{}).BuildDep(t.Context(), dep, root, DepBuildOptions{}, nil)
+	result, err := (&depBuilder{}).BuildDep(t.Context(), dep, root, depBuildOptions{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func main() {
 		Type: "external_static", Library: filepath.Join("build", "custom.a"),
 		Commands: [][]string{{"go", "run", "generate.go"}},
 	})
-	result, err := (&DepBuilder{}).BuildDep(t.Context(), dep, root, DepBuildOptions{}, nil)
+	result, err := (&depBuilder{}).BuildDep(t.Context(), dep, root, depBuildOptions{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,13 +194,13 @@ extern "C" int answer() { return 42; }
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
-	executor := NewExecutor(ExecutorConfig{StreamOutput: false})
-	builder := NewDepBuilder(
-		NewCompiler(executor, toolchain), NewLinker(executor, toolchain, toolchainpkg.HostPlatform()),
+	executor := newExecutor(executorConfig{StreamOutput: false})
+	builder := newDepBuilder(
+		newCompiler(executor, toolchain), newLinker(executor, toolchain, toolchainpkg.HostPlatform()),
 		toolchain, VerbosityQuiet,
 	)
 
-	result, err := builder.BuildDep(t.Context(), dep, root, DepBuildOptions{
+	result, err := builder.BuildDep(t.Context(), dep, root, depBuildOptions{
 		Variant: "debug", Platform: toolchainpkg.HostPlatform(), BuildDir: filepath.Join(root, ".build"), Std: "c++20",
 	}, nil)
 	if err != nil {
@@ -259,15 +259,15 @@ targets: {
 		t.Skipf("clang not available: %v", err)
 	}
 
-	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
-	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
+	executor := newExecutor(executorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
+	compiler := newCompiler(executor, toolchain)
+	linker := newLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
+	depBuilder := newDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
-	opts := DepBuildOptions{
+	opts := depBuildOptions{
 		Variant:   "release",
 		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
@@ -319,15 +319,15 @@ func TestDepBuilder_RejectsMissingConfiguration(t *testing.T) {
 		t.Skipf("clang not available: %v", err)
 	}
 
-	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
-	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
+	executor := newExecutor(executorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
+	compiler := newCompiler(executor, toolchain)
+	linker := newLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
+	depBuilder := newDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
-	opts := DepBuildOptions{
+	opts := depBuildOptions{
 		Variant:   "debug",
 		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
@@ -381,15 +381,15 @@ func TestDepBuilder_ExpandsSourceGlobs(t *testing.T) {
 		t.Skipf("clang not available: %v", err)
 	}
 
-	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
-	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
+	executor := newExecutor(executorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
+	compiler := newCompiler(executor, toolchain)
+	linker := newLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
+	depBuilder := newDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
-	opts := DepBuildOptions{
+	opts := depBuildOptions{
 		Variant:   "debug",
 		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,
@@ -449,15 +449,15 @@ int test() { return 42; }
 		t.Skipf("clang not available: %v", err)
 	}
 
-	executor := NewExecutor(ExecutorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
-	compiler := NewCompiler(executor, toolchain)
-	linker := NewLinker(executor, toolchain, toolchainpkg.HostPlatform())
+	executor := newExecutor(executorConfig{Verbose: false, StreamOutput: false, WorkDir: ""})
+	compiler := newCompiler(executor, toolchain)
+	linker := newLinker(executor, toolchain, toolchainpkg.HostPlatform())
 
-	depBuilder := NewDepBuilder(compiler, linker, toolchain, VerbosityNormal)
+	depBuilder := newDepBuilder(compiler, linker, toolchain, VerbosityNormal)
 
 	// Build dependency
 	buildDir := filepath.Join(tmpDir, ".build")
-	opts := DepBuildOptions{
+	opts := depBuildOptions{
 		Variant:   "debug",
 		Platform:  toolchainpkg.HostPlatform(),
 		BuildDir:  buildDir,

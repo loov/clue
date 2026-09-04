@@ -16,7 +16,7 @@ import (
 )
 
 // DepBuildOptions holds options for building a dependency
-type DepBuildOptions struct {
+type depBuildOptions struct {
 	Variant      string             // Build variant (e.g., "debug", "release")
 	Platform     toolchain.Platform // Target platform
 	BuildDir     string             // Build output root (default: ".build")
@@ -29,7 +29,7 @@ type DepBuildOptions struct {
 }
 
 // DepBuildResult holds the result of building a dependency
-type DepBuildResult struct {
+type depBuildResult struct {
 	Name        string        // Dependency name
 	Type        string        // Built, header-only, or prebuilt library type
 	LibPath     string        // Path to built library
@@ -42,17 +42,17 @@ type DepBuildResult struct {
 }
 
 // DepBuilder builds individual dependencies
-type DepBuilder struct {
-	compiler  *Compiler
-	linker    *Linker
+type depBuilder struct {
+	compiler  *compiler
+	linker    *linker
 	toolchain toolchain.Toolchain
 	verbosity Verbosity
 	cache     *cache.Manager
 }
 
 // NewDepBuilder creates a new dependency builder
-func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain toolchain.Toolchain, verbosity Verbosity) *DepBuilder {
-	return &DepBuilder{
+func newDepBuilder(compiler *compiler, linker *linker, toolchain toolchain.Toolchain, verbosity Verbosity) *depBuilder {
+	return &depBuilder{
 		compiler:  compiler,
 		linker:    linker,
 		toolchain: toolchain,
@@ -61,7 +61,7 @@ func NewDepBuilder(compiler *Compiler, linker *Linker, toolchain toolchain.Toolc
 }
 
 // BuildDep builds a single dependency library.
-func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourcePath string, opts DepBuildOptions, builtDeps map[string]*DepBuildResult) (*DepBuildResult, error) {
+func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourcePath string, opts depBuildOptions, builtDeps map[string]*depBuildResult) (*depBuildResult, error) {
 	start := time.Now()
 
 	// Determine sources, includes, and defines
@@ -71,7 +71,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}
 	includePath := deps.IncludePath(dep, sourcePath)
 	if cfg.Type == "header_only" {
-		return &DepBuildResult{
+		return &depBuildResult{
 			Name: dep.Name(), Type: cfg.Type, IncludePath: includePath,
 			Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
@@ -85,18 +85,18 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("prebuilt library %q is not a regular file", library)
 		}
-		return &DepBuildResult{
+		return &depBuildResult{
 			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath,
 			Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
 	}
 	if cfg.Type == "external_static" || cfg.Type == "external_shared" {
-		executorConfig := ExecutorConfig{StreamOutput: true, WorkDir: sourcePath}
+		executorConfig := executorConfig{StreamOutput: true, WorkDir: sourcePath}
 		if db.compiler != nil {
 			executorConfig = db.compiler.executor.config
 			executorConfig.WorkDir = sourcePath
 		}
-		executor := NewExecutor(executorConfig)
+		executor := newExecutor(executorConfig)
 		for _, command := range cfg.Commands {
 			result, err := executor.RunCommand(ctx, command[0], command[1:]...)
 			if err != nil {
@@ -114,7 +114,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("external build output %q is not a regular file", library)
 		}
-		return &DepBuildResult{
+		return &depBuildResult{
 			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath,
 			Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
@@ -153,7 +153,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		objPath := filepath.Join(objDir, objectNames[src])
 
 		// Compile source
-		compileOpts := CompileOptions{
+		compileOpts := compileOptions{
 			Source:   absPath,
 			Output:   objPath,
 			Includes: compilationIncludes,
@@ -243,7 +243,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				requiresCXX = requiresCXX || dependency.RequiresCXX
 			}
 		}
-		linkOpts := SharedLibraryOptions{
+		linkOpts := sharedLibraryOptions{
 			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
 			Flags: toolchain.Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
 		}
@@ -260,7 +260,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			}
 		}
 	} else {
-		archiveOpts := ArchiveOptions{Objects: objectFiles, Output: libPath}
+		archiveOpts := archiveOptions{Objects: objectFiles, Output: libPath}
 		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.toolchain.AR(), archiveOpts, objectFiles)
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
@@ -278,7 +278,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		return nil, fmt.Errorf("failed to create %s: %w", cfg.Type, err)
 	}
 
-	return &DepBuildResult{
+	return &depBuildResult{
 		Name:        dep.Name(),
 		Type:        cfg.Type,
 		LibPath:     libPath,
@@ -291,7 +291,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 }
 
 // determineConfig determines sources, includes, and defines for a dependency
-func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, builtDeps map[string]*DepBuildResult) (*deps.BuildConfig, error) {
+func (db *depBuilder) determineConfig(dep deps.Dependency, sourcePath string, builtDeps map[string]*depBuildResult) (*deps.BuildConfig, error) {
 	cfg, err := deps.ResolveBuildConfig(dep, sourcePath)
 	if err != nil {
 		return nil, err

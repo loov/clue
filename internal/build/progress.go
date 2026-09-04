@@ -15,7 +15,7 @@ import (
 )
 
 // Progress handles build progress output with concurrent-safe counters
-type Progress struct {
+type progress struct {
 	total       int
 	current     atomic.Int64 // atomic for lock-free incrementing
 	built       atomic.Int64 // atomic for lock-free incrementing
@@ -28,8 +28,8 @@ type Progress struct {
 }
 
 // NewProgress creates a new Progress instance
-func NewProgress(total int, verbosity Verbosity) *Progress {
-	return &Progress{
+func newProgress(total int, verbosity Verbosity) *progress {
+	return &progress{
 		total:       total,
 		verbosity:   verbosity,
 		startTime:   time.Now(),
@@ -39,7 +39,7 @@ func NewProgress(total int, verbosity Verbosity) *Progress {
 }
 
 // Compiling reports compilation progress for a source file
-func (p *Progress) Compiling(target, filename string) {
+func (p *progress) Compiling(target, filename string) {
 	current := p.current.Add(1)
 	p.built.Add(1)
 
@@ -54,7 +54,7 @@ func (p *Progress) Compiling(target, filename string) {
 }
 
 // CompilingTimed reports compilation progress with timing (verbose mode only)
-func (p *Progress) CompilingTimed(target, filename string, duration time.Duration) {
+func (p *progress) CompilingTimed(target, filename string, duration time.Duration) {
 	if p.verbosity != VerbosityVerbose {
 		return
 	}
@@ -68,7 +68,7 @@ func (p *Progress) CompilingTimed(target, filename string, duration time.Duratio
 }
 
 // Command logs the full command being executed (verbose mode only)
-func (p *Progress) Command(compiler string, args []string) {
+func (p *progress) Command(compiler string, args []string) {
 	if p.verbosity != VerbosityVerbose {
 		return
 	}
@@ -78,7 +78,7 @@ func (p *Progress) Command(compiler string, args []string) {
 }
 
 // Linking reports linking progress
-func (p *Progress) Linking(target string) {
+func (p *progress) Linking(target string) {
 	if p.verbosity == VerbosityQuiet {
 		return
 	}
@@ -88,7 +88,7 @@ func (p *Progress) Linking(target string) {
 }
 
 // Archiving reports static library creation progress
-func (p *Progress) Archiving(target string) {
+func (p *progress) Archiving(target string) {
 	if p.verbosity == VerbosityQuiet {
 		return
 	}
@@ -98,7 +98,7 @@ func (p *Progress) Archiving(target string) {
 }
 
 // Complete reports successful build completion with cache statistics
-func (p *Progress) Complete(artifact string, fileCount, cachedCount int, duration time.Duration) {
+func (p *progress) Complete(artifact string, fileCount, cachedCount int, duration time.Duration) {
 	if p.verbosity == VerbosityQuiet {
 		return
 	}
@@ -118,7 +118,7 @@ func (p *Progress) Complete(artifact string, fileCount, cachedCount int, duratio
 }
 
 // Skip reports that a file was skipped due to cache hit
-func (p *Progress) Skip(target, filename string, _ cache.RebuildReason) {
+func (p *progress) Skip(target, filename string, _ cache.RebuildReason) {
 	p.current.Add(1)
 	p.cached.Add(1)
 
@@ -133,7 +133,7 @@ func (p *Progress) Skip(target, filename string, _ cache.RebuildReason) {
 }
 
 // Summary prints a build summary showing built and cached counts
-func (p *Progress) Summary() {
+func (p *progress) Summary() {
 	if p.verbosity == VerbosityQuiet {
 		return
 	}
@@ -151,12 +151,12 @@ func (p *Progress) Summary() {
 }
 
 // Stats returns the built and cached counts
-func (p *Progress) Stats() (built, cached int) {
+func (p *progress) Stats() (built, cached int) {
 	return int(p.built.Load()), int(p.cached.Load())
 }
 
 // Error reports a build error with target context
-func (p *Progress) Error(target string, err error) {
+func (p *progress) Error(target string, err error) {
 	p.mu.Lock()
 	_, _ = fmt.Fprintf(p.out, "%s %s\n",
 		errors.Error("[%s] error:", target),
@@ -165,14 +165,14 @@ func (p *Progress) Error(target string, err error) {
 }
 
 // StartCompiling marks a file as actively being compiled (for parallel display)
-func (p *Progress) StartCompiling(filename string) {
+func (p *progress) StartCompiling(filename string) {
 	p.mu.Lock()
 	p.activeFiles = append(p.activeFiles, filepath.Base(filename))
 	p.mu.Unlock()
 }
 
 // EndCompiling marks a file as done compiling
-func (p *Progress) EndCompiling(filename string) {
+func (p *progress) EndCompiling(filename string) {
 	basename := filepath.Base(filename)
 	p.mu.Lock()
 	for i, f := range p.activeFiles {
@@ -185,7 +185,7 @@ func (p *Progress) EndCompiling(filename string) {
 }
 
 // ActiveFiles returns the list of currently compiling files
-func (p *Progress) ActiveFiles() []string {
+func (p *progress) ActiveFiles() []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	result := make([]string, len(p.activeFiles))
@@ -194,7 +194,7 @@ func (p *Progress) ActiveFiles() []string {
 }
 
 // CompilingParallel reports progress for parallel compilation
-func (p *Progress) CompilingParallel(target string, activeFiles []string) {
+func (p *progress) CompilingParallel(target string, activeFiles []string) {
 	current := p.current.Add(1)
 	p.built.Add(1)
 

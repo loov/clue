@@ -27,7 +27,7 @@ func TestExecutorCancellationKillsChildProcesses(t *testing.T) {
 		}
 	}()
 
-	_, err := NewExecutor(ExecutorConfig{}).RunCommand(
+	_, err := newExecutor(executorConfig{}).RunCommand(
 		ctx, "sh", "-c", `sleep 10 & echo $! > "$1.tmp" && mv "$1.tmp" "$1"; wait`, "sh", pidFile,
 	)
 	if !errors.Is(err, context.Canceled) {
