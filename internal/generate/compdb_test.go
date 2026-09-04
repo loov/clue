@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/all"
 	"github.com/loov/clue/internal/toolchain/gcc"
 	"github.com/loov/clue/internal/toolchain/msvc"
 )
@@ -693,7 +693,7 @@ func TestCompilerForSource(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		compiler, err := build.NewToolchain(tc.toolchain, toolchain.HostPlatform())
+		compiler, err := all.NewToolchain(tc.toolchain, toolchain.HostPlatform())
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -5,12 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
-
-	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/cuecontext"
 
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/config"
@@ -45,29 +41,6 @@ type DepBuildResult struct {
 	RequiresCXX bool          // Link consumers with the C++ driver
 }
 
-// ResolvedDepConfig is the source-level build configuration used for a dependency.
-type ResolvedDepConfig struct {
-	Sources  []string
-	Includes []string
-	Defines  []string
-	Depends  []string
-	Library  string
-	Commands [][]string
-	Type     string
-}
-
-// ResolveDepConfig resolves either an inline dependency build or its clue.cue file.
-func ResolveDepConfig(dep deps.Dependency, sourcePath string) (ResolvedDepConfig, error) {
-	cfg, err := (&DepBuilder{}).determineConfig(dep, sourcePath, nil)
-	if err != nil {
-		return ResolvedDepConfig{}, err
-	}
-	return ResolvedDepConfig{
-		Sources: cfg.Sources, Includes: cfg.Includes, Defines: cfg.Defines,
-		Depends: cfg.Depends, Library: cfg.Library, Commands: cfg.Commands, Type: cfg.Type,
-	}, nil
-}
-
 // DepBuilder builds individual dependencies
 type DepBuilder struct {
 	compiler  *Compiler
@@ -96,7 +69,7 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	if err != nil {
 		return nil, err
 	}
-	includePath := db.determineIncludePath(dep, sourcePath, cfg.Includes)
+	includePath := deps.IncludePath(dep, sourcePath)
 	if cfg.Type == "header_only" {
 		return &DepBuildResult{
 			Name: dep.Name(), Type: cfg.Type, IncludePath: includePath,
@@ -317,279 +290,36 @@ func (db *DepBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}, nil
 }
 
-// depConfig holds the resolved build configuration for a dependency
-type depConfig struct {
-	Sources       []string
-	Includes      []string
-	Defines       []string
-	Depends       []string
-	Library       string
-	Commands      [][]string
-	CompilerFlags []string
-	LinkerFlags   []string
-	Type          string
-}
-
 // determineConfig determines sources, includes, and defines for a dependency
-func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, builtDeps map[string]*DepBuildResult) (*depConfig, error) {
-	// Check for inline config first
-	inlineConfig := dep.InlineBuild()
-
-	// If inline config exists, use it
-	if inlineConfig != nil {
-		targetType := inlineConfig.Type
-		if targetType == "" {
-			targetType = "static_library"
-		}
-		sources, err := db.expandSourceGlobs(inlineConfig.Sources, sourcePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to expand source globs: %w", err)
-		}
-
-		// Resolve include paths relative to source path
-		var includes, compilerFlags, linkerFlags []string
-		defines := append([]string(nil), inlineConfig.Defines...)
-		for _, inc := range inlineConfig.Includes {
-			includes = append(includes, filepath.Join(sourcePath, inc))
-		}
-
-		// Add include paths from depended-on dependencies
-		if len(inlineConfig.Depends) > 0 && builtDeps != nil {
-			seen := make(map[string]bool)
-			var addUsage func(string)
-			addUsage = func(name string) {
-				if seen[name] {
-					return
-				}
-				seen[name] = true
-				builtDep, exists := builtDeps[name]
-				if !exists {
-					return
-				}
-				if builtDep.IncludePath != "" {
-					includes = append(includes, builtDep.IncludePath)
-				}
-				includes = append(includes, builtDep.Usage.Includes...)
-				defines = append(defines, builtDep.Usage.Defines...)
-				compilerFlags = append(compilerFlags, builtDep.Usage.CompilerFlags...)
-				linkerFlags = append(linkerFlags, builtDep.Usage.LinkerFlags...)
-				for _, child := range builtDep.Depends {
-					addUsage(child)
-				}
-			}
-			for _, depName := range inlineConfig.Depends {
-				addUsage(depName)
-			}
-		}
-
-		return &depConfig{
-			Sources:       sources,
-			Includes:      includes,
-			Defines:       defines,
-			Depends:       inlineConfig.Depends,
-			Library:       inlineConfig.Library,
-			Commands:      inlineConfig.Commands,
-			CompilerFlags: compilerFlags,
-			LinkerFlags:   linkerFlags,
-			Type:          targetType,
-		}, nil
-	}
-
-	// Try loading clue.cue from source path
-	clueFile := filepath.Join(sourcePath, "clue.cue")
-	if _, err := os.Stat(clueFile); err != nil {
-		return nil, fmt.Errorf("no build configuration for dependency %q: no inline config and no clue.cue found", dep.Name())
-	}
-
-	// Load clue.cue
-	cfg, err := db.loadClueConfig(clueFile, sourcePath, dep.Name(), dep.BuildTarget())
+func (db *DepBuilder) determineConfig(dep deps.Dependency, sourcePath string, builtDeps map[string]*DepBuildResult) (*deps.BuildConfig, error) {
+	cfg, err := deps.ResolveBuildConfig(dep, sourcePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load clue.cue: %w", err)
-	}
-
-	return cfg, nil
-}
-
-// loadClueConfig loads build configuration from a clue.cue file
-func (db *DepBuilder) loadClueConfig(clueFile, sourcePath, dependencyName, configuredTarget string) (*depConfig, error) {
-	data, err := os.ReadFile(clueFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read clue.cue: %w", err)
-	}
-
-	ctx := cuecontext.New()
-	val := ctx.CompileBytes(data, cue.Filename(clueFile))
-	if err := val.Err(); err != nil {
-		return nil, fmt.Errorf("failed to parse clue.cue: %w", err)
-	}
-
-	// Index targets so a dependency never silently builds whichever one happens
-	// to be declared first.
-	targetsVal := val.LookupPath(cue.ParsePath("targets"))
-	if !targetsVal.Exists() {
-		return nil, fmt.Errorf("clue.cue has no targets")
-	}
-
-	iter, err := targetsVal.Fields()
-	if err != nil {
-		return nil, fmt.Errorf("failed to iterate targets: %w", err)
-	}
-
-	targets := make(map[string]cue.Value)
-	var names []string
-	for iter.Next() {
-		name := iter.Selector().Unquoted()
-		names = append(names, name)
-		targets[name] = iter.Value()
-	}
-	if len(names) == 0 {
-		return nil, fmt.Errorf("clue.cue has no targets")
-	}
-	slices.Sort(names)
-	targetName := configuredTarget
-	if targetName == "" {
-		if _, ok := targets[dependencyName]; ok {
-			targetName = dependencyName
-		} else if len(names) == 1 {
-			targetName = names[0]
-		} else {
-			return nil, fmt.Errorf("clue.cue has multiple targets %v; set dependency target", names)
-		}
-	}
-	targetVal, ok := targets[targetName]
-	if !ok {
-		return nil, fmt.Errorf("clue.cue target %q not found; available targets: %v", targetName, names)
-	}
-
-	var sources, includes, defines, externalDepends []string
-	seen := make(map[string]bool)
-	var collect func(string) error
-	collect = func(name string) error {
-		if seen[name] {
-			return nil
-		}
-		seen[name] = true
-		target, ok := targets[name]
-		if !ok {
-			externalDepends = append(externalDepends, name)
-			return nil
-		}
-		sources = append(sources, extractCUEStrings(target, "sources")...)
-		for _, include := range extractCUEStrings(target, "includes") {
-			includes = append(includes, filepath.Join(sourcePath, include))
-		}
-		defines = append(defines, extractCUEStrings(target, "defines")...)
-		if public := target.LookupPath(cue.ParsePath("public")); public.Exists() {
-			for _, include := range extractCUEStrings(public, "includes") {
-				includes = append(includes, filepath.Join(sourcePath, include))
-			}
-			defines = append(defines, extractCUEStrings(public, "defines")...)
-		}
-		for _, dependency := range extractCUEStrings(target, "depends") {
-			if err := collect(dependency); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	if err := collect(targetName); err != nil {
 		return nil, err
 	}
-	if len(sources) == 0 {
-		return nil, fmt.Errorf("clue.cue target %q has no sources", targetName)
-	}
-
-	// Expand globs
-	sources, err = db.expandSourceGlobs(sources, sourcePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to expand source globs: %w", err)
-	}
-
-	targetType := "static_library"
-	if typeVal := targetVal.LookupPath(cue.ParsePath("type")); typeVal.Exists() {
-		targetType, _ = typeVal.String()
-	}
-	if targetType != "static_library" && targetType != "shared_library" {
-		return nil, fmt.Errorf("dependency target %q must be a static_library or shared_library", targetName)
-	}
-
-	return &depConfig{
-		Sources: sources, Includes: includes,
-		Defines: defines,
-		Depends: externalDepends,
-		Type:    targetType,
-	}, nil
-}
-
-func extractCUEStrings(value cue.Value, field string) []string {
-	var result []string
-	list, err := value.LookupPath(cue.ParsePath(field)).List()
-	if err != nil {
-		return nil
-	}
-	for list.Next() {
-		if item, err := list.Value().String(); err == nil {
-			result = append(result, item)
-		}
-	}
-	return result
-}
-
-// expandSourceGlobs expands glob patterns in source list
-func (db *DepBuilder) expandSourceGlobs(patterns []string, sourcePath string) ([]string, error) {
-	var result []string
 	seen := make(map[string]bool)
-
-	for _, pattern := range patterns {
-		// If pattern contains glob characters, expand it
-		if strings.Contains(pattern, "*") || strings.Contains(pattern, "?") {
-			matches, err := filepath.Glob(filepath.Join(sourcePath, pattern))
-			if err != nil {
-				return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
-			}
-
-			for _, match := range matches {
-				// Convert back to relative path
-				rel, err := filepath.Rel(sourcePath, match)
-				if err != nil {
-					rel = match
-				}
-				if !seen[rel] {
-					result = append(result, rel)
-					seen[rel] = true
-				}
-			}
-		} else {
-			// No glob, use as-is
-			if !seen[pattern] {
-				result = append(result, pattern)
-				seen[pattern] = true
-			}
+	var addUsage func(string)
+	addUsage = func(name string) {
+		if seen[name] {
+			return
+		}
+		seen[name] = true
+		builtDep := builtDeps[name]
+		if builtDep == nil {
+			return
+		}
+		if builtDep.IncludePath != "" {
+			cfg.Includes = append(cfg.Includes, builtDep.IncludePath)
+		}
+		cfg.Includes = append(cfg.Includes, builtDep.Usage.Includes...)
+		cfg.Defines = append(cfg.Defines, builtDep.Usage.Defines...)
+		cfg.CompilerFlags = append(cfg.CompilerFlags, builtDep.Usage.CompilerFlags...)
+		cfg.LinkerFlags = append(cfg.LinkerFlags, builtDep.Usage.LinkerFlags...)
+		for _, child := range builtDep.Depends {
+			addUsage(child)
 		}
 	}
-
-	return result, nil
-}
-
-// determineIncludePath determines the include path for a dependency
-func (db *DepBuilder) determineIncludePath(dep deps.Dependency, sourcePath string, _ []string) string {
-	// If inline config specifies headers, use parent directory of sourcePath
-	inlineConfig := dep.InlineBuild()
-
-	if inlineConfig != nil && len(inlineConfig.Headers) > 0 {
-		return filepath.Dir(sourcePath)
+	for _, name := range cfg.Depends {
+		addUsage(name)
 	}
-
-	if inlineConfig != nil && len(inlineConfig.Includes) > 0 {
-		return filepath.Join(sourcePath, inlineConfig.Includes[0])
-	}
-
-	// Check if sourcePath/include exists
-	includeDir := filepath.Join(sourcePath, "include")
-	if _, err := os.Stat(includeDir); err == nil {
-		return includeDir
-	}
-
-	// Default to source path root
-	return sourcePath
+	return &cfg, nil
 }

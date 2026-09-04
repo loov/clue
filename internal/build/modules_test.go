@@ -13,7 +13,7 @@ import (
 
 func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 	clangToolchain := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
-	gcc, _ := NewToolchain("gcc", toolchain.HostPlatform())
+	gcc, _ := newToolchain("gcc", toolchain.HostPlatform())
 	tests := []struct {
 		name   string
 		tc     toolchain.Toolchain

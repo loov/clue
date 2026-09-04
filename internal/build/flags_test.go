@@ -10,7 +10,7 @@ import (
 // Helper function for tests that need compiler flags
 func getTestToolchain(t *testing.T, name string) toolchain.Toolchain {
 	t.Helper()
-	tc, err := NewToolchain(name, toolchain.HostPlatform())
+	tc, err := newToolchain(name, toolchain.HostPlatform())
 	if err != nil {
 		t.Fatalf("NewToolchain failed: %v", err)
 	}
@@ -361,7 +361,7 @@ func TestCompilerFlags_EnableLTO(t *testing.T) {
 }
 
 func TestCompilerFlags_EnablePIC(t *testing.T) {
-	tc, err := NewToolchain("gcc", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	tc, err := newToolchain("gcc", toolchain.Platform{OS: "linux", Arch: "amd64"})
 	if err != nil {
 		t.Fatal(err)
 	}

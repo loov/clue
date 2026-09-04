@@ -5,14 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/all"
 )
 
 func configuredToolchain(settings config.Toolchain, name string, platform toolchain.Platform) (toolchain.Toolchain, error) {
 	settings.Compiler = name
-	tc, err := build.NewConfiguredToolchain(settings, platform, ".")
+	tc, err := all.NewProjectToolchain(settings, platform, ".")
 	if err != nil {
 		return nil, err
 	}

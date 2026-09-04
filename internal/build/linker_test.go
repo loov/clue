@@ -12,21 +12,6 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func TestSystemLibraryFlag_OmitsUnixRuntimeLibrariesOnWindows(t *testing.T) {
-	windows := toolchain.Platform{OS: "windows", Arch: "amd64"}
-	for _, name := range []string{"pthread", "rt", "dl", "m"} {
-		if got := SystemLibraryFlag("clang", windows, name); got != "" {
-			t.Errorf("SystemLibraryFlag(clang, windows, %q) = %q, want empty", name, got)
-		}
-	}
-	if got := SystemLibraryFlag("clang", windows, "kernel32"); got != "-lkernel32" {
-		t.Errorf("Clang kernel32 flag = %q", got)
-	}
-	if got := SystemLibraryFlag("msvc", windows, "kernel32"); got != "kernel32.lib" {
-		t.Errorf("MSVC kernel32 flag = %q", got)
-	}
-}
-
 // TestLinker_LinkExecutableProducesRunnableBinary tests linking an executable from object files
 func TestLinker_LinkExecutableProducesRunnableBinary(t *testing.T) {
 	// Skip if clang++ not available
@@ -56,7 +41,7 @@ func TestLinker_LinkExecutableProducesRunnableBinary(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link main.o to executable
@@ -112,7 +97,7 @@ func TestLinkerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	for i := range flags {
 		flags[i] = "-L" + filepath.Join(dir, strings.Repeat("unused", 15))
 	}
-	tc, err := NewToolchain("clang", toolchain.HostPlatform())
+	tc, err := newToolchain("clang", toolchain.HostPlatform())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +154,7 @@ func TestLinker_CreateStaticLibraryProducesArchive(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Archive add.o to libadd.a
@@ -259,7 +244,7 @@ int main() { return add(20, 22); }`
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Archive add.o to libadd.a
@@ -343,7 +328,7 @@ int main() {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link with pthread
@@ -400,7 +385,7 @@ func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Test executable has no extension on Linux
@@ -485,7 +470,7 @@ func TestLinker_UsesProvidedToolchain(t *testing.T) {
 	platform := toolchain.HostPlatform()
 
 	// Test with clang toolchain
-	clangTC, err := NewToolchain("clang", platform)
+	clangTC, err := newToolchain("clang", platform)
 	if err != nil {
 		t.Fatalf("NewToolchain(clang) failed: %v", err)
 	}
@@ -499,7 +484,7 @@ func TestLinker_UsesProvidedToolchain(t *testing.T) {
 	}
 
 	// Test with gcc toolchain
-	gccTC, err := NewToolchain("gcc", platform)
+	gccTC, err := newToolchain("gcc", platform)
 	if err != nil {
 		t.Fatalf("NewToolchain(gcc) failed: %v", err)
 	}
@@ -528,7 +513,7 @@ func TestLinker_CrossCompilerUsesPrefixedArchiver(t *testing.T) {
 		crossTarget = toolchain.Platform{OS: "linux", Arch: "amd64"}
 	}
 
-	tc, err := NewToolchain("gcc", crossTarget)
+	tc, err := newToolchain("gcc", crossTarget)
 	if err != nil {
 		t.Fatalf("NewToolchain failed: %v", err)
 	}
@@ -587,7 +572,7 @@ CLUE_EXPORT int lib_func() { return 42; }`
 		StreamOutput: false,
 		WorkDir:      tmpDir,
 	})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	libPath := filepath.Join(tmpDir, plan.SharedLibraryName("test", toolchain.HostPlatform()))
@@ -666,7 +651,7 @@ CLUE_EXPORT int lib_func() { return 42; }`
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
@@ -728,7 +713,7 @@ func TestLinkSharedLibrary_LinuxEmitsSONAME(t *testing.T) {
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library
@@ -808,7 +793,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 
 	// Create linker
 	executor := NewExecutor(ExecutorConfig{})
-	tc, _ := NewToolchain("clang", toolchain.HostPlatform())
+	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	linker := NewLinker(executor, tc, toolchain.HostPlatform())
 
 	// Link shared library

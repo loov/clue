@@ -92,7 +92,7 @@ func TestNewToolchain_RejectsMSVCOnLinux(t *testing.T) {
 	}
 
 	// Try to create MSVC toolchain on Linux
-	_, err := NewToolchain("msvc", toolchain.HostPlatform())
+	_, err := newToolchain("msvc", toolchain.HostPlatform())
 
 	// Should return error (MSVC not available on Linux)
 	if err == nil {
@@ -114,7 +114,7 @@ func TestNewToolchain_AcceptsMSVCWindowsTarget(t *testing.T) {
 	// Even with Windows target platform, on Linux host we can't use MSVC
 	windowsTarget := toolchain.Platform{OS: "windows", Arch: "amd64"}
 
-	_, err := NewToolchain("msvc", windowsTarget)
+	_, err := newToolchain("msvc", windowsTarget)
 
 	// Should still fail (no MSVC installed on Linux)
 	if err == nil {

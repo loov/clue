@@ -14,7 +14,6 @@ import (
 
 	"github.com/Duncaen/go-ninja"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
@@ -93,7 +92,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			continue
 		}
 		depPath := dep.CachePath(".")
-		resolved, err := build.ResolveDepConfig(dep, depPath)
+		resolved, err := deps.ResolveBuildConfig(dep, depPath)
 		if err != nil {
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
@@ -204,7 +203,7 @@ func dependencyTargetType(dep deps.Dependency) string {
 			return buildConfig.Type
 		}
 	}
-	if resolved, err := build.ResolveDepConfig(dep, dep.CachePath(".")); err == nil && resolved.Type != "" {
+	if resolved, err := deps.ResolveBuildConfig(dep, dep.CachePath(".")); err == nil && resolved.Type != "" {
 		return resolved.Type
 	}
 	return "static_library"
@@ -214,7 +213,7 @@ func dependencyDepends(dep deps.Dependency) []string {
 	if buildConfig := dep.InlineBuild(); buildConfig != nil {
 		return buildConfig.Depends
 	}
-	resolved, _ := build.ResolveDepConfig(dep, dep.CachePath("."))
+	resolved, _ := deps.ResolveBuildConfig(dep, dep.CachePath("."))
 	return resolved.Depends
 }
 
@@ -246,21 +245,6 @@ func addImportLibraryOutput(statement *ninja.Build, output string, platform tool
 	statement.Vars = append(statement.Vars, ninja.Var{Key: "implib", Val: importLibrary})
 }
 
-func dependencyIncludePath(dep deps.Dependency) string {
-	root := dep.CachePath(".")
-	buildConfig := dep.InlineBuild()
-	if buildConfig != nil && len(buildConfig.Headers) > 0 {
-		return filepath.Dir(root)
-	}
-	if buildConfig != nil && len(buildConfig.Includes) > 0 {
-		return filepath.Join(root, buildConfig.Includes[0])
-	}
-	if info, err := os.Stat(filepath.Join(root, "include")); err == nil && info.IsDir() {
-		return filepath.Join(root, "include")
-	}
-	return root
-}
-
 func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *config.Config, tc toolchain.Toolchain) (deps.Usage, error) {
 	var usage deps.Usage
 	seen := make(map[string]bool)
@@ -278,7 +262,7 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 			mergeDependencyUsage(&usage, resolved)
 			return nil
 		}
-		usage.Includes = append(usage.Includes, dependencyIncludePath(current))
+		usage.Includes = append(usage.Includes, deps.IncludePath(current, current.CachePath(".")))
 		for _, name := range dependencyDepends(current) {
 			if child, ok := cfg.Dependencies[name]; ok {
 				if err := visit(child); err != nil {
@@ -322,7 +306,7 @@ func targetDependencyUsage(ctx context.Context, cfg *config.Config, target confi
 			mergeDependencyUsage(&usage, resolved)
 			return nil
 		}
-		usage.Includes = append(usage.Includes, dependencyIncludePath(dep))
+		usage.Includes = append(usage.Includes, deps.IncludePath(dep, dep.CachePath(".")))
 		for _, child := range dependencyDepends(dep) {
 			if err := visit(child); err != nil {
 				return err
@@ -340,7 +324,7 @@ func targetDependencyUsage(ctx context.Context, cfg *config.Config, target confi
 
 func resolvePkgConfig(ctx context.Context, pkg *deps.PkgConfigDependency, tc toolchain.Toolchain) (deps.Usage, error) {
 	return pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
-		return build.ToolOutput(ctx, tc, ".", name, args...)
+		return toolchain.Output(ctx, tc, ".", name, args...)
 	})
 }
 
@@ -693,7 +677,7 @@ func targetUsesCXXForNinja(cfg *config.Config, target config.Target) bool {
 		if !ok {
 			return false
 		}
-		resolved, err := build.ResolveDepConfig(dependency, dependency.CachePath("."))
+		resolved, err := deps.ResolveBuildConfig(dependency, dependency.CachePath("."))
 		if err != nil {
 			return false
 		}
@@ -769,7 +753,7 @@ func quoteMSVCValue(value string) string {
 }
 
 func ninjaToolCommand(tc toolchain.Toolchain, tool string) string {
-	command, args := build.ToolchainCommand(tc, tool, nil)
+	command, args := toolchain.Command(tc, tool, nil)
 	parts := append([]string{command}, args...)
 	for i, part := range parts {
 		part = strings.ReplaceAll(part, "$", "$$")
@@ -878,7 +862,7 @@ func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, 
 
 	// System libraries
 	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
-		if flag := build.SystemLibraryFlag(tc.Name(), platform, sysLib); flag != "" {
+		if flag := toolchain.SystemLibraryFlag(tc.Name(), platform, sysLib); flag != "" {
 			flags = append(flags, flag)
 		}
 	}
@@ -909,7 +893,7 @@ func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string,
 
 	// System libraries
 	for _, sysLib := range append(target.SysLibs, dependencySysLibs...) {
-		if flag := build.SystemLibraryFlag(tc.Name(), platform, sysLib); flag != "" {
+		if flag := toolchain.SystemLibraryFlag(tc.Name(), platform, sysLib); flag != "" {
 			flags = append(flags, flag)
 		}
 	}

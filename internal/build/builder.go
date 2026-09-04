@@ -19,6 +19,7 @@ import (
 	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/profile"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/all"
 )
 
 // Options holds options for a build operation
@@ -70,7 +71,7 @@ type Builder struct {
 
 // NewBuilder creates a new Builder with the specified toolchain and target platform
 func NewBuilder(toolchainName string, target toolchain.Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
-	toolchain, err := NewToolchain(toolchainName, target)
+	toolchain, err := all.NewToolchain(toolchainName, target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create toolchain: %w", err)
 	}
@@ -79,7 +80,7 @@ func NewBuilder(toolchainName string, target toolchain.Platform, verbosity Verbo
 
 // NewConfiguredBuilder creates a builder from project toolchain settings.
 func NewConfiguredBuilder(settings config.Toolchain, target toolchain.Platform, projectDir string, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {
-	toolchain, err := NewConfiguredToolchain(settings, target, projectDir)
+	toolchain, err := all.NewProjectToolchain(settings, target, projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create toolchain: %w", err)
 	}
@@ -98,7 +99,7 @@ func newBuilder(tc toolchain.Toolchain, target toolchain.Platform, verbosity Ver
 		Verbose:      verbose,
 		StreamOutput: true,
 		WorkDir:      "",
-		Environment:  toolchainEnvironment(tc),
+		Environment:  toolchain.Environment(tc),
 		WrapCommand:  toolchainCommandWrapper(tc),
 	})
 
@@ -901,7 +902,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 		}
 		if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
 			usage, err := pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
-				return ToolOutput(ctx, b.toolchain, ".", name, args...)
+				return toolchain.Output(ctx, b.toolchain, ".", name, args...)
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve dependency %q: %w", depName, err)

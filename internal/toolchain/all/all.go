@@ -10,8 +10,10 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/clang"
+	toolchaincontainer "github.com/loov/clue/internal/toolchain/container"
 	"github.com/loov/clue/internal/toolchain/gcc"
 	"github.com/loov/clue/internal/toolchain/msvc"
 )
@@ -26,6 +28,31 @@ func NewToolchain(name string, target toolchain.Platform) (toolchain.Toolchain, 
 type Config struct {
 	CC, CXX, AR           string
 	TargetTriple, Sysroot string
+}
+
+// NewProjectToolchain creates a local or container-backed project toolchain.
+func NewProjectToolchain(settings config.Toolchain, target toolchain.Platform, projectDir string) (toolchain.Toolchain, error) {
+	name := settings.Compiler
+	if name == "" {
+		name = "clang"
+	}
+	if settings.Container != nil && name != "clang" && name != "gcc" {
+		return nil, fmt.Errorf("container toolchains support clang and gcc, got %q", name)
+	}
+	base, err := NewConfiguredToolchain(name, target, Config{
+		CC: settings.CC, CXX: settings.CXX, AR: settings.AR,
+		TargetTriple: settings.TargetTriple, Sysroot: settings.Sysroot,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if settings.Container == nil {
+		return base, nil
+	}
+	return toolchaincontainer.New(base, toolchaincontainer.Config{
+		Runtime: settings.Container.Runtime, Image: settings.Container.Image, Containerfile: settings.Container.Containerfile,
+		Platform: settings.Container.Platform, ProjectDir: projectDir, WorkDir: settings.Container.WorkDir,
+	}, target)
 }
 
 // NewConfiguredToolchain creates a toolchain with optional explicit commands.

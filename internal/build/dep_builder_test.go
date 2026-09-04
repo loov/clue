@@ -3,8 +3,6 @@ package build
 import (
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -45,7 +43,7 @@ int add(int a, int b) {
 	dep := deps.NewVendoredDependency("libfoo", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
+	toolchain, err := newToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -192,7 +190,7 @@ extern "C" int answer() { return 42; }
 	dep := deps.NewVendoredDependency("answer", root, &deps.InlineConfig{
 		Sources: []string{"lib.cpp"}, Type: "shared_library",
 	})
-	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
+	toolchain, err := newToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -256,7 +254,7 @@ targets: {
 	dep := deps.NewVendoredDependency("libbar", sourcePath, nil)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
+	toolchain, err := newToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -316,7 +314,7 @@ func TestDepBuilder_RejectsMissingConfiguration(t *testing.T) {
 	dep := deps.NewVendoredDependency("libnone", sourcePath, nil)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
+	toolchain, err := newToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -378,7 +376,7 @@ func TestDepBuilder_ExpandsSourceGlobs(t *testing.T) {
 	dep := deps.NewVendoredDependency("libglob", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
+	toolchain, err := newToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -406,45 +404,6 @@ func TestDepBuilder_ExpandsSourceGlobs(t *testing.T) {
 	// Verify all 3 files were compiled
 	if result.SourceCount != 3 {
 		t.Errorf("expected 3 source files (glob expansion), got %d", result.SourceCount)
-	}
-}
-
-func TestResolveDepConfig_SelectsTargetAndItsInternalDependencies(t *testing.T) {
-	root := t.TempDir()
-	config := `targets: {
-	base: {type: "static_library", sources: ["base.cpp"], public: includes: ["include"]}
-	exported: {type: "static_library", sources: ["exported.cpp"], depends: ["base"]}
-	unused: {type: "static_library", sources: ["unused.cpp"]}
-}`
-	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(config), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	dep := deps.NewVendoredDependency("package", root, nil)
-	dep.TargetName = "exported"
-	resolved, err := ResolveDepConfig(dep, root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(resolved.Sources, []string{"exported.cpp", "base.cpp"}) {
-		t.Fatalf("sources = %v", resolved.Sources)
-	}
-	if !slices.Equal(resolved.Includes, []string{filepath.Join(root, "include")}) {
-		t.Fatalf("includes = %v", resolved.Includes)
-	}
-}
-
-func TestResolveDepConfig_RejectsAmbiguousTargets(t *testing.T) {
-	root := t.TempDir()
-	config := `targets: {
-	first: {type: "static_library", sources: ["first.cpp"]}
-	second: {type: "static_library", sources: ["second.cpp"]}
-}`
-	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(config), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	_, err := ResolveDepConfig(deps.NewVendoredDependency("package", root, nil), root)
-	if err == nil || !strings.Contains(err.Error(), "multiple targets") {
-		t.Fatalf("ResolveDepConfig() error = %v, want ambiguous-target error", err)
 	}
 }
 
@@ -485,7 +444,7 @@ int test() { return 42; }
 	dep := deps.NewVendoredDependency("libinc", sourcePath, inlineConfig)
 
 	// Create builder components
-	toolchain, err := NewToolchain("clang", toolchainpkg.HostPlatform())
+	toolchain, err := newToolchain("clang", toolchainpkg.HostPlatform())
 	if err != nil {
 		t.Skipf("clang not available: %v", err)
 	}
@@ -513,75 +472,6 @@ int test() { return 42; }
 	// Verify include path points to include directory
 	if result.IncludePath != includeDir {
 		t.Errorf("expected include path %q, got %q", includeDir, result.IncludePath)
-	}
-}
-
-// TestDepBuilder_DerivesIncludePathFromHeaders tests include path determination with headers field
-func TestDepBuilder_DerivesIncludePathFromHeaders(t *testing.T) {
-	tests := []struct {
-		name         string
-		inlineConfig *deps.InlineConfig
-		sourcePath   string
-		expectedPath string
-		description  string
-	}{
-		{
-			name: "headers_set",
-			inlineConfig: &deps.InlineConfig{
-				Sources: []string{"math.cpp"},
-				Headers: []string{"math.h"},
-			},
-			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
-			expectedPath: filepath.FromSlash("/tmp/test/vendor"),
-			description:  "When headers is set, include path should be parent directory",
-		},
-		{
-			name: "headers_empty_includes_set",
-			inlineConfig: &deps.InlineConfig{
-				Sources:  []string{"math.cpp"},
-				Headers:  []string{},
-				Includes: []string{"custom"},
-			},
-			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
-			expectedPath: filepath.FromSlash("/tmp/test/vendor/simplemath/custom"),
-			description:  "When headers is empty but includes is set, use includes",
-		},
-		{
-			name: "headers_nil_includes_set",
-			inlineConfig: &deps.InlineConfig{
-				Sources:  []string{"math.cpp"},
-				Includes: []string{".."},
-			},
-			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
-			expectedPath: filepath.FromSlash("/tmp/test/vendor"),
-			description:  "When headers is nil but includes is set, use includes (filepath.Join cleans ..)",
-		},
-		{
-			name: "both_empty",
-			inlineConfig: &deps.InlineConfig{
-				Sources: []string{"math.cpp"},
-			},
-			sourcePath:   filepath.FromSlash("/tmp/test/vendor/simplemath"),
-			expectedPath: filepath.FromSlash("/tmp/test/vendor/simplemath"),
-			description:  "When neither is set, fallback to sourcePath",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create minimal DepBuilder (determineIncludePath doesn't use any fields)
-			db := &DepBuilder{}
-
-			// Create vendored dependency with the test inline config
-			dep := deps.NewVendoredDependency("testdep", tt.sourcePath, tt.inlineConfig)
-
-			// Call determineIncludePath
-			result := db.determineIncludePath(dep, tt.sourcePath, nil)
-
-			if result != tt.expectedPath {
-				t.Errorf("%s: expected include path %q, got %q", tt.description, tt.expectedPath, result)
-			}
-		})
 	}
 }
 

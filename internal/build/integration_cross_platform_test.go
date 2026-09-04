@@ -23,7 +23,7 @@ func compilerAvailable(compiler string) bool {
 // crossCompilerAvailable checks if a cross-compiler is available for the target platform
 func crossCompilerAvailable(target toolchain.Platform) bool {
 	// Discover what the cross-compiler would be named
-	toolchain, err := NewToolchain("gcc", target)
+	toolchain, err := newToolchain("gcc", target)
 	if err != nil {
 		return false
 	}
@@ -195,7 +195,7 @@ func TestCrossCompilation_UsesTargetTripletTools(t *testing.T) {
 	}
 
 	// Discover toolchain for cross-compilation
-	toolchain, err := NewToolchain("gcc", targetPlatform)
+	toolchain, err := newToolchain("gcc", targetPlatform)
 	if err != nil {
 		t.Fatalf("NewToolchain failed: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := NewToolchain(tt.toolchain, toolchain.HostPlatform())
+			tc, err := newToolchain(tt.toolchain, toolchain.HostPlatform())
 			if err != nil {
 				t.Fatalf("NewToolchain failed: %v", err)
 			}
@@ -391,7 +391,7 @@ func TestSemanticFlagMapping_TranslatesLinkerOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := NewToolchain(tt.toolchain, toolchain.HostPlatform())
+			tc, err := newToolchain(tt.toolchain, toolchain.HostPlatform())
 			if err != nil {
 				t.Fatalf("NewToolchain failed: %v", err)
 			}

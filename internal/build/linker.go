@@ -71,23 +71,6 @@ func isMSVC(tc toolchain.Toolchain) bool {
 	return tc.Name() == "msvc"
 }
 
-// SystemLibraryFlag maps a portable system-library name to a compiler flag.
-func SystemLibraryFlag(toolchainName string, platform toolchain.Platform, lib string) string {
-	if platform.OS == "windows" {
-		switch lib {
-		case "pthread", "rt", "dl", "m":
-			return ""
-		}
-		if toolchainName == "msvc" {
-			if strings.HasSuffix(lib, ".lib") {
-				return lib
-			}
-			return lib + ".lib"
-		}
-	}
-	return "-l" + lib
-}
-
 // LinkExecutable links object files into an executable binary
 func (l *Linker) LinkExecutable(ctx context.Context, opts LinkOptions) (*LinkResult, error) {
 	start := time.Now()
@@ -129,7 +112,7 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 
 	// Add system libraries
 	for _, sysLib := range opts.SysLibs {
-		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+		if flag := toolchain.SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
 			args = append(args, flag)
 		}
 	}
@@ -193,7 +176,7 @@ func (l *Linker) linkExecutableMSVC(ctx context.Context, opts LinkOptions, start
 
 	// Add system libraries (translated to MSVC format)
 	for _, sysLib := range opts.SysLibs {
-		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+		if flag := toolchain.SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
 			args = append(args, flag)
 		}
 	}
@@ -393,7 +376,7 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 
 	// Add system libraries
 	for _, sysLib := range opts.SysLibs {
-		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+		if flag := toolchain.SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
 			args = append(args, flag)
 		}
 	}
@@ -481,7 +464,7 @@ func (l *Linker) linkSharedLibraryMSVC(ctx context.Context, opts SharedLibraryOp
 
 	// Add system libraries (translated to MSVC format)
 	for _, sysLib := range opts.SysLibs {
-		if flag := SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
+		if flag := toolchain.SystemLibraryFlag(l.toolchain.Name(), l.target, sysLib); flag != "" {
 			args = append(args, flag)
 		}
 	}

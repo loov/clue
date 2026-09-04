@@ -38,8 +38,8 @@ func TestMSVCToolchain_EnvironmentReturnsDetectedValues(t *testing.T) {
 		`PATH=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\bin\Hostx64\x64`,
 		`VSLANG=1033`,
 	}
-	if got := toolchainEnvironment(tc); !reflect.DeepEqual(got, want) {
-		t.Errorf("toolchainEnvironment() = %q, want %q", got, want)
+	if got := toolchain.Environment(tc); !reflect.DeepEqual(got, want) {
+		t.Errorf("toolchain.Environment() = %q, want %q", got, want)
 	}
 }
 

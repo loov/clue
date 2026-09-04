@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/all"
 	"github.com/loov/clue/internal/toolchain/clang"
 	"github.com/loov/clue/internal/toolchain/gcc"
 )
@@ -45,7 +46,7 @@ func TestNewToolchain_CreatesNativeCompiler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := NewToolchain(tt.toolchain, host)
+			tc, err := newToolchain(tt.toolchain, host)
 			if err != nil {
 				t.Fatalf("NewToolchain failed: %v", err)
 			}
@@ -82,7 +83,7 @@ func TestNewToolchain_UsesCCEnvironmentOverride(t *testing.T) {
 
 	t.Setenv("CC", "/custom/path/gcc")
 
-	tc, err := NewToolchain("clang", host)
+	tc, err := newToolchain("clang", host)
 	if err != nil {
 		t.Fatalf("NewToolchain failed: %v", err)
 	}
@@ -102,7 +103,7 @@ func TestNewToolchain_UsesCXXEnvironmentOverride(t *testing.T) {
 
 	t.Setenv("CXX", "/custom/path/g++")
 
-	tc, err := NewToolchain("clang", host)
+	tc, err := newToolchain("clang", host)
 	if err != nil {
 		t.Fatalf("NewToolchain failed: %v", err)
 	}
@@ -151,7 +152,7 @@ func TestNewToolchain_CreatesLinuxARM64CrossCompiler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := NewToolchain(tt.toolchain, target)
+			tc, err := newToolchain(tt.toolchain, target)
 			if err != nil {
 				t.Fatalf("NewToolchain failed: %v", err)
 			}
@@ -200,7 +201,7 @@ func TestNewToolchain_CreatesLinuxAMD64CrossCompiler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := NewToolchain(tt.toolchain, target)
+			tc, err := newToolchain(tt.toolchain, target)
 			if err != nil {
 				t.Fatalf("NewToolchain failed: %v", err)
 			}
@@ -299,7 +300,7 @@ func TestValidateToolchain_AcceptsAvailableCompiler(t *testing.T) {
 		t.Skip("No C compiler found in PATH, skipping validation test")
 	}
 
-	tc, err := NewToolchain(toolchainName, toolchain.HostPlatform())
+	tc, err := newToolchain(toolchainName, toolchain.HostPlatform())
 	if err != nil {
 		t.Fatalf("NewToolchain failed: %v", err)
 	}
@@ -358,4 +359,10 @@ func TestToolchainString_DescribesCompilerAndTarget(t *testing.T) {
 			}
 		})
 	}
+}
+
+// NewToolchain creates a toolchain implementation based on the name.
+// Delegates to toolchain/all package factory.
+func newToolchain(name string, target toolchain.Platform) (toolchain.Toolchain, error) {
+	return all.NewToolchain(name, target)
 }

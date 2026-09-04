@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
@@ -171,7 +170,7 @@ func buildTargetCommands(ctx context.Context, workDir string, opts CompDBOptions
 			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.Mapper,
 		}
 		arguments := plan.HeaderUnitArguments(tc, absoluteHeaderUnitOptions(headerOpts))
-		command, wrapped := build.ToolchainCommand(tc, tc.CXX(), arguments)
+		command, wrapped := toolchain.Command(tc, tc.CXX(), arguments)
 		file := unit.Path
 		if !unit.System {
 			file = AbsPath(file)
@@ -264,12 +263,12 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 
 	// Get dependency source path
 	depPath := dep.CachePath(".")
-	resolved, err := build.ResolveDepConfig(dep, depPath)
+	resolved, err := deps.ResolveBuildConfig(dep, depPath)
 	if err != nil {
 		return nil, err
 	}
 	objectNames := plan.ObjectNames(resolved.Sources)
-	includes := append(append([]string(nil), resolved.Includes...), dependencyIncludePath(dep))
+	includes := append(append([]string(nil), resolved.Includes...), deps.IncludePath(dep, depPath))
 
 	optimization := variant.Optimization
 	if optimization == "" {
@@ -379,7 +378,7 @@ func buildCompilerArgsExtra(tc toolchain.Toolchain, std string, includes, system
 	semanticFlags := tc.CompilerFlags(buildCfg)
 	args = append(args, semanticFlags...)
 
-	command, wrapped := build.ToolchainCommand(tc, args[0], args[1:])
+	command, wrapped := toolchain.Command(tc, args[0], args[1:])
 	return append([]string{command}, wrapped...)
 }
 
