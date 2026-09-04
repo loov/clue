@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/profile"
 	"github.com/loov/clue/internal/toolchain"
 	"golang.org/x/sync/errgroup"
@@ -52,7 +53,7 @@ func newParallelCompiler(toolchain toolchain.Toolchain, jobs int, keepGoing bool
 }
 
 // CompileParallel compiles multiple source files in parallel with bounded concurrency
-func (p *parallelCompiler) CompileParallel(ctx context.Context, sources []compileOptions) ([]parallelResult, error) {
+func (p *parallelCompiler) CompileParallel(ctx context.Context, sources []plan.CompileOptions) ([]parallelResult, error) {
 	if len(sources) == 0 {
 		return nil, nil
 	}
@@ -111,7 +112,7 @@ func (p *parallelCompiler) CompileParallel(ctx context.Context, sources []compil
 }
 
 // compileWithBuffering compiles a single source file and captures output to a buffer
-func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts compileOptions) parallelResult {
+func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts plan.CompileOptions) parallelResult {
 	var buf bytes.Buffer
 	start := time.Now()
 

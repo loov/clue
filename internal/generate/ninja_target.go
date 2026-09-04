@@ -135,34 +135,27 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	}
 
 	for _, source := range modules.Sources {
-		compilerFlags := buildCompilerFlagsForNinja(opts.Config, target, buildCfg, includes, tc, source)
-		if _, moduleAware := modules.BySource[source]; moduleAware && config.CompileStandard(opts.Config.Toolchain, target, usage, source) == "" {
-			if tc.Name() == "msvc" {
-				compilerFlags = append(compilerFlags, "/std:c++20")
-			} else {
-				compilerFlags = append(compilerFlags, "-std=c++20")
-			}
-		}
-		if target.Type == "shared_library" && opts.Platform.OS != "windows" && tc.Name() != "msvc" {
-			compilerFlags = append(compilerFlags, "-fPIC")
-		}
-		// Determine object path
 		objPath := ninjaPathLocal(sourcePlans[source].Object)
 		srcPath := ninjaPathLocal(source)
-
 		objects = append(objects, objPath)
-
-		// Determine rule based on source extension
-		rule := "cc"
-		flagKey := "cflags"
-		if isCPlusPlusFile(source) {
-			rule = "cxx"
-			flagKey = "cxxflags"
+		compileIncludes := slices.Clone(includes)
+		if tc.Name() == "msvc" {
+			compileIncludes = append(compileIncludes, toolchainEnvironmentPaths(tc, "INCLUDE")...)
 		}
-
-		moduleFlags := modules.Flags(source)
-		for index := range moduleFlags {
-			moduleFlags[index] = strings.ReplaceAll(moduleFlags[index], `\`, "/")
+		compileOpts := modules.ForSource(source, plan.CompileOptions{
+			Source: source, Output: sourcePlans[source].Object, Includes: compileIncludes,
+			SystemIncludes: target.SystemIncludes, Defines: target.Defines, Flags: buildCfg,
+			Std: sourcePlans[source].Standard, TargetType: target.Type, Platform: opts.Platform,
+			DependencyMode: plan.DependencyModeAll,
+		})
+		compileOpts = ninjaCompileOptions(compileOpts)
+		invocation, err := plan.Compile(tc, compileOpts)
+		if err != nil {
+			return nil, err
+		}
+		rule := "cc"
+		if toolchain.IsCXXSource(source) {
+			rule = "cxx"
 		}
 		statement := ninja.Build{
 			Rule:        rule,
@@ -170,20 +163,20 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			InImplicit:  ninjaPaths(modules.Inputs(source)),
 			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
 			Out:         []string{objPath},
-			Vars: ninja.Vars{
-				{Key: "source", Val: srcPath},
-				{Key: "object", Val: objPath},
-				{Key: flagKey, Val: strings.Join(append(append([]string(nil), compilerFlags...), moduleFlags...), " ")},
-			},
+			Vars:        ninja.Vars{{Key: "object", Val: objPath}, {Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
+		}
+		if invocation.DependencyFile != "" {
+			statement.Vars = append(statement.Vars, ninja.Var{Key: "depfile", Val: invocation.DependencyFile})
 		}
 		if module, ok := modules.BySource[source]; ok {
 			if output := modules.Outputs[module.Provides]; output != "" {
 				ninjaOutput := ninjaPathLocal(output)
 				if tc.Name() == "clang" && module.InternalPartition {
-					partitionVars := append(slices.Clone(statement.Vars), ninja.Var{Key: "bmi", Val: ninjaOutput})
+					partition := plan.CompileModulePartition(tc, compileOpts)
 					*file = append(*file, ninja.Build{
 						Rule: "module_partition", In: []string{srcPath}, InImplicit: statement.InImplicit,
-						InOrderOnly: statement.InOrderOnly, Out: []string{ninjaOutput}, Vars: partitionVars,
+						InOrderOnly: statement.InOrderOnly, Out: []string{ninjaOutput},
+						Vars: ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, partition.Arguments)}},
 					})
 					statement.InImplicit = append(statement.InImplicit, ninjaOutput)
 				} else {
@@ -272,62 +265,6 @@ func ninjaResponseArguments(tc toolchain.Toolchain, arguments []string) string {
 
 func sourcesUseCXX(sources []string) bool {
 	return slices.ContainsFunc(sources, toolchain.IsCXXSource)
-}
-
-// buildCompilerFlagsForNinja builds compiler flags for Ninja output
-func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Flags, includes []string, tc toolchain.Toolchain, source string) []string {
-	var flags []string
-	msvc := tc.Name() == "msvc"
-
-	// Language standard
-	if std := config.CompileStandard(cfg.Toolchain, target, config.Usage{}, source); std != "" {
-		if msvc {
-			flags = append(flags, "/std:"+plan.TranslateStdForMSVC(std))
-		} else {
-			flags = append(flags, "-std="+std)
-		}
-	}
-
-	// Include paths
-	for _, inc := range includes {
-		prefix := "-I"
-		if msvc {
-			prefix = "/I"
-		}
-		path := NinjaPath(inc)
-		if msvc {
-			path = quoteMSVCValue(path)
-		}
-		flags = append(flags, prefix+path)
-	}
-	for _, inc := range target.SystemIncludes {
-		path := NinjaPath(inc)
-		if msvc {
-			flags = append(flags, "/external:I"+quoteMSVCValue(path))
-		} else {
-			flags = append(flags, "-isystem", path)
-		}
-	}
-	if msvc {
-		for _, include := range toolchainEnvironmentPaths(tc, "INCLUDE") {
-			flags = append(flags, "/I"+quoteMSVCValue(NinjaPath(include)))
-		}
-	}
-
-	// Defines
-	for _, def := range target.Defines {
-		prefix := "-D"
-		if msvc {
-			prefix = "/D"
-		}
-		flags = append(flags, prefix+def)
-	}
-
-	// Semantic flags from build package
-	semanticFlags := tc.CompilerFlags(buildCfg)
-	flags = append(flags, semanticFlags...)
-
-	return flags
 }
 
 func quoteMSVCValue(value string) string {
@@ -447,6 +384,27 @@ func ninjaPaths(paths []string) []string {
 		paths[index] = ninjaPathLocal(paths[index])
 	}
 	return paths
+}
+
+func ninjaCompileOptions(opts plan.CompileOptions) plan.CompileOptions {
+	opts.Source = NinjaPath(opts.Source)
+	opts.Output = NinjaPath(opts.Output)
+	for index, include := range opts.Includes {
+		opts.Includes[index] = NinjaPath(include)
+	}
+	for index, include := range opts.SystemIncludes {
+		opts.SystemIncludes[index] = NinjaPath(include)
+	}
+	if opts.ModuleOutput != "" {
+		opts.ModuleOutput = NinjaPath(opts.ModuleOutput)
+	}
+	if opts.ModuleMapper != "" {
+		opts.ModuleMapper = NinjaPath(opts.ModuleMapper)
+	}
+	for name, output := range opts.ModuleFiles {
+		opts.ModuleFiles[name] = NinjaPath(output)
+	}
+	return opts
 }
 
 // outputPathForTarget returns the output path for a target

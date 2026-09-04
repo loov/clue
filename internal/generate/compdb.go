@@ -191,44 +191,26 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	for _, source := range modules.Sources {
 		sourcePlan := sourcePlans[source]
 		objPath := sourcePlan.Object
+		includes := slices.Clone(target.Includes)
+		if tc.Name() == "msvc" {
+			includes = append(includes, toolchainEnvironmentPaths(tc, "INCLUDE")...)
+		}
+		compileOpts := modules.ForSource(source, plan.CompileOptions{
+			Source: source, Output: objPath, Includes: includes, SystemIncludes: target.SystemIncludes,
+			Defines: target.Defines, Flags: buildCfg, Std: sourcePlan.Standard, TargetType: target.Type,
+			Platform: opts.Platform,
+		})
+		compileOpts = absoluteCompileOptions(compileOpts)
+		invocation, err := plan.Compile(tc, compileOpts)
+		if err != nil {
+			return nil, err
+		}
+		command, arguments := toolchain.Command(tc, invocation.Tool, invocation.Arguments)
 
-		// Build compiler arguments
-		module, hasModule := modules.BySource[source]
-		moduleFiles := make(map[string]string, len(modules.Inherited)+len(module.Requires))
-		for name, output := range modules.Inherited {
-			moduleFiles[name] = AbsPath(output)
-		}
-		for _, required := range module.Requires {
-			if output := modules.Outputs[required]; output != "" {
-				moduleFiles[required] = AbsPath(output)
-			}
-		}
-		moduleOutput := ""
-		if hasModule && module.Provides != "" {
-			moduleOutput = AbsPath(modules.Outputs[module.Provides])
-		}
-		mapper := ""
-		if modules.Mapper != "" {
-			mapper = AbsPath(modules.Mapper)
-		}
-		extra := plan.ModuleCompileFlags(tc, module, moduleOutput, moduleFiles, mapper)
-		standard := sourcePlan.Standard
-		if hasModule && standard == "" {
-			standard = "c++20"
-		}
-		args := buildCompilerArgsExtra(tc, standard, target.Includes, target.SystemIncludes, target.Defines, source, objPath, buildCfg, extra)
-
-		// Make paths absolute for IDE compatibility
-		srcAbs := AbsPath(source)
-		objAbs := AbsPath(objPath)
-
-		cmd := CompileCommand{
-			Directory: workDir,
-			File:      srcAbs,
-			Arguments: args,
-			Output:    objAbs,
-		}
-		commands = append(commands, cmd)
+		commands = append(commands, CompileCommand{
+			Directory: workDir, File: compileOpts.Source,
+			Arguments: append([]string{command}, arguments...), Output: compileOpts.Output,
+		})
 	}
 
 	return commands, nil
@@ -286,116 +268,47 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 	for _, source := range resolved.Sources {
 		srcPath := filepath.Join(depPath, source)
 		objPath := depObjectPath(opts.BuildDir, opts.Variant, dep.Name(), objectNames[source])
-
-		// Build arguments
-		args := buildCompilerArgs(tc, opts.Config.Toolchain.Standard(source), includes, nil, resolved.Defines, srcPath, objPath, buildCfg)
-
-		// Make paths absolute
-		srcAbs := AbsPath(srcPath)
-		objAbs := AbsPath(objPath)
-
-		cmd := CompileCommand{
-			Directory: workDir,
-			File:      srcAbs,
-			Arguments: args,
-			Output:    objAbs,
+		compileIncludes := slices.Clone(includes)
+		if tc.Name() == "msvc" {
+			compileIncludes = append(compileIncludes, toolchainEnvironmentPaths(tc, "INCLUDE")...)
 		}
-		commands = append(commands, cmd)
+		compileOpts := absoluteCompileOptions(plan.CompileOptions{
+			Source: srcPath, Output: objPath, Includes: compileIncludes, Defines: resolved.Defines,
+			Flags: buildCfg, Std: opts.Config.Toolchain.Standard(source), Platform: opts.Platform,
+		})
+		invocation, err := plan.Compile(tc, compileOpts)
+		if err != nil {
+			return nil, err
+		}
+		command, arguments := toolchain.Command(tc, invocation.Tool, invocation.Arguments)
+		commands = append(commands, CompileCommand{
+			Directory: workDir, File: compileOpts.Source,
+			Arguments: append([]string{command}, arguments...), Output: compileOpts.Output,
+		})
 	}
 
 	return commands, nil
 }
 
-// buildCompilerArgs constructs the full compiler command arguments
-func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Flags) []string {
-	return buildCompilerArgsExtra(tc, std, includes, systemIncludes, defines, source, objPath, buildCfg, nil)
-}
-
-func buildCompilerArgsExtra(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Flags, extra []string) []string {
-	var args []string
-	msvc := tc.Name() == "msvc"
-
-	// 1. Compiler executable (based on file extension)
-	compiler := compilerForSource(tc, source)
-	args = append(args, compiler)
-
-	// 2. Compile-only flag
-	if msvc {
-		args = append(args, "/c")
-	} else {
-		args = append(args, "-c")
+func absoluteCompileOptions(opts plan.CompileOptions) plan.CompileOptions {
+	opts.Source = AbsPath(opts.Source)
+	opts.Output = AbsPath(opts.Output)
+	for index, include := range opts.Includes {
+		opts.Includes[index] = AbsPath(include)
 	}
-	args = append(args, extra...)
-
-	// 3. Source file (absolute path)
-	args = append(args, AbsPath(source))
-
-	// 4. Output file
-	if msvc {
-		args = append(args, "/Fo"+AbsPath(objPath))
-	} else {
-		args = append(args, "-o", AbsPath(objPath))
+	for index, include := range opts.SystemIncludes {
+		opts.SystemIncludes[index] = AbsPath(include)
 	}
-
-	// 5. Include paths
-	for _, include := range includes {
-		prefix := "-I"
-		if msvc {
-			prefix = "/I"
-		}
-		args = append(args, prefix+AbsPath(include))
+	if opts.ModuleOutput != "" {
+		opts.ModuleOutput = AbsPath(opts.ModuleOutput)
 	}
-	for _, include := range systemIncludes {
-		path := AbsPath(include)
-		if msvc {
-			args = append(args, "/external:I"+path)
-		} else {
-			args = append(args, "-isystem", path)
-		}
+	if opts.ModuleMapper != "" {
+		opts.ModuleMapper = AbsPath(opts.ModuleMapper)
 	}
-	if msvc {
-		for _, include := range toolchainEnvironmentPaths(tc, "INCLUDE") {
-			args = append(args, "/I"+include)
-		}
+	for name, output := range opts.ModuleFiles {
+		opts.ModuleFiles[name] = AbsPath(output)
 	}
-
-	// 6. Defines
-	for _, define := range defines {
-		prefix := "-D"
-		if msvc {
-			prefix = "/D"
-		}
-		args = append(args, prefix+define)
-	}
-
-	// 7. Language standard
-	if std != "" && !toolchain.IsAssemblySource(source) {
-		if msvc {
-			args = append(args, "/std:"+plan.TranslateStdForMSVC(std))
-		} else {
-			args = append(args, "-std="+std)
-		}
-	}
-
-	// 8. Semantic flags (using build package for consistency)
-	semanticFlags := tc.CompilerFlags(buildCfg)
-	args = append(args, semanticFlags...)
-
-	command, wrapped := toolchain.Command(tc, args[0], args[1:])
-	return append([]string{command}, wrapped...)
-}
-
-// compilerForSource returns the appropriate compiler for a source file
-func compilerForSource(tc toolchain.Toolchain, source string) string {
-	if isCPlusPlusFile(source) {
-		return tc.CXX()
-	}
-	return tc.CC()
-}
-
-// isCPlusPlusFile detects if a file is C++ based on extension
-func isCPlusPlusFile(source string) bool {
-	return toolchain.IsCXXSource(source)
+	return opts
 }
 
 // depObjectPath returns the object file path for a dependency source

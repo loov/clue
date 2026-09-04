@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -40,7 +41,7 @@ func TestParallelCompiler_CompilesSingleFile(t *testing.T) {
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	sources := []compileOptions{
+	sources := []plan.CompileOptions{
 		{
 			Source: source,
 			Output: filepath.Join(objDir, "main.o"),
@@ -111,10 +112,10 @@ func TestParallelCompiler_CompilesMultipleFiles(t *testing.T) {
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []compileOptions
+	var opts []plan.CompileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, compileOptions{
+		opts = append(opts, plan.CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Flags{Optimize: "none"},
@@ -192,10 +193,10 @@ func TestParallelCompiler_RespectsConcurrencyLimit(t *testing.T) {
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []compileOptions
+	var opts []plan.CompileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, compileOptions{
+		opts = append(opts, plan.CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Flags{Optimize: "none"},
@@ -236,7 +237,7 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	opts := []compileOptions{
+	opts := []plan.CompileOptions{
 		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: toolchain.Flags{Optimize: "none"}},
 		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Flags{Optimize: "none"}},
 		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: toolchain.Flags{Optimize: "none"}},
@@ -305,7 +306,7 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 
 	// Create compile options - bad file first
 	objDir := filepath.Join(tmpDir, "obj")
-	opts := []compileOptions{
+	opts := []plan.CompileOptions{
 		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Flags{Optimize: "none"}},
 		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: toolchain.Flags{Optimize: "none"}},
 	}
@@ -358,10 +359,10 @@ func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []compileOptions
+	var opts []plan.CompileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, compileOptions{
+		opts = append(opts, plan.CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Flags{Optimize: "none"},
@@ -474,10 +475,10 @@ func TestParallelCompiler_BuffersEachCommandOutput(t *testing.T) {
 
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
-	var opts []compileOptions
+	var opts []plan.CompileOptions
 	for _, src := range sources {
 		base := filepath.Base(src)
-		opts = append(opts, compileOptions{
+		opts = append(opts, plan.CompileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
 			Flags:  toolchain.Flags{Optimize: "none"},

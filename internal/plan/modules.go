@@ -216,6 +216,9 @@ func ModuleCompileFlags(tc toolchain.Toolchain, dependency ModuleDependency, out
 	if tc == nil {
 		return nil
 	}
+	if !dependency.UsesModules && !dependency.IsModule && output == "" && len(moduleFiles) == 0 && mapper == "" {
+		return nil
+	}
 	var flags []string
 	switch tc.Name() {
 	case "gcc":

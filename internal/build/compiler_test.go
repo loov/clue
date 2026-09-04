@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/cache"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -31,87 +32,16 @@ func TestWriteDependencyFileEscapesPaths(t *testing.T) {
 	}
 }
 
-func TestCompiler_IsCPlusPlusRecognizesExtensions(t *testing.T) {
-	executor := newExecutor(executorConfig{})
-	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	compiler := newCompiler(executor, tc)
-
-	tests := []struct {
-		source   string
-		expected bool
-	}{
-		{"main.cpp", true},
-		{"file.cc", true},
-		{"code.cxx", true},
-		{"code.c++", true},
-		{"code.CC", true},
-		{"source.C", true},
-		{"program.CPP", true},
-		{"main.c", false},
-		{"header.h", false},
-		{"readme.txt", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.source, func(t *testing.T) {
-			result := compiler.isCPlusPlus(tt.source)
-			if result != tt.expected {
-				t.Errorf("isCPlusPlus(%s) = %v, want %v", tt.source, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestCompiler_UsesProvidedToolchain(t *testing.T) {
-	executor := newExecutor(executorConfig{})
-	platform := toolchain.HostPlatform()
-
-	tests := []struct {
-		toolchainName string
-		source        string
-		expectCC      bool // true if should use CC, false for CXX
-	}{
-		{"clang", "main.cpp", false}, // C++ uses CXX
-		{"clang", "main.c", true},    // C uses CC
-		{"gcc", "main.cpp", false},
-		{"gcc", "main.c", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.toolchainName+"_"+tt.source, func(t *testing.T) {
-			tc, err := newToolchain(tt.toolchainName, platform)
-			if err != nil {
-				t.Fatalf("NewToolchain failed: %v", err)
-			}
-
-			compiler := newCompiler(executor, tc)
-			result := compiler.compilerCmd(tt.source)
-
-			if tt.expectCC {
-				if result != tc.CC() {
-					t.Errorf("compilerCmd(%s) = %s, want CC=%s",
-						tt.source, result, tc.CC())
-				}
-			} else {
-				if result != tc.CXX() {
-					t.Errorf("compilerCmd(%s) = %s, want CXX=%s",
-						tt.source, result, tc.CXX())
-				}
-			}
-		})
-	}
-}
-
 func TestCompilerCacheInputsIncludeAllCompileOptions(t *testing.T) {
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	compiler := newCompiler(newExecutor(executorConfig{}), tc)
-	base := compileOptions{
+	base := plan.CompileOptions{
 		Source: "main.cpp", Output: "main.o", Includes: []string{"include"}, SystemIncludes: []string{"vendor"},
 		Defines: []string{"MODE=1"}, Std: "c++17", TargetType: "executable",
 	}
 	baseline := compiler.cacheInputs(base)[0]
 
-	changes := []compileOptions{base, base, base, base}
+	changes := []plan.CompileOptions{base, base, base, base}
 	changes[0].Defines = []string{"MODE=2"}
 	changes[1].Std = "c++20"
 	changes[2].TargetType = "shared_library"
@@ -127,10 +57,10 @@ func TestCompilerCacheInputsIncludeEnvironment(t *testing.T) {
 	t.Setenv("CPATH", "first")
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
 	compiler := newCompiler(newExecutor(executorConfig{}), tc)
-	first := strings.Join(compiler.cacheInputs(compileOptions{}), "\x00")
+	first := strings.Join(compiler.cacheInputs(plan.CompileOptions{}), "\x00")
 
 	t.Setenv("CPATH", "second")
-	second := strings.Join(compiler.cacheInputs(compileOptions{}), "\x00")
+	second := strings.Join(compiler.cacheInputs(plan.CompileOptions{}), "\x00")
 	if first == second {
 		t.Fatal("cache inputs did not change with CPATH")
 	}
@@ -155,7 +85,7 @@ func TestCompilerTracksSystemHeaders(t *testing.T) {
 	}
 
 	tc, _ := newToolchain("clang", toolchain.HostPlatform())
-	result, err := newCompiler(newExecutor(executorConfig{}), tc).CompileSource(t.Context(), compileOptions{
+	result, err := newCompiler(newExecutor(executorConfig{}), tc).CompileSource(t.Context(), plan.CompileOptions{
 		Source: source, Output: filepath.Join(dir, "main.o"), SystemIncludes: []string{includeDir},
 	})
 	if err != nil {
@@ -194,7 +124,7 @@ func TestCompiler_CompileSourceProducesObject(t *testing.T) {
 
 	// Compile
 	objectFile := filepath.Join(tmpDir, "main.o")
-	opts := compileOptions{
+	opts := plan.CompileOptions{
 		Source: sourceFile,
 		Output: objectFile,
 		Flags: toolchain.Flags{
@@ -247,7 +177,7 @@ func TestCompilerCompilesAssemblySources(t *testing.T) {
 		if err := os.WriteFile(source, []byte("\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		result, err := compiler.CompileSource(t.Context(), compileOptions{
+		result, err := compiler.CompileSource(t.Context(), plan.CompileOptions{
 			Source: source, Output: filepath.Join(dir, name+".o"), Std: "c17",
 			Flags: toolchain.Flags{Warnings: "default"},
 		})
@@ -277,7 +207,7 @@ func TestCompilerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := newCompiler(newExecutor(executorConfig{}), tc).CompileSource(t.Context(), compileOptions{
+	result, err := newCompiler(newExecutor(executorConfig{}), tc).CompileSource(t.Context(), plan.CompileOptions{
 		Source: source, Output: filepath.Join(dir, "long.o"), Defines: defines,
 		Flags: toolchain.Flags{Warnings: "default"},
 	})
@@ -316,7 +246,7 @@ func TestCompiler_CompileSourceReturnsCompilerFailure(t *testing.T) {
 
 	// Attempt compilation
 	objectFile := filepath.Join(tmpDir, "bad.o")
-	opts := compileOptions{
+	opts := plan.CompileOptions{
 		Source: sourceFile,
 		Output: objectFile,
 		Flags: toolchain.Flags{
@@ -366,7 +296,7 @@ func TestCompiler_CompileSourcePassesFlags(t *testing.T) {
 
 	// Compile with semantic flags
 	objectFile := filepath.Join(tmpDir, "main.o")
-	opts := compileOptions{
+	opts := plan.CompileOptions{
 		Source: sourceFile,
 		Output: objectFile,
 		Flags: toolchain.Flags{
@@ -433,7 +363,7 @@ int main() { return HEADER_LOADED; }`
 
 	// Compile with include path
 	objectFile := filepath.Join(srcDir, "main.o")
-	opts := compileOptions{
+	opts := plan.CompileOptions{
 		Source:   sourceFile,
 		Output:   objectFile,
 		Includes: []string{includeDir},
@@ -507,7 +437,7 @@ int main() { return VERSION; }
 		t.Fatalf("failed to create obj dir: %v", err)
 	}
 
-	result, err := compiler.CompileSource(t.Context(), compileOptions{
+	result, err := compiler.CompileSource(t.Context(), plan.CompileOptions{
 		Source:   srcPath,
 		Output:   filepath.Join(objDir, "main.cpp.o"),
 		Includes: []string{srcDir},
@@ -585,7 +515,7 @@ func TestCompiler_CompileSourcesStopsAfterFirstFailure(t *testing.T) {
 	compiler := newCompiler(executor, tc)
 
 	// Compile sources
-	sources := []compileOptions{
+	sources := []plan.CompileOptions{
 		{
 			Source: goodFile,
 			Output: filepath.Join(tmpDir, "good.o"),
@@ -666,7 +596,7 @@ func TestCompiler_SharedLibraryEnablesPIC(t *testing.T) {
 
 	// Compile with TargetType = "shared_library"
 	objectFile := filepath.Join(tmpDir, "lib.o")
-	opts := compileOptions{
+	opts := plan.CompileOptions{
 		Source:     sourceFile,
 		Output:     objectFile,
 		TargetType: "shared_library", // This should trigger automatic -fPIC
@@ -730,7 +660,7 @@ func TestCompiler_ExecutableOmitsPIC(t *testing.T) {
 
 	// Compile with TargetType = "executable" (default, should not add -fPIC)
 	objectFile := filepath.Join(tmpDir, "main.o")
-	opts := compileOptions{
+	opts := plan.CompileOptions{
 		Source:     sourceFile,
 		Output:     objectFile,
 		TargetType: "executable",

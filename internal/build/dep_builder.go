@@ -153,7 +153,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		objPath := filepath.Join(objDir, objectNames[src])
 
 		// Compile source
-		compileOpts := compileOptions{
+		compileOpts := plan.CompileOptions{
 			Source:   absPath,
 			Output:   objPath,
 			Includes: compilationIncludes,
@@ -171,7 +171,11 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			TargetType: cfg.Type,
 			Platform:   opts.Platform,
 		}
-		compilerPath := toolIdentityPath(db.toolchain, db.compiler.compilerCmd(absPath))
+		invocation, err := plan.Compile(db.toolchain, compileOpts)
+		if err != nil {
+			return nil, err
+		}
+		compilerPath := toolIdentityPath(db.toolchain, invocation.Tool)
 		cacheInputs := db.compiler.cacheInputs(compileOpts)
 		if db.cache != nil {
 			needsRebuild, _, _ := db.cache.NeedsRebuild(

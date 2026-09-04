@@ -253,8 +253,8 @@ func TestNinja_EmitsGCCDependencyMetadata(t *testing.T) {
 	content := buf.String()
 
 	// Verify depfile in cc rule
-	if !strings.Contains(content, "depfile = $object.d") {
-		t.Error("Missing depfile = $object.d in rules")
+	if !strings.Contains(content, "depfile = $depfile") {
+		t.Error("missing planned depfile in rules")
 	}
 
 	// Verify deps = gcc
@@ -262,9 +262,9 @@ func TestNinja_EmitsGCCDependencyMetadata(t *testing.T) {
 		t.Error("Missing deps = gcc in rules")
 	}
 
-	// Verify -MD -MF in command
-	if !strings.Contains(content, "-MD -MF $object.d") {
-		t.Error("Missing -MD -MF $object.d in compile command")
+	// Verify dependency arguments in the planned invocation.
+	if !strings.Contains(content, `"-MD" "-MP" "-MF" ".build/debug/myapp/obj/main.c.d"`) {
+		t.Errorf("missing dependency-file arguments in compile invocation:\n%s", content)
 	}
 }
 
@@ -747,9 +747,10 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	}
 	content := buf.String()
 	checks := []string{
-		`command = set "VSLANG=1033"&& "$cc" $cflags /c "$source" /Fo"$object"`,
+		`command = set "VSLANG=1033"&& "$cc" @$object.rsp`,
+		"rspfile_content = $args",
 		"deps = msvc",
-		`/std:c++20 /Iinclude /I"C:/Program Files/VS/include" /IC:/SDK/include /DBUILDING_LIB`,
+		`/Iinclude "/IC:/Program Files/VS/include" /IC:/SDK/include /DBUILDING_LIB /std:c++20`,
 		`command = "$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`,
 		`/LIBPATH:"C:/Program Files/VS/lib"`,
 		"build .build/debug/lib/mylib.dll | .build/debug/lib/mylib.lib: link_shared",
@@ -970,14 +971,13 @@ func TestNinja_UsesCCForCOnlyTarget(t *testing.T) {
 
 	content := buf.String()
 
-	// Verify C file uses cc rule (has cflags, not cxxflags)
+	// Verify C file uses the C compiler rule.
 	if !strings.Contains(content, "build .build/debug/myapp/obj/main.c.o: cc main.c") {
 		t.Errorf("C file should use cc rule, got:\n%s", content)
 	}
 
-	// Verify cflags is set for the C build
-	if !strings.Contains(content, "cflags =") {
-		t.Error("Missing cflags for C compilation")
+	if !strings.Contains(content, `args = "-c" "main.c"`) {
+		t.Errorf("missing planned C compiler arguments:\n%s", content)
 	}
 }
 

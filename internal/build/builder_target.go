@@ -114,7 +114,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	}
 
 	// Collect compile options for all sources that need rebuilding
-	var toCompile []compileOptions
+	var toCompile []plan.CompileOptions
 	var preExistingObjects []string
 	type sourceCacheInputs struct {
 		flags        []string
@@ -130,7 +130,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	for _, source := range sourcesToCompile {
 		sourcePlan := sourcePlans[source]
 		objPath := sourcePlan.Object
-		compileOpts := compileOptions{
+		compileOpts := plan.CompileOptions{
 			Source:         source,
 			Output:         objPath,
 			Includes:       includes,
@@ -141,21 +141,12 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			TargetType:     target.Type,
 			Platform:       b.target,
 		}
-		if module, ok := modules.BySource[source]; ok {
-			compileOpts.ModuleAware = true
-			compileOpts.ModuleOutput = modules.Outputs[module.Provides]
-			compileOpts.ModuleName = module.Provides
-			compileOpts.InternalPartition = module.InternalPartition
-			compileOpts.ModuleMapper = modules.Mapper
-			compileOpts.ModuleFiles = make(map[string]string, len(modules.Inherited)+len(module.Requires))
-			maps.Copy(compileOpts.ModuleFiles, modules.Inherited)
-			for _, required := range module.Requires {
-				if pcm, ok := modules.Outputs[required]; ok {
-					compileOpts.ModuleFiles[required] = pcm
-				}
-			}
+		compileOpts = modules.ForSource(source, compileOpts)
+		invocation, err := plan.Compile(b.toolchain, compileOpts)
+		if err != nil {
+			return nil, err
 		}
-		compilerPath := toolIdentityPath(b.toolchain, b.compiler.compilerCmd(source))
+		compilerPath := toolIdentityPath(b.toolchain, invocation.Tool)
 		inputs := b.compiler.cacheInputs(compileOpts)
 		cacheInputs[source] = sourceCacheInputs{flags: inputs, compilerPath: compilerPath}
 
@@ -201,8 +192,8 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 				moduleSet[source] = true
 			}
 
-			var moduleCompile []compileOptions
-			var otherCompile []compileOptions
+			var moduleCompile []plan.CompileOptions
+			var otherCompile []plan.CompileOptions
 			for _, opt := range toCompile {
 				if moduleSet[opt.Source] {
 					moduleCompile = append(moduleCompile, opt)
@@ -214,7 +205,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			// Compile modules SEQUENTIALLY in dependency order
 			// This ensures each module interface is built before files that import it
 			for _, opt := range moduleCompile {
-				results, err := b.parallelCompiler.CompileParallel(ctx, []compileOptions{opt})
+				results, err := b.parallelCompiler.CompileParallel(ctx, []plan.CompileOptions{opt})
 				if err != nil {
 					compileErr = errors.Join(compileErr, err)
 					if !opts.KeepGoing {

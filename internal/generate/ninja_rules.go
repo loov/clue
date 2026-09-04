@@ -26,11 +26,11 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	if msvc {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: `set "VSLANG=1033"&& "$cc" $cflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
+				Name: "cc", Command: `set "VSLANG=1033"&& "$cc" @$object.rsp`, Rspfile: "$object.rsp", RspfileContent: "$args", Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: `set "VSLANG=1033"&& "$cxx" $cxxflags /c "$source" /Fo"$object"`, Deps: ninja.DepsMSVC,
+				Name: "cxx", Command: `set "VSLANG=1033"&& "$cxx" @$object.rsp`, Rspfile: "$object.rsp", RspfileContent: "$args", Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CXX $out",
 			},
 			ninja.Rule{Name: "link", Command: `"$link" $in /OUT:"$out" $ldflags`, Description: "LINK $out"},
@@ -41,16 +41,16 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	} else {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: "$cc @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "-MD -MF $object.d $cflags -c $source -o $object",
-				Depfile: "$object.d", Deps: ninja.DepsGCC, Description: "CC $out",
+				Name: "cc", Command: "$cc @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "$args",
+				Depfile: "$depfile", Deps: ninja.DepsGCC, Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: "$cxx @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "-MD -MF $object.d $cxxflags -c $source -o $object",
-				Depfile: "$object.d", Deps: ninja.DepsGCC, Description: "CXX $out",
+				Name: "cxx", Command: "$cxx @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "$args",
+				Depfile: "$depfile", Deps: ninja.DepsGCC, Description: "CXX $out",
 			},
 			ninja.Rule{
 				Name: "module_partition", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp",
-				RspfileContent: `$cxxflags -x c++-module --precompile "$source" -o "$bmi"`, Description: "CXX_MODULE_PARTITION $out",
+				RspfileContent: "$args", Description: "CXX_MODULE_PARTITION $out",
 			},
 			ninja.Rule{Name: "link", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
 			ninja.Rule{Name: "link_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},

@@ -11,10 +11,6 @@ import (
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
-	"github.com/loov/clue/internal/toolchain"
-	"github.com/loov/clue/internal/toolchain/all"
-	"github.com/loov/clue/internal/toolchain/gcc"
-	"github.com/loov/clue/internal/toolchain/msvc"
 )
 
 func TestCompileCommands_BuildsConfiguredContainerfile(t *testing.T) {
@@ -461,14 +457,6 @@ func TestCompileCommands_UsesCXXForCPlusPlus(t *testing.T) {
 	}
 }
 
-func TestIsCPlusPlusFile_ModuleInterfaces(t *testing.T) {
-	for _, source := range []string{"module.cppm", "module.ixx", "module.mpp"} {
-		if !isCPlusPlusFile(source) {
-			t.Errorf("isCPlusPlusFile(%q) = false, want true", source)
-		}
-	}
-}
-
 func TestCompileCommands_IncludesSelectedVariantFlags(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -673,99 +661,6 @@ func TestCompileCommands_IncludesDependencyUsage(t *testing.T) {
 	}
 	if !files["mylib.cpp"] {
 		t.Error("Missing mylib.cpp from dependency")
-	}
-}
-
-func TestCompilerForSource(t *testing.T) {
-	testCases := []struct {
-		toolchain string
-		source    string
-		expected  string
-	}{
-		{"clang", "main.c", "clang"},
-		{"clang", "main.cpp", "clang++"},
-		{"clang", "main.cc", "clang++"},
-		{"clang", "main.cxx", "clang++"},
-		{"clang", "main.C", "clang++"},
-		{"gcc", "main.c", "gcc"},
-		{"gcc", "main.cpp", "g++"},
-		{"gcc", "main.cc", "g++"},
-	}
-
-	for _, tc := range testCases {
-		compiler, err := all.NewToolchain(tc.toolchain, toolchain.HostPlatform())
-		if err != nil {
-			t.Fatal(err)
-		}
-		result := compilerForSource(compiler, tc.source)
-		if result != tc.expected {
-			t.Errorf("compilerForSource(%q, %q) = %q, expected %q",
-				tc.toolchain, tc.source, result, tc.expected)
-		}
-	}
-
-	cross := gcc.New("aarch64-linux-gnu-gcc", "aarch64-linux-gnu-g++", "aarch64-linux-gnu-ar", toolchain.Platform{OS: "linux", Arch: "arm64"})
-	if got := compilerForSource(cross, "main.cpp"); got != "aarch64-linux-gnu-g++" {
-		t.Errorf("compilerForSource() = %q, expected cross-compiler path", got)
-	}
-}
-
-func TestBuildCompilerArgs_MSVCUsesNativeSwitches(t *testing.T) {
-	tc, err := msvc.New(&msvc.Installation{Environment: map[string]string{
-		"INCLUDE": `C:\VS Include;C:\SDK`,
-	}}, toolchain.Platform{OS: "windows", Arch: "amd64"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	args := buildCompilerArgs(tc, "c++20", []string{"include"}, nil, []string{"DEBUG"}, "main.cpp", "main.obj", toolchain.Flags{})
-
-	if args[0] != "cl.exe" {
-		t.Fatalf("expected MSVC compiler, got %v", args)
-	}
-	if !containsArg(args, "/c") || containsArg(args, "-c") {
-		t.Fatalf("expected MSVC compile syntax, got %v", args)
-	}
-	if !containsArg(args, "/std:c++20") || !containsArg(args, "/DDEBUG") {
-		t.Fatalf("expected MSVC flags, got %v", args)
-	}
-	if !slices.ContainsFunc(args, func(arg string) bool { return strings.HasPrefix(arg, "/Fo") }) {
-		t.Fatalf("expected MSVC output flag, got %v", args)
-	}
-	if !containsArg(args, `/IC:\VS Include`) || !containsArg(args, `/IC:\SDK`) {
-		t.Fatalf("expected captured MSVC includes, got %v", args)
-	}
-}
-
-func TestBuildCompilerArgs_EmitsSystemIncludeFlags(t *testing.T) {
-	tc := gcc.New("gcc", "g++", "ar", toolchain.HostPlatform())
-	args := buildCompilerArgs(tc, "c17", nil, []string{"vendor/include"}, nil, "main.c", "main.o", toolchain.Flags{})
-	if !containsArg(args, "-isystem") || !containsArg(args, AbsPath("vendor/include")) {
-		t.Fatalf("system include missing from %v", args)
-	}
-}
-
-func TestIsCPlusPlusFile(t *testing.T) {
-	testCases := []struct {
-		source   string
-		expected bool
-	}{
-		{"main.c", false},
-		{"main.cpp", true},
-		{"main.cc", true},
-		{"main.cxx", true},
-		{"main.c++", true},
-		{"main.C", true},
-		{"main.CPP", true},
-		{"main.h", false},
-		{"main.hpp", false}, // Headers don't count as C++ sources for compilation
-	}
-
-	for _, tc := range testCases {
-		result := isCPlusPlusFile(tc.source)
-		if result != tc.expected {
-			t.Errorf("isCPlusPlusFile(%q) = %v, expected %v",
-				tc.source, result, tc.expected)
-		}
 	}
 }
 

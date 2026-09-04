@@ -72,25 +72,34 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			})
 		}
 		for _, source := range sources {
-			compilerFlags := buildCompilerFlagsForNinja(opts.Config, depTarget, buildCfg, includes, tc, source)
-			if resolved.Type == "shared_library" && opts.Platform.OS != "windows" && tc.Name() != "msvc" {
-				compilerFlags = append(compilerFlags, "-fPIC")
-			}
 			srcPath := filepath.Join(depPath, source)
-			objPath := ninjaPathLocal(depObjectPath(opts.BuildDir, variant, name, objectNames[source]))
-			rule, flagKey := "cc", "cflags"
-			if isCPlusPlusFile(source) {
-				rule, flagKey = "cxx", "cxxflags"
+			objPath := depObjectPath(opts.BuildDir, variant, name, objectNames[source])
+			compileIncludes := slices.Clone(includes)
+			if tc.Name() == "msvc" {
+				compileIncludes = append(compileIncludes, toolchainEnvironmentPaths(tc, "INCLUDE")...)
 			}
-			*file = append(*file, ninja.Build{
-				Rule: rule, In: []string{ninjaPathLocal(srcPath)}, InOrderOnly: dependencyOutputs, Out: []string{objPath},
-				Vars: ninja.Vars{
-					{Key: "source", Val: ninjaPathLocal(srcPath)},
-					{Key: "object", Val: objPath},
-					{Key: flagKey, Val: strings.Join(compilerFlags, " ")},
-				},
+			compileOpts := ninjaCompileOptions(plan.CompileOptions{
+				Source: srcPath, Output: objPath, Includes: compileIncludes, Defines: depTarget.Defines,
+				Flags: buildCfg, Std: opts.Config.Toolchain.Standard(source), TargetType: resolved.Type,
+				Platform: opts.Platform, DependencyMode: plan.DependencyModeAll,
 			})
-			objects = append(objects, objPath)
+			invocation, err := plan.Compile(tc, compileOpts)
+			if err != nil {
+				return nil, err
+			}
+			rule := "cc"
+			if toolchain.IsCXXSource(source) {
+				rule = "cxx"
+			}
+			statement := ninja.Build{
+				Rule: rule, In: []string{compileOpts.Source}, InOrderOnly: dependencyOutputs, Out: []string{compileOpts.Output},
+				Vars: ninja.Vars{{Key: "object", Val: compileOpts.Output}, {Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
+			}
+			if invocation.DependencyFile != "" {
+				statement.Vars = append(statement.Vars, ninja.Var{Key: "depfile", Val: invocation.DependencyFile})
+			}
+			*file = append(*file, statement)
+			objects = append(objects, compileOpts.Output)
 		}
 
 		output := ninjaPathLocal(dependencyOutputPath(opts.BuildDir, variant, dep, opts.Platform))

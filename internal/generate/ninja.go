@@ -67,10 +67,6 @@ func generateVariantBuilds(ctx context.Context, file *ninja.File, opts NinjaOpti
 	return outputs, nil
 }
 
-// Helper functions
-
-// Note: isCPlusPlusFile is defined in compdb.go and shared between both generators
-
 // writeIfChanged writes content to file only if it differs from existing content
 func writeIfChanged(path string, content []byte) error {
 	existing, err := os.ReadFile(path)

@@ -86,18 +86,32 @@ func ResolveModules(tc toolchain.Toolchain, sources []string, bmiDir string, ava
 
 // Flags returns the compiler module flags for source.
 func (m Modules) Flags(source string) []string {
-	module, ok := m.BySource[source]
-	if !ok {
+	opts := m.ForSource(source, CompileOptions{})
+	if !opts.ModuleAware {
 		return nil
 	}
-	requiredOutputs := make(map[string]string, len(m.Inherited)+len(module.Requires))
-	maps.Copy(requiredOutputs, m.Inherited)
+	return compileModuleFlags(m.Toolchain, opts)
+}
+
+// ForSource adds source-specific module inputs and outputs to opts.
+func (m Modules) ForSource(source string, opts CompileOptions) CompileOptions {
+	module, ok := m.BySource[source]
+	if !ok {
+		return opts
+	}
+	opts.ModuleAware = true
+	opts.ModuleOutput = m.Outputs[module.Provides]
+	opts.ModuleName = module.Provides
+	opts.ModuleMapper = m.Mapper
+	opts.InternalPartition = module.InternalPartition
+	opts.ModuleFiles = make(map[string]string, len(m.Inherited)+len(module.Requires))
+	maps.Copy(opts.ModuleFiles, m.Inherited)
 	for _, required := range module.Requires {
 		if output := m.Outputs[required]; output != "" {
-			requiredOutputs[required] = output
+			opts.ModuleFiles[required] = output
 		}
 	}
-	return ModuleCompileFlags(m.Toolchain, module, m.Outputs[module.Provides], requiredOutputs, m.Mapper)
+	return opts
 }
 
 // Inputs returns the BMI files required before source can compile.
