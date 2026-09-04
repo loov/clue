@@ -14,7 +14,7 @@ import (
 	"cuelang.org/go/cue/parser"
 
 	"github.com/loov/clue/internal/deps"
-	clerrors "github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/diagnostic"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -213,7 +213,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, &clerrors.RichError{
+			return nil, &diagnostic.RichError{
 				File:       configPath,
 				Message:    "no CUE configuration files found",
 				Suggestion: "create a clue.cue file in this directory",
@@ -362,7 +362,7 @@ func (l *Loader) convertCUEError(err error, baseDir string) error {
 		return l.singleCUEError(errs[0], baseDir)
 	}
 
-	list := clerrors.NewErrorList()
+	list := diagnostic.NewErrorList()
 	for _, e := range errs {
 		list.Add(l.singleCUEError(e, baseDir))
 	}
@@ -370,8 +370,8 @@ func (l *Loader) convertCUEError(err error, baseDir string) error {
 }
 
 // singleCUEError converts one CUE error to a RichError
-func (l *Loader) singleCUEError(err error, _ string) *clerrors.RichError {
-	rich := &clerrors.RichError{
+func (l *Loader) singleCUEError(err error, _ string) *diagnostic.RichError {
+	rich := &diagnostic.RichError{
 		Message: cueerrors.Details(err, nil),
 	}
 
@@ -384,7 +384,7 @@ func (l *Loader) singleCUEError(err error, _ string) *clerrors.RichError {
 		rich.Column = pos.Column()
 
 		// Try to extract snippet
-		if snippet, err := clerrors.ExtractSnippet(rich.File, rich.Line); err == nil {
+		if snippet, err := diagnostic.ExtractSnippet(rich.File, rich.Line); err == nil {
 			rich.Snippet = snippet
 		}
 	}

@@ -13,7 +13,7 @@ import (
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/cue/parser"
 
-	clerrors "github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/diagnostic"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -40,7 +40,7 @@ func ResolveEnvVars(cfg *Config) (*EnvConfig, error) {
 		return env, nil // No env vars configured
 	}
 
-	errList := clerrors.NewErrorList()
+	errList := diagnostic.NewErrorList()
 	iter, _ := envDefs.Fields()
 
 	for iter.Next() {
@@ -50,7 +50,7 @@ func ResolveEnvVars(cfg *Config) (*EnvConfig, error) {
 		// Get the default value
 		defaultVal := def.LookupPath(cue.ParsePath("default"))
 		if !defaultVal.Exists() {
-			errList.Add(&clerrors.RichError{
+			errList.Add(&diagnostic.RichError{
 				Message:    fmt.Sprintf("environment variable %q has no default value", name),
 				Suggestion: fmt.Sprintf("add 'default: \"value\"' to env.%s definition", name),
 			})

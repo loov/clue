@@ -13,8 +13,8 @@ import (
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/diagnostic"
 	"github.com/loov/clue/internal/discovery"
-	clerrors "github.com/loov/clue/internal/errors"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/clingy"
 )
@@ -120,7 +120,7 @@ func runCLI(ctx context.Context, args []string, version string) int {
 			return cliExitCode(1)
 		}
 		if options.noColor {
-			clerrors.SetNoColor(true)
+			diagnostic.SetNoColor(true)
 		}
 		return command.Execute(ctx)
 	}
@@ -227,12 +227,12 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 
 func printError(err error) {
 	switch e := err.(type) {
-	case *clerrors.RichError:
+	case *diagnostic.RichError:
 		fmt.Fprint(os.Stderr, e.Format())
-	case *clerrors.ErrorList:
+	case *diagnostic.ErrorList:
 		fmt.Fprint(os.Stderr, e.Format())
 	default:
-		fmt.Fprintf(os.Stderr, "%s %v\n", clerrors.Error("error:"), err)
+		fmt.Fprintf(os.Stderr, "%s %v\n", diagnostic.Error("error:"), err)
 	}
 }
 

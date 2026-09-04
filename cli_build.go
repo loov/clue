@@ -9,7 +9,7 @@ import (
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
-	clerrors "github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/diagnostic"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/clingy"
 )
@@ -82,7 +82,7 @@ func runValidate(dir, variant, target string, verbosity build.Verbosity) int {
 	}
 
 	fmt.Printf("%s Configuration valid: %s\n",
-		clerrors.Help("[OK]"),
+		diagnostic.Help("[OK]"),
 		cfg.Name)
 	fmt.Printf("  Targets: %d\n", len(cfg.Targets))
 	for _, name := range order {

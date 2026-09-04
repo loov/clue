@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/loov/clue/internal/cache"
-	"github.com/loov/clue/internal/errors"
+	"github.com/loov/clue/internal/diagnostic"
 )
 
 // Progress handles build progress output with concurrent-safe counters
@@ -107,11 +107,11 @@ func (p *progress) Complete(artifact string, fileCount, cachedCount int, duratio
 	p.mu.Lock()
 	if cachedCount > 0 {
 		_, _ = fmt.Fprintf(p.out, "%s %s (%d files, %d cached, %s)\n",
-			errors.Help("Built:"),
+			diagnostic.Help("Built:"),
 			artifact, fileCount, cachedCount, durationStr)
 	} else {
 		_, _ = fmt.Fprintf(p.out, "%s %s (%d files, %s)\n",
-			errors.Help("Built:"),
+			diagnostic.Help("Built:"),
 			artifact, fileCount, durationStr)
 	}
 	p.mu.Unlock()
@@ -159,7 +159,7 @@ func (p *progress) Stats() (built, cached int) {
 func (p *progress) Error(target string, err error) {
 	p.mu.Lock()
 	_, _ = fmt.Fprintf(p.out, "%s %s\n",
-		errors.Error("[%s] error:", target),
+		diagnostic.Error("[%s] error:", target),
 		err.Error())
 	p.mu.Unlock()
 }
