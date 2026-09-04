@@ -18,5 +18,7 @@
 //	p.Start()
 //	p.RecordCompilation(sourceFile, startTime, duration, workerID)
 //	p.PrintSlowestFiles(10, os.Stdout)
-//	profile.WriteChromeTrace(p, outputFile)
+//	if err := p.WriteTrace(outputFile); err != nil {
+//	    return err
+//	}
 package profile

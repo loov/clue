@@ -1,4 +1,4 @@
-// Package generate provides build file generation for various build systems.
+// Package generate writes Ninja and compilation-database integration files.
 package generate
 
 import (

@@ -1,4 +1,3 @@
-// Package errors provides rich error formatting for user-facing messages.
 package diagnostic
 
 import (

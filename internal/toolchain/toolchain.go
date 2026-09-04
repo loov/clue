@@ -1,8 +1,3 @@
-// Package toolchain provides the interface and shared utilities for C/C++ compiler toolchains.
-//
-// The Toolchain interface abstracts over different compiler families (GCC, Clang, MSVC)
-// and provides a uniform API for compiler discovery, path access, and flag generation.
-// Concrete implementations are provided in subpackages: gcc, clang, msvc.
 package toolchain
 
 import (

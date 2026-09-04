@@ -6,7 +6,7 @@
 //
 // Key types:
 //   - Toolchain: Interface for compiler toolchains (implemented by gcc, clang, msvc subpackages)
-//   - Config: Build configuration for flag generation (optimization, debugging, defines, etc.)
+//   - Flags: Semantic build flags for compiler and linker flag generation
 //   - Platform: Target platform specification (OS, architecture, C++ standard)
 //   - CompilerIdentity: Unique identity for a compiler binary (path, mtime, size) for cache keys
 //
@@ -23,7 +23,10 @@
 //
 // Example:
 //
-//	tc, err := all.Detect("gcc") // or "clang", "msvc"
-//	flags := tc.CompilerFlags(config)
+//	tc, err := all.NewToolchain("gcc", toolchain.HostPlatform())
+//	if err != nil {
+//	    return err
+//	}
+//	flags := tc.CompilerFlags(toolchain.Flags{Optimize: "fast"})
 //	identity, _ := tc.Identity() // for cache keys
 package toolchain

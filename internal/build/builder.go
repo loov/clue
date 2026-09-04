@@ -1,5 +1,4 @@
-// Package build provides compilation, linking, and caching functionality
-// for building C and C++ projects.
+// Package build executes C and C++ builds and related project operations.
 package build
 
 import (

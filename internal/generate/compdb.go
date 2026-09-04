@@ -1,4 +1,3 @@
-// Package generate provides build file generation for external tool integration.
 package generate
 
 import (

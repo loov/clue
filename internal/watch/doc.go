@@ -7,7 +7,7 @@
 //
 // Key types:
 //   - Watcher: File system watcher with debounce logic and rebuild callbacks
-//   - Config: Configuration for source directories, build.cue path, debounce duration, and callbacks
+//   - Config: Configuration for source directories, clue.cue path, debounce duration, and callbacks
 //
 // The debounce window defaults to 300ms, batching rapid changes (e.g., editor save sequences or
 // git operations) into a single rebuild. Within a debounce window, the first triggering file is
