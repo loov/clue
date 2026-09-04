@@ -361,7 +361,10 @@ func TestCompilerFlags_EnableLTO(t *testing.T) {
 }
 
 func TestCompilerFlags_EnablePIC(t *testing.T) {
-	tc := getTestToolchain(t, "gcc")
+	tc, err := NewToolchain("gcc", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	config := toolchain.Config{PIC: true}
 	flags := tc.CompilerFlags(config)
 

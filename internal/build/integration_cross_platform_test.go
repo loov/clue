@@ -323,12 +323,6 @@ func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 			expected:  []string{"-flto"},
 		},
 		{
-			name:      "pic enabled",
-			config:    toolchain.Config{PIC: true},
-			toolchain: "gcc",
-			expected:  []string{"-fPIC"},
-		},
-		{
 			name:      "coverage clang",
 			config:    toolchain.Config{Coverage: true},
 			toolchain: "clang",
