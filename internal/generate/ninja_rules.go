@@ -33,9 +33,9 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 				Name: "cxx", Command: `set "VSLANG=1033"&& "$cxx" @$object.rsp`, Rspfile: "$object.rsp", RspfileContent: "$args", Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CXX $out",
 			},
-			ninja.Rule{Name: "link", Command: `"$link" $in /OUT:"$out" $ldflags`, Description: "LINK $out"},
-			ninja.Rule{Name: "link_shared", Command: `"$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`, Description: "LINK_SHARED $out"},
-			ninja.Rule{Name: "ar", Command: `"$ar" /nologo /OUT:"$out" $in`, Description: "LIB $out"},
+			ninja.Rule{Name: "link", Command: `"$link" @$out.rsp`, Rspfile: "$out.rsp", RspfileContent: "$args", Description: "LINK $out"},
+			ninja.Rule{Name: "link_shared", Command: `"$link" @$out.rsp`, Rspfile: "$out.rsp", RspfileContent: "$args", Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "ar", Command: `"$ar" $args`, Description: "LIB $out"},
 			ninja.Rule{Name: "header_unit", Command: `"$cxx" @$out.rsp`, Rspfile: "$out.rsp", RspfileContent: "$huflags", Description: "HEADER_UNIT $out"},
 		)
 	} else {
@@ -52,11 +52,11 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 				Name: "module_partition", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp",
 				RspfileContent: "$args", Description: "CXX_MODULE_PARTITION $out",
 			},
-			ninja.Rule{Name: "link", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
-			ninja.Rule{Name: "link_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$in -o $out $ldflags", Description: "LINK $out"},
-			ninja.Rule{Name: "link_shared", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
-			ninja.Rule{Name: "link_shared_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "-shared $in -o $out $ldflags", Description: "LINK_SHARED $out"},
-			ninja.Rule{Name: "ar", Command: "$ar crs $out $in", Description: "AR $out"},
+			ninja.Rule{Name: "link", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$args", Description: "LINK $out"},
+			ninja.Rule{Name: "link_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$args", Description: "LINK $out"},
+			ninja.Rule{Name: "link_shared", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$args", Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "link_shared_c", Command: "$cc @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$args", Description: "LINK_SHARED $out"},
+			ninja.Rule{Name: "ar", Command: "$ar $args", Description: "AR $out"},
 			ninja.Rule{Name: "header_unit", Command: "$cxx @$out.rsp", Rspfile: "$out.rsp", RspfileContent: "$huflags", Description: "HEADER_UNIT $out"},
 		)
 	}

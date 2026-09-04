@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"slices"
 
 	"github.com/Duncaen/go-ninja"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -118,11 +118,8 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	file = append(file, ninja.Var{Key: "ar", Val: ninjaToolCommand(toolchain, toolchain.AR())})
 	file = append(file, ninja.Var{Key: "clue", Val: "clue"})
 	if toolchain.Name() == "msvc" {
-		linker := "link.exe"
-		if dir := filepath.Dir(toolchain.CC()); dir != "." {
-			linker = filepath.Join(dir, linker)
-		}
-		file = append(file, ninja.Var{Key: "link", Val: NinjaPath(linker)})
+		linker := plan.Link(toolchain, opts.Platform, plan.LinkOptions{}).Tool
+		file = append(file, ninja.Var{Key: "link", Val: ninjaToolCommand(toolchain, linker)})
 	}
 
 	// Rules

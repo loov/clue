@@ -356,13 +356,16 @@ func TestNinja_EmitsArchiveRule(t *testing.T) {
 	}
 
 	// Verify ar command
-	if !strings.Contains(content, "command = $ar crs $out $in") {
+	if !strings.Contains(content, "command = $ar $args") {
 		t.Error("Missing ar command")
 	}
 
 	// Verify library output uses ar rule
 	if !strings.Contains(content, "build .build/debug/lib/libmylib.a: ar") {
 		t.Errorf("Missing ar build statement for libmylib.a, got:\n%s", content)
+	}
+	if !strings.Contains(content, `args = "crs" ".build/debug/lib/libmylib.a" ".build/debug/mylib/obj/lib.cpp.o"`) {
+		t.Errorf("Missing planned archive arguments, got:\n%s", content)
 	}
 }
 
@@ -391,7 +394,7 @@ func TestNinja_LinksTargetDependenciesInOrder(t *testing.T) {
 	if !strings.Contains(content, want) {
 		t.Errorf("target libraries are not ordered link inputs:\n%s", content)
 	}
-	if !strings.Contains(content, "ldflags = -lpthread") {
+	if !strings.Contains(content, `"-lpthread"`) {
 		t.Errorf("transitive system libraries are missing:\n%s", content)
 	}
 }
@@ -561,7 +564,7 @@ Libs: -L${libdir} -lclue-sdk
 	}); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"-I/opt/clue-sdk/include", "-DCLUE_SDK=1", "-pthread", "-L/opt/clue-sdk/lib -lclue-sdk"} {
+	for _, want := range []string{"-I/opt/clue-sdk/include", "-DCLUE_SDK=1", "-pthread", "-L/opt/clue-sdk/lib", "-lclue-sdk"} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, output.String())
 		}
@@ -650,7 +653,7 @@ func TestNinja_EmitsSharedLinkRule(t *testing.T) {
 	}
 
 	// Verify -shared in command
-	if !strings.Contains(content, "-shared $in -o $out") {
+	if !strings.Contains(content, `args = "-shared"`) {
 		t.Error("Missing -shared flag in link_shared command")
 	}
 
@@ -695,7 +698,7 @@ func TestNinja_SharedLibraryUsesDarwinFlags(t *testing.T) {
 	}
 
 	// Verify install_name on Darwin
-	if !strings.Contains(content, "-install_name @rpath/libmylib.dylib") {
+	if !strings.Contains(content, `"-install_name" "@rpath/libmylib.dylib"`) {
 		t.Errorf("Missing -install_name on Darwin, got:\n%s", content)
 	}
 }
@@ -751,8 +754,8 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 		"rspfile_content = $args",
 		"deps = msvc",
 		`/Iinclude "/IC:/Program Files/VS/include" /IC:/SDK/include /DBUILDING_LIB /std:c++20`,
-		`command = "$link" /DLL $in /OUT:"$out" /IMPLIB:"$implib" $ldflags`,
-		`/LIBPATH:"C:/Program Files/VS/lib"`,
+		`command = "$link" @$out.rsp`,
+		`"/LIBPATH:C:/Program Files/VS/lib"`,
 		"build .build/debug/lib/mylib.dll | .build/debug/lib/mylib.lib: link_shared",
 		"implib = .build/debug/lib/mylib.lib",
 	}
@@ -1037,7 +1040,7 @@ func TestNinjaUsesResponseFilesForGCCStyleCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := output.String()
-	for _, want := range []string{"command = $cxx @$object.rsp", "rspfile = $object.rsp", "rspfile_content = $in -o $out $ldflags"} {
+	for _, want := range []string{"command = $cxx @$object.rsp", "rspfile = $object.rsp", "command = $cxx @$out.rsp", "rspfile = $out.rsp", "rspfile_content = $args"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, content)
 		}

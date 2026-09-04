@@ -6,7 +6,6 @@ import (
 	"maps"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/Duncaen/go-ninja"
 	"github.com/loov/clue/internal/config"
@@ -102,7 +101,8 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			objects = append(objects, compileOpts.Output)
 		}
 
-		output := ninjaPathLocal(dependencyOutputPath(opts.BuildDir, variant, dep, opts.Platform))
+		rawOutput := dependencyOutputPath(opts.BuildDir, variant, dep, opts.Platform)
+		output := ninjaPathLocal(rawOutput)
 		if resolved.Type == "shared_library" {
 			dependencyPlan, err := plan.ResolveDependencies(opts.Config, config.Target{Depends: resolved.Depends}, opts.BuildDir, variant, opts.Platform, external)
 			if err != nil {
@@ -110,25 +110,36 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			}
 			dependencyInputs := ninjaArtifactPaths(dependencyPlan.Artifacts, opts.Platform)
 			inputs := append(objects, dependencyInputs...)
-			ldflags := buildSharedLibLinkerFlags(depTarget, nil, buildCfg, opts.Platform, tc)
-			ldflags = append(ldflags, dependencyUsage.LinkerFlags...)
-			runtimeFlags, err := runtimeLibraryFlags(output, dependencyPlan.SharedLibraryPaths, opts.Platform)
+			flags := buildCfg
+			flags.RawLinker = append(slices.Clone(flags.RawLinker), dependencyUsage.LinkerFlags...)
+			runtimeFlags, err := runtimeLibraryFlags(NinjaPath(rawOutput), dependencyPlan.SharedLibraryPaths, opts.Platform)
 			if err != nil {
 				return nil, err
 			}
-			ldflags = append(ldflags, runtimeFlags...)
+			flags.RawLinker = append(flags.RawLinker, runtimeFlags...)
+			invocation := plan.LinkShared(tc, opts.Platform, plan.SharedLibraryOptions{
+				Objects: ninjaArgumentPaths(inputs), Output: NinjaPath(rawOutput),
+				LibPaths: ninjaMSVCLibraryPaths(tc), Flags: flags,
+				SymbolVisibility: "default", UseCXX: sourcesUseCXX(sources),
+			})
 			rule := "link_shared_c"
 			if sourcesUseCXX(sources) {
 				rule = "link_shared"
 			}
 			statement := ninja.Build{
 				Rule: rule, In: inputs, Out: []string{output},
-				Vars: ninja.Vars{{Key: "ldflags", Val: strings.Join(ldflags, " ")}},
+				Vars: ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
 			}
-			addImportLibraryOutput(&statement, output, opts.Platform)
+			addImportLibraryOutput(&statement, invocation.ImportLibrary)
 			*file = append(*file, statement)
 		} else {
-			*file = append(*file, ninja.Build{Rule: "ar", In: objects, Out: []string{output}})
+			invocation := plan.Archive(tc, plan.ArchiveOptions{
+				Objects: ninjaArgumentPaths(objects), Output: NinjaPath(rawOutput),
+			})
+			*file = append(*file, ninja.Build{
+				Rule: "ar", In: objects, Out: []string{output},
+				Vars: ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
+			})
 		}
 		outputs = append(outputs, output)
 	}

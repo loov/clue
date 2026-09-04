@@ -247,11 +247,12 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				requiresCXX = requiresCXX || dependency.RequiresCXX
 			}
 		}
-		linkOpts := sharedLibraryOptions{
+		linkOpts := plan.SharedLibraryOptions{
 			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
 			Flags: toolchain.Flags{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
 		}
-		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.linker.linkDriver(requiresCXX), linkOpts, append(objectFiles, dependencyArtifacts...))
+		linkInvocation := plan.LinkShared(db.toolchain, opts.Platform, linkOpts)
+		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, linkInvocation.Tool, linkOpts, append(objectFiles, dependencyArtifacts...))
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
 		}
@@ -264,8 +265,9 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			}
 		}
 	} else {
-		archiveOpts := archiveOptions{Objects: objectFiles, Output: libPath}
-		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.toolchain.AR(), archiveOpts, objectFiles)
+		archiveOpts := plan.ArchiveOptions{Objects: objectFiles, Output: libPath}
+		archiveInvocation := plan.Archive(db.toolchain, archiveOpts)
+		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, archiveInvocation.Tool, archiveOpts, objectFiles)
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
 		}

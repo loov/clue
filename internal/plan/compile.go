@@ -19,8 +19,8 @@ const (
 
 // Invocation is a tool command planned for a build adapter.
 type Invocation struct {
-	Tool, DependencyFile string
-	Arguments            []string
+	Tool, DependencyFile, ImportLibrary string
+	Arguments                           []string
 }
 
 // CompileOptions holds options for compiling a single source file.

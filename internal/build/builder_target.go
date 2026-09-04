@@ -283,7 +283,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		buildCfg.RawLinker = append(buildCfg.RawLinker, runtimeFlags...)
 
 		useCXX := dependencyPlan.UsesCXX
-		linkOpts := linkOptions{
+		linkOpts := plan.LinkOptions{
 			Objects:  append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
 			Output:   outputPath,
 			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
@@ -292,7 +292,8 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			Flags:    buildCfg,
 			UseCXX:   useCXX,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), linkOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
+		linkInvocation := plan.Link(b.toolchain, b.target, linkOpts)
+		fingerprint, err := linkFingerprint(b.toolchain, linkInvocation.Tool, linkOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}
@@ -317,11 +318,12 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 	case "static_library":
-		archiveOpts := archiveOptions{
+		archiveOpts := plan.ArchiveOptions{
 			Objects: objectFiles,
 			Output:  outputPath,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain, b.toolchain.AR(), archiveOpts, objectFiles)
+		archiveInvocation := plan.Archive(b.toolchain, archiveOpts)
+		fingerprint, err := linkFingerprint(b.toolchain, archiveInvocation.Tool, archiveOpts, objectFiles)
 		if err != nil {
 			return nil, err
 		}
@@ -354,7 +356,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		buildCfg.RawLinker = append(buildCfg.RawLinker, runtimeFlags...)
 
 		useCXX := dependencyPlan.UsesCXX
-		sharedOpts := sharedLibraryOptions{
+		sharedOpts := plan.SharedLibraryOptions{
 			Objects:          append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
 			Output:           outputPath,
 			SysLibs:          append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
@@ -364,7 +366,8 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			SymbolVisibility: "default", // Could be configurable via target config later
 			UseCXX:           useCXX,
 		}
-		fingerprint, err := linkFingerprint(b.toolchain, b.linker.linkDriver(useCXX), sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
+		linkInvocation := plan.LinkShared(b.toolchain, b.target, sharedOpts)
+		fingerprint, err := linkFingerprint(b.toolchain, linkInvocation.Tool, sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}
