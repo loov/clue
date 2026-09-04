@@ -44,7 +44,7 @@ type ArchiveOptions struct {
 // LinkResult holds the result of a link or archive operation
 type LinkResult struct {
 	Output      string
-	ImportLib   string // Import library path for DLLs (MSVC only)
+	ImportLib   string // Import library path for DLLs
 	Duration    time.Duration
 	Success     bool
 	CleanupPath string // Response file to cleanup (internal use)
@@ -354,6 +354,16 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 
 	// Add output flag
 	args = append(args, "-o", opts.Output)
+	importLibPath := ""
+	if l.target.OS == "windows" {
+		importLibPath = strings.TrimSuffix(opts.Output, filepath.Ext(opts.Output)) + ".lib"
+		compiler := strings.ToLower(l.toolchain.CC())
+		if l.toolchain.Name() == "gcc" || strings.Contains(compiler, "mingw") || strings.Contains(compiler, "w64") {
+			args = append(args, "-Wl,--out-implib,"+importLibPath)
+		} else {
+			args = append(args, "-Wl,-implib:"+importLibPath)
+		}
+	}
 
 	// Platform-specific shared library options
 	libName := filepath.Base(opts.Output)
@@ -410,9 +420,10 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	}
 
 	return &LinkResult{
-		Output:   opts.Output,
-		Duration: result.Duration,
-		Success:  true,
+		Output:    opts.Output,
+		ImportLib: importLibPath,
+		Duration:  result.Duration,
+		Success:   true,
 	}, nil
 }
 

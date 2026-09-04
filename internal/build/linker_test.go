@@ -611,6 +611,9 @@ CLUE_EXPORT int lib_func() { return 42; }`
 		t.Fatalf("shared library not created at %s", libPath)
 	}
 	if toolchain.HostPlatform().OS == "windows" {
+		if _, err := os.Stat(result.ImportLib); err != nil {
+			t.Fatalf("import library not created at %s: %v", result.ImportLib, err)
+		}
 		return
 	}
 
