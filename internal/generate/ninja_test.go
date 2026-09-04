@@ -12,7 +12,6 @@ import (
 
 	"github.com/Duncaen/go-ninja"
 
-	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
@@ -157,10 +156,7 @@ func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
 }
 
 func TestTargetModules_WiresProducedBMIsToConsumers(t *testing.T) {
-	tc, err := build.NewToolchain("clang", toolchain.HostPlatform())
-	if err != nil {
-		t.Fatal(err)
-	}
+	tc := gccish.New("clang", "clang", "clang++", "llvm-ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
 	modules := targetModules{
 		bySource: map[string]plan.ModuleDependency{
 			"hello.cppm": {Source: "hello.cppm", Provides: "hello"},

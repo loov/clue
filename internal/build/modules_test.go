@@ -12,7 +12,7 @@ import (
 )
 
 func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
-	clang, _ := NewToolchain("clang", toolchain.HostPlatform())
+	clangToolchain := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
 	gcc, _ := NewToolchain("gcc", toolchain.HostPlatform())
 	tests := []struct {
 		name   string
@@ -21,7 +21,7 @@ func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 		mapper string
 		want   []string
 	}{
-		{"clang", clang, "math.pcm", "", []string{"-fcxx-modules", "-fmodule-output=math.pcm", "-fmodule-file=base=base.pcm", "-fmodule-file=vector.pcm"}},
+		{"clang", clangToolchain, "math.pcm", "", []string{"-fcxx-modules", "-fmodule-output=math.pcm", "-fmodule-file=base=base.pcm", "-fmodule-file=vector.pcm"}},
 		{"gcc", gcc, "math.gcm", "modules.mapper", []string{"-fmodules-ts", "-x", "c++", "-fmodule-mapper=modules.mapper"}},
 		{"msvc", newTestMSVCToolchain(), "math.ifc", "", []string{"/interface", "/ifcOutput", "/reference", "/headerUnit:angle"}},
 	}
