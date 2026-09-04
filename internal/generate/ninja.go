@@ -574,7 +574,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 
 		moduleFlags := modules.flags(source)
 		for index := range moduleFlags {
-			moduleFlags[index] = NinjaPath(moduleFlags[index])
+			moduleFlags[index] = strings.ReplaceAll(moduleFlags[index], `\`, "/")
 		}
 		statement := ninja.Build{
 			Rule:        rule,
