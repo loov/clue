@@ -211,7 +211,7 @@ extern "C" int answer() { return 42; }
 	if result.Type != "shared_library" {
 		t.Errorf("type = %q, want shared_library", result.Type)
 	}
-	want := "libanswer" + plan.SharedLibraryExtension(toolchainpkg.HostPlatform())
+	want := plan.SharedLibraryName("answer", toolchainpkg.HostPlatform())
 	if filepath.Base(result.LibPath) != want {
 		t.Errorf("library = %q, want %q", filepath.Base(result.LibPath), want)
 	}
