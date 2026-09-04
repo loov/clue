@@ -767,7 +767,13 @@ func TestLinkSharedLibrary_LinksRunnableConsumer(t *testing.T) {
 
 	// Create shared library source
 	libCpp := filepath.Join(tmpDir, "lib.cpp")
-	if err := os.WriteFile(libCpp, []byte("int lib_func() { return 42; }"), 0o644); err != nil {
+	libContent := `#ifdef _WIN32
+#define CLUE_EXPORT __declspec(dllexport)
+#else
+#define CLUE_EXPORT
+#endif
+CLUE_EXPORT int lib_func() { return 42; }`
+	if err := os.WriteFile(libCpp, []byte(libContent), 0o644); err != nil {
 		t.Fatalf("failed to write lib.cpp: %v", err)
 	}
 
