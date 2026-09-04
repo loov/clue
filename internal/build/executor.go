@@ -53,11 +53,13 @@ func (e *Executor) RunCommand(ctx context.Context, name string, args ...string) 
 	}
 
 	cmd := exec.Command(name, args...)
-	configureProcess(cmd)
 
 	// Set working directory if specified
 	if e.config.WorkDir != "" {
 		cmd.Dir = e.config.WorkDir
+	}
+	if err := configureProcess(cmd); err != nil {
+		return nil, err
 	}
 	if e.config.Environment != nil {
 		cmd.Env = e.config.Environment
