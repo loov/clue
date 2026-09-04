@@ -13,6 +13,7 @@ import (
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/discovery"
 	clerrors "github.com/loov/clue/internal/errors"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/clingy"
@@ -164,8 +165,7 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 		return nil, "", toolchain.Platform{}, err
 	}
 	// Load configuration
-	loader := config.NewLoader()
-	cfg, err := loader.LoadOrDiscoverForTarget(dir, platform)
+	cfg, err := discovery.LoadOrDiscoverForTarget(dir, platform)
 	if err != nil {
 		return nil, "", toolchain.Platform{}, err
 	}

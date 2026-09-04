@@ -1,4 +1,5 @@
-package config
+// Package discovery infers conventional C and C++ targets when clue.cue is absent.
+package discovery
 
 import (
 	"fmt"
@@ -10,6 +11,9 @@ import (
 	"slices"
 	"strings"
 
+	"cuelang.org/go/cue/cuecontext"
+
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/all"
@@ -27,22 +31,22 @@ var discoverCompiler = func(names []string, target toolchain.Platform, requiresC
 
 // LoadOrDiscoverForTarget loads clue.cue when present and otherwise discovers
 // conventional targets from the source tree.
-func (l *Loader) LoadOrDiscoverForTarget(dir string, target toolchain.Platform) (*Config, error) {
+func LoadOrDiscoverForTarget(dir string, target toolchain.Platform) (*config.Config, error) {
 	configPath := filepath.Join(dir, "clue.cue")
 	if _, err := os.Stat(configPath); err == nil {
-		return l.LoadForTarget(dir, target)
+		return config.NewLoader().LoadForTarget(dir, target)
 	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("inspect config: %w", err)
 	}
-	return l.discover(dir, target)
+	return discover(dir, target)
 }
 
 type discoveredTarget struct {
 	main   []string
-	target Target
+	target config.Target
 }
 
-func (l *Loader) discover(dir string, targetPlatform toolchain.Platform) (*Config, error) {
+func discover(dir string, targetPlatform toolchain.Platform) (*config.Config, error) {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("invalid directory: %w", err)
@@ -91,7 +95,7 @@ func (l *Loader) discover(dir string, targetPlatform toolchain.Platform) (*Confi
 		return nil, fmt.Errorf("no C/C++ source or header files found in %s", root)
 	}
 
-	targets := make(map[string]Target, len(groups))
+	targets := make(map[string]config.Target, len(groups))
 	directoryTargets := make(map[string]string, len(groups))
 	targetDirectories := make(map[string]string, len(groups))
 	for _, sourceDir := range slices.Sorted(maps.Keys(groups)) {
@@ -139,14 +143,14 @@ func (l *Loader) discover(dir string, targetPlatform toolchain.Platform) (*Confi
 		return nil, fmt.Errorf("discover toolchain: %w", err)
 	}
 
-	return &Config{
+	return &config.Config{
 		Name:         filepath.Base(root),
 		BuildDir:     ".build",
-		Toolchain:    Toolchain{Compiler: compiler},
+		Toolchain:    config.Toolchain{Compiler: compiler},
 		Targets:      targets,
-		Variants:     make(map[string]Variant),
+		Variants:     make(map[string]config.Variant),
 		Dependencies: make(map[string]deps.Dependency),
-		Raw:          l.ctx.CompileString("{}"),
+		Raw:          cuecontext.New().CompileString("{}"),
 	}, nil
 }
 
@@ -203,7 +207,7 @@ func discoveredTargetName(root, dir string) string {
 	return name
 }
 
-func assignHeaderOwners(headers []string, groups map[string]*discoveredTarget, directoryTargets map[string]string, targets map[string]Target) map[string]string {
+func assignHeaderOwners(headers []string, groups map[string]*discoveredTarget, directoryTargets map[string]string, targets map[string]config.Target) map[string]string {
 	sourceStems := make(map[string]map[string]bool)
 	for dir, group := range groups {
 		name := directoryTargets[dir]
@@ -291,7 +295,7 @@ func discoveryIncludeDirs(headers []string) []string {
 	return slices.Sorted(maps.Keys(dirs))
 }
 
-func inferDiscoveredDependencies(root string, targets map[string]Target, owners map[string]string, includeDirs []string) error {
+func inferDiscoveredDependencies(root string, targets map[string]config.Target, owners map[string]string, includeDirs []string) error {
 	for name, target := range targets {
 		dependencies := make(map[string]bool)
 		files := slices.Clone(target.Sources)

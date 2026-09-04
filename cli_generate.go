@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/discovery"
 	"github.com/loov/clue/internal/generate"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/clingy"
@@ -33,8 +34,7 @@ func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
 	}
 
 	// Load config without applying variant - generators handle variants internally
-	loader := config.NewLoader()
-	cfg, err := loader.LoadOrDiscoverForTarget(dir, targetPlatform)
+	cfg, err := discovery.LoadOrDiscoverForTarget(dir, targetPlatform)
 	if err != nil {
 		printError(err)
 		return 1

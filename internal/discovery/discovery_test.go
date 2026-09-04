@@ -1,4 +1,4 @@
-package config
+package discovery
 
 import (
 	"os"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -29,7 +30,7 @@ func TestLoadOrDiscoverFindsTargetsAndDependencies(t *testing.T) {
 		}
 	}
 
-	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
+	cfg, err := LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func TestLoadOrDiscoverFindsTargetsAndDependencies(t *testing.T) {
 	if !slices.Contains(cfg.Targets["lib"].Headers, filepath.FromSlash("include/lib/math.h")) {
 		t.Fatalf("lib headers = %v", cfg.Targets["lib"].Headers)
 	}
-	if _, err := ResolveEnvVars(cfg); err != nil {
+	if _, err := config.ResolveEnvVars(cfg); err != nil {
 		t.Fatalf("resolve environment on discovered config: %v", err)
 	}
 }
@@ -61,7 +62,7 @@ targets: chosen: {name: "chosen", type: "static_library", sources: ["chosen.cpp"
 	if err := os.WriteFile(filepath.Join(dir, "ignored.cpp"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
+	cfg, err := LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +78,7 @@ func TestLoadOrDiscoverRejectsMultipleMainFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_, err := NewLoader().LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
+	_, err := LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
 	if err == nil || !strings.Contains(err.Error(), "multiple main source files") {
 		t.Fatalf("error = %v", err)
 	}
@@ -97,7 +98,7 @@ func TestLoadOrDiscoverSelectsAnAvailableCompiler(t *testing.T) {
 		return "gcc", nil
 	}
 	platform := toolchain.HostPlatform()
-	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, platform)
+	cfg, err := LoadOrDiscoverForTarget(dir, platform)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +118,7 @@ func TestLoadOrDiscoverIncludesAssemblySources(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	cfg, err := NewLoader().LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
+	cfg, err := LoadOrDiscoverForTarget(dir, toolchain.HostPlatform())
 	if err != nil {
 		t.Fatal(err)
 	}
