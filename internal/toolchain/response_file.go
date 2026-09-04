@@ -26,6 +26,10 @@ func WriteResponseFile(args []string) (_ string, resultErr error) {
 
 // WriteResponseFileIn creates a response file in dir so containerized tools can access it.
 func WriteResponseFileIn(dir string, args []string) (_ string, resultErr error) {
+	return writeResponseFileIn(dir, args, QuoteResponseFileArg)
+}
+
+func writeResponseFileIn(dir string, args []string, quote func(string) string) (_ string, resultErr error) {
 	// Create temp file with .rsp extension (standard across supported tools).
 	tmpfile, err := os.CreateTemp(dir, ".clue-*.rsp")
 	if err != nil {
@@ -47,7 +51,7 @@ func WriteResponseFileIn(dir string, args []string) (_ string, resultErr error) 
 		if strings.ContainsAny(arg, "\r\n") {
 			return "", fmt.Errorf("response file argument contains a newline")
 		}
-		if _, err := tmpfile.WriteString(QuoteResponseFileArg(arg) + "\n"); err != nil {
+		if _, err := tmpfile.WriteString(quote(arg) + "\n"); err != nil {
 			return "", err
 		}
 	}
@@ -81,6 +85,15 @@ func MaybeUseResponseFile(args []string) ([]string, string, error) {
 
 // MaybeUseResponseFileIn writes long argument lists beneath dir.
 func MaybeUseResponseFileIn(dir string, args []string) ([]string, string, error) {
+	return maybeUseResponseFileIn(dir, args, QuoteResponseFileArg)
+}
+
+// MaybeUseGNUResponseFileIn writes long argument lists using GCC/Clang quoting.
+func MaybeUseGNUResponseFileIn(dir string, args []string) ([]string, string, error) {
+	return maybeUseResponseFileIn(dir, args, QuoteGNUResponseFileArg)
+}
+
+func maybeUseResponseFileIn(dir string, args []string, quote func(string) string) ([]string, string, error) {
 	// Calculate total command line length
 	cmdLen := EstimateCommandLength(args)
 
@@ -90,13 +103,28 @@ func MaybeUseResponseFileIn(dir string, args []string) ([]string, string, error)
 	}
 
 	// Create response file
-	rspPath, err := WriteResponseFileIn(dir, args)
+	rspPath, err := writeResponseFileIn(dir, args, quote)
 	if err != nil {
 		return nil, "", err
 	}
 
 	// Return @file syntax
 	return []string{"@" + rspPath}, rspPath, nil
+}
+
+// QuoteGNUResponseFileArg quotes an argument for GCC and Clang response files.
+func QuoteGNUResponseFileArg(arg string) string {
+	var quoted strings.Builder
+	quoted.Grow(len(arg) + 2)
+	quoted.WriteByte('"')
+	for _, r := range arg {
+		if r == '\\' || r == '"' {
+			quoted.WriteByte('\\')
+		}
+		quoted.WriteRune(r)
+	}
+	quoted.WriteByte('"')
+	return quoted.String()
 }
 
 // EstimateCommandLength calculates the approximate command line length.

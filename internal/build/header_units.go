@@ -16,7 +16,12 @@ func (c *Compiler) CompileHeaderUnit(ctx context.Context, opts plan.HeaderUnitOp
 	if err := os.MkdirAll(filepath.Dir(opts.Output), 0o755); err != nil {
 		return fmt.Errorf("create header-unit output directory: %w", err)
 	}
-	args, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), plan.HeaderUnitArguments(c.toolchain, opts))
+	arguments := plan.HeaderUnitArguments(c.toolchain, opts)
+	responseFile := toolchain.MaybeUseGNUResponseFileIn
+	if isMSVC(c.toolchain) {
+		responseFile = toolchain.MaybeUseResponseFileIn
+	}
+	args, cleanupPath, err := responseFile(filepath.Dir(opts.Output), arguments)
 	if err != nil {
 		return fmt.Errorf("create header-unit response file: %w", err)
 	}

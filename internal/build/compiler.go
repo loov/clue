@@ -190,7 +190,7 @@ func (c *Compiler) compileSourceGCC(ctx context.Context, opts CompileOptions, st
 			}, err
 		}
 	}
-	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseGNUResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -239,7 +239,7 @@ func (c *Compiler) precompileClangPartition(ctx context.Context, opts CompileOpt
 	args = append(args, c.toolchain.CompilerFlags(opts.Flags)...)
 	args = append(args, plan.ModuleCompileFlags(c.toolchain, plan.ModuleDependency{UsesModules: true}, "", opts.ModuleFiles, "")...)
 	args = append(args, "-x", "c++-module", "--precompile", opts.Source, "-o", opts.ModuleOutput)
-	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.ModuleOutput), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseGNUResponseFileIn(filepath.Dir(opts.ModuleOutput), args)
 	if err != nil {
 		return fmt.Errorf("create module-partition response file: %w", err)
 	}

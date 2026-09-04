@@ -532,7 +532,7 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 		statement := ninja.Build{
 			Rule: "header_unit", Out: []string{ninjaOutput}, InImplicit: headerInputs,
 			InOrderOnly: append(append([]string(nil), externalDependencies...), buildDependencies...),
-			Vars:        ninja.Vars{{Key: "huflags", Val: ninjaResponseArguments(arguments)}},
+			Vars:        ninja.Vars{{Key: "huflags", Val: ninjaResponseArguments(tc, arguments)}},
 		}
 		if !unit.System {
 			statement.In = []string{ninjaPathLocal(unit.Path)}
@@ -662,10 +662,14 @@ func generateTargetBuilds(ctx context.Context, file *ninja.File, opts NinjaOptio
 	return append([]string{outputPath}, headerUnitBuilds...), nil
 }
 
-func ninjaResponseArguments(arguments []string) string {
+func ninjaResponseArguments(tc toolchain.Toolchain, arguments []string) string {
 	quoted := make([]string, len(arguments))
+	quote := toolchain.QuoteGNUResponseFileArg
+	if tc.Name() == "msvc" {
+		quote = toolchain.QuoteResponseFileArg
+	}
 	for index, argument := range arguments {
-		quoted[index] = strings.ReplaceAll(toolchain.QuoteResponseFileArg(argument), "$", "$$")
+		quoted[index] = strings.ReplaceAll(quote(argument), "$", "$$")
 	}
 	return strings.Join(quoted, " ")
 }

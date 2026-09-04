@@ -404,6 +404,12 @@ func TestQuoteResponseFileArg_EmbeddedQuotes(t *testing.T) {
 	}
 }
 
+func TestQuoteGNUResponseFileArg_PreservesWindowsPaths(t *testing.T) {
+	if got, want := toolchain.QuoteGNUResponseFileArg(`C:\workspace\main.o`), `"C:\\workspace\\main.o"`; got != want {
+		t.Fatalf("QuoteGNUResponseFileArg() = %q, want %q", got, want)
+	}
+}
+
 func TestResponseFileThreshold_MatchesPlatformLimit(t *testing.T) {
 	// Verify the threshold constant is set correctly
 	if toolchain.ResponseFileThreshold != 8000 {

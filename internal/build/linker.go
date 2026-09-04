@@ -137,7 +137,7 @@ func (l *Linker) linkExecutableGCC(ctx context.Context, opts LinkOptions, start 
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{}) // Pass empty sysLibs since we handle them above
 	args = append(args, linkerFlags...)
-	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseGNUResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
@@ -391,7 +391,7 @@ func (l *Linker) linkSharedLibraryGCC(ctx context.Context, opts SharedLibraryOpt
 	// Add linker flags from BuildLinkerFlags (includes debug and raw flags)
 	linkerFlags := l.toolchain.LinkerFlags(opts.Flags, []string{})
 	args = append(args, linkerFlags...)
-	finalArgs, cleanupPath, err := toolchain.MaybeUseResponseFileIn(filepath.Dir(opts.Output), args)
+	finalArgs, cleanupPath, err := toolchain.MaybeUseGNUResponseFileIn(filepath.Dir(opts.Output), args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create response file: %w", err)
 	}
