@@ -430,7 +430,7 @@ func TestNinja_BuildsExternalDependencies(t *testing.T) {
 		"rule fetch_dep",
 		"command = $clue deps fetch $dep",
 		"build .build/debug/deps/math/obj/math.cpp.o: cxx " + ninjaPathLocal(filepath.Join(depRoot, "math.cpp")),
-		"-I" + ninjaPathLocal(filepath.Join(depRoot, "include")),
+		"-I" + NinjaPath(filepath.Join(depRoot, "include")),
 		"-DMATH_BUILD",
 		"build .build/debug/deps/math/lib/libmath.a: ar .build/debug/deps/math/obj/math.cpp.o",
 		"build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o .build/debug/deps/math/lib/libmath.a",
@@ -464,7 +464,7 @@ func TestNinja_HeaderOnlyDependencyAddsIncludesWithoutLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := output.String()
-	if !strings.Contains(content, "-I"+ninjaPathLocal(filepath.Join(root, "include"))) {
+	if !strings.Contains(content, "-I"+NinjaPath(filepath.Join(root, "include"))) {
 		t.Fatalf("header include is missing:\n%s", content)
 	}
 	if strings.Contains(content, "libheaders") {
