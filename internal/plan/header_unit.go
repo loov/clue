@@ -13,7 +13,7 @@ type HeaderUnitOptions struct {
 	Includes       []string
 	SystemIncludes []string
 	Defines        []string
-	Flags          toolchain.Config
+	Flags          toolchain.Flags
 	Std            string
 	ModuleFiles    map[string]string
 	ModuleMapper   string

@@ -49,7 +49,7 @@ func TestLinker_LinkExecutableProducesRunnableBinary(t *testing.T) {
 	result, err := linker.LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{mainObj},
 		Output:  exePath,
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -103,7 +103,7 @@ func TestLinkerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	}
 	output := filepath.Join(dir, plan.ExecutableName("app", toolchain.HostPlatform()))
 	if _, err := newLinker(newExecutor(executorConfig{}), tc, toolchain.HostPlatform()).LinkExecutable(t.Context(), linkOptions{
-		Objects: []string{object}, Output: output, Flags: toolchain.Config{RawLinker: flags},
+		Objects: []string{object}, Output: output, Flags: toolchain.Flags{RawLinker: flags},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +261,7 @@ int main() { return add(20, 22); }`
 	result, err := linker.LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{mainObj, libPath},
 		Output:  exePath,
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -337,7 +337,7 @@ int main() {
 		Objects: []string{mainObj},
 		Output:  exePath,
 		SysLibs: []string{"pthread"},
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
@@ -393,7 +393,7 @@ func TestLinker_OutputNamingUsesPlatformExtensions(t *testing.T) {
 	if _, err := linker.LinkExecutable(t.Context(), linkOptions{
 		Objects: []string{objFile},
 		Output:  exePath,
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	}); err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)
 	}
@@ -581,7 +581,7 @@ CLUE_EXPORT int lib_func() { return 42; }`
 	result, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -659,7 +659,7 @@ CLUE_EXPORT int lib_func() { return 42; }`
 	_, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -721,7 +721,7 @@ func TestLinkSharedLibrary_LinuxEmitsSONAME(t *testing.T) {
 	_, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -801,7 +801,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 	_, err := linker.LinkSharedLibrary(t.Context(), sharedLibraryOptions{
 		Objects: []string{libObj},
 		Output:  libPath,
-		Flags:   toolchain.Config{},
+		Flags:   toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkSharedLibrary failed: %v", err)
@@ -814,7 +814,7 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 		Output:   exePath,
 		LibPaths: []string{tmpDir},
 		Libs:     []string{"test"},
-		Flags:    toolchain.Config{},
+		Flags:    toolchain.Flags{},
 	})
 	if err != nil {
 		t.Fatalf("LinkExecutable failed: %v", err)

@@ -276,61 +276,61 @@ func TestCrossCompilerNaming_MapsGNUTriplets(t *testing.T) {
 func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    toolchain.Config
+		config    toolchain.Flags
 		toolchain string
 		expected  []string
 	}{
 		{
 			name:      "optimization fast",
-			config:    toolchain.Config{Optimize: "fast"},
+			config:    toolchain.Flags{Optimize: "fast"},
 			toolchain: "gcc",
 			expected:  []string{"-O2"},
 		},
 		{
 			name:      "optimization size",
-			config:    toolchain.Config{Optimize: "size"},
+			config:    toolchain.Flags{Optimize: "size"},
 			toolchain: "clang",
 			expected:  []string{"-Os"},
 		},
 		{
 			name:      "warnings strict",
-			config:    toolchain.Config{Warnings: "strict"},
+			config:    toolchain.Flags{Warnings: "strict"},
 			toolchain: "gcc",
 			expected:  []string{"-Wall", "-Wextra"},
 		},
 		{
 			name:      "debug full",
-			config:    toolchain.Config{Debug: "full"},
+			config:    toolchain.Flags{Debug: "full"},
 			toolchain: "clang",
 			expected:  []string{"-g"},
 		},
 		{
 			name:      "sanitizer address",
-			config:    toolchain.Config{Sanitizers: []string{"address"}},
+			config:    toolchain.Flags{Sanitizers: []string{"address"}},
 			toolchain: "clang",
 			expected:  []string{"-fsanitize=address"},
 		},
 		{
 			name:      "sanitizer undefined",
-			config:    toolchain.Config{Sanitizers: []string{"undefined"}},
+			config:    toolchain.Flags{Sanitizers: []string{"undefined"}},
 			toolchain: "gcc",
 			expected:  []string{"-fsanitize=undefined"},
 		},
 		{
 			name:      "lto enabled",
-			config:    toolchain.Config{LTO: true},
+			config:    toolchain.Flags{LTO: true},
 			toolchain: "clang",
 			expected:  []string{"-flto"},
 		},
 		{
 			name:      "coverage clang",
-			config:    toolchain.Config{Coverage: true},
+			config:    toolchain.Flags{Coverage: true},
 			toolchain: "clang",
 			expected:  []string{"-fprofile-instr-generate", "-fcoverage-mapping"},
 		},
 		{
 			name:      "coverage gcc",
-			config:    toolchain.Config{Coverage: true},
+			config:    toolchain.Flags{Coverage: true},
 			toolchain: "gcc",
 			expected:  []string{"-fprofile-arcs", "-ftest-coverage"},
 		},
@@ -359,31 +359,31 @@ func TestSemanticFlagMapping_TranslatesCompilerOptions(t *testing.T) {
 func TestSemanticFlagMapping_TranslatesLinkerOptions(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    toolchain.Config
+		config    toolchain.Flags
 		toolchain string
 		expected  []string
 	}{
 		{
 			name:      "debug full in linker",
-			config:    toolchain.Config{Debug: "full"},
+			config:    toolchain.Flags{Debug: "full"},
 			toolchain: "gcc",
 			expected:  []string{"-g"},
 		},
 		{
 			name:      "sanitizer address in linker",
-			config:    toolchain.Config{Sanitizers: []string{"address"}},
+			config:    toolchain.Flags{Sanitizers: []string{"address"}},
 			toolchain: "clang",
 			expected:  []string{"-fsanitize=address"},
 		},
 		{
 			name:      "lto in linker",
-			config:    toolchain.Config{LTO: true},
+			config:    toolchain.Flags{LTO: true},
 			toolchain: "gcc",
 			expected:  []string{"-flto"},
 		},
 		{
 			name:      "coverage clang in linker",
-			config:    toolchain.Config{Coverage: true},
+			config:    toolchain.Flags{Coverage: true},
 			toolchain: "clang",
 			expected:  []string{"-fprofile-instr-generate"},
 		},

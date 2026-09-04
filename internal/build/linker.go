@@ -14,25 +14,25 @@ import (
 
 // LinkOptions holds options for linking an executable
 type linkOptions struct {
-	Objects  []string         // Object files to link
-	Output   string           // Output executable path
-	SysLibs  []string         // System libraries (pthread, m, dl)
-	LibPaths []string         // Library search paths (-L)
-	Libs     []string         // Additional libraries to link
-	Flags    toolchain.Config // For raw linker flags and debug info
-	UseCXX   bool             // Use the C++ driver when the link graph contains C++
+	Objects  []string        // Object files to link
+	Output   string          // Output executable path
+	SysLibs  []string        // System libraries (pthread, m, dl)
+	LibPaths []string        // Library search paths (-L)
+	Libs     []string        // Additional libraries to link
+	Flags    toolchain.Flags // For raw linker flags and debug info
+	UseCXX   bool            // Use the C++ driver when the link graph contains C++
 }
 
 // SharedLibraryOptions holds options for linking a shared library
 type sharedLibraryOptions struct {
-	Objects          []string         // Object files to link
-	Output           string           // Output .so/.dylib path
-	SysLibs          []string         // System libraries (pthread, m, dl)
-	LibPaths         []string         // Library search paths (-L)
-	Libs             []string         // Additional libraries to link
-	Flags            toolchain.Config // For raw linker flags and debug info
-	SymbolVisibility string           // "default" or "hidden"
-	UseCXX           bool             // Use the C++ driver when the link graph contains C++
+	Objects          []string        // Object files to link
+	Output           string          // Output .so/.dylib path
+	SysLibs          []string        // System libraries (pthread, m, dl)
+	LibPaths         []string        // Library search paths (-L)
+	Libs             []string        // Additional libraries to link
+	Flags            toolchain.Flags // For raw linker flags and debug info
+	SymbolVisibility string          // "default" or "hidden"
+	UseCXX           bool            // Use the C++ driver when the link graph contains C++
 }
 
 // ArchiveOptions holds options for creating a static library

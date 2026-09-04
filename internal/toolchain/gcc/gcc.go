@@ -30,7 +30,7 @@ func New(cc, cxx, ar string, target toolchain.Platform) *Toolchain {
 // CompilerFlags generates GCC-specific compiler flags.
 // It calls the embedded gccish CompilerFlags for base flags, then adds
 // GCC-specific sanitizer flags (excluding memory sanitizer) and coverage flags.
-func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
+func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 	// Get base flags from embedded toolchain
 	flags := t.Toolchain.CompilerFlags(config)
 
@@ -48,7 +48,7 @@ func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
 // LinkerFlags generates GCC-specific linker flags.
 // It calls the embedded gccish LinkerFlags for base flags, then adds
 // GCC-specific sanitizer flags. GCC links coverage automatically via -lgcov.
-func (t *Toolchain) LinkerFlags(config toolchain.Config, sysLibs []string) []string {
+func (t *Toolchain) LinkerFlags(config toolchain.Flags, sysLibs []string) []string {
 	// Get base flags from embedded toolchain
 	flags := t.Toolchain.LinkerFlags(config, sysLibs)
 

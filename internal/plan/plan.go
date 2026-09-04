@@ -17,7 +17,7 @@ type Source struct {
 type Target struct {
 	Target    config.Target
 	Usage     config.Usage
-	Flags     toolchain.Config
+	Flags     toolchain.Flags
 	ObjectDir string
 	Output    string
 	Sources   []Source
@@ -79,8 +79,8 @@ func ArtifactPath(buildDir, variant, target, targetType string, platform toolcha
 	return filepath.Join(buildDir, variant, directory, name)
 }
 
-func targetConfig(target config.Target, variant config.Variant) toolchain.Config {
-	cfg := toolchain.Config{
+func targetConfig(target config.Target, variant config.Variant) toolchain.Flags {
+	cfg := toolchain.Flags{
 		Optimize: variant.Optimization, Warnings: "default", WarningsAsErrors: true,
 		Debug: "none", RawCompiler: target.Flags.Compiler, RawLinker: target.Flags.Linker,
 		Sanitizers: append([]string(nil), target.Sanitizers...),

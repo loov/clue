@@ -717,7 +717,7 @@ func TestBuildCompilerArgs_MSVCUsesNativeSwitches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	args := buildCompilerArgs(tc, "c++20", []string{"include"}, nil, []string{"DEBUG"}, "main.cpp", "main.obj", toolchain.Config{})
+	args := buildCompilerArgs(tc, "c++20", []string{"include"}, nil, []string{"DEBUG"}, "main.cpp", "main.obj", toolchain.Flags{})
 
 	if args[0] != "cl.exe" {
 		t.Fatalf("expected MSVC compiler, got %v", args)
@@ -738,7 +738,7 @@ func TestBuildCompilerArgs_MSVCUsesNativeSwitches(t *testing.T) {
 
 func TestBuildCompilerArgs_EmitsSystemIncludeFlags(t *testing.T) {
 	tc := gcc.New("gcc", "g++", "ar", toolchain.HostPlatform())
-	args := buildCompilerArgs(tc, "c17", nil, []string{"vendor/include"}, nil, "main.c", "main.o", toolchain.Config{})
+	args := buildCompilerArgs(tc, "c17", nil, []string{"vendor/include"}, nil, "main.c", "main.o", toolchain.Flags{})
 	if !containsArg(args, "-isystem") || !containsArg(args, AbsPath("vendor/include")) {
 		t.Fatalf("system include missing from %v", args)
 	}

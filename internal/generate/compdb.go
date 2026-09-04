@@ -274,7 +274,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 	if optimization == "" {
 		optimization = "none"
 	}
-	buildCfg := toolchain.Config{
+	buildCfg := toolchain.Flags{
 		Optimize:         optimization,
 		Warnings:         "default",
 		WarningsAsErrors: false, // Don't treat warnings as errors for deps
@@ -304,11 +304,11 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 }
 
 // buildCompilerArgs constructs the full compiler command arguments
-func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Config) []string {
+func buildCompilerArgs(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Flags) []string {
 	return buildCompilerArgsExtra(tc, std, includes, systemIncludes, defines, source, objPath, buildCfg, nil)
 }
 
-func buildCompilerArgsExtra(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Config, extra []string) []string {
+func buildCompilerArgsExtra(tc toolchain.Toolchain, std string, includes, systemIncludes, defines []string, source, objPath string, buildCfg toolchain.Flags, extra []string) []string {
 	var args []string
 	msvc := tc.Name() == "msvc"
 

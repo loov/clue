@@ -307,7 +307,7 @@ func targetUsesCXXForNinja(cfg *config.Config, target config.Target) bool {
 }
 
 // buildCompilerFlagsForNinja builds compiler flags for Ninja output
-func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Config, includes []string, tc toolchain.Toolchain, source string) []string {
+func buildCompilerFlagsForNinja(cfg *config.Config, target config.Target, buildCfg toolchain.Flags, includes []string, tc toolchain.Toolchain, source string) []string {
 	var flags []string
 	msvc := tc.Name() == "msvc"
 
@@ -471,7 +471,7 @@ func targetLinkDependencies(cfg *config.Config, target config.Target, buildDir, 
 }
 
 // buildLinkerFlagsForNinja builds linker flags for executables
-func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, tc toolchain.Toolchain) []string {
+func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, buildCfg toolchain.Flags, platform toolchain.Platform, tc toolchain.Toolchain) []string {
 	var flags []string
 	if tc.Name() == "msvc" {
 		flags = appendMSVCLibraryPaths(flags, tc)
@@ -492,7 +492,7 @@ func buildLinkerFlagsForNinja(target config.Target, dependencySysLibs []string, 
 }
 
 // buildSharedLibLinkerFlags builds linker flags for shared libraries
-func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string, buildCfg toolchain.Config, platform toolchain.Platform, tc toolchain.Toolchain) []string {
+func buildSharedLibLinkerFlags(target config.Target, dependencySysLibs []string, buildCfg toolchain.Flags, platform toolchain.Platform, tc toolchain.Toolchain) []string {
 	var flags []string
 	if tc.Name() == "msvc" {
 		flags = appendMSVCLibraryPaths(flags, tc)

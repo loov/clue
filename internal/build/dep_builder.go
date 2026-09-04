@@ -158,7 +158,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Output:   objPath,
 			Includes: compilationIncludes,
 			Defines:  cfg.Defines,
-			Flags: toolchain.Config{
+			Flags: toolchain.Flags{
 				Optimize:         optimization,
 				Warnings:         "default",
 				WarningsAsErrors: false, // Don't fail dependency builds on warnings
@@ -245,7 +245,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 		linkOpts := sharedLibraryOptions{
 			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
-			Flags: toolchain.Config{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
+			Flags: toolchain.Flags{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
 		}
 		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, db.linker.linkDriver(requiresCXX), linkOpts, append(objectFiles, dependencyArtifacts...))
 		if fingerprintErr != nil {

@@ -95,7 +95,7 @@ func (t *Toolchain) String() string {
 }
 
 // CompilerFlags generates MSVC-specific compiler flags.
-func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
+func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 	var flags []string
 
 	// Always suppress banner per CONTEXT.md
@@ -147,7 +147,7 @@ func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
 }
 
 // LinkerFlags generates MSVC-specific linker flags.
-func (t *Toolchain) LinkerFlags(config toolchain.Config, sysLibs []string) []string {
+func (t *Toolchain) LinkerFlags(config toolchain.Flags, sysLibs []string) []string {
 	var flags []string
 
 	// Always suppress banner

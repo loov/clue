@@ -117,7 +117,7 @@ func (b *Builder) dependencyLinkInputs(opts Options, target config.Target) (depe
 	return usage, nil
 }
 
-func (b *Builder) addRuntimeLibraryPaths(cfg *toolchain.Config, output string, paths []string) error {
+func (b *Builder) addRuntimeLibraryPaths(cfg *toolchain.Flags, output string, paths []string) error {
 	for _, path := range paths {
 		relative, err := filepath.Rel(filepath.Dir(output), path)
 		if err != nil {

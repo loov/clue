@@ -44,7 +44,7 @@ func TestParallelCompiler_CompilesSingleFile(t *testing.T) {
 		{
 			Source: source,
 			Output: filepath.Join(objDir, "main.o"),
-			Flags:  toolchain.Config{Optimize: "none"},
+			Flags:  toolchain.Flags{Optimize: "none"},
 		},
 	}
 
@@ -117,7 +117,7 @@ func TestParallelCompiler_CompilesMultipleFiles(t *testing.T) {
 		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  toolchain.Config{Optimize: "none"},
+			Flags:  toolchain.Flags{Optimize: "none"},
 		})
 	}
 
@@ -198,7 +198,7 @@ func TestParallelCompiler_RespectsConcurrencyLimit(t *testing.T) {
 		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  toolchain.Config{Optimize: "none"},
+			Flags:  toolchain.Flags{Optimize: "none"},
 		})
 	}
 
@@ -237,9 +237,9 @@ func TestParallelCompiler_KeepGoing_ContinuesAfterError(t *testing.T) {
 	// Create compile options
 	objDir := filepath.Join(tmpDir, "obj")
 	opts := []compileOptions{
-		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: toolchain.Config{Optimize: "none"}},
-		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Config{Optimize: "none"}},
-		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: toolchain.Config{Optimize: "none"}},
+		{Source: good1, Output: filepath.Join(objDir, "good1.o"), Flags: toolchain.Flags{Optimize: "none"}},
+		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Flags{Optimize: "none"}},
+		{Source: good2, Output: filepath.Join(objDir, "good2.o"), Flags: toolchain.Flags{Optimize: "none"}},
 	}
 
 	// Compile in parallel with keep-going
@@ -306,8 +306,8 @@ func TestParallelCompiler_KeepGoing_StopsWithoutFlag(t *testing.T) {
 	// Create compile options - bad file first
 	objDir := filepath.Join(tmpDir, "obj")
 	opts := []compileOptions{
-		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Config{Optimize: "none"}},
-		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: toolchain.Config{Optimize: "none"}},
+		{Source: bad, Output: filepath.Join(objDir, "bad.o"), Flags: toolchain.Flags{Optimize: "none"}},
+		{Source: good, Output: filepath.Join(objDir, "good.o"), Flags: toolchain.Flags{Optimize: "none"}},
 	}
 
 	// Compile in parallel (but with jobs=1, sequential)
@@ -364,7 +364,7 @@ func TestParallelCompiler_StopsOnContextCancellation(t *testing.T) {
 		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  toolchain.Config{Optimize: "none"},
+			Flags:  toolchain.Flags{Optimize: "none"},
 		})
 	}
 
@@ -480,7 +480,7 @@ func TestParallelCompiler_BuffersEachCommandOutput(t *testing.T) {
 		opts = append(opts, compileOptions{
 			Source: src,
 			Output: filepath.Join(objDir, strings.TrimSuffix(base, ".cpp")+".o"),
-			Flags:  toolchain.Config{Optimize: "none"},
+			Flags:  toolchain.Flags{Optimize: "none"},
 		})
 	}
 

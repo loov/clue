@@ -118,7 +118,7 @@ func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
 // This includes optimization, warnings, debug, LTO, and PIC flags.
 // NOTE: Sanitizers and coverage flags differ between GCC/Clang and
 // should be added by the embedding type's CompilerFlags method.
-func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
+func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 	var flags []string
 	if t.name == "clang" && t.targetTriple != "" {
 		flags = append(flags, "--target="+t.targetTriple)
@@ -165,7 +165,7 @@ func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
 // This includes system library flags, debug, LTO, and raw linker flags.
 // NOTE: Sanitizer and coverage flags differ between GCC/Clang and
 // should be added by the embedding type's LinkerFlags method.
-func (t *Toolchain) LinkerFlags(config toolchain.Config, sysLibs []string) []string {
+func (t *Toolchain) LinkerFlags(config toolchain.Flags, sysLibs []string) []string {
 	var flags []string
 	if t.name == "clang" && t.targetTriple != "" {
 		flags = append(flags, "--target="+t.targetTriple)

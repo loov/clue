@@ -19,7 +19,7 @@ func TestClangToolchain_NameReportsClang(t *testing.T) {
 func TestClangToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 	t.Run("all sanitizers including memory are included", func(t *testing.T) {
 		tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
-		config := toolchain.Config{
+		config := toolchain.Flags{
 			Sanitizers: []string{"address", "memory", "undefined", "thread"},
 		}
 		flags := tc.CompilerFlags(config)
@@ -47,7 +47,7 @@ func TestClangToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 		os.Stderr = w
 
 		tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
-		config := toolchain.Config{
+		config := toolchain.Flags{
 			Sanitizers: []string{"memory"},
 		}
 		tc.CompilerFlags(config)
@@ -74,7 +74,7 @@ func TestClangToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 func TestClangToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 	t.Run("coverage flags in compiler flags", func(t *testing.T) {
 		tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
-		config := toolchain.Config{Coverage: true}
+		config := toolchain.Flags{Coverage: true}
 		flags := tc.CompilerFlags(config)
 
 		if !containsFlag(flags, "-fprofile-instr-generate") {
@@ -87,7 +87,7 @@ func TestClangToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 
 	t.Run("coverage flags in linker flags", func(t *testing.T) {
 		tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
-		config := toolchain.Config{Coverage: true}
+		config := toolchain.Flags{Coverage: true}
 		flags := tc.LinkerFlags(config, nil)
 
 		// Clang needs -fprofile-instr-generate at link time
@@ -99,7 +99,7 @@ func TestClangToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 
 func TestClangToolchain_LinkerFlagsIncludeSanitizerRuntime(t *testing.T) {
 	tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
-	config := toolchain.Config{
+	config := toolchain.Flags{
 		Sanitizers: []string{"address", "memory"},
 	}
 	flags := tc.LinkerFlags(config, nil)
@@ -147,7 +147,7 @@ func TestClangToolchain_DetectsTargetPrefix(t *testing.T) {
 
 func TestClangToolchain_CompilerFlagsIncludeClangDefaults(t *testing.T) {
 	tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
-	config := toolchain.Config{
+	config := toolchain.Flags{
 		Optimize: "fast",
 		Warnings: "strict",
 		Debug:    "full",

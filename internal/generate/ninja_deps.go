@@ -53,7 +53,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 		}
 		includes := append(resolved.Includes, dependencyUsage.Includes...)
 		depTarget := config.Target{Name: name, Defines: append(resolved.Defines, dependencyUsage.Defines...)}
-		buildCfg := toolchain.Config{Optimize: variantConfig.Optimization, Warnings: "default"}
+		buildCfg := toolchain.Flags{Optimize: variantConfig.Optimization, Warnings: "default"}
 		buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
 		if buildCfg.Optimize == "" {
 			buildCfg.Optimize = "none"

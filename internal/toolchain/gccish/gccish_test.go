@@ -31,8 +31,8 @@ func TestToolchain_CompilerFlagsIncludeExplicitTarget(t *testing.T) {
 	tc.ConfigureTarget("aarch64-linux-gnu", "/sdk")
 
 	for name, flags := range map[string][]string{
-		"compiler": tc.CompilerFlags(toolchain.Config{}),
-		"linker":   tc.LinkerFlags(toolchain.Config{}, nil),
+		"compiler": tc.CompilerFlags(toolchain.Flags{}),
+		"linker":   tc.LinkerFlags(toolchain.Flags{}, nil),
 	} {
 		if !slices.Contains(flags, "--target=aarch64-linux-gnu") || !slices.Contains(flags, "--sysroot=/sdk") {
 			t.Errorf("%s flags = %v", name, flags)
@@ -134,7 +134,7 @@ func TestToolchain_CompilerFlagsMapOptimizationLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.level, func(t *testing.T) {
 			tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-			config := toolchain.Config{Optimize: tt.level}
+			config := toolchain.Flags{Optimize: tt.level}
 			flags := tc.CompilerFlags(config)
 
 			if !containsFlag(flags, tt.want) {
@@ -158,7 +158,7 @@ func TestToolchain_CompilerFlagsMapWarningLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.level, func(t *testing.T) {
 			tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-			config := toolchain.Config{Warnings: tt.level}
+			config := toolchain.Flags{Warnings: tt.level}
 			flags := tc.CompilerFlags(config)
 
 			for _, wantFlag := range tt.want {
@@ -172,7 +172,7 @@ func TestToolchain_CompilerFlagsMapWarningLevels(t *testing.T) {
 
 func TestToolchain_CompilerFlagsEnableWarningsAsErrors(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{WarningsAsErrors: true}
+	config := toolchain.Flags{WarningsAsErrors: true}
 	flags := tc.CompilerFlags(config)
 
 	if !containsFlag(flags, "-Werror") {
@@ -193,7 +193,7 @@ func TestToolchain_CompilerFlagsMapDebugLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.level, func(t *testing.T) {
 			tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-			config := toolchain.Config{Debug: tt.level}
+			config := toolchain.Flags{Debug: tt.level}
 			flags := tc.CompilerFlags(config)
 
 			if tt.want == "" {
@@ -212,7 +212,7 @@ func TestToolchain_CompilerFlagsMapDebugLevels(t *testing.T) {
 
 func TestToolchain_CompilerFlagsEnableLTO(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{LTO: true}
+	config := toolchain.Flags{LTO: true}
 	flags := tc.CompilerFlags(config)
 
 	if !containsFlag(flags, "-flto") {
@@ -222,7 +222,7 @@ func TestToolchain_CompilerFlagsEnableLTO(t *testing.T) {
 
 func TestToolchain_CompilerFlagsEnablePIC(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{PIC: true}
+	config := toolchain.Flags{PIC: true}
 	flags := tc.CompilerFlags(config)
 
 	if !containsFlag(flags, "-fPIC") {
@@ -232,14 +232,14 @@ func TestToolchain_CompilerFlagsEnablePIC(t *testing.T) {
 
 func TestToolchain_CompilerFlagsOmitPICOnWindows(t *testing.T) {
 	tc := New("clang", "clang", "clang++", "llvm-ar", toolchain.Platform{OS: "windows", Arch: "amd64"})
-	if flags := tc.CompilerFlags(toolchain.Config{PIC: true}); slices.Contains(flags, "-fPIC") {
+	if flags := tc.CompilerFlags(toolchain.Flags{PIC: true}); slices.Contains(flags, "-fPIC") {
 		t.Errorf("CompilerFlags() = %v, must omit -fPIC on Windows", flags)
 	}
 }
 
 func TestToolchain_CompilerFlagsAppendRawFlags(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{RawCompiler: []string{"-march=native", "-DFOO=1"}}
+	config := toolchain.Flags{RawCompiler: []string{"-march=native", "-DFOO=1"}}
 	flags := tc.CompilerFlags(config)
 
 	if !containsFlag(flags, "-march=native") {
@@ -252,7 +252,7 @@ func TestToolchain_CompilerFlagsAppendRawFlags(t *testing.T) {
 
 func TestToolchain_LinkerFlagsAppendSystemLibraries(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{}
+	config := toolchain.Flags{}
 	sysLibs := []string{"pthread", "m", "dl"}
 	flags := tc.LinkerFlags(config, sysLibs)
 
@@ -266,7 +266,7 @@ func TestToolchain_LinkerFlagsAppendSystemLibraries(t *testing.T) {
 
 func TestToolchain_LinkerFlagsEnableDebugInfo(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{Debug: "full"}
+	config := toolchain.Flags{Debug: "full"}
 	flags := tc.LinkerFlags(config, nil)
 
 	if !containsFlag(flags, "-g") {
@@ -276,7 +276,7 @@ func TestToolchain_LinkerFlagsEnableDebugInfo(t *testing.T) {
 
 func TestToolchain_LinkerFlagsEnableLTO(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{LTO: true}
+	config := toolchain.Flags{LTO: true}
 	flags := tc.LinkerFlags(config, nil)
 
 	if !containsFlag(flags, "-flto") {
@@ -286,7 +286,7 @@ func TestToolchain_LinkerFlagsEnableLTO(t *testing.T) {
 
 func TestToolchain_LinkerFlagsAppendRawFlags(t *testing.T) {
 	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{RawLinker: []string{"-Wl,-rpath,/usr/local/lib", "-static"}}
+	config := toolchain.Flags{RawLinker: []string{"-Wl,-rpath,/usr/local/lib", "-static"}}
 	flags := tc.LinkerFlags(config, nil)
 
 	if !containsFlag(flags, "-Wl,-rpath,/usr/local/lib") {

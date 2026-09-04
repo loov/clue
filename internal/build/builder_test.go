@@ -62,7 +62,7 @@ func TestDependencyLinkInputs_PkgConfigFlags(t *testing.T) {
 
 func TestBuilderAddsExternalSharedLibraryRuntimePath(t *testing.T) {
 	builder := &Builder{target: toolchain.Platform{OS: "linux", Arch: "amd64"}}
-	cfg := toolchain.Config{}
+	cfg := toolchain.Flags{}
 	output := filepath.Join(".build", "debug", "bin", "app")
 	libraryDir := filepath.Join(".build", "debug", "deps", "answer", "lib")
 

@@ -40,7 +40,7 @@ func TestGCCToolchain_NameReportsGCC(t *testing.T) {
 func TestGCCToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 	t.Run("memory sanitizer is skipped with warning", func(t *testing.T) {
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
-		config := toolchain.Config{
+		config := toolchain.Flags{
 			Sanitizers: []string{"address", "memory", "undefined"},
 		}
 		var flags []string
@@ -61,7 +61,7 @@ func TestGCCToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 
 	t.Run("address, thread, undefined sanitizers are included", func(t *testing.T) {
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
-		config := toolchain.Config{
+		config := toolchain.Flags{
 			Sanitizers: []string{"address", "thread", "undefined"},
 		}
 		var flags []string
@@ -79,7 +79,7 @@ func TestGCCToolchain_CompilerFlagsMapSanitizers(t *testing.T) {
 func TestGCCToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 	t.Run("coverage flags in compiler flags", func(t *testing.T) {
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
-		config := toolchain.Config{Coverage: true}
+		config := toolchain.Flags{Coverage: true}
 		flags := tc.CompilerFlags(config)
 
 		if !containsFlag(flags, "-fprofile-arcs") {
@@ -92,7 +92,7 @@ func TestGCCToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 
 	t.Run("no extra linker flags for coverage", func(t *testing.T) {
 		tc := New("gcc", "g++", "ar", toolchain.Platform{})
-		config := toolchain.Config{Coverage: true}
+		config := toolchain.Flags{Coverage: true}
 		flags := tc.LinkerFlags(config, nil)
 
 		// GCC links coverage automatically via -lgcov, so no explicit coverage flags
@@ -106,7 +106,7 @@ func TestGCCToolchain_CompilerFlagsEnableCoverage(t *testing.T) {
 
 func TestGCCToolchain_LinkerFlagsIncludeSanitizerRuntime(t *testing.T) {
 	tc := New("gcc", "g++", "ar", toolchain.Platform{})
-	config := toolchain.Config{
+	config := toolchain.Flags{
 		Sanitizers: []string{"address", "memory"},
 	}
 	var flags []string

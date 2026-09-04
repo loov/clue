@@ -24,8 +24,8 @@ type Toolchain interface {
 	String() string
 
 	// Flag generation
-	CompilerFlags(config Config) []string
-	LinkerFlags(config Config, sysLibs []string) []string
+	CompilerFlags(config Flags) []string
+	LinkerFlags(config Flags, sysLibs []string) []string
 
 	// Compiler identity for cache keys
 	Identity() (CompilerIdentity, error)

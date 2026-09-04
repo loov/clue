@@ -32,7 +32,7 @@ func TestCompilerFlags_MapOptimizationLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := getTestToolchain(t, "gcc")
-			config := toolchain.Config{Optimize: tt.optimize}
+			config := toolchain.Flags{Optimize: tt.optimize}
 			flags := tc.CompilerFlags(config)
 
 			if !contains(flags, tt.want) {
@@ -45,7 +45,7 @@ func TestCompilerFlags_MapOptimizationLevels(t *testing.T) {
 func TestCompilerFlags_OmitUnknownOptimization(t *testing.T) {
 	// Unknown optimization should not panic, just skip the flag
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{Optimize: "unknown"}
+	config := toolchain.Flags{Optimize: "unknown"}
 	flags := tc.CompilerFlags(config)
 
 	// Should not contain any optimization flag
@@ -71,7 +71,7 @@ func TestCompilerFlags_MapWarningLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := getTestToolchain(t, "gcc")
-			config := toolchain.Config{Warnings: tt.warnings}
+			config := toolchain.Flags{Warnings: tt.warnings}
 			flags := tc.CompilerFlags(config)
 
 			for _, wantFlag := range tt.want {
@@ -86,7 +86,7 @@ func TestCompilerFlags_MapWarningLevels(t *testing.T) {
 func TestCompilerFlags_StrictEnablesExtraWarnings(t *testing.T) {
 	// Verify strict includes both -Wall and -Wextra
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{Warnings: "strict"}
+	config := toolchain.Flags{Warnings: "strict"}
 	flags := tc.CompilerFlags(config)
 
 	if !contains(flags, "-Wall") {
@@ -100,7 +100,7 @@ func TestCompilerFlags_StrictEnablesExtraWarnings(t *testing.T) {
 func TestCompilerFlags_PedanticEnablesConformanceWarnings(t *testing.T) {
 	// Verify pedantic includes all three flags
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{Warnings: "pedantic"}
+	config := toolchain.Flags{Warnings: "pedantic"}
 	flags := tc.CompilerFlags(config)
 
 	for _, want := range []string{"-Wall", "-Wextra", "-Wpedantic"} {
@@ -123,7 +123,7 @@ func TestCompilerFlags_EnableWarningsAsErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := getTestToolchain(t, "gcc")
-			config := toolchain.Config{WarningsAsErrors: tt.warningsAsErrors}
+			config := toolchain.Flags{WarningsAsErrors: tt.warningsAsErrors}
 			flags := tc.CompilerFlags(config)
 
 			hasWerror := contains(flags, "-Werror")
@@ -148,7 +148,7 @@ func TestCompilerFlags_MapDebugLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := getTestToolchain(t, "gcc")
-			config := toolchain.Config{Debug: tt.debug}
+			config := toolchain.Flags{Debug: tt.debug}
 			flags := tc.CompilerFlags(config)
 
 			if tt.want == "" {
@@ -169,7 +169,7 @@ func TestCompilerFlags_MapDebugLevels(t *testing.T) {
 
 func TestCompilerFlags_CombineIndependentOptions(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{
+	config := toolchain.Flags{
 		Optimize:         "fast",
 		Warnings:         "strict",
 		WarningsAsErrors: true,
@@ -188,7 +188,7 @@ func TestCompilerFlags_CombineIndependentOptions(t *testing.T) {
 
 func TestCompilerFlags_AppendRawFlags(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{
+	config := toolchain.Flags{
 		RawCompiler: []string{"-fPIC", "-march=native"},
 	}
 
@@ -216,7 +216,7 @@ func TestLinkerFlags_AppendSystemLibraries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := getTestToolchain(t, "gcc")
-			config := toolchain.Config{}
+			config := toolchain.Flags{}
 			flags := tc.LinkerFlags(config, tt.sysLibs)
 
 			for _, wantFlag := range tt.want {
@@ -240,7 +240,7 @@ func TestLinkerFlags_AppendSystemLibraries(t *testing.T) {
 func TestLinkerFlags_EnableDebugInfo(t *testing.T) {
 	// Linker should include debug flag for symbol preservation
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{Debug: "full"}
+	config := toolchain.Flags{Debug: "full"}
 	flags := tc.LinkerFlags(config, nil)
 
 	if !contains(flags, "-g") {
@@ -250,7 +250,7 @@ func TestLinkerFlags_EnableDebugInfo(t *testing.T) {
 
 func TestLinkerFlags_AppendRawFlags(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{
+	config := toolchain.Flags{
 		RawLinker: []string{"-static", "-Wl,-rpath,/opt/lib"},
 	}
 
@@ -266,7 +266,7 @@ func TestLinkerFlags_AppendRawFlags(t *testing.T) {
 
 func TestLinkerFlags_CombineIndependentOptions(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{
+	config := toolchain.Flags{
 		Debug:     "full",
 		RawLinker: []string{"-static"},
 	}
@@ -284,7 +284,7 @@ func TestLinkerFlags_CombineIndependentOptions(t *testing.T) {
 func TestLinkerFlags_EmptyConfigReturnsNoFlags(t *testing.T) {
 	// No configuration should produce minimal flags
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{}
+	config := toolchain.Flags{}
 	flags := tc.LinkerFlags(config, nil)
 
 	// Should be empty or only contain empty debug flag logic
@@ -316,7 +316,7 @@ func TestCompilerFlags_MapSanitizers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := getTestToolchain(t, tt.toolchain)
-			config := toolchain.Config{Sanitizers: tt.sanitizers}
+			config := toolchain.Flags{Sanitizers: tt.sanitizers}
 			flags := tc.CompilerFlags(config)
 
 			for _, wantFlag := range tt.want {
@@ -330,7 +330,7 @@ func TestCompilerFlags_MapSanitizers(t *testing.T) {
 
 func TestCompilerFlags_GCCRejectsMemorySanitizer(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{Sanitizers: []string{"memory"}}
+	config := toolchain.Flags{Sanitizers: []string{"memory"}}
 	flags := tc.CompilerFlags(config)
 
 	// Should not contain -fsanitize=memory on GCC
@@ -341,7 +341,7 @@ func TestCompilerFlags_GCCRejectsMemorySanitizer(t *testing.T) {
 
 func TestCompilerFlags_ClangEnablesMemorySanitizer(t *testing.T) {
 	tc := getTestToolchain(t, "clang")
-	config := toolchain.Config{Sanitizers: []string{"memory"}}
+	config := toolchain.Flags{Sanitizers: []string{"memory"}}
 	flags := tc.CompilerFlags(config)
 
 	// Should contain -fsanitize=memory on Clang
@@ -352,7 +352,7 @@ func TestCompilerFlags_ClangEnablesMemorySanitizer(t *testing.T) {
 
 func TestCompilerFlags_EnableLTO(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{LTO: true}
+	config := toolchain.Flags{LTO: true}
 	flags := tc.CompilerFlags(config)
 
 	if !contains(flags, "-flto") {
@@ -365,7 +365,7 @@ func TestCompilerFlags_EnablePIC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := toolchain.Config{PIC: true}
+	config := toolchain.Flags{PIC: true}
 	flags := tc.CompilerFlags(config)
 
 	if !contains(flags, "-fPIC") {
@@ -375,7 +375,7 @@ func TestCompilerFlags_EnablePIC(t *testing.T) {
 
 func TestCompilerFlags_EnableClangCoverage(t *testing.T) {
 	tc := getTestToolchain(t, "clang")
-	config := toolchain.Config{Coverage: true}
+	config := toolchain.Flags{Coverage: true}
 	flags := tc.CompilerFlags(config)
 
 	if !contains(flags, "-fprofile-instr-generate") {
@@ -388,7 +388,7 @@ func TestCompilerFlags_EnableClangCoverage(t *testing.T) {
 
 func TestCompilerFlags_EnableGCCCoverage(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{Coverage: true}
+	config := toolchain.Flags{Coverage: true}
 	flags := tc.CompilerFlags(config)
 
 	if !contains(flags, "-fprofile-arcs") {
@@ -414,7 +414,7 @@ func TestLinkerFlags_IncludeSanitizerRuntime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := getTestToolchain(t, tt.toolchain)
-			config := toolchain.Config{Sanitizers: tt.sanitizers}
+			config := toolchain.Flags{Sanitizers: tt.sanitizers}
 			flags := tc.LinkerFlags(config, nil)
 
 			for _, wantFlag := range tt.want {
@@ -428,7 +428,7 @@ func TestLinkerFlags_IncludeSanitizerRuntime(t *testing.T) {
 
 func TestLinkerFlags_EnableLTO(t *testing.T) {
 	tc := getTestToolchain(t, "gcc")
-	config := toolchain.Config{LTO: true}
+	config := toolchain.Flags{LTO: true}
 	flags := tc.LinkerFlags(config, nil)
 
 	if !contains(flags, "-flto") {
@@ -438,7 +438,7 @@ func TestLinkerFlags_EnableLTO(t *testing.T) {
 
 func TestLinkerFlags_EnableClangCoverage(t *testing.T) {
 	tc := getTestToolchain(t, "clang")
-	config := toolchain.Config{Coverage: true}
+	config := toolchain.Flags{Coverage: true}
 	flags := tc.LinkerFlags(config, nil)
 
 	if !contains(flags, "-fprofile-instr-generate") {

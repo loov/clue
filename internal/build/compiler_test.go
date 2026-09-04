@@ -197,7 +197,7 @@ func TestCompiler_CompileSourceProducesObject(t *testing.T) {
 	opts := compileOptions{
 		Source: sourceFile,
 		Output: objectFile,
-		Flags: toolchain.Config{
+		Flags: toolchain.Flags{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -249,7 +249,7 @@ func TestCompilerCompilesAssemblySources(t *testing.T) {
 		}
 		result, err := compiler.CompileSource(t.Context(), compileOptions{
 			Source: source, Output: filepath.Join(dir, name+".o"), Std: "c17",
-			Flags: toolchain.Config{Warnings: "default"},
+			Flags: toolchain.Flags{Warnings: "default"},
 		})
 		if err != nil {
 			t.Fatalf("compile %s: %v", name, err)
@@ -279,7 +279,7 @@ func TestCompilerUsesResponseFileForLongGCCStyleCommand(t *testing.T) {
 	}
 	result, err := newCompiler(newExecutor(executorConfig{}), tc).CompileSource(t.Context(), compileOptions{
 		Source: source, Output: filepath.Join(dir, "long.o"), Defines: defines,
-		Flags: toolchain.Config{Warnings: "default"},
+		Flags: toolchain.Flags{Warnings: "default"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +319,7 @@ func TestCompiler_CompileSourceReturnsCompilerFailure(t *testing.T) {
 	opts := compileOptions{
 		Source: sourceFile,
 		Output: objectFile,
-		Flags: toolchain.Config{
+		Flags: toolchain.Flags{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -369,7 +369,7 @@ func TestCompiler_CompileSourcePassesFlags(t *testing.T) {
 	opts := compileOptions{
 		Source: sourceFile,
 		Output: objectFile,
-		Flags: toolchain.Config{
+		Flags: toolchain.Flags{
 			Optimize:         "fast",
 			Warnings:         "strict",
 			WarningsAsErrors: true,
@@ -437,7 +437,7 @@ int main() { return HEADER_LOADED; }`
 		Source:   sourceFile,
 		Output:   objectFile,
 		Includes: []string{includeDir},
-		Flags: toolchain.Config{
+		Flags: toolchain.Flags{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -511,7 +511,7 @@ int main() { return VERSION; }
 		Source:   srcPath,
 		Output:   filepath.Join(objDir, "main.cpp.o"),
 		Includes: []string{srcDir},
-		Flags:    toolchain.Config{},
+		Flags:    toolchain.Flags{},
 		Std:      "c++17",
 	})
 	// Verify compilation succeeded
@@ -589,7 +589,7 @@ func TestCompiler_CompileSourcesStopsAfterFirstFailure(t *testing.T) {
 		{
 			Source: goodFile,
 			Output: filepath.Join(tmpDir, "good.o"),
-			Flags: toolchain.Config{
+			Flags: toolchain.Flags{
 				Optimize:         "none",
 				Warnings:         "default",
 				WarningsAsErrors: false,
@@ -599,7 +599,7 @@ func TestCompiler_CompileSourcesStopsAfterFirstFailure(t *testing.T) {
 		{
 			Source: badFile,
 			Output: filepath.Join(tmpDir, "bad.o"),
-			Flags: toolchain.Config{
+			Flags: toolchain.Flags{
 				Optimize:         "none",
 				Warnings:         "default",
 				WarningsAsErrors: false,
@@ -670,7 +670,7 @@ func TestCompiler_SharedLibraryEnablesPIC(t *testing.T) {
 		Source:     sourceFile,
 		Output:     objectFile,
 		TargetType: "shared_library", // This should trigger automatic -fPIC
-		Flags: toolchain.Config{
+		Flags: toolchain.Flags{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,
@@ -734,7 +734,7 @@ func TestCompiler_ExecutableOmitsPIC(t *testing.T) {
 		Source:     sourceFile,
 		Output:     objectFile,
 		TargetType: "executable",
-		Flags: toolchain.Config{
+		Flags: toolchain.Flags{
 			Optimize:         "none",
 			Warnings:         "default",
 			WarningsAsErrors: false,

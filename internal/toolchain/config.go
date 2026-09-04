@@ -2,7 +2,7 @@ package toolchain
 
 // Config holds semantic build configuration options.
 // Used by Toolchain.CompilerFlags() and LinkerFlags() to generate appropriate flags.
-type Config struct {
+type Flags struct {
 	Optimize         string   // "none", "size", "fast", "aggressive"
 	Warnings         string   // "off", "default", "strict", "pedantic"
 	WarningsAsErrors bool     // Default true

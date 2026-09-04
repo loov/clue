@@ -114,11 +114,11 @@ func (t *Toolchain) String() string {
 	return fmt.Sprintf("%s in %s:%s", t.base.Name(), filepath.Base(t.runtimePath), t.image)
 }
 
-func (t *Toolchain) CompilerFlags(config toolchain.Config) []string {
+func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 	return t.base.CompilerFlags(config)
 }
 
-func (t *Toolchain) LinkerFlags(config toolchain.Config, sysLibs []string) []string {
+func (t *Toolchain) LinkerFlags(config toolchain.Flags, sysLibs []string) []string {
 	return t.base.LinkerFlags(config, sysLibs)
 }
 
