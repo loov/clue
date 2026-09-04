@@ -14,8 +14,8 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-// ModuleDependency represents a source file's module information.
-type ModuleDependency struct {
+// moduleDependency represents a source file's module information.
+type moduleDependency struct {
 	Source            string
 	IsModule          bool
 	Provides          string
@@ -30,8 +30,8 @@ var (
 	importModulePattern = regexp.MustCompile(`^\s*(?:export\s+)?import\s+([a-zA-Z_][a-zA-Z0-9_.]*(?::[a-zA-Z_][a-zA-Z0-9_.]*)?|:[a-zA-Z_][a-zA-Z0-9_.]*|<[^>]+>|"[^"]+")\s*;`)
 )
 
-// DetectModuleSources identifies C++ sources that declare or import modules.
-func DetectModuleSources(sources []string) ([]string, error) {
+// detectModuleSources identifies C++ sources that declare or import modules.
+func detectModuleSources(sources []string) ([]string, error) {
 	var moduleSources []string
 	for _, source := range sources {
 		isModule, err := isModuleSource(source)
@@ -49,7 +49,7 @@ func isModuleSource(path string) (bool, error) {
 	if !toolchain.IsCXXSource(path) {
 		return false, nil
 	}
-	if IsModuleExtension(path) {
+	if isModuleExtension(path) {
 		return true, nil
 	}
 	data, err := os.ReadFile(path)
@@ -64,23 +64,23 @@ func isModuleSource(path string) (bool, error) {
 	return false, nil
 }
 
-// IsModuleExtension reports whether path uses a conventional C++ module extension.
-func IsModuleExtension(path string) bool {
+// isModuleExtension reports whether path uses a conventional C++ module extension.
+func isModuleExtension(path string) bool {
 	ext := filepath.Ext(path)
 	return ext == ".cppm" || ext == ".ixx" || ext == ".mpp"
 }
 
-// ScanModuleDependencies performs a compiler-independent lexical scan. C++ module
+// scanModuleDependencies performs a compiler-independent lexical scan. C++ module
 // declarations and imports have deliberately simple grammar at namespace scope,
 // so invoking a compiler-specific dependency scanner is unnecessary here.
 // ponytail: conditional imports are scanned conservatively; switch to compiler
 // P1689 output if projects need preprocessor-sensitive module graphs.
-func ScanModuleDependencies(sources []string) ([]ModuleDependency, error) {
-	moduleSources, err := DetectModuleSources(sources)
+func scanModuleDependencies(sources []string) ([]moduleDependency, error) {
+	moduleSources, err := detectModuleSources(sources)
 	if err != nil {
 		return nil, err
 	}
-	dependencies := make([]ModuleDependency, 0, len(moduleSources))
+	dependencies := make([]moduleDependency, 0, len(moduleSources))
 	for _, source := range moduleSources {
 		dependency, err := scanModuleSource(source)
 		if err != nil {
@@ -91,13 +91,13 @@ func ScanModuleDependencies(sources []string) ([]ModuleDependency, error) {
 	return dependencies, nil
 }
 
-func scanModuleSource(source string) (ModuleDependency, error) {
+func scanModuleSource(source string) (moduleDependency, error) {
 	data, err := os.ReadFile(source)
 	if err != nil {
-		return ModuleDependency{}, err
+		return moduleDependency{}, err
 	}
 	lines := moduleLines(string(data))
-	dependency := ModuleDependency{Source: source, UsesModules: true}
+	dependency := moduleDependency{Source: source, UsesModules: true}
 	declaration := ""
 	for _, line := range lines {
 		if match := exportModulePattern.FindStringSubmatch(line); match != nil {
@@ -135,7 +135,7 @@ func scanModuleSource(source string) (ModuleDependency, error) {
 		name := match[1]
 		if strings.HasPrefix(name, ":") {
 			if declaration == "" {
-				return ModuleDependency{}, fmt.Errorf("partition import %q has no module declaration", name)
+				return moduleDependency{}, fmt.Errorf("partition import %q has no module declaration", name)
 			}
 			name = strings.SplitN(declaration, ":", 2)[0] + name
 		}
@@ -192,8 +192,8 @@ func isHeaderUnitName(name string) bool {
 	return strings.HasPrefix(name, "<") || strings.HasPrefix(name, `"`)
 }
 
-// ModuleOutputPathFor returns the compiler-specific BMI path for a logical name.
-func ModuleOutputPathFor(tc toolchain.Toolchain, dir, name string) string {
+// moduleOutputPath returns the compiler-specific BMI path for a logical name.
+func moduleOutputPath(tc toolchain.Toolchain, dir, name string) string {
 	extension := ".pcm"
 	if tc != nil {
 		switch tc.Name() {
@@ -211,8 +211,8 @@ func ModuleOutputPathFor(tc toolchain.Toolchain, dir, name string) string {
 	return filepath.Join(dir, filename+extension)
 }
 
-// ModuleCompileFlags returns module flags for a compiler invocation.
-func ModuleCompileFlags(tc toolchain.Toolchain, dependency ModuleDependency, output string, moduleFiles map[string]string, mapper string) []string {
+// moduleCompileFlags returns module flags for a compiler invocation.
+func moduleCompileFlags(tc toolchain.Toolchain, dependency moduleDependency, output string, moduleFiles map[string]string, mapper string) []string {
 	if tc == nil {
 		return nil
 	}
@@ -225,7 +225,7 @@ func ModuleCompileFlags(tc toolchain.Toolchain, dependency ModuleDependency, out
 		if dependency.UsesModules || dependency.IsModule || output != "" || len(moduleFiles) > 0 {
 			flags = append(flags, "-fmodules-ts")
 		}
-		if dependency.IsModule && IsModuleExtension(dependency.Source) {
+		if dependency.IsModule && isModuleExtension(dependency.Source) {
 			flags = append(flags, "-x", "c++")
 		}
 		if mapper != "" {
@@ -272,8 +272,8 @@ func sortedModuleNames(moduleFiles map[string]string) []string {
 	return slices.Sorted(maps.Keys(moduleFiles))
 }
 
-// WriteModuleMapper writes the GCC module name-to-CMI mapping.
-func WriteModuleMapper(path string, modules map[string]string) error {
+// writeModuleMapper writes the GCC module name-to-CMI mapping.
+func writeModuleMapper(path string, modules map[string]string) error {
 	if path == "" {
 		return nil
 	}
@@ -290,13 +290,9 @@ func WriteModuleMapper(path string, modules map[string]string) error {
 	return os.WriteFile(path, []byte(content.String()), 0o644)
 }
 
-// OrderModuleCompilation returns sources ordered so providers precede consumers.
-func OrderModuleCompilation(deps []ModuleDependency) ([]string, error) {
-	return OrderModuleCompilationWithProviders(deps, nil)
-}
-
-// OrderModuleCompilationWithProviders also accepts BMIs built by dependency targets.
-func OrderModuleCompilationWithProviders(deps []ModuleDependency, available map[string]string) ([]string, error) {
+// orderModuleCompilation returns sources ordered so providers precede consumers
+// and accepts BMIs built by dependency targets.
+func orderModuleCompilation(deps []moduleDependency, available map[string]string) ([]string, error) {
 	moduleToSource := make(map[string]string)
 	for _, dep := range deps {
 		if dep.Provides != "" {

@@ -96,7 +96,7 @@ func unityLanguage(source string, excluded bool) (string, error) {
 	if filepath.Ext(source) == ".c" {
 		return "c", nil
 	}
-	if !toolchain.IsCXXSource(source) || IsModuleExtension(source) {
+	if !toolchain.IsCXXSource(source) || isModuleExtension(source) {
 		return "", nil
 	}
 	if _, err := os.Stat(source); err != nil {

@@ -1,8 +1,8 @@
 package plan
 
-// TranslateStdForMSVC translates C/C++ standard names to MSVC format.
+// translateStdForMSVC translates C/C++ standard names to MSVC format.
 // MSVC uses /std:c++17, /std:c++20, /std:c++latest etc.
-func TranslateStdForMSVC(std string) string {
+func translateStdForMSVC(std string) string {
 	// Handle C++ standards with prefix
 	switch std {
 	case "c++11", "gnu++11":

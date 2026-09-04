@@ -1,19 +1,26 @@
-package build
+package plan
 
 import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
-	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 	"github.com/loov/clue/internal/toolchain/clang"
+	"github.com/loov/clue/internal/toolchain/gcc"
+	"github.com/loov/clue/internal/toolchain/msvc"
 )
+
+func testMSVCToolchain() *msvc.Toolchain {
+	tc, _ := msvc.New(&msvc.Installation{}, toolchain.Platform{OS: "windows", Arch: "amd64"})
+	return tc
+}
 
 func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 	clangToolchain := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
-	gcc, _ := newToolchain("gcc", toolchain.HostPlatform())
+	gccToolchain := gcc.New("gcc", "g++", "ar", toolchain.HostPlatform())
 	tests := []struct {
 		name   string
 		tc     toolchain.Toolchain
@@ -22,12 +29,12 @@ func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 		want   []string
 	}{
 		{"clang", clangToolchain, "math.pcm", "", []string{"-fcxx-modules", "-fmodule-output=math.pcm", "-fmodule-file=base=base.pcm", "-fmodule-file=vector.pcm"}},
-		{"gcc", gcc, "math.gcm", "modules.mapper", []string{"-fmodules-ts", "-x", "c++", "-fmodule-mapper=modules.mapper"}},
-		{"msvc", newTestMSVCToolchain(), "math.ifc", "", []string{"/interface", "/ifcOutput", "/reference", "/headerUnit:angle"}},
+		{"gcc", gccToolchain, "math.gcm", "modules.mapper", []string{"-fmodules-ts", "-x", "c++", "-fmodule-mapper=modules.mapper"}},
+		{"msvc", testMSVCToolchain(), "math.ifc", "", []string{"/interface", "/ifcOutput", "/reference", "/headerUnit:angle"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			flags := plan.ModuleCompileFlags(test.tc, plan.ModuleDependency{Source: "math.cppm", IsModule: true, Provides: "math"}, test.output, map[string]string{
+			flags := moduleCompileFlags(test.tc, moduleDependency{Source: "math.cppm", IsModule: true, Provides: "math"}, test.output, map[string]string{
 				"base": "base.pcm", "<vector>": "vector.pcm",
 			}, test.mapper)
 			for _, want := range test.want {
@@ -41,21 +48,21 @@ func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 
 func TestModuleCompileFlags_ClangOmitsCXXModulesSwitchOnWindows(t *testing.T) {
 	tc := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "windows", Arch: "amd64"})
-	flags := plan.ModuleCompileFlags(tc, plan.ModuleDependency{UsesModules: true}, "math.pcm", nil, "")
+	flags := moduleCompileFlags(tc, moduleDependency{UsesModules: true}, "math.pcm", nil, "")
 	if slices.Contains(flags, "-fcxx-modules") {
 		t.Errorf("Windows Clang module flags = %q", flags)
 	}
 }
 
 func TestMSVCModuleFlags_IncludePartitionAndHeaderUnitSwitches(t *testing.T) {
-	tc := newTestMSVCToolchain()
-	partition := plan.ModuleCompileFlags(tc, plan.ModuleDependency{InternalPartition: true}, "math-detail.ifc", nil, "")
+	tc := testMSVCToolchain()
+	partition := moduleCompileFlags(tc, moduleDependency{InternalPartition: true}, "math-detail.ifc", nil, "")
 	for _, want := range []string{"/internalPartition", "/ifcOutput", "math-detail.ifc"} {
 		if !slices.Contains(partition, want) {
 			t.Errorf("partition flags %q missing %q", partition, want)
 		}
 	}
-	header := plan.HeaderUnitArguments(tc, plan.HeaderUnitOptions{
+	header := HeaderUnitArguments(tc, HeaderUnitOptions{
 		Source: "vector", Name: "<vector>", System: true, Output: "vector.ifc",
 	})
 	for _, want := range []string{"/exportHeader", "/headerName:angle", "/ifcOutput", "vector.ifc"} {
@@ -75,7 +82,7 @@ func TestScanModuleDependencies_PartitionsAndHeaderUnits(t *testing.T) {
 	if err := os.WriteFile(primary, []byte("export module math;\nexport import :detail;\nimport \"numbers.hpp\";\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	dependencies, err := plan.ScanModuleDependencies([]string{primary, partition})
+	dependencies, err := scanModuleDependencies([]string{primary, partition})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,11 +95,32 @@ func TestScanModuleDependencies_PartitionsAndHeaderUnits(t *testing.T) {
 }
 
 func TestOrderModuleCompilation_AcceptsDependencyTargetProvider(t *testing.T) {
-	order, err := plan.OrderModuleCompilationWithProviders([]plan.ModuleDependency{{
+	order, err := orderModuleCompilation([]moduleDependency{{
 		Source: "main.cpp", Requires: []string{"math"},
 	}}, map[string]string{"math": "math.pcm"})
 	if err != nil || len(order) != 1 || order[0] != "main.cpp" {
 		t.Fatalf("order = %v, err = %v", order, err)
+	}
+}
+
+func TestModules_WiresProducedBMIsToConsumers(t *testing.T) {
+	tc := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	modules := Modules{
+		bySource: map[string]moduleDependency{
+			"hello.cppm": {Source: "hello.cppm", Provides: "hello"},
+			"main.cpp":   {Source: "main.cpp", Requires: []string{"hello"}},
+		},
+		outputs: map[string]string{"hello": ".build/debug/app/modules/hello.pcm"},
+	}
+	invocation, err := Compile(tc, modules.ForSource("main.cpp", CompileOptions{Source: "main.cpp", Output: "main.o"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(invocation.Arguments, " "); !strings.Contains(got, "-fcxx-modules -fmodule-file=hello=.build/debug/app/modules/hello.pcm") {
+		t.Fatalf("consumer arguments = %q", got)
+	}
+	if got := modules.Inputs("main.cpp"); len(got) != 1 || got[0] != ".build/debug/app/modules/hello.pcm" {
+		t.Fatalf("consumer inputs = %v", got)
 	}
 }
 
@@ -112,7 +140,7 @@ func TestDetectModuleSources_RecognizesModuleExtensions(t *testing.T) {
 		}
 	}
 
-	moduleSources, err := plan.DetectModuleSources(files)
+	moduleSources, err := detectModuleSources(files)
 	if err != nil {
 		t.Fatalf("DetectModuleSources failed: %v", err)
 	}
@@ -137,7 +165,7 @@ func TestDetectModuleSources_RecognizesImportStatements(t *testing.T) {
 		t.Fatalf("failed to write regular file: %v", err)
 	}
 
-	moduleSources, err := plan.DetectModuleSources([]string{moduleFile, regularFile})
+	moduleSources, err := detectModuleSources([]string{moduleFile, regularFile})
 	if err != nil {
 		t.Fatalf("DetectModuleSources failed: %v", err)
 	}
@@ -152,7 +180,7 @@ func TestDetectModuleSources_RecognizesNamedModuleImports(t *testing.T) {
 	if err := os.WriteFile(moduleFile, []byte("import hello;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	moduleSources, err := plan.DetectModuleSources([]string{moduleFile})
+	moduleSources, err := detectModuleSources([]string{moduleFile})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,13 +193,13 @@ func TestOrderModuleCompilation_PlacesProvidersBeforeConsumers(t *testing.T) {
 	// Module A provides "modA"
 	// Module B provides "modB", requires "modA"
 	// Module C provides "modC", requires "modB"
-	deps := []plan.ModuleDependency{
+	deps := []moduleDependency{
 		{Source: "c.cpp", IsModule: true, Provides: "modC", Requires: []string{"modB"}},
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: nil},
 		{Source: "b.cpp", IsModule: true, Provides: "modB", Requires: []string{"modA"}},
 	}
 
-	order, err := plan.OrderModuleCompilation(deps)
+	order, err := orderModuleCompilation(deps, nil)
 	if err != nil {
 		t.Fatalf("OrderModuleCompilation failed: %v", err)
 	}
@@ -204,23 +232,23 @@ func TestOrderModuleCompilation_PlacesProvidersBeforeConsumers(t *testing.T) {
 }
 
 func TestOrderModuleCompilation_RejectsCycle(t *testing.T) {
-	deps := []plan.ModuleDependency{
+	deps := []moduleDependency{
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: []string{"modB"}},
 		{Source: "b.cpp", IsModule: true, Provides: "modB", Requires: []string{"modA"}},
 	}
 
-	_, err := plan.OrderModuleCompilation(deps)
+	_, err := orderModuleCompilation(deps, nil)
 	if err == nil {
 		t.Error("expected error for circular dependency")
 	}
 }
 
 func TestOrderModuleCompilation_RejectsMissingProvider(t *testing.T) {
-	deps := []plan.ModuleDependency{
+	deps := []moduleDependency{
 		{Source: "a.cpp", IsModule: true, Provides: "modA", Requires: []string{"nonexistent"}},
 	}
 
-	_, err := plan.OrderModuleCompilation(deps)
+	_, err := orderModuleCompilation(deps, nil)
 	if err == nil {
 		t.Error("expected error for missing module")
 	}
@@ -240,7 +268,7 @@ func TestIsModuleExtension_RecognizesSupportedSuffixes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if got := plan.IsModuleExtension(tc.path); got != tc.expected {
+		if got := isModuleExtension(tc.path); got != tc.expected {
 			t.Errorf("IsModuleExtension(%q) = %v, want %v", tc.path, got, tc.expected)
 		}
 	}

@@ -69,7 +69,7 @@ func CompileModulePartition(tc toolchain.Toolchain, opts CompileOptions) Invocat
 		args = append(args, "-D"+define)
 	}
 	args = append(args, tc.CompilerFlags(opts.Flags)...)
-	args = append(args, ModuleCompileFlags(tc, ModuleDependency{UsesModules: true}, "", opts.ModuleFiles, "")...)
+	args = append(args, moduleCompileFlags(tc, moduleDependency{UsesModules: true}, "", opts.ModuleFiles, "")...)
 	args = append(args, "-x", "c++-module", "--precompile", opts.Source, "-o", opts.ModuleOutput)
 	return Invocation{Tool: tc.CXX(), Arguments: args}
 }
@@ -122,14 +122,14 @@ func compileMSVC(tc toolchain.Toolchain, opts CompileOptions) Invocation {
 		args = append(args, "/D"+define)
 	}
 	if standard := compileStandard(opts); standard != "" && !toolchain.IsAssemblySource(opts.Source) {
-		args = append(args, "/std:"+TranslateStdForMSVC(standard))
+		args = append(args, "/std:"+translateStdForMSVC(standard))
 	}
 	args = append(args, compileModuleFlags(tc, opts)...)
 	return Invocation{Tool: compileTool(tc, opts.Source), Arguments: args, DependencyFile: dependencyFile(opts)}
 }
 
 func compileModuleFlags(tc toolchain.Toolchain, opts CompileOptions) []string {
-	return ModuleCompileFlags(tc, ModuleDependency{
+	return moduleCompileFlags(tc, moduleDependency{
 		Source: opts.Source, IsModule: opts.ModuleOutput != "", Provides: opts.ModuleName,
 		InternalPartition: opts.InternalPartition, UsesModules: opts.ModuleAware,
 	}, opts.ModuleOutput, opts.ModuleFiles, opts.ModuleMapper)

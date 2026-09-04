@@ -156,9 +156,8 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 	if err != nil {
 		return nil, err
 	}
-	providedModules := make(map[string]string, len(headerOutputs)+len(modules.Provided))
+	providedModules := modules.ProvidedModules()
 	maps.Copy(providedModules, headerOutputs)
-	maps.Copy(providedModules, modules.Provided)
 	targetModuleOutputs[target.Name] = providedModules
 	builtHeaderUnits, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {
@@ -170,7 +169,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 			Source: unit.Path, Name: name, System: unit.System, Output: headerOutputs[name],
 			Includes: target.Includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.Mapper,
+			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.MapperPath(),
 		}
 		arguments := plan.HeaderUnitArguments(tc, absoluteHeaderUnitOptions(headerOpts))
 		command, wrapped := toolchain.Command(tc, tc.CXX(), arguments)
@@ -188,7 +187,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		sourcePlans[source.Source] = source
 	}
 
-	for _, source := range modules.Sources {
+	for _, source := range modules.CompilationOrder() {
 		sourcePlan := sourcePlans[source]
 		objPath := sourcePlan.Object
 		includes := slices.Clone(target.Includes)

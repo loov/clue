@@ -71,17 +71,16 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	if err != nil {
 		return nil, fmt.Errorf("module dependency scan failed: %w", err)
 	}
-	providedModules := make(map[string]string, len(headerOutputs)+len(modules.Provided))
+	providedModules := modules.ProvidedModules()
 	maps.Copy(providedModules, headerOutputs)
-	maps.Copy(providedModules, modules.Provided)
 
-	if len(modules.BySource) > 0 || len(target.HeaderUnits) > 0 {
+	if modules.ModuleSourceCount() > 0 || len(target.HeaderUnits) > 0 {
 		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("Detected %d module source(s)\n", len(modules.BySource))
+			fmt.Printf("Detected %d module source(s)\n", modules.ModuleSourceCount())
 		}
 
 		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("Compilation order: %v\n", modules.Sources)
+			fmt.Printf("Compilation order: %v\n", modules.CompilationOrder())
 		}
 
 		// Create BMI directory
@@ -99,7 +98,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 				Source: unit.Path, Name: name, System: unit.System, Output: headerOutputs[name],
 				Includes: includes, SystemIncludes: usage.SystemIncludes, Defines: defines,
 				Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-				ModuleFiles: builtHeaderUnits, ModuleMapper: modules.Mapper,
+				ModuleFiles: builtHeaderUnits, ModuleMapper: modules.MapperPath(),
 			}); err != nil {
 				return nil, err
 			}
@@ -109,8 +108,8 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 
 	// Module providers precede consumers; non-module sources retain their order.
 	sourcesToCompile := target.Sources
-	if len(modules.BySource) > 0 {
-		sourcesToCompile = modules.Sources
+	if modules.ModuleSourceCount() > 0 {
+		sourcesToCompile = modules.CompilationOrder()
 	}
 
 	// Collect compile options for all sources that need rebuilding
@@ -185,17 +184,11 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	var compileErr error
 	if len(toCompile) > 0 {
 		// Check if we have modules that need sequential compilation
-		if len(modules.BySource) > 0 {
-			// Build maps for module compilation
-			moduleSet := make(map[string]bool)
-			for source := range modules.BySource {
-				moduleSet[source] = true
-			}
-
+		if modules.ModuleSourceCount() > 0 {
 			var moduleCompile []plan.CompileOptions
 			var otherCompile []plan.CompileOptions
 			for _, opt := range toCompile {
-				if moduleSet[opt.Source] {
+				if opt.ModuleAware {
 					moduleCompile = append(moduleCompile, opt)
 				} else {
 					otherCompile = append(otherCompile, opt)

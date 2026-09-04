@@ -13,33 +13,48 @@ import (
 
 // Modules describes module compilation order and BMI relationships for a target.
 type Modules struct {
-	Sources   []string
-	BySource  map[string]ModuleDependency
-	Outputs   map[string]string
-	Provided  map[string]string
-	Inherited map[string]string
-	Mapper    string
-	Toolchain toolchain.Toolchain
+	sources   []string
+	bySource  map[string]moduleDependency
+	outputs   map[string]string
+	provided  map[string]string
+	inherited map[string]string
+	mapper    string
 }
+
+// CompilationOrder returns sources with module providers before consumers.
+func (m Modules) CompilationOrder() []string { return m.sources }
+
+// ModuleSourceCount returns the number of sources that declare or import modules.
+func (m Modules) ModuleSourceCount() int { return len(m.bySource) }
+
+// ProvidedModules returns the BMIs produced by this target.
+func (m Modules) ProvidedModules() map[string]string {
+	provided := make(map[string]string, len(m.provided))
+	maps.Copy(provided, m.provided)
+	return provided
+}
+
+// MapperPath returns the GCC module mapper path, if one is needed.
+func (m Modules) MapperPath() string { return m.mapper }
 
 // ResolveModules scans sources and resolves their module outputs and dependencies.
 func ResolveModules(tc toolchain.Toolchain, sources []string, bmiDir string, available map[string]string) (Modules, error) {
 	hasModuleExtension := false
 	allSourcesExist := true
 	for _, source := range sources {
-		hasModuleExtension = hasModuleExtension || IsModuleExtension(source)
+		hasModuleExtension = hasModuleExtension || isModuleExtension(source)
 		if _, err := os.Stat(source); err != nil {
 			allSourcesExist = false
 		}
 	}
 	if !hasModuleExtension && !allSourcesExist {
-		return Modules{Sources: sources, Outputs: available, Toolchain: tc}, nil
+		return Modules{sources: sources, outputs: available}, nil
 	}
-	dependencies, err := ScanModuleDependencies(sources)
+	dependencies, err := scanModuleDependencies(sources)
 	if err != nil {
 		return Modules{}, err
 	}
-	ordered, err := OrderModuleCompilationWithProviders(dependencies, available)
+	ordered, err := orderModuleCompilation(dependencies, available)
 	if err != nil {
 		return Modules{}, err
 	}
@@ -53,61 +68,51 @@ func ResolveModules(tc toolchain.Toolchain, sources []string, bmiDir string, ava
 		}
 	}
 	modules := Modules{
-		Sources:   ordered,
-		BySource:  make(map[string]ModuleDependency, len(dependencies)),
-		Outputs:   make(map[string]string, len(available)+len(dependencies)),
-		Provided:  make(map[string]string, len(dependencies)),
-		Inherited: make(map[string]string, len(available)),
-		Toolchain: tc,
+		sources:   ordered,
+		bySource:  make(map[string]moduleDependency, len(dependencies)),
+		outputs:   make(map[string]string, len(available)+len(dependencies)),
+		provided:  make(map[string]string, len(dependencies)),
+		inherited: make(map[string]string, len(available)),
 	}
 	for name, output := range available {
-		modules.Outputs[name] = output
-		modules.Inherited[name] = output
+		modules.outputs[name] = output
+		modules.inherited[name] = output
 	}
 	for _, dependency := range dependencies {
-		modules.BySource[dependency.Source] = dependency
+		modules.bySource[dependency.Source] = dependency
 		if dependency.Provides != "" {
-			if _, exists := modules.Outputs[dependency.Provides]; exists {
+			if _, exists := modules.outputs[dependency.Provides]; exists {
 				return Modules{}, fmt.Errorf("module %q is also provided by a dependency target", dependency.Provides)
 			}
-			output := ModuleOutputPathFor(tc, bmiDir, dependency.Provides)
-			modules.Outputs[dependency.Provides] = output
-			modules.Provided[dependency.Provides] = output
+			output := moduleOutputPath(tc, bmiDir, dependency.Provides)
+			modules.outputs[dependency.Provides] = output
+			modules.provided[dependency.Provides] = output
 		}
 	}
-	if tc.Name() == "gcc" && (len(modules.Outputs) > 0 || len(dependencies) > 0) {
-		modules.Mapper = filepath.Join(bmiDir, "modules.mapper")
-		if err := WriteModuleMapper(modules.Mapper, modules.Outputs); err != nil {
+	if tc.Name() == "gcc" && (len(modules.outputs) > 0 || len(dependencies) > 0) {
+		modules.mapper = filepath.Join(bmiDir, "modules.mapper")
+		if err := writeModuleMapper(modules.mapper, modules.outputs); err != nil {
 			return Modules{}, err
 		}
 	}
 	return modules, nil
 }
 
-// Flags returns the compiler module flags for source.
-func (m Modules) Flags(source string) []string {
-	opts := m.ForSource(source, CompileOptions{})
-	if !opts.ModuleAware {
-		return nil
-	}
-	return compileModuleFlags(m.Toolchain, opts)
-}
-
 // ForSource adds source-specific module inputs and outputs to opts.
 func (m Modules) ForSource(source string, opts CompileOptions) CompileOptions {
-	module, ok := m.BySource[source]
+	module, ok := m.bySource[source]
 	if !ok {
 		return opts
 	}
 	opts.ModuleAware = true
-	opts.ModuleOutput = m.Outputs[module.Provides]
+	opts.ModuleOutput = m.outputs[module.Provides]
 	opts.ModuleName = module.Provides
-	opts.ModuleMapper = m.Mapper
+	opts.ModuleMapper = m.mapper
 	opts.InternalPartition = module.InternalPartition
-	opts.ModuleFiles = make(map[string]string, len(m.Inherited)+len(module.Requires))
-	maps.Copy(opts.ModuleFiles, m.Inherited)
+	opts.ModuleFiles = make(map[string]string, len(m.inherited)+len(module.Requires))
+	maps.Copy(opts.ModuleFiles, m.inherited)
 	for _, required := range module.Requires {
-		if output := m.Outputs[required]; output != "" {
+		if output := m.outputs[required]; output != "" {
 			opts.ModuleFiles[required] = output
 		}
 	}
@@ -116,20 +121,20 @@ func (m Modules) ForSource(source string, opts CompileOptions) CompileOptions {
 
 // Inputs returns the BMI files required before source can compile.
 func (m Modules) Inputs(source string) []string {
-	module, ok := m.BySource[source]
+	module, ok := m.bySource[source]
 	if !ok {
 		return nil
 	}
-	seen := make(map[string]bool, len(m.Inherited)+len(module.Requires))
-	inputs := make([]string, 0, len(m.Inherited)+len(module.Requires))
-	for _, output := range m.Inherited {
+	seen := make(map[string]bool, len(m.inherited)+len(module.Requires))
+	inputs := make([]string, 0, len(m.inherited)+len(module.Requires))
+	for _, output := range m.inherited {
 		if !seen[output] {
 			seen[output] = true
 			inputs = append(inputs, output)
 		}
 	}
 	for _, required := range module.Requires {
-		if output := m.Outputs[required]; output != "" && !seen[output] {
+		if output := m.outputs[required]; output != "" && !seen[output] {
 			seen[output] = true
 			inputs = append(inputs, output)
 		}
@@ -143,7 +148,7 @@ func HeaderUnitOutputs(tc toolchain.Toolchain, units []config.HeaderUnit, bmiDir
 	outputs := make(map[string]string, len(units))
 	for _, unit := range units {
 		name := HeaderUnitName(unit.Name, unit.System)
-		outputs[name] = ModuleOutputPathFor(tc, bmiDir, name)
+		outputs[name] = moduleOutputPath(tc, bmiDir, name)
 	}
 	return outputs
 }

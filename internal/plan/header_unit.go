@@ -28,7 +28,7 @@ func HeaderUnitArguments(tc toolchain.Toolchain, opts HeaderUnitOptions) []strin
 	var args []string
 	if tc.Name() == "msvc" {
 		args = append(args, tc.CompilerFlags(opts.Flags)...)
-		args = append(args, "/std:"+TranslateStdForMSVC(standard))
+		args = append(args, "/std:"+translateStdForMSVC(standard))
 		for _, include := range opts.Includes {
 			args = append(args, "/I"+include)
 		}
@@ -38,7 +38,7 @@ func HeaderUnitArguments(tc toolchain.Toolchain, opts HeaderUnitOptions) []strin
 		for _, define := range opts.Defines {
 			args = append(args, "/D"+define)
 		}
-		args = append(args, ModuleCompileFlags(tc, ModuleDependency{}, "", opts.ModuleFiles, "")...)
+		args = append(args, moduleCompileFlags(tc, moduleDependency{}, "", opts.ModuleFiles, "")...)
 		kind := "/headerName:quote"
 		if opts.System {
 			kind = "/headerName:angle"
@@ -57,7 +57,7 @@ func HeaderUnitArguments(tc toolchain.Toolchain, opts HeaderUnitOptions) []strin
 		args = append(args, "-D"+define)
 	}
 	args = append(args, tc.CompilerFlags(opts.Flags)...)
-	args = append(args, ModuleCompileFlags(tc, ModuleDependency{UsesModules: true}, "", opts.ModuleFiles, opts.ModuleMapper)...)
+	args = append(args, moduleCompileFlags(tc, moduleDependency{UsesModules: true}, "", opts.ModuleFiles, opts.ModuleMapper)...)
 	headerKind := "c++-user-header"
 	if opts.System {
 		headerKind = "c++-system-header"

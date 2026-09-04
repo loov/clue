@@ -93,9 +93,8 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	if err != nil {
 		return nil, err
 	}
-	providedModules := make(map[string]string, len(headerOutputs)+len(modules.Provided))
+	providedModules := modules.ProvidedModules()
 	maps.Copy(providedModules, headerOutputs)
-	maps.Copy(providedModules, modules.Provided)
 	targetModuleOutputs[target.Name] = providedModules
 	headerUnitBuilds := make([]string, 0, len(target.HeaderUnits))
 	builtHeaderUnits, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
@@ -109,7 +108,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			Source: unit.Path, Name: name, System: unit.System, Output: output,
 			Includes: includes, SystemIncludes: target.SystemIncludes, Defines: target.Defines,
 			Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
-			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.Mapper,
+			ModuleFiles: builtHeaderUnits, ModuleMapper: modules.MapperPath(),
 		})
 		headerInputs := ninjaPaths(slices.Sorted(maps.Values(builtHeaderUnits)))
 		ninjaOutput := ninjaPathLocal(output)
@@ -130,7 +129,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		sourcePlans[source.Source] = source
 	}
 
-	for _, source := range modules.Sources {
+	for _, source := range modules.CompilationOrder() {
 		objPath := ninjaPathLocal(sourcePlans[source].Object)
 		srcPath := ninjaPathLocal(source)
 		objects = append(objects, objPath)
@@ -164,10 +163,10 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		if invocation.DependencyFile != "" {
 			statement.Vars = append(statement.Vars, ninja.Var{Key: "depfile", Val: invocation.DependencyFile})
 		}
-		if module, ok := modules.BySource[source]; ok {
-			if output := modules.Outputs[module.Provides]; output != "" {
+		if compileOpts.ModuleAware {
+			if output := compileOpts.ModuleOutput; output != "" {
 				ninjaOutput := ninjaPathLocal(output)
-				if tc.Name() == "clang" && module.InternalPartition {
+				if tc.Name() == "clang" && compileOpts.InternalPartition {
 					partition := plan.CompileModulePartition(tc, compileOpts)
 					*file = append(*file, ninja.Build{
 						Rule: "module_partition", In: []string{srcPath}, InImplicit: statement.InImplicit,
