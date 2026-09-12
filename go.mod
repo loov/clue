@@ -10,7 +10,7 @@ require (
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/zeebo/clingy v0.0.0-20260119143559-4d23ffb0341b
 	github.com/zeebo/xxh3 v1.1.0
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 )
 
 require (
