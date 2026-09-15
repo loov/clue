@@ -80,7 +80,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		}
 
 		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("Compilation order: %v\n", modules.CompilationOrder())
+			fmt.Printf("Module compilation order: %v\n", modules.CompilationOrder())
 		}
 
 		// Create BMI directory
