@@ -91,7 +91,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 				rule = "cxx"
 			}
 			statement := ninja.Build{
-				Rule: rule, In: []string{compileOpts.Source}, InOrderOnly: dependencyOutputs, Out: []string{compileOpts.Output},
+				Rule: rule, In: []string{ninjaPathLocal(srcPath)}, InOrderOnly: dependencyOutputs, Out: []string{compileOpts.Output},
 				Vars: ninja.Vars{{Key: "object", Val: compileOpts.Output}, {Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
 			}
 			if invocation.DependencyFile != "" {

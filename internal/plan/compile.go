@@ -153,5 +153,6 @@ func dependencyFile(opts CompileOptions) string {
 	if opts.DependencyMode == DependencyModeNone {
 		return ""
 	}
-	return filepath.Join(filepath.Dir(opts.Output), strings.TrimSuffix(filepath.Base(opts.Output), filepath.Ext(opts.Output))+".d")
+	// Keep the caller's separators so Ninja output stays forward-slashed on Windows.
+	return strings.TrimSuffix(opts.Output, filepath.Ext(opts.Output)) + ".d"
 }
