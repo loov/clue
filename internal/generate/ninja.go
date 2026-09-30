@@ -162,6 +162,26 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 		file = append(file, defaultTarget{targets: []string{opts.Variants[0]}})
 	}
 
+	escapeBuildPaths(file)
 	_, err = file.WriteTo(w)
 	return err
+}
+
+// escapeBuildPaths applies ninja's path escaping ("$", ":", space, newline) to
+// every path of every build statement, so paths with spaces or drive letters work.
+func escapeBuildPaths(file ninja.File) {
+	escape := func(paths []string) []string {
+		escaped := make([]string, len(paths))
+		for index, path := range paths {
+			escaped[index] = ninja.Escape(path)
+		}
+		return escaped
+	}
+	for index, node := range file {
+		if build, ok := node.(ninja.Build); ok {
+			build.Out, build.OutImplicit = escape(build.Out), escape(build.OutImplicit)
+			build.In, build.InImplicit, build.InOrderOnly = escape(build.In), escape(build.InImplicit), escape(build.InOrderOnly)
+			file[index] = build
+		}
+	}
 }

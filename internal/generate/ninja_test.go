@@ -146,10 +146,39 @@ func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
 	for _, want := range []string{
 		"build generated.cpp: custom schema.idl",
 		"build .build/debug/app/obj/generated.cpp.o: cxx generated.cpp || generated.cpp",
-		"command = $clue -variant $variant -target $platform build $target",
+		"command = $cmd",
+		"cmd = 'generator'",
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, content)
+		}
+	}
+}
+
+func TestNinja_CustomTargetWithPlaceholdersIsPerVariant(t *testing.T) {
+	cfg := createMinimalConfig("lib", "shared_library", []string{"lib.cpp"})
+	cfg.Variants = map[string]config.Variant{"debug": {}, "release": {}}
+	cfg.Targets["bundle"] = config.Target{
+		Name: "bundle", Type: "custom", Depends: []string{"lib"},
+		Command: []string{"sh", "-c", "cp \"$1\" \"$2\"", "bundle", "{output:lib}", "dist/{variant}/My Plugin"},
+		Inputs:  []string{"{output:lib}"}, Outputs: []string{"dist/{variant}/My Plugin"},
+	}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	for _, variant := range []string{"debug", "release"} {
+		for _, want := range []string{
+			"build dist/" + variant + "/My$ Plugin: custom .build/" + variant + "/lib/liblib.so || .build/" + variant + "/lib/liblib.so",
+			`cmd = 'sh' '-c' 'cp "$$1" "$$2"' 'bundle' '.build/` + variant + `/lib/liblib.so' 'dist/` + variant + `/My Plugin'`,
+		} {
+			if !strings.Contains(content, want) {
+				t.Errorf("Ninja output missing %q:\n%s", want, content)
+			}
 		}
 	}
 }
@@ -699,9 +728,18 @@ func TestOutputNameForTarget_AddsWindowsExtensions(t *testing.T) {
 	}
 }
 
-func TestNinjaPathLocal_NormalizesWindowsDrivePath(t *testing.T) {
-	if got, want := ninjaPathLocal(`C:\project\main.cpp`), `C$:/project/main.cpp`; got != want {
-		t.Fatalf("ninjaPathLocal() = %q, want %q", got, want)
+func TestNinjaPaths_EscapeDriveLettersAndSpaces(t *testing.T) {
+	file := ninja.File{ninja.Build{
+		Rule: "custom", Out: []string{"dist/My Plugin.clap"},
+		In: []string{ninjaPathLocal(`C:\project\main.cpp`)}, InOrderOnly: []string{"a$b"},
+	}}
+	escapeBuildPaths(file)
+	var output strings.Builder
+	if _, err := file.WriteTo(&output); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := output.String(), "build dist/My$ Plugin.clap: custom C$:/project/main.cpp || a$$b\n"; got != want {
+		t.Fatalf("escaped build = %q, want %q", got, want)
 	}
 }
 
@@ -1026,5 +1064,21 @@ func TestNinjaUsesResponseFilesForGCCStyleCommands(t *testing.T) {
 		if !strings.Contains(content, want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, content)
 		}
+	}
+}
+
+func TestNinjaShellCommand_KeepsMultilineArgumentsOnOneLine(t *testing.T) {
+	command := []string{"sh", "-c", "set -e\necho 'a b' \"$1\"\n", "name", "x y"}
+	quoted := ninjaShellCommand(toolchain.Platform{OS: "darwin", Arch: "arm64"}, command)
+	if strings.Contains(quoted, "\n") {
+		t.Fatalf("command spans lines: %q", quoted)
+	}
+	// Undo ninja's $ escaping and run the command through sh.
+	output, err := exec.Command("sh", "-c", "set -- ; "+strings.ReplaceAll(quoted, "$$", "$")+"; printf '|%s|' \"$?\"").CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(output); got != "a b x y\n|0|" {
+		t.Fatalf("command output = %q", got)
 	}
 }

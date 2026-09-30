@@ -48,13 +48,23 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		return nil, nil
 	}
 	if target.Type == "custom" {
-		if emitSharedRules {
+		expanded, err := plan.ExpandCustomTarget(opts.Config, target, opts.BuildDir, variant, opts.Platform)
+		if err != nil {
+			return nil, err
+		}
+		// A custom target without placeholders is shared by all variants and emitted once.
+		perVariant := plan.CustomTargetPerVariant(target)
+		if perVariant && slices.Equal(expanded.Outputs, target.Outputs) {
+			return nil, fmt.Errorf("custom target %q uses variant placeholders, so each variant needs its own outputs: add {variant} or {buildDir} to its outputs", target.Name)
+		}
+		if emitSharedRules || perVariant {
 			*file = append(*file, ninja.Build{
-				Rule: "custom", In: target.Inputs, InOrderOnly: targetDependencyOutputs(opts.Config, target, opts.BuildDir, variant, opts.Platform), Out: target.Outputs,
-				Vars: ninja.Vars{{Key: "target", Val: target.Name}, {Key: "variant", Val: variant}, {Key: "platform", Val: opts.Platform.String()}},
+				Rule: "custom", In: ninjaPaths(expanded.Inputs), Out: ninjaPaths(expanded.Outputs),
+				InOrderOnly: ninjaPaths(targetDependencyOutputs(opts.Config, target, opts.BuildDir, variant, opts.Platform)),
+				Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaShellCommand(opts.Platform, expanded.Command)}},
 			})
 		}
-		return target.Outputs, nil
+		return expanded.Outputs, nil
 	}
 	var err error
 	target, err = plan.PrepareUnityTarget(target, opts.BuildDir, variant)
@@ -76,7 +86,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 
 	var objects []string
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)
-	buildDependencies := targetCustomOutputs(opts.Config, target)
+	buildDependencies := ninjaPaths(targetCustomOutputs(opts.Config, target, opts.BuildDir, variant, opts.Platform))
 	bmiDir := filepath.Join(opts.BuildDir, variant, target.Name, "modules")
 	availableModules, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)
 	if err != nil {
@@ -256,6 +266,32 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	return append([]string{outputPath}, headerUnitBuilds...), nil
 }
 
+// ninjaShellCommand quotes a custom target's argument vector for the ninja
+// command line (sh on Unix, CreateProcess on Windows).
+func ninjaShellCommand(platform toolchain.Platform, command []string) string {
+	quoteLine := func(line string) string {
+		return "'" + strings.ReplaceAll(line, "'", `'\''`) + "'"
+	}
+	quoted := make([]string, len(command))
+	for index, argument := range command {
+		switch {
+		case platform.OS == "windows":
+			quoted[index] = toolchain.QuoteResponseFileArg(argument)
+		case strings.Contains(argument, "\n"):
+			// A ninja command is a single line, so multi-line arguments (such as
+			// sh -c scripts) are rebuilt by printf; trailing newlines are dropped.
+			lines := strings.Split(strings.TrimRight(argument, "\n"), "\n")
+			for line := range lines {
+				lines[line] = quoteLine(lines[line])
+			}
+			quoted[index] = `"$(printf '%s\n' ` + strings.Join(lines, " ") + `)"`
+		default:
+			quoted[index] = quoteLine(argument)
+		}
+	}
+	return strings.ReplaceAll(strings.Join(quoted, " "), "$", "$$")
+}
+
 func ninjaResponseArguments(tc toolchain.Toolchain, arguments []string) string {
 	quoted := make([]string, len(arguments))
 	quote := toolchain.QuoteGNUResponseFileArg
@@ -329,12 +365,9 @@ func ninjaArgumentPaths(paths []string) []string {
 
 // ninjaPathLocal converts a path to use forward slashes (Ninja convention)
 // Note: this is a local version; NinjaPath in common.go is exported for external use
+// ninjaPathLocal normalizes a path for build.ninja; escaping happens when the file is written.
 func ninjaPathLocal(path string) string {
-	path = NinjaPath(path)
-	if len(path) > 1 && path[1] == ':' {
-		path = path[:1] + "$:" + path[2:]
-	}
-	return path
+	return NinjaPath(path)
 }
 
 func ninjaPaths(paths []string) []string {

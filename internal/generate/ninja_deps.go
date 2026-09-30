@@ -305,14 +305,24 @@ func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc too
 	return resolved, nil
 }
 
-func targetCustomOutputs(cfg *config.Config, target config.Target) []string {
+func targetCustomOutputs(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) []string {
 	var outputs []string
 	for _, name := range target.Depends {
 		if dependency, ok := cfg.Targets[name]; ok && dependency.Type == "custom" {
-			outputs = append(outputs, dependency.Outputs...)
+			outputs = append(outputs, customOutputs(cfg, dependency, buildDir, variant, platform)...)
 		}
 	}
 	return outputs
+}
+
+// customOutputs returns a custom target's outputs for one variant. Placeholder
+// errors are reported where the target itself is generated.
+func customOutputs(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) []string {
+	expanded, err := plan.ExpandCustomTarget(cfg, target, buildDir, variant, platform)
+	if err != nil {
+		return target.Outputs
+	}
+	return expanded.Outputs
 }
 
 func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) []string {
@@ -321,7 +331,7 @@ func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir,
 		if dependency, ok := cfg.Targets[name]; ok {
 			switch dependency.Type {
 			case "custom":
-				outputs = append(outputs, dependency.Outputs...)
+				outputs = append(outputs, customOutputs(cfg, dependency, buildDir, variant, platform)...)
 			case "interface_library":
 				outputs = append(outputs, targetDependencyOutputs(cfg, dependency, buildDir, variant, platform)...)
 			default:

@@ -65,6 +65,6 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	}, ninja.Rule{
 		Name: "external_dep", Command: "$clue -quiet -variant $variant -target $platform deps build $dep", Description: "EXTERNAL $dep", Restat: true,
 	}, ninja.Rule{
-		Name: "custom", Command: "$clue -variant $variant -target $platform build $target", Description: "CUSTOM $target",
+		Name: "custom", Command: "$cmd", Description: "CUSTOM $target",
 	})
 }
