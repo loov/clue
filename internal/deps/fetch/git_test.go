@@ -42,7 +42,7 @@ func TestCloneGitRefDoesNotGuessRefType(t *testing.T) {
 		}
 
 		checkout := filepath.Join(t.TempDir(), "checkout")
-		cloned, err := cloneGitRef(t.Context(), source, ref.Short(), checkout, nil)
+		cloned, err := cloneGitRef(t.Context(), source, ref.Short(), nil, checkout, nil)
 		if err != nil {
 			t.Fatalf("clone %s: %v", ref, err)
 		}
@@ -53,7 +53,7 @@ func TestCloneGitRefDoesNotGuessRefType(t *testing.T) {
 	}
 
 	checkout := filepath.Join(t.TempDir(), "commit")
-	cloned, err := cloneGitRef(t.Context(), source, hash.String(), checkout, nil)
+	cloned, err := cloneGitRef(t.Context(), source, hash.String(), nil, checkout, nil)
 	if err != nil {
 		t.Fatalf("clone commit: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestCloneGitRefDoesNotGuessRefType(t *testing.T) {
 		t.Fatalf("clone commit resolved to %v, %v", head, err)
 	}
 	failed := filepath.Join(t.TempDir(), "failed")
-	if _, err := cloneGitRef(t.Context(), source, "missing", failed, nil); err == nil {
+	if _, err := cloneGitRef(t.Context(), source, "missing", nil, failed, nil); err == nil {
 		t.Fatal("missing ref cloned successfully")
 	}
 	if _, err := os.Stat(failed); !os.IsNotExist(err) {

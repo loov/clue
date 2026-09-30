@@ -66,6 +66,7 @@ type GitDependency struct {
 	name        string
 	Repo        string
 	Ref         string
+	Submodules  []string // submodule paths to check out; nil checks out all of them
 	TargetName  string
 	BuildConfig *InlineConfig
 }

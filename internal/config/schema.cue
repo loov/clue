@@ -134,6 +134,8 @@ package config
 	type: "git"
 	repo: string & =~"^(https://|git@)"  // Require authenticated transport
 	ref?: string | *"main"
+	// Submodule paths to check out (shallow); all of them when omitted.
+	submodules?: [...string]
 	target?: string
 	build?: #InlineBuildConfig
 }

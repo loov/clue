@@ -330,6 +330,9 @@ func (l *Loader) extractGitDependency(name string, val cue.Value) (*deps.GitDepe
 
 	dependency := deps.NewGitDependency(name, repo, ref, buildConfig)
 	dependency.TargetName = extractOptionalString(val, "target")
+	if val.LookupPath(cue.ParsePath("submodules")).Exists() {
+		dependency.Submodules = append([]string{}, extractStringList(val, "submodules")...)
+	}
 	return dependency, nil
 }
 

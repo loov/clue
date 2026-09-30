@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,6 +30,8 @@ type depMarker struct {
 	URL       string    `json:"url,omitzero"`  // for tarball dependencies
 	Path      string    `json:"path,omitzero"` // for vendored dependencies
 	Checksum  string    `json:"checksum,omitzero"`
+	// Submodules records a git dependency's submodule selection; nil means all.
+	Submodules []string `json:"submodules,omitzero"`
 }
 
 // newCache creates a dependency cache manager.
@@ -91,7 +94,8 @@ func (c *cache) markerMatches(dep deps.Dependency) bool {
 	}
 	switch configured := dep.(type) {
 	case *deps.GitDependency:
-		return marker.URL == configured.Repo && marker.Ref == configured.Ref
+		return marker.URL == configured.Repo && marker.Ref == configured.Ref &&
+			slices.Equal(marker.Submodules, configured.Submodules) && (marker.Submodules == nil) == (configured.Submodules == nil)
 	case *deps.TarballDependency:
 		return marker.URL == configured.URL && marker.Checksum == configured.Checksum
 	default:
@@ -120,6 +124,7 @@ func (c *cache) markFetched(dep deps.Dependency) error {
 	case *deps.GitDependency:
 		marker.Ref = d.Ref
 		marker.URL = d.Repo
+		marker.Submodules = d.Submodules
 	case *deps.TarballDependency:
 		marker.URL = d.URL
 		marker.Checksum = d.Checksum
