@@ -237,6 +237,13 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.Coverage = extractOptionalBool(val, "coverage")
 	t.Visibility = extractOptionalString(val, "visibility")
 	t.Exports = extractStringList(val, "exports")
+	if sourceFlags := val.LookupPath(cue.ParsePath("sourceFlags")); sourceFlags.Exists() {
+		t.SourceFlags = make(map[string][]string)
+		fields, _ := sourceFlags.Fields()
+		for fields.Next() {
+			t.SourceFlags[fields.Selector().Unquoted()] = extractStringList(sourceFlags, fields.Selector().String())
+		}
+	}
 	if linkWhole := extractOptionalBool(val, "linkWhole"); linkWhole != nil {
 		t.LinkWhole = *linkWhole
 	}

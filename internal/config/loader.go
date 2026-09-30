@@ -150,6 +150,13 @@ func expandDependencyPaths(config *Config) error {
 		target.Includes, target.SystemIncludes = expand(target.Includes), expand(target.SystemIncludes)
 		target.Public.Includes, target.Public.SystemIncludes = expand(target.Public.Includes), expand(target.Public.SystemIncludes)
 		target.Command, target.Inputs, target.Outputs = expand(target.Command), expand(target.Inputs), expand(target.Outputs)
+		if len(target.SourceFlags) > 0 {
+			sourceFlags := make(map[string][]string, len(target.SourceFlags))
+			for pattern, flags := range target.SourceFlags {
+				sourceFlags[expand([]string{pattern})[0]] = flags
+			}
+			target.SourceFlags = sourceFlags
+		}
 		for index := range target.HeaderUnits {
 			target.HeaderUnits[index].Path = expand([]string{target.HeaderUnits[index].Path})[0]
 		}

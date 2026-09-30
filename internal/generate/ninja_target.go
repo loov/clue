@@ -150,7 +150,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		}
 		compileOpts := modules.ForSource(source, plan.CompileOptions{
 			Source: source, Output: sourcePlans[source].Object, Includes: compileIncludes,
-			SystemIncludes: target.SystemIncludes, Defines: target.Defines, Flags: buildCfg,
+			SystemIncludes: target.SystemIncludes, Defines: target.Defines, Flags: plan.WithSourceFlags(buildCfg, sourcePlans[source]),
 			Std: sourcePlans[source].Standard, TargetType: target.Type, Platform: opts.Platform,
 			DependencyMode: plan.DependencyModeAll,
 		})

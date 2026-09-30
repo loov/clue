@@ -2,6 +2,7 @@ package plan
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/loov/clue/internal/config"
@@ -30,5 +31,26 @@ func TestForTargetResolvesSharedBuildSemantics(t *testing.T) {
 	}
 	if got := targetPlan.Target; len(got.Includes) != 1 || len(got.Defines) != 2 || got.Defines[1] != "DEBUG" || got.CStd != "c17" || got.CXXStd != "c++23" {
 		t.Fatalf("resolved target = %+v", got)
+	}
+}
+
+func TestForTarget_SourceFlags(t *testing.T) {
+	cfg := &config.Config{Targets: map[string]config.Target{}}
+	target := config.Target{
+		Name: "lib", Type: "static_library", Sources: []string{"src/a.cpp", "src/b.cpp", "other/c.cpp"},
+		Flags:       config.Flags{Compiler: []string{"-fno-rtti"}},
+		SourceFlags: map[string][]string{"src/*.cpp": {"-DSRC"}, "src/b.cpp": {"-frtti"}},
+	}
+	targetPlan := ForTarget(cfg, target, config.Variant{}, ".build", "debug", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	got := map[string][]string{}
+	for _, source := range targetPlan.Sources {
+		got[source.Source] = WithSourceFlags(targetPlan.Flags, source).RawCompiler
+	}
+	for source, want := range map[string][]string{
+		"src/a.cpp": {"-fno-rtti", "-DSRC"}, "src/b.cpp": {"-fno-rtti", "-DSRC", "-frtti"}, "other/c.cpp": {"-fno-rtti"},
+	} {
+		if !slices.Equal(got[source], want) {
+			t.Errorf("%s flags = %q, want %q", source, got[source], want)
+		}
 	}
 }

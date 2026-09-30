@@ -41,6 +41,13 @@ func PrepareUnityTarget(target config.Target, buildDir, variant string) (config.
 		}
 	}
 
+	// Sources with their own flags compile alone.
+	for _, source := range target.Sources {
+		if len(target.FlagsForSource(source)) > 0 {
+			excluded[filepath.Clean(source)] = true
+		}
+	}
+
 	type sourceGroup struct {
 		language string
 		sources  []string

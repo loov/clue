@@ -140,7 +140,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			Includes:       includes,
 			SystemIncludes: usage.SystemIncludes,
 			Defines:        defines,
-			Flags:          buildCfg,
+			Flags:          plan.WithSourceFlags(buildCfg, sourcePlan),
 			Std:            sourcePlan.Standard,
 			TargetType:     target.Type,
 			Platform:       b.target,

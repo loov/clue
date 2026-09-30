@@ -1,6 +1,9 @@
 package config
 
 import (
+	"maps"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -120,9 +123,10 @@ type Target struct {
 	LTO              *bool
 	PIC              *bool
 	Coverage         *bool
-	Visibility       string   // "default" or "hidden"; empty leaves the compiler default
-	Exports          []string // C symbols to keep and export (only these) from a linked output
-	LinkWhole        bool     // consumers link every member of this static library
+	Visibility       string              // "default" or "hidden"; empty leaves the compiler default
+	Exports          []string            // C symbols to keep and export (only these) from a linked output
+	LinkWhole        bool                // consumers link every member of this static library
+	SourceFlags      map[string][]string // extra compiler flags per source path or glob
 	Test             *Test
 	Unity            *UnityBuild
 }
@@ -178,4 +182,18 @@ type Variant struct {
 	LTO          *bool
 	PIC          *bool
 	Coverage     *bool
+}
+
+// FlagsForSource returns the extra compiler flags that sourceFlags gives
+// source, in the order of the sorted patterns.
+func (t Target) FlagsForSource(source string) []string {
+	var flags []string
+	source = filepath.Clean(source)
+	for _, pattern := range slices.Sorted(maps.Keys(t.SourceFlags)) {
+		matched, err := filepath.Match(filepath.Clean(pattern), source)
+		if err == nil && matched {
+			flags = append(flags, t.SourceFlags[pattern]...)
+		}
+	}
+	return flags
 }

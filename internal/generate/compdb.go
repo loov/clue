@@ -200,7 +200,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		}
 		compileOpts := modules.ForSource(source, plan.CompileOptions{
 			Source: source, Output: objPath, Includes: includes, SystemIncludes: target.SystemIncludes,
-			Defines: target.Defines, Flags: buildCfg, Std: sourcePlan.Standard, TargetType: target.Type,
+			Defines: target.Defines, Flags: plan.WithSourceFlags(buildCfg, sourcePlan), Std: sourcePlan.Standard, TargetType: target.Type,
 			Platform: opts.Platform,
 		})
 		compileOpts = absoluteCompileOptions(compileOpts)

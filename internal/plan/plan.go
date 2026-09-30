@@ -11,6 +11,7 @@ import (
 // Source is the canonical source, object, and language-standard mapping.
 type Source struct {
 	Source, Object, Standard string
+	Flags                    []string // extra compiler flags from the target's sourceFlags
 }
 
 // Target contains the generator-independent portion of a target build.
@@ -54,7 +55,7 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 	for _, source := range target.Sources {
 		plan.Sources = append(plan.Sources, Source{
 			Source: source, Object: filepath.Join(objectDir, objectNames[source]),
-			Standard: config.CompileStandard(cfg.Toolchain, target, usage, source),
+			Standard: config.CompileStandard(cfg.Toolchain, target, usage, source), Flags: target.FlagsForSource(source),
 		})
 	}
 	return plan
@@ -128,4 +129,12 @@ func targetConfig(target config.Target, variant config.Variant) toolchain.Flags 
 	cfg.RawCompiler = append(cfg.RawCompiler, variant.Flags.Compiler...)
 	cfg.RawLinker = append(cfg.RawLinker, variant.Flags.Linker...)
 	return cfg
+}
+
+// WithSourceFlags returns flags with a source's own compiler flags appended.
+func WithSourceFlags(flags toolchain.Flags, source Source) toolchain.Flags {
+	if len(source.Flags) > 0 {
+		flags.RawCompiler = append(append([]string(nil), flags.RawCompiler...), source.Flags...)
+	}
+	return flags
 }

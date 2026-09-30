@@ -58,6 +58,9 @@ package config
 	exports?: [...string]
 	// Link every member of this static library into its consumers
 	linkWhole?: bool
+	// Extra compiler flags for the sources matching a path or glob, after the
+	// target's own; such sources stay out of unity batches
+	sourceFlags?: [string]: [...string]
 	flags?: {
 		compiler?: [...string]
 		linker?: [...string]
