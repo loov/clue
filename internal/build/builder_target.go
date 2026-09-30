@@ -101,7 +101,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			}
 			if err := b.compiler.CompileHeaderUnit(ctx, plan.HeaderUnitOptions{
 				Source: unit.Path, Name: name, System: unit.System, Output: headerOutputs[name],
-				Includes: includes, SystemIncludes: usage.SystemIncludes, Defines: defines,
+				Includes: includes, SystemIncludes: target.SystemIncludes, Defines: defines,
 				Flags: buildCfg, Std: config.CompileStandard(opts.Config.Toolchain, target, usage, "module.cppm"),
 				ModuleFiles: builtHeaderUnits, ModuleMapper: modules.MapperPath(),
 			}); err != nil {
@@ -125,7 +125,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		compilerPath string
 	}
 	cacheInputs := make(map[string]sourceCacheInputs, len(target.Sources))
-	includeInputs := append(append([]string(nil), includes...), usage.SystemIncludes...)
+	includeInputs := append(append([]string(nil), includes...), target.SystemIncludes...)
 
 	sourcePlans := make(map[string]plan.Source, len(targetPlan.Sources))
 	for _, source := range targetPlan.Sources {
@@ -138,7 +138,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			Source:         source,
 			Output:         objPath,
 			Includes:       includes,
-			SystemIncludes: usage.SystemIncludes,
+			SystemIncludes: target.SystemIncludes,
 			Defines:        defines,
 			Flags:          plan.WithSourceFlags(buildCfg, sourcePlan),
 			Std:            sourcePlan.Standard,
