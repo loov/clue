@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/cuecontext"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -174,13 +173,17 @@ func declaredDependencies(cfg *Config, dependency deps.Dependency) (declared cue
 			return cue.Value{}, "", true, nil // described some other way, or not at all
 		}
 	}
-	data, err := os.ReadFile(filepath.Join(cfg.dirOrCurrent(), file))
+	value, err := cfg.loadDescriptionFile(filepath.Join(cfg.dirOrCurrent(), file))
 	if err != nil {
 		return cue.Value{}, "", false, err
 	}
-	value := cuecontext.New().CompileBytes(data, cue.Filename(file))
-	if err := value.Err(); err != nil {
-		return cue.Value{}, "", false, fmt.Errorf("%s: %w", file, err)
+	switch d := dependency.(type) {
+	case *deps.GitDependency:
+		d.Loaded = value
+	case *deps.TarballDependency:
+		d.Loaded = value
+	case *deps.VendoredDependency:
+		d.Loaded = value
 	}
 	return value.LookupPath(cue.ParsePath("dependencies")), root, true, nil
 }
@@ -257,7 +260,19 @@ func describeSource(dependency deps.Dependency) string {
 
 // hasDescription reports whether a declaration says how to build the dependency.
 func hasDescription(dependency deps.Dependency) bool {
-	return dependency.InlineBuild() != nil || dependency.ConfigFile() != "" || dependency.Description().Exists()
+	if dependency.InlineBuild() != nil || dependency.ConfigFile() != "" {
+		return true
+	}
+	// A cached checkout description is not an explicit build declaration.
+	switch d := dependency.(type) {
+	case *deps.GitDependency:
+		return d.Spec.Exists()
+	case *deps.TarballDependency:
+		return d.Spec.Exists()
+	case *deps.VendoredDependency:
+		return d.Spec.Exists()
+	}
+	return false
 }
 
 // adoptDescription gives existing the build description of another
@@ -271,14 +286,17 @@ func adoptDescription(existing, other deps.Dependency) bool {
 	case *deps.GitDependency:
 		if y, ok := other.(*deps.GitDependency); ok {
 			x.BuildConfig, x.File, x.Spec, x.TargetName = y.BuildConfig, y.File, y.Spec, y.TargetName
+			x.Loaded = cue.Value{}
 		}
 	case *deps.TarballDependency:
 		if y, ok := other.(*deps.TarballDependency); ok {
 			x.BuildConfig, x.File, x.Spec, x.TargetName = y.BuildConfig, y.File, y.Spec, y.TargetName
+			x.Loaded = cue.Value{}
 		}
 	case *deps.VendoredDependency:
 		if y, ok := other.(*deps.VendoredDependency); ok {
 			x.BuildConfig, x.File, x.Spec, x.TargetName = y.BuildConfig, y.File, y.Spec, y.TargetName
+			x.Loaded = cue.Value{}
 		}
 	}
 	return true

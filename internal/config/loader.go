@@ -16,6 +16,7 @@ import (
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/mod/modconfig"
 
+	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/diagnostic"
 	"github.com/loov/clue/internal/pathglob"
 	"github.com/loov/clue/internal/toolchain"
@@ -49,32 +50,44 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if err != nil {
 		return nil, fmt.Errorf("invalid directory: %w", err)
 	}
+	if target.OS == "" || target.Arch == "" {
+		target = toolchain.HostPlatform()
+	}
+	val, err := l.buildValue(absDir, overlay, target)
+	if err != nil {
+		return nil, err
+	}
 
+	return l.finish(val, absDir, target)
+}
+
+// buildValue evaluates the package of dir/clue.cue: with _target and
+// _project, the implicit module and package when it has none, clue's schema
+// as "loov.dev/clue", and registry modules.
+func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, target toolchain.Platform) (cue.Value, error) {
+	var err error
 	// clue.cue is the project entry point; the CUE loader evaluates its package.
 	configPath := filepath.Join(absDir, "clue.cue")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, &diagnostic.RichError{
+			return cue.Value{}, &diagnostic.RichError{
 				File:       configPath,
 				Message:    "no CUE configuration files found",
 				Suggestion: "create a clue.cue file in this directory",
 			}
 		}
-		return nil, fmt.Errorf("failed to read config: %w", err)
+		return cue.Value{}, fmt.Errorf("failed to read config: %w", err)
 	}
 	entry, err := parser.ParseFile(configPath, data)
 	if err != nil {
-		return nil, l.convertCUEError(err, absDir)
+		return cue.Value{}, l.convertCUEError(err, absDir)
 	}
 	packageName := entry.PackageName()
 	if overlay == nil {
 		overlay = make(map[string]load.Source)
 	}
 	addImplicitModule(absDir, overlay)
-	if target.OS == "" || target.Arch == "" {
-		target = toolchain.HostPlatform()
-	}
 	if json.Valid(data) {
 		if packageName == "" {
 			packageName = "_"
@@ -87,10 +100,10 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 			// without a package clause become package "clue".
 			packageName = implicitPackage
 			if source, err = withImplicitPackage(configPath, data); err != nil {
-				return nil, l.convertCUEError(err, absDir)
+				return cue.Value{}, l.convertCUEError(err, absDir)
 			}
 			if err := addImplicitPackage(absDir, configPath, overlay); err != nil {
-				return nil, err
+				return cue.Value{}, err
 			}
 		}
 		overlay[configPath] = source
@@ -101,20 +114,24 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	// command.
 	registry, err := modconfig.NewRegistry(nil)
 	if err != nil {
-		return nil, fmt.Errorf("CUE registry: %w", err)
+		return cue.Value{}, fmt.Errorf("CUE registry: %w", err)
 	}
 	instances := load.Instances([]string{"."}, &load.Config{Dir: absDir, Package: packageName, Overlay: overlay, Registry: registry})
 	if len(instances) == 0 {
-		return nil, fmt.Errorf("failed to load CUE package from %s", absDir)
+		return cue.Value{}, fmt.Errorf("failed to load CUE package from %s", absDir)
 	}
 	if instances[0].Err != nil {
-		return nil, l.convertCUEError(instances[0].Err, absDir)
+		return cue.Value{}, l.convertCUEError(instances[0].Err, absDir)
 	}
 	val := l.ctx.BuildInstance(instances[0])
 	if err := val.Err(); err != nil {
-		return nil, l.convertCUEError(err, absDir)
+		return cue.Value{}, l.convertCUEError(err, absDir)
 	}
+	return val, nil
+}
 
+// finish unifies an evaluated configuration with the schema and decodes it.
+func (l *Loader) finish(val cue.Value, absDir string, target toolchain.Platform) (*Config, error) {
 	// Compile embedded schema
 	schema := l.ctx.CompileString(Schema, cue.Filename("schema.cue"))
 	if err := schema.Err(); err != nil {
@@ -136,6 +153,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 		return nil, err
 	}
 	config.Dir = absDir
+	config.target = target
 	// Dependencies declared by dependencies; those in clue.cue files of
 	// checkouts that are not fetched yet are added after fetching.
 	if _, err := ExpandDependencies(config); err != nil {
@@ -417,4 +435,22 @@ func withImplicitPackage(path string, data []byte) (load.Source, error) {
 	}
 	file.Decls = append([]ast.Decl{&ast.Package{Name: ast.NewIdent(implicitPackage)}}, file.Decls...)
 	return load.FromFile(file), nil
+}
+
+// loadDescriptionFile evaluates a dependency with this configuration's platform.
+// The evaluated value is kept on the dependency, so build planning only reads it.
+func (cfg *Config) loadDescriptionFile(path string) (cue.Value, error) {
+	if filepath.Base(path) != "clue.cue" {
+		value, err := deps.LoadDescriptionFile(path)
+		return value, err
+	}
+	dir, err := filepath.Abs(filepath.Dir(path))
+	if err != nil {
+		return cue.Value{}, err
+	}
+	target := cfg.target
+	if target.OS == "" || target.Arch == "" {
+		target = toolchain.HostPlatform()
+	}
+	return NewLoader().buildValue(dir, nil, target)
 }

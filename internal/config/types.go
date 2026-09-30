@@ -50,8 +50,9 @@ type Config struct {
 	// Overrides replace source fields of dependencies wherever declared
 	Overrides map[string]Override
 
-	declaredBy map[string]string // who declared each dependency, for conflict messages
-	expanded   map[string]bool   // dependencies whose own declarations were added
+	target     toolchain.Platform // platform used to evaluate dependency descriptions
+	declaredBy map[string]string  // who declared each dependency, for conflict messages
+	expanded   map[string]bool    // dependencies whose own declarations were added
 }
 
 // Toolchain configuration

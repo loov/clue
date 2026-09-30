@@ -119,15 +119,25 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 }
 
 func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget string) (BuildConfig, error) {
-	data, err := os.ReadFile(clueFile)
+	value, err := LoadDescriptionFile(clueFile)
 	if err != nil {
-		return BuildConfig{}, fmt.Errorf("failed to read clue.cue: %w", err)
-	}
-	value := cuecontext.New().CompileBytes(data, cue.Filename(clueFile))
-	if err := value.Err(); err != nil {
-		return BuildConfig{}, fmt.Errorf("failed to parse clue.cue: %w", err)
+		return BuildConfig{}, err
 	}
 	return buildConfigFromValue(value, sourcePath, dependencyName, configuredTarget)
+}
+
+// LoadDescriptionFile evaluates a standalone dependency description. The config
+// loader evaluates clue.cue packages before resolving their build configuration.
+func LoadDescriptionFile(path string) (cue.Value, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return cue.Value{}, fmt.Errorf("failed to read %s: %w", path, err)
+	}
+	value := cuecontext.New().CompileBytes(data, cue.Filename(path))
+	if err := value.Err(); err != nil {
+		return cue.Value{}, fmt.Errorf("failed to parse %s: %w", path, err)
+	}
+	return value, nil
 }
 
 // buildConfigFromValue reads a build description: a value with targets and,

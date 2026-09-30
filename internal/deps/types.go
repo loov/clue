@@ -84,6 +84,7 @@ type GitDependency struct {
 	TargetName  string
 	File        string    // project clue file describing the build, instead of the dependency's clue.cue
 	Spec        cue.Value // build description given with the dependency (defaults, targets)
+	Loaded      cue.Value // evaluated file description, scoped to the owning configuration
 	BuildConfig *InlineConfig
 }
 
@@ -119,7 +120,12 @@ func (g *GitDependency) CachePath(baseDir string) string {
 func (g *GitDependency) InlineBuild() *InlineConfig { return g.BuildConfig }
 func (g *GitDependency) BuildTarget() string        { return g.TargetName }
 func (g *GitDependency) ConfigFile() string         { return g.File }
-func (g *GitDependency) Description() cue.Value     { return g.Spec }
+func (g *GitDependency) Description() cue.Value {
+	if g.Spec.Exists() {
+		return g.Spec
+	}
+	return g.Loaded
+}
 
 // Validate checks that required fields are set
 func (g *GitDependency) Validate() error {
@@ -151,6 +157,7 @@ type TarballDependency struct {
 	TargetName  string
 	File        string    // project clue file describing the build, instead of the dependency's clue.cue
 	Spec        cue.Value // build description given with the dependency (defaults, targets)
+	Loaded      cue.Value // evaluated file description, scoped to the owning configuration
 	BuildConfig *InlineConfig
 }
 
@@ -192,7 +199,12 @@ func (t *TarballDependency) CachePath(baseDir string) string {
 func (t *TarballDependency) InlineBuild() *InlineConfig { return t.BuildConfig }
 func (t *TarballDependency) BuildTarget() string        { return t.TargetName }
 func (t *TarballDependency) ConfigFile() string         { return t.File }
-func (t *TarballDependency) Description() cue.Value     { return t.Spec }
+func (t *TarballDependency) Description() cue.Value {
+	if t.Spec.Exists() {
+		return t.Spec
+	}
+	return t.Loaded
+}
 
 // Validate checks that required fields are set
 func (t *TarballDependency) Validate() error {
@@ -224,6 +236,7 @@ type VendoredDependency struct {
 	TargetName  string
 	File        string    // project clue file describing the build, instead of the dependency's clue.cue
 	Spec        cue.Value // build description given with the dependency (defaults, targets)
+	Loaded      cue.Value // evaluated file description, scoped to the owning configuration
 	BuildConfig *InlineConfig
 }
 
@@ -254,7 +267,12 @@ func (v *VendoredDependency) CachePath(_ string) string {
 func (v *VendoredDependency) InlineBuild() *InlineConfig { return v.BuildConfig }
 func (v *VendoredDependency) BuildTarget() string        { return v.TargetName }
 func (v *VendoredDependency) ConfigFile() string         { return v.File }
-func (v *VendoredDependency) Description() cue.Value     { return v.Spec }
+func (v *VendoredDependency) Description() cue.Value {
+	if v.Spec.Exists() {
+		return v.Spec
+	}
+	return v.Loaded
+}
 
 // Validate checks that required fields are set
 func (v *VendoredDependency) Validate() error {

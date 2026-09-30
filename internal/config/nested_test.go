@@ -331,3 +331,111 @@ targets: app: {type: "executable", sources: ["main.cpp"], depends: [deps.wrapper
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestLoad_FetchedClueFileIsAPackage(t *testing.T) {
+	dir := writeProject(t, map[string]string{
+		"clue.cue": `
+name: "upstream"
+dependencies: lib: {type: "git", repo: "https://example.com/lib", ref: "v1"}
+targets: app: {type: "executable", sources: ["main.cpp"], depends: ["lib"]}
+`,
+		// lib ships its own clue.cue, which imports clue's schema and a
+		// package of its own repository and uses _target.
+		".deps/git/lib-v1/clue.cue": `import (
+	"loov.dev/clue"
+	"clue.local/build"
+)
+
+dependencies: [clue.#Vendored & {name: "base", path: "third_party/base", build: targetType: "header_only"}]
+targets: lib: {
+	type: "static_library"
+	sources: build.sources
+	if _target.os == "windows" {defines: ["WINDOWS"]}
+	depends: ["base"]
+}
+`,
+		".deps/git/lib-v1/build/sources.cue": `package build
+
+sources: ["lib.cpp"]
+`,
+	})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Dependencies["base"]; !ok {
+		t.Fatalf("dependencies = %v", cfg.Dependencies)
+	}
+	build, err := deps.ResolveBuildConfig(cfg.Dependencies["lib"], filepath.Join(dir, ".deps", "git", "lib-v1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(build.Sources, []string{"lib.cpp"}) || !slices.Equal(build.Depends, []string{"base"}) {
+		t.Fatalf("lib = %+v", build)
+	}
+}
+
+func TestExpandDependencies_KeepsEachConfigurationsPlatform(t *testing.T) {
+	root := writeProject(t, map[string]string{
+		"clue.cue": `name: "first"
+dependencies: sdk: {type: "vendored", path: "vendor/sdk"}
+`,
+	})
+	first, err := NewLoader().LoadForTarget(root, toolchain.Platform{OS: "linux", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := writeProject(t, map[string]string{"clue.cue": `name: "second"`})
+	if _, err := NewLoader().LoadForTarget(other, toolchain.Platform{OS: "windows", Arch: "arm64"}); err != nil {
+		t.Fatal(err)
+	}
+	// Make the first configuration's dependency available after loading the second.
+	checkout := filepath.Join(root, "vendor", "sdk")
+	if err := os.MkdirAll(checkout, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(checkout, "clue.cue"), []byte(`targets: sdk: {
+ type: "static_library", sources: ["\(_target.os).c"]
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExpandDependencies(first); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := deps.ResolveBuildConfig(first.Dependencies["sdk"], checkout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(resolved.Sources, []string{"linux.c"}) {
+		t.Fatalf("dependency used another configuration's platform: %q", resolved.Sources)
+	}
+}
+
+func TestLoad_FetchedDescriptionDoesNotOverrideAnExplicitNestedDescription(t *testing.T) {
+	root := writeProject(t, map[string]string{
+		"clue.cue": `name: "app"
+dependencies: {
+ sdk: {type: "vendored", path: "vendor/sdk"}
+ wrapper: {
+  type: "vendored", path: "vendor/wrapper"
+  targets: wrapper: {type: "static_library", sources: ["wrapper.c"]}
+  dependencies: sdk: {
+   type: "vendored", path: "vendor/sdk"
+   targets: sdk: {type: "static_library", sources: ["explicit.c"]}
+  }
+ }
+}`,
+		"vendor/sdk/clue.cue": `targets: sdk: {type: "static_library", sources: ["fallback.c"]}`,
+	})
+	cfg, err := NewLoader().Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := deps.ResolveBuildConfig(cfg.Dependencies["sdk"], filepath.Join(root, "vendor", "sdk"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(resolved.Sources, []string{"explicit.c"}) {
+		t.Fatalf("cached file displaced explicit build description: %q", resolved.Sources)
+	}
+}
