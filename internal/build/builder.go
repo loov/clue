@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/loov/clue/internal/cache"
@@ -318,6 +320,36 @@ func (b *Builder) buildTargets(ctx context.Context, opts Options, order []string
 	return built, errors.Join(failures...)
 }
 
+// buildDependency resolves a pkg-config dependency or builds a fetched one.
+func (b *Builder) buildDependency(ctx context.Context, opts Options, depBuilder *depBuilder, dep deps.Dependency, built map[string]*depBuildResult) (*depBuildResult, error) {
+	if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
+		usage, err := pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
+			return toolchain.Output(ctx, b.toolchain, ".", name, args...)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve dependency %q: %w", dep.Name(), err)
+		}
+		return &depBuildResult{Name: dep.Name(), Type: "pkg_config", Usage: usage}, nil
+	}
+	buildOpts := depBuildOptions{
+		Variant:      opts.Variant,
+		Platform:     b.target,
+		BuildDir:     opts.BuildDir,
+		Std:          opts.Config.Toolchain.Std,
+		CStd:         opts.Config.Toolchain.CStd,
+		CXXStd:       opts.Config.Toolchain.CXXStd,
+		Optimization: opts.Config.ActiveVariant.Optimization,
+		Defines:      opts.Config.ActiveVariant.Defines,
+		Verbosity:    opts.Verbosity,
+		ForceRebuild: opts.ForceRebuild,
+	}
+	result, err := depBuilder.BuildDep(ctx, dep, dep.CachePath("."), buildOpts, built)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build dependency %q: %w", dep.Name(), err)
+	}
+	return result, nil
+}
+
 // BuildDependency fetches and builds one external dependency and its prerequisites.
 func (b *Builder) BuildDependency(ctx context.Context, opts Options, name string) error {
 	if _, ok := opts.Config.Dependencies[name]; !ok {
@@ -379,57 +411,65 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 	// Create dependency builder
 	depBuilder := newDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbosity)
 	depBuilder.cache = b.cacheManager
+	depBuilder.parallel = b.parallelCompiler
 
-	// Build each dependency
+	// Build each dependency once the dependencies it builds against are built.
 	results := make(map[string]*depBuildResult)
-	totalFiles := 0
+	var resultsMu sync.Mutex
+	var totalFiles atomic.Int64
 	depStart := time.Now()
-
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	done := make(map[string]chan struct{}, len(buildOrder))
 	for _, depName := range buildOrder {
-		dep := opts.Config.Dependencies[depName]
-		if dep == nil {
-			return nil, fmt.Errorf("dependency %q not found", depName)
-		}
-		if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
-			usage, err := pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
-				return toolchain.Output(ctx, b.toolchain, ".", name, args...)
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to resolve dependency %q: %w", depName, err)
+		done[depName] = make(chan struct{})
+	}
+	errs := make([]error, len(buildOrder))
+	var workers sync.WaitGroup
+	for index, depName := range buildOrder {
+		workers.Go(func() {
+			defer close(done[depName])
+			dep := opts.Config.Dependencies[depName]
+			if dep == nil {
+				errs[index] = fmt.Errorf("dependency %q not found", depName)
+				cancel()
+				return
 			}
-			results[depName] = &depBuildResult{Name: depName, Type: "pkg_config", Usage: usage}
-			continue
-		}
-
-		// Get source path from cache
-		sourcePath := dep.CachePath(".")
-
-		// Build dependency
-		buildOpts := depBuildOptions{
-			Variant:      opts.Variant,
-			Platform:     b.target,
-			BuildDir:     opts.BuildDir,
-			Std:          opts.Config.Toolchain.Std,
-			CStd:         opts.Config.Toolchain.CStd,
-			CXXStd:       opts.Config.Toolchain.CXXStd,
-			Optimization: opts.Config.ActiveVariant.Optimization,
-			Defines:      opts.Config.ActiveVariant.Defines,
-			Verbosity:    opts.Verbosity,
-			ForceRebuild: opts.ForceRebuild,
-		}
-
-		result, err := depBuilder.BuildDep(ctx, dep, sourcePath, buildOpts, results)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build dependency %q: %w", depName, err)
-		}
-
-		results[depName] = result
-		totalFiles += result.SourceCount
+			for _, other := range deps.DeclaredDepends(dep) {
+				if wait, ok := done[other]; ok {
+					select {
+					case <-wait:
+					case <-ctx.Done():
+					}
+				}
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			result, err := b.buildDependency(ctx, opts, depBuilder, dep, func() map[string]*depBuildResult {
+				resultsMu.Lock()
+				defer resultsMu.Unlock()
+				return maps.Clone(results)
+			}())
+			if err != nil {
+				errs[index] = err
+				cancel()
+				return
+			}
+			resultsMu.Lock()
+			results[depName] = result
+			resultsMu.Unlock()
+			totalFiles.Add(int64(result.SourceCount))
+		})
+	}
+	workers.Wait()
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
 	}
 
 	depDuration := time.Since(depStart)
 	if opts.Verbosity >= VerbosityNormal {
-		fmt.Printf("Dependencies built (%d files, %s)\n\n", totalFiles, depDuration.String())
+		fmt.Printf("Dependencies built (%d files, %s)\n\n", totalFiles.Load(), depDuration.String())
 	}
 
 	return results, nil

@@ -50,6 +50,7 @@ type depBuilder struct {
 	toolchain toolchain.Toolchain
 	verbosity Verbosity
 	cache     *cache.Manager
+	parallel  *parallelCompiler // compiles dependency sources concurrently when set
 }
 
 // NewDepBuilder creates a new dependency builder
@@ -157,12 +158,18 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	if optimization == "" {
 		optimization = "none"
 	}
+	type pending struct {
+		opts   plan.CompileOptions
+		inputs []string
+		tool   string
+	}
+	var toCompile []pending
 	for _, src := range cfg.Sources {
 		requiresCXX = requiresCXX || toolchain.IsCXXSource(src)
 		absPath := filepath.Join(sourcePath, src)
 		objPath := filepath.Join(objDir, objectNames[src])
+		objectFiles = append(objectFiles, objPath)
 
-		// Compile source
 		compileOpts := plan.CompileOptions{
 			Source:   absPath,
 			Output:   objPath,
@@ -192,26 +199,45 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				absPath, objPath, cacheInputs, compilationIncludes, compilerPath, opts.ForceRebuild,
 			)
 			if !needsRebuild {
-				objectFiles = append(objectFiles, objPath)
 				continue
 			}
 		}
-
-		if opts.Verbosity == VerbosityVerbose {
-			fmt.Printf("    Compiling %s\n", src)
+		toCompile = append(toCompile, pending{opts: compileOpts, inputs: cacheInputs, tool: compilerPath})
+	}
+	store := func(p pending, depFile string) {
+		if db.cache == nil {
+			return
 		}
-
-		result, err := db.compiler.CompileSource(ctx, compileOpts)
-		if err != nil {
-			// Expand on error
-			return nil, fmt.Errorf("failed to compile %s: %w", src, err)
+		if err := db.cache.StoreResult(p.opts.Source, p.opts.Output, depFile, p.inputs, compilationIncludes, p.tool); err != nil && opts.Verbosity == VerbosityVerbose {
+			fmt.Printf("    Warning: failed to cache %s: %v\n", p.opts.Source, err)
 		}
-
-		objectFiles = append(objectFiles, result.Object)
-		if db.cache != nil {
-			if err := db.cache.StoreResult(absPath, result.Object, result.DepFile, cacheInputs, compilationIncludes, compilerPath); err != nil && opts.Verbosity == VerbosityVerbose {
-				fmt.Printf("    Warning: failed to cache %s: %v\n", src, err)
+	}
+	if db.parallel != nil && len(toCompile) > 0 {
+		batch := make([]plan.CompileOptions, len(toCompile))
+		bySource := make(map[string]pending, len(toCompile))
+		for index, p := range toCompile {
+			batch[index] = p.opts
+			bySource[p.opts.Source] = p
+		}
+		results, err := db.parallel.CompileParallel(ctx, batch)
+		for _, result := range results {
+			if result.Error == nil {
+				store(bySource[result.Source], result.DepFile)
 			}
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile dependency %q: %w", dep.Name(), err)
+		}
+	} else {
+		for _, p := range toCompile {
+			if opts.Verbosity == VerbosityVerbose {
+				fmt.Printf("    Compiling %s\n", p.opts.Source)
+			}
+			result, err := db.compiler.CompileSource(ctx, p.opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile %s: %w", p.opts.Source, err)
+			}
+			store(p, result.DepFile)
 		}
 	}
 
