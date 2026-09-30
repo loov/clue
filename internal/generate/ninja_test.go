@@ -744,6 +744,28 @@ func TestNinjaPaths_EscapeDriveLettersAndSpaces(t *testing.T) {
 	}
 }
 
+func TestNinja_CrossCustomCommandsUseHostShell(t *testing.T) {
+	host := toolchain.HostPlatform()
+	target := toolchain.Platform{OS: "windows", Arch: "amd64"}
+	if host.OS == "windows" {
+		target = toolchain.Platform{OS: "linux", Arch: "amd64"}
+	}
+	custom := config.Target{Name: "gen", Type: "custom", Command: []string{"awk", "{ print $0 }", "in.csv"}, Stdout: "{buildDir}/gen/out.inc", Outputs: []string{"{buildDir}/gen/out.inc"}}
+	cfg := createMinimalConfig("gen", "custom", nil)
+	cfg.Targets["gen"] = custom
+	file := ninja.File{}
+	if _, err := generateTargetBuilds(&file, NinjaOptions{Config: cfg, BuildDir: ".build", Platform: target}, "debug", cfg.Variants["debug"], custom, nil, true, make(map[string]map[string]string), nil); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if _, err := file.WriteTo(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Contains(buf.String(), "cmd /c"); got != (host.OS == "windows") {
+		t.Errorf("custom command for %s on %s:\n%s", target, host, buf.String())
+	}
+}
+
 func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	platform := toolchain.Platform{OS: "windows", Arch: "amd64"}
 	tc, err := msvc.New(&msvc.Installation{Environment: map[string]string{
@@ -1094,7 +1116,7 @@ func TestNinja_LinksWholeArchivesInPlace(t *testing.T) {
 
 func TestNinjaShellCommand_KeepsMultilineArgumentsOnOneLine(t *testing.T) {
 	command := []string{"sh", "-c", "set -e\necho 'a b' \"$1\"\n", "name", "x y"}
-	quoted := ninjaShellCommand(toolchain.Platform{OS: "darwin", Arch: "arm64"}, command)
+	quoted := ninjaShellCommand(command)
 	if strings.Contains(quoted, "\n") {
 		t.Fatalf("command spans lines: %q", quoted)
 	}

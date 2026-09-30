@@ -127,7 +127,7 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 			opts.Clue = executable
 		}
 	}
-	file = append(file, ninja.Var{Key: "clue", Val: ninjaShellCommand(opts.Platform, []string{opts.Clue})})
+	file = append(file, ninja.Var{Key: "clue", Val: ninjaShellCommand([]string{opts.Clue})})
 	if toolchain.Name() == "msvc" {
 		linker := plan.Link(toolchain, opts.Platform, plan.LinkOptions{}).Tool
 		file = append(file, ninja.Var{Key: "link", Val: ninjaToolCommand(toolchain, linker)})

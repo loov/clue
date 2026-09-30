@@ -62,7 +62,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			*file = append(*file, ninja.Build{
 				Rule: "custom", In: ninjaPaths(expanded.Inputs), Out: ninjaPaths(expanded.Outputs),
 				InOrderOnly: ninjaPaths(targetDependencyOutputs(opts.Config, target, opts.BuildDir, variant, opts.Platform)),
-				Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaCustomCommand(opts.Platform, expanded)}},
+				Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaCustomCommand(expanded)}},
 			})
 		}
 		return expanded.Outputs, nil
@@ -345,7 +345,7 @@ touch "$6"`
 	*file = append(*file, ninja.Build{
 		Rule: "custom", In: []string{module, ninjaPathLocal(source)}, Out: []string{stamp},
 		OutImplicit: ninjaPaths([]string{bundle.Binary, bundle.InfoPlist, bundle.PkgInfo}),
-		Vars: ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaShellCommand(opts.Platform, []string{
+		Vars: ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaShellCommand([]string{
 			"sh", "-c", script, "bundle", NinjaPath(source), NinjaPath(bundle.InfoPlist), NinjaPath(bundle.PkgInfo),
 			NinjaPath(bundle.Dir), bundle.Sign, NinjaPath(stamp), NinjaPath(bundle.Binary), NinjaPath(bundle.Module),
 		})}},
@@ -354,10 +354,12 @@ touch "$6"`
 }
 
 // ninjaCustomCommand returns a custom target's command line, run in its
-// working directory and with its standard output redirected when set.
-func ninjaCustomCommand(platform toolchain.Platform, target config.Target) string {
-	command := ninjaShellCommand(platform, target.Command)
-	quote := func(path string) string { return ninjaShellCommand(platform, []string{NinjaPath(path)}) }
+// working directory and with its standard output redirected when set. It is
+// for the host's shell, which runs Ninja, also when cross-compiling.
+func ninjaCustomCommand(target config.Target) string {
+	platform := toolchain.HostPlatform()
+	command := ninjaShellCommand(target.Command)
+	quote := func(path string) string { return ninjaShellCommand([]string{NinjaPath(path)}) }
 	if target.Stdout != "" {
 		stdout := target.Stdout
 		if target.WorkDir != "" {
@@ -392,15 +394,16 @@ func ninjaCustomCommand(platform toolchain.Platform, target config.Target) strin
 }
 
 // ninjaShellCommand quotes a custom target's argument vector for the ninja
-// command line (sh on Unix, CreateProcess on Windows).
-func ninjaShellCommand(platform toolchain.Platform, command []string) string {
+// command line on the host (sh on Unix, CreateProcess on Windows).
+func ninjaShellCommand(command []string) string {
+	windows := toolchain.HostPlatform().OS == "windows"
 	quoteLine := func(line string) string {
 		return "'" + strings.ReplaceAll(line, "'", `'\''`) + "'"
 	}
 	quoted := make([]string, len(command))
 	for index, argument := range command {
 		switch {
-		case platform.OS == "windows":
+		case windows:
 			quoted[index] = toolchain.QuoteResponseFileArg(argument)
 		case strings.Contains(argument, "\n"):
 			// A ninja command is a single line, so multi-line arguments (such as
