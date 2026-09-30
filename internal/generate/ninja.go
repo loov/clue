@@ -24,6 +24,7 @@ type NinjaOptions struct {
 	OutputPath string             // Output file path (default: build.ninja)
 	Toolchain  string             // "clang" or "gcc"
 	Platform   toolchain.Platform // Target platform
+	Clue       string             // clue executable the build calls (default: this one)
 }
 
 // Ninja creates a build.ninja file for the project
@@ -116,11 +117,17 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 
 	// Variables
 	file = append(file, ninja.Comment{Lines: []string{"Build configuration"}})
-	file = append(file, ninja.Var{Key: "builddir", Val: ".ninja_build"})
+	file = append(file, ninja.Var{Key: "builddir", Val: ninja.Escape(NinjaPath(opts.BuildDir))})
 	file = append(file, ninja.Var{Key: "cc", Val: ninjaToolCommand(toolchain, toolchain.CC())})
 	file = append(file, ninja.Var{Key: "cxx", Val: ninjaToolCommand(toolchain, toolchain.CXX())})
 	file = append(file, ninja.Var{Key: "ar", Val: ninjaToolCommand(toolchain, toolchain.AR())})
-	file = append(file, ninja.Var{Key: "clue", Val: "clue"})
+	if opts.Clue == "" {
+		opts.Clue = "clue"
+		if executable, err := os.Executable(); err == nil {
+			opts.Clue = executable
+		}
+	}
+	file = append(file, ninja.Var{Key: "clue", Val: ninjaShellCommand(opts.Platform, []string{opts.Clue})})
 	if toolchain.Name() == "msvc" {
 		linker := plan.Link(toolchain, opts.Platform, plan.LinkOptions{}).Tool
 		file = append(file, ninja.Var{Key: "link", Val: ninjaToolCommand(toolchain, linker)})

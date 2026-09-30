@@ -84,9 +84,11 @@ func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform
 
 	outputPath := filepath.Join(dir, "build.ninja")
 	err := generate.Ninja(ctx, generate.NinjaOptions{
-		Config:     cfg,
-		Variants:   variants,
-		BuildDir:   cfg.BuildDir,
+		Config:   cfg,
+		Variants: variants,
+		// Ninja keeps its outputs apart from "clue build", whose cache it does
+		// not share, so switching between them does not rebuild everything.
+		BuildDir:   filepath.Join(cfg.BuildDir, "ninja"),
 		OutputPath: outputPath,
 		Toolchain:  cfg.Toolchain.Compiler,
 		Platform:   platform,

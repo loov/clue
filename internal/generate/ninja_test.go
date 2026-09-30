@@ -1083,6 +1083,22 @@ func TestNinjaShellCommand_KeepsMultilineArgumentsOnOneLine(t *testing.T) {
 	}
 }
 
+func TestNinja_CallsTheGeneratingClueAndKeepsItsLogInTheBuildDir(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build/ninja", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}, Clue: "/opt/my tools/clue",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"clue = '/opt/my tools/clue'", "builddir = .build/ninja", "build .build/ninja/debug/bin/app:"} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("Ninja output missing %q:\n%s", want, output.String())
+		}
+	}
+}
+
 func TestNinja_DependencyTargetsShareFetchOutputs(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(`targets: {
