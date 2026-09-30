@@ -120,6 +120,7 @@ type Target struct {
 	LTO              *bool
 	PIC              *bool
 	Coverage         *bool
+	Visibility       string // "default" or "hidden"; empty leaves the compiler default
 	Test             *Test
 	Unity            *UnityBuild
 }

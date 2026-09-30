@@ -15,4 +15,5 @@ type Flags struct {
 	LTO        bool     // Link-time optimization
 	PIC        bool     // Position-independent code
 	Coverage   bool     // Code coverage instrumentation
+	Visibility string   // symbol visibility: "" (compiler default), "default" or "hidden"
 }

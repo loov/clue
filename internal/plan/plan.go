@@ -83,7 +83,7 @@ func targetConfig(target config.Target, variant config.Variant) toolchain.Flags 
 	cfg := toolchain.Flags{
 		Optimize: variant.Optimization, Warnings: "default", WarningsAsErrors: true,
 		Debug: "none", RawCompiler: target.Flags.Compiler, RawLinker: target.Flags.Linker,
-		Sanitizers: append([]string(nil), target.Sanitizers...),
+		Sanitizers: append([]string(nil), target.Sanitizers...), Visibility: target.Visibility,
 	}
 	if target.LTO != nil {
 		cfg.LTO = *target.LTO

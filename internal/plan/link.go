@@ -20,14 +20,13 @@ type LinkOptions struct {
 
 // SharedLibraryOptions holds options for linking a shared library.
 type SharedLibraryOptions struct {
-	Objects          []string        // Object files to link
-	Output           string          // Output .so/.dylib path
-	SysLibs          []string        // System libraries (pthread, m, dl)
-	LibPaths         []string        // Library search paths (-L)
-	Libs             []string        // Additional libraries to link
-	Flags            toolchain.Flags // For raw linker flags and debug info
-	SymbolVisibility string          // "default" or "hidden"
-	UseCXX           bool            // Use the C++ driver when the link graph contains C++
+	Objects  []string        // Object files to link
+	Output   string          // Output .so/.dylib path
+	SysLibs  []string        // System libraries (pthread, m, dl)
+	LibPaths []string        // Library search paths (-L)
+	Libs     []string        // Additional libraries to link
+	Flags    toolchain.Flags // For raw linker flags and debug info
+	UseCXX   bool            // Use the C++ driver when the link graph contains C++
 }
 
 // ArchiveOptions holds options for creating a static library.
@@ -86,9 +85,6 @@ func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts Shared
 		args = append(args, "-install_name", "@rpath/"+libName)
 	case "linux":
 		args = append(args, "-Wl,-soname,"+libName)
-	}
-	if opts.SymbolVisibility == "hidden" {
-		args = append(args, "-fvisibility=hidden")
 	}
 	args = append(args, gnuLibraries(tc, platform, opts.LibPaths, opts.Libs, opts.SysLibs)...)
 	args = append(args, tc.LinkerFlags(opts.Flags, nil)...)

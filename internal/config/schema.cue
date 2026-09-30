@@ -50,6 +50,9 @@ package config
 	lto?: bool
 	pic?: bool
 	coverage?: bool
+	// Symbol visibility of the target's code (-fvisibility); "hidden" exports
+	// only what the sources mark as exported
+	visibility?: "default" | "hidden"
 
 	// Compiler/linker flags (raw flags for escape hatch)
 	flags?: {
@@ -83,6 +86,7 @@ package config
 	debug?: "none" | "minimal" | "full"
 	pic?: bool
 	lto?: bool
+	visibility?: "default" | "hidden"
 	flags?: {
 		compiler?: [...string]
 		linker?: [...string]

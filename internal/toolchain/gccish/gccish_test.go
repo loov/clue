@@ -366,3 +366,14 @@ func TestSanitizerFlags_EmptyInputReturnsNoFlags(t *testing.T) {
 func containsFlag(flags []string, flag string) bool {
 	return slices.Contains(flags, flag)
 }
+
+func TestCompilerFlags_Visibility(t *testing.T) {
+	tc := New("clang", "clang", "clang++", "ar", toolchain.Platform{OS: "darwin", Arch: "arm64"})
+	if flags := tc.CompilerFlags(toolchain.Flags{Visibility: "hidden"}); !slices.Contains(flags, "-fvisibility=hidden") {
+		t.Fatalf("flags = %q", flags)
+	}
+	windows := New("clang", "clang", "clang++", "ar", toolchain.Platform{OS: "windows", Arch: "amd64"})
+	if flags := windows.CompilerFlags(toolchain.Flags{Visibility: "hidden"}); slices.Contains(flags, "-fvisibility=hidden") {
+		t.Fatalf("windows flags = %q", flags)
+	}
+}

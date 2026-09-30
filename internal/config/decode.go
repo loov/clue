@@ -235,6 +235,7 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.LTO = extractOptionalBool(val, "lto")
 	t.PIC = extractOptionalBool(val, "pic")
 	t.Coverage = extractOptionalBool(val, "coverage")
+	t.Visibility = extractOptionalString(val, "visibility")
 
 	return t, nil
 }
@@ -497,6 +498,7 @@ func applyTargetDefaults(target, defaults Target) Target {
 		{&target.Optimize, &defaults.Optimize},
 		{&target.Warnings, &defaults.Warnings},
 		{&target.Debug, &defaults.Debug},
+		{&target.Visibility, &defaults.Visibility},
 	} {
 		if *field.own == "" {
 			*field.own = *field.base

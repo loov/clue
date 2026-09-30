@@ -155,6 +155,11 @@ func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 		flags = append(flags, "-fPIC")
 	}
 
+	// Symbols of shared objects are exported unless hidden
+	if config.Visibility != "" && t.target.OS != "windows" {
+		flags = append(flags, "-fvisibility="+config.Visibility)
+	}
+
 	// Append raw compiler flags
 	flags = append(flags, config.RawCompiler...)
 

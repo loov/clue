@@ -363,14 +363,13 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 
 		useCXX := dependencyPlan.UsesCXX
 		sharedOpts := plan.SharedLibraryOptions{
-			Objects:          append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
-			Output:           outputPath,
-			SysLibs:          append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
-			LibPaths:         dependencyPlan.LibraryPaths,
-			Libs:             dependencyPlan.Libraries,
-			Flags:            buildCfg,
-			SymbolVisibility: "default", // Could be configurable via target config later
-			UseCXX:           useCXX,
+			Objects:  append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
+			Output:   outputPath,
+			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
+			LibPaths: dependencyPlan.LibraryPaths,
+			Libs:     dependencyPlan.Libraries,
+			Flags:    buildCfg,
+			UseCXX:   useCXX,
 		}
 		linkInvocation := plan.LinkShared(b.toolchain, b.target, sharedOpts)
 		fingerprint, err := linkFingerprint(b.toolchain, linkInvocation.Tool, sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))

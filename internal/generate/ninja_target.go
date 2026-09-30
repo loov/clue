@@ -244,7 +244,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		invocation := plan.LinkShared(tc, opts.Platform, plan.SharedLibraryOptions{
 			Objects: argumentInputs, Output: argumentOutput, SysLibs: systemLibraries,
 			LibPaths: ninjaMSVCLibraryPaths(tc), Flags: flags,
-			SymbolVisibility: "default", UseCXX: dependencyPlan.UsesCXX,
+			UseCXX: dependencyPlan.UsesCXX,
 		})
 		rule := "link_shared_c"
 		if dependencyPlan.UsesCXX {

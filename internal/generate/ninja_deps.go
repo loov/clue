@@ -126,7 +126,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			invocation := plan.LinkShared(tc, opts.Platform, plan.SharedLibraryOptions{
 				Objects: ninjaArgumentPaths(inputs), Output: NinjaPath(rawOutput),
 				LibPaths: ninjaMSVCLibraryPaths(tc), Flags: flags, SysLibs: append(slices.Clone(resolved.SysLibs), dependencyUsage.SysLibs...),
-				SymbolVisibility: "default", UseCXX: sourcesUseCXX(sources),
+				UseCXX: sourcesUseCXX(sources),
 			})
 			rule := "link_shared_c"
 			if sourcesUseCXX(sources) {
