@@ -46,7 +46,7 @@ func detectModuleSources(sources []string) ([]string, error) {
 }
 
 func isModuleSource(path string) (bool, error) {
-	if !toolchain.IsCXXSource(path) {
+	if !toolchain.IsCXXSource(path) || toolchain.IsObjectiveCSource(path) {
 		return false, nil
 	}
 	if isModuleExtension(path) {

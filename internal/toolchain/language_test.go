@@ -20,3 +20,12 @@ func TestIsAssemblySource_RecognizesLowerAndUppercaseExtensions(t *testing.T) {
 		}
 	}
 }
+
+func TestObjectiveCSources_UseTheMatchingDriver(t *testing.T) {
+	if !IsSource("a.m") || IsCXXSource("a.m") || !IsObjectiveCSource("a.m") {
+		t.Error("a.m must be an Objective-C source compiled as C")
+	}
+	if !IsSource("a.mm") || !IsCXXSource("a.mm") || !IsObjectiveCSource("a.mm") {
+		t.Error("a.mm must be an Objective-C++ source compiled as C++")
+	}
+}

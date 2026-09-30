@@ -6,9 +6,10 @@ import (
 )
 
 // IsCXXSource reports whether a source file uses the C++ compiler.
+// Objective-C++ (.mm) counts as C++: it uses the C++ driver and standard.
 func IsCXXSource(source string) bool {
 	ext := filepath.Ext(source)
-	if ext == ".C" {
+	if ext == ".C" || ext == ".mm" {
 		return true
 	}
 	switch strings.ToLower(ext) {
@@ -25,7 +26,14 @@ func IsAssemblySource(source string) bool {
 	return ext == ".s" || ext == ".S"
 }
 
+// IsObjectiveCSource reports whether a source is Objective-C (.m) or Objective-C++ (.mm).
+func IsObjectiveCSource(source string) bool {
+	ext := filepath.Ext(source)
+	return ext == ".m" || ext == ".mm"
+}
+
 // IsSource reports whether a file is a supported compilable source.
 func IsSource(source string) bool {
-	return filepath.Ext(source) == ".c" || IsCXXSource(source) || IsAssemblySource(source)
+	ext := filepath.Ext(source)
+	return ext == ".c" || ext == ".m" || IsCXXSource(source) || IsAssemblySource(source)
 }

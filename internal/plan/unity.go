@@ -90,7 +90,7 @@ func PrepareUnityTarget(target config.Target, buildDir, variant string) (config.
 }
 
 func unityLanguage(source string, excluded bool) (string, error) {
-	if excluded {
+	if excluded || toolchain.IsObjectiveCSource(source) {
 		return "", nil
 	}
 	if filepath.Ext(source) == ".c" {
