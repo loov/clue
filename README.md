@@ -105,6 +105,27 @@ toolchain: {
 }
 ```
 
+The `zig` toolchain cross-compiles without a sysroot: Zig brings libc and libc++ for
+`linux-amd64`, `linux-arm64`, `windows-amd64`, `windows-arm64` and `wasi-wasm32`
+(`clue build --target wasi-wasm32`). Each target builds into its own `<buildDir>/<os>-<arch>` and
+Ninja file `build.<os>-<arch>.ninja`. `_target` in `clue.cue`, and `clue.target` in packages that
+import `"loov.dev/clue"`, is the platform being built, and `emulator` runs cross-built programs for
+`clue test` and `clue run`:
+
+```cue
+toolchain: {
+    compiler: [if _target.os == "darwin" {"clang"}, "zig"][0]
+    if _target.os == "wasi" {emulator: ["wasmtime", "run", "--dir=/"]}
+    if _target.os == "linux" {
+        emulator: ["podman", "run", "--rm", "--platform", "linux/\(_target.arch)",
+            "-v", "\(_project.dir):\(_project.dir)", "-w", _project.dir, "debian:stable-slim"]
+    }
+}
+```
+
+On WASI, executables and bundles are `.wasm` files; a bundle or shared library is a reactor module
+with the listed `exports`, and Zig's libc++ is used without exceptions (`-fno-exceptions`).
+
 ## Commands
 
 - `clue validate` - Validate configuration and check dependencies
@@ -381,8 +402,10 @@ The build fingerprint of a custom target is kept in the build directory, not bes
 
 A `bundle` target links a loadable module. On macOS it is linked with `-bundle` and placed in
 `<dir>/<name>.<extension>/Contents/MacOS/<name>` with `Info.plist` and `PkgInfo`, and the bundle is
-signed; elsewhere the module is `<dir>/<name>.<extension>`. `exports` keeps the listed C symbols
-even when only static libraries define them, and exports only those:
+signed; elsewhere the module is `<dir>/<name>.<extension>`, or with `layout: "vst3"` the VST3 bundle
+folder `<dir>/<name>.vst3/Contents/<arch>-linux/<name>.so` (`<arch>-win/<name>.vst3` on Windows).
+`exports` keeps the listed C symbols even when only static libraries define them, and exports only
+those:
 
 ```cue
 targets: plugin: {
