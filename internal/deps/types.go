@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"cuelang.org/go/cue"
 )
 
 // Dependency represents a generic external dependency
@@ -18,6 +20,9 @@ type Dependency interface {
 	InlineBuild() *InlineConfig
 	BuildTarget() string
 	ConfigFile() string
+	// Description returns the build description given with the dependency
+	// (its defaults and targets), or a value that does not exist.
+	Description() cue.Value
 	Validate() error
 }
 
@@ -58,6 +63,7 @@ func (p *PkgConfigDependency) CachePath(string) string    { return "" }
 func (p *PkgConfigDependency) InlineBuild() *InlineConfig { return nil }
 func (p *PkgConfigDependency) BuildTarget() string        { return "" }
 func (p *PkgConfigDependency) ConfigFile() string         { return "" }
+func (p *PkgConfigDependency) Description() cue.Value     { return cue.Value{} }
 func (p *PkgConfigDependency) Validate() error {
 	if p.name == "" {
 		return fmt.Errorf("pkg-config dependency: name is required")
@@ -75,7 +81,8 @@ type GitDependency struct {
 	Ref         string
 	Submodules  []string // submodule paths to check out; nil checks out all of them
 	TargetName  string
-	File        string // project clue file describing the build, instead of the dependency's clue.cue
+	File        string    // project clue file describing the build, instead of the dependency's clue.cue
+	Spec        cue.Value // build description given with the dependency (defaults, targets)
 	BuildConfig *InlineConfig
 }
 
@@ -111,6 +118,7 @@ func (g *GitDependency) CachePath(baseDir string) string {
 func (g *GitDependency) InlineBuild() *InlineConfig { return g.BuildConfig }
 func (g *GitDependency) BuildTarget() string        { return g.TargetName }
 func (g *GitDependency) ConfigFile() string         { return g.File }
+func (g *GitDependency) Description() cue.Value     { return g.Spec }
 
 // Validate checks that required fields are set
 func (g *GitDependency) Validate() error {
@@ -140,7 +148,8 @@ type TarballDependency struct {
 	Checksum    string
 	StripPrefix string
 	TargetName  string
-	File        string // project clue file describing the build, instead of the dependency's clue.cue
+	File        string    // project clue file describing the build, instead of the dependency's clue.cue
+	Spec        cue.Value // build description given with the dependency (defaults, targets)
 	BuildConfig *InlineConfig
 }
 
@@ -182,6 +191,7 @@ func (t *TarballDependency) CachePath(baseDir string) string {
 func (t *TarballDependency) InlineBuild() *InlineConfig { return t.BuildConfig }
 func (t *TarballDependency) BuildTarget() string        { return t.TargetName }
 func (t *TarballDependency) ConfigFile() string         { return t.File }
+func (t *TarballDependency) Description() cue.Value     { return t.Spec }
 
 // Validate checks that required fields are set
 func (t *TarballDependency) Validate() error {
@@ -211,7 +221,8 @@ type VendoredDependency struct {
 	name        string
 	Path        string
 	TargetName  string
-	File        string // project clue file describing the build, instead of the dependency's clue.cue
+	File        string    // project clue file describing the build, instead of the dependency's clue.cue
+	Spec        cue.Value // build description given with the dependency (defaults, targets)
 	BuildConfig *InlineConfig
 }
 
@@ -242,6 +253,7 @@ func (v *VendoredDependency) CachePath(_ string) string {
 func (v *VendoredDependency) InlineBuild() *InlineConfig { return v.BuildConfig }
 func (v *VendoredDependency) BuildTarget() string        { return v.TargetName }
 func (v *VendoredDependency) ConfigFile() string         { return v.File }
+func (v *VendoredDependency) Description() cue.Value     { return v.Spec }
 
 // Validate checks that required fields are set
 func (v *VendoredDependency) Validate() error {

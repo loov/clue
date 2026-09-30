@@ -93,6 +93,13 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 		return config, nil
 	}
 
+	if description := dep.Description(); description.LookupPath(cue.ParsePath("targets")).Exists() {
+		config, err := buildConfigFromValue(description, sourcePath, dep.Name(), dep.BuildTarget())
+		if err != nil {
+			return BuildConfig{}, fmt.Errorf("dependency %q: %w", dep.Name(), err)
+		}
+		return config, nil
+	}
 	if file := dep.ConfigFile(); file != "" {
 		config, err := loadBuildConfig(file, sourcePath, dep.Name(), dep.BuildTarget())
 		if err != nil {
@@ -120,6 +127,12 @@ func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget stri
 	if err := value.Err(); err != nil {
 		return BuildConfig{}, fmt.Errorf("failed to parse clue.cue: %w", err)
 	}
+	return buildConfigFromValue(value, sourcePath, dependencyName, configuredTarget)
+}
+
+// buildConfigFromValue reads a build description: a value with targets and,
+// optionally, defaults, like a clue.cue. Paths are relative to sourcePath.
+func buildConfigFromValue(value cue.Value, sourcePath, dependencyName, configuredTarget string) (BuildConfig, error) {
 	targetsValue := value.LookupPath(cue.ParsePath("targets"))
 	if !targetsValue.Exists() {
 		return BuildConfig{}, fmt.Errorf("clue.cue has no targets")
@@ -314,17 +327,14 @@ func ConsumerUsage(dep Dependency, sourcePath string, config BuildConfig) (strin
 	return IncludePath(dep, sourcePath), config.Public
 }
 
-// DeclaredDepends returns the other dependencies a dependency builds against,
-// as far as they are known before it is fetched.
+// DeclaredDepends returns the other dependencies a dependency builds against:
+// those its description declares, or its checkout's clue.cue once fetched.
 func DeclaredDepends(dep Dependency) []string {
 	if inline := dep.InlineBuild(); inline != nil {
 		return inline.Depends
 	}
-	if dep.ConfigFile() != "" {
-		// A project file can be read before the dependency is fetched.
-		if config, err := ResolveBuildConfig(dep, dep.CachePath(".")); err == nil {
-			return config.Depends
-		}
+	if config, err := ResolveBuildConfig(dep, dep.CachePath(".")); err == nil {
+		return config.Depends
 	}
 	return nil
 }

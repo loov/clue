@@ -384,6 +384,9 @@ func (l *Loader) extractGitDependency(name string, val cue.Value) (*deps.GitDepe
 	dependency := deps.NewGitDependency(name, repo, ref, buildConfig)
 	dependency.TargetName = extractOptionalString(val, "target")
 	dependency.File = extractOptionalString(val, "file")
+	if val.LookupPath(cue.ParsePath("targets")).Exists() {
+		dependency.Spec = val
+	}
 	if val.LookupPath(cue.ParsePath("submodules")).Exists() {
 		dependency.Submodules = append([]string{}, extractStringList(val, "submodules")...)
 	}
@@ -418,6 +421,9 @@ func (l *Loader) extractTarballDependency(name string, val cue.Value) (*deps.Tar
 	dependency := deps.NewTarballDependency(name, url, checksum, stripPrefix, buildConfig)
 	dependency.TargetName = extractOptionalString(val, "target")
 	dependency.File = extractOptionalString(val, "file")
+	if val.LookupPath(cue.ParsePath("targets")).Exists() {
+		dependency.Spec = val
+	}
 	return dependency, nil
 }
 
@@ -439,6 +445,9 @@ func (l *Loader) extractVendoredDependency(name string, val cue.Value) (*deps.Ve
 	dependency := deps.NewVendoredDependency(name, path, buildConfig)
 	dependency.TargetName = extractOptionalString(val, "target")
 	dependency.File = extractOptionalString(val, "file")
+	if val.LookupPath(cue.ParsePath("targets")).Exists() {
+		dependency.Spec = val
+	}
 	return dependency, nil
 }
 

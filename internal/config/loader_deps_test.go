@@ -620,3 +620,43 @@ targets: app: {name: "app", type: "executable", sources: ["{dep:sdk}/src/*.cpp"]
 		t.Fatalf("sources = %q, want %q", got, want)
 	}
 }
+
+func TestLoad_DependencyWithInlineDescription(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+name: "inline"
+dependencies: sdk: {
+	type: "git", repo: "https://example.com/sdk", ref: "v1"
+	target: "core"
+	defaults: flags: compiler: ["-fvisibility=hidden"]
+	targets: {
+		core: {type: "static_library", sources: ["core.cpp"], public: includes: ["include"]}
+		extra: {type: "static_library", sources: ["extra.cpp"], depends: ["sdk"]}
+	}
+}
+targets: app: {type: "executable", sources: ["main.cpp"], depends: ["sdk", "sdk:extra"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(dir, "checkout")
+	core, err := deps.ResolveBuildConfig(cfg.Dependencies["sdk"], source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(core.Sources, []string{"core.cpp"}) || !slices.Equal(core.CompilerFlags, []string{"-fvisibility=hidden"}) ||
+		!slices.Equal(core.Public.Includes, []string{filepath.Join(source, "include")}) {
+		t.Fatalf("sdk = %+v", core)
+	}
+	extra, err := deps.ResolveBuildConfig(cfg.Dependencies["sdk:extra"], source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(extra.Sources, []string{"extra.cpp"}) || !slices.Equal(extra.Depends, []string{"sdk"}) {
+		t.Fatalf("sdk:extra = %+v", extra)
+	}
+}

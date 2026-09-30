@@ -224,3 +224,17 @@ targets: lib: {
 		t.Fatalf("default language standards missing: %+v", config)
 	}
 }
+
+func TestDeclaredDepends_ReadsTheCheckoutsClueFile(t *testing.T) {
+	source := t.TempDir()
+	content := `targets: lib: {type: "static_library", sources: ["lib.c"], depends: ["base"]}`
+	if err := os.WriteFile(filepath.Join(source, "clue.cue"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "lib.c"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := DeclaredDepends(NewVendoredDependency("lib", source, nil)); !slices.Equal(got, []string{"base"}) {
+		t.Fatalf("DeclaredDepends = %q", got)
+	}
+}

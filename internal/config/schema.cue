@@ -187,6 +187,14 @@ package config
 	}
 }
 
+// How to build a dependency, given with it: like a clue.cue of the dependency,
+// with paths relative to its checkout. "target" selects the library the
+// dependency's name refers to; "<dependency>:<target>" refers to the others.
+#Description: {
+	defaults?: #TargetDefaults
+	targets?: [string]: #Target
+}
+
 // Git repository dependency
 #GitDependency: {
 	type: "git"
@@ -199,6 +207,7 @@ package config
 	// paths relative to the dependency; used instead of its own clue.cue.
 	file?: string
 	build?: #InlineBuildConfig
+	#Description
 }
 
 // Tarball dependency
@@ -212,6 +221,7 @@ package config
 	// paths relative to the dependency; used instead of its own clue.cue.
 	file?: string
 	build?: #InlineBuildConfig
+	#Description
 }
 
 // Vendored dependency
@@ -223,6 +233,7 @@ package config
 	// paths relative to the dependency; used instead of its own clue.cue.
 	file?: string
 	build?: #InlineBuildConfig
+	#Description
 }
 
 // System dependency discovered through pkg-config
