@@ -218,6 +218,7 @@ type BundleSettings struct {
 	InfoPlist  string // Info.plist to copy into the bundle (macOS)
 	Identifier string // CFBundleIdentifier of a generated Info.plist (macOS)
 	Sign       string // codesign identity (macOS); "-" signs ad hoc, "" not at all
+	Layout     string // "file" (default) or "vst3": the VST3 bundle folder on Linux and Windows
 }
 
 // Override replaces source fields of a dependency; empty fields keep theirs.

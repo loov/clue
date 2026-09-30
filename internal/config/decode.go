@@ -258,6 +258,7 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 			Extension: extractOptionalString(bundle, "extension"), Name: extractOptionalString(bundle, "name"),
 			Dir: extractOptionalString(bundle, "dir"), InfoPlist: extractOptionalString(bundle, "infoPlist"),
 			Identifier: extractOptionalString(bundle, "identifier"), Sign: "-",
+			Layout: extractOptionalString(bundle, "layout"),
 		}
 		if sign := bundle.LookupPath(cue.ParsePath("sign")); sign.Exists() {
 			if enabled, err := sign.Bool(); err == nil {

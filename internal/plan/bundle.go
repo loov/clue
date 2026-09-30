@@ -23,7 +23,9 @@ type Bundle struct {
 
 // BundleLayout returns where a bundle target's files go. On macOS the module
 // is linked in the build directory and copied to Contents/MacOS/<name> inside
-// <dir>/<name>.<extension>; elsewhere it is linked as <dir>/<name>.<extension>.
+// <dir>/<name>.<extension>; elsewhere it is linked as <dir>/<name>.<extension>,
+// or, with the "vst3" layout on Linux and Windows, as
+// <dir>/<name>.<extension>/Contents/<arch>-<os>/<name>.so (.vst3 on Windows).
 func BundleLayout(target config.Target, buildDir, variant string, platform toolchain.Platform) Bundle {
 	settings := target.Bundle
 	name := settings.Name
@@ -41,6 +43,11 @@ func BundleLayout(target config.Target, buildDir, variant string, platform toolc
 	}
 	if platform.OS != "darwin" {
 		bundle.Module, bundle.Binary = bundle.Dir, bundle.Dir
+		if settings.Layout == "vst3" && (platform.OS == "linux" || platform.OS == "windows") {
+			// The VST3 bundle folder: Contents/<architecture>-<os>/<name><suffix>.
+			bundle.Module = filepath.Join(bundle.Dir, "Contents", vst3Architecture(platform), name+vst3Suffix(platform))
+			bundle.Binary = bundle.Module
+		}
 		return bundle
 	}
 	// Signing changes the file, so the bundle gets a copy of the linked module:
@@ -93,4 +100,26 @@ func BundleInfoPlist(target config.Target, version string) (string, error) {
 	}
 	plist.WriteString("</dict>\n</plist>\n")
 	return plist.String(), nil
+}
+
+// vst3Architecture names a platform's folder in a VST3 bundle.
+func vst3Architecture(platform toolchain.Platform) string {
+	switch {
+	case platform.OS == "windows" && platform.Arch == "amd64":
+		return "x86_64-win"
+	case platform.OS == "windows" && platform.Arch == "arm64":
+		return "arm64-win"
+	case platform.Arch == "amd64":
+		return "x86_64-" + platform.OS
+	case platform.Arch == "arm64":
+		return "aarch64-" + platform.OS
+	}
+	return platform.Arch + "-" + platform.OS
+}
+
+func vst3Suffix(platform toolchain.Platform) string {
+	if platform.OS == "windows" {
+		return ".vst3"
+	}
+	return ".so"
 }

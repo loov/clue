@@ -87,7 +87,10 @@ package config
 	// and signed; elsewhere the module is <dir>/<name>.<extension>
 	if type == "bundle" {
 		bundle: {
-			extension: string & =~"^[a-zA-Z0-9]+$"
+			extension: string & =~"^[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*$" // such as "clap" or "wclap.wasm"
+			// "vst3": on Linux and Windows the module goes in
+			// <name>.<extension>/Contents/<arch>-<os>/, as VST3 hosts expect
+			layout?: *"file" | "vst3"
 			name?:       string
 			dir?:        string // may use {variant} and {buildDir}; defaults to {buildDir}
 			infoPlist?:  string // Info.plist to copy; may use {variant} and {buildDir}
