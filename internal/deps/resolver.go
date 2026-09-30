@@ -42,11 +42,9 @@ func (r *Resolver) BuildOrder() ([]string, error) {
 	// Dependencies can only depend on other *configured* dependencies.
 	hasEdges := false
 	for name, dep := range r.dependencies {
-		inlineConfig := dep.InlineBuild()
-
 		// If dependency has depends field, add edges
-		if inlineConfig != nil && len(inlineConfig.Depends) > 0 {
-			for _, depName := range inlineConfig.Depends {
+		if depends := DeclaredDepends(dep); len(depends) > 0 {
+			for _, depName := range depends {
 				// Verify the dependency exists
 				if _, exists := r.dependencies[depName]; !exists {
 					return nil, fmt.Errorf("dependency %q depends on unknown dependency %q", name, depName)

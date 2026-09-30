@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ type depBuildOptions struct {
 	CStd         string             // C language standard
 	CXXStd       string             // C++ language standard
 	Optimization string             // Active variant optimization
+	Defines      []string           // Active variant defines
 	Verbosity    Verbosity          // Verbosity level (quiet/normal/verbose)
 	ForceRebuild bool               // Force dependency sources to rebuild
 }
@@ -69,10 +71,10 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	if err != nil {
 		return nil, err
 	}
-	includePath := deps.IncludePath(dep, sourcePath)
+	includePath, usage := deps.ConsumerUsage(dep, sourcePath, *cfg)
 	if cfg.Type == "header_only" {
 		return &depBuildResult{
-			Name: dep.Name(), Type: cfg.Type, IncludePath: includePath,
+			Name: dep.Name(), Type: cfg.Type, IncludePath: includePath, Usage: usage,
 			Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
 	}
@@ -86,7 +88,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			return nil, fmt.Errorf("prebuilt library %q is not a regular file", library)
 		}
 		return &depBuildResult{
-			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath,
+			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath, Usage: usage,
 			Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
 	}
@@ -115,9 +117,13 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			return nil, fmt.Errorf("external build output %q is not a regular file", library)
 		}
 		return &depBuildResult{
-			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath,
+			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath, Usage: usage,
 			Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
+	}
+
+	if len(cfg.Sources) == 0 {
+		return nil, fmt.Errorf("dependency %q has no sources to build", dep.Name())
 	}
 
 	// Print progress (collapsed output)
@@ -137,7 +143,11 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}
 
 	// Determine include path for compilation
-	compilationIncludes := append(cfg.Includes, includePath)
+	compilationIncludes := append(cfg.Includes, deps.IncludePath(dep, sourcePath))
+	warnings := cfg.Warnings
+	if warnings == "" {
+		warnings = "default"
+	}
 
 	// Compile each source file to object file
 	var objectFiles []string
@@ -157,10 +167,10 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Source:   absPath,
 			Output:   objPath,
 			Includes: compilationIncludes,
-			Defines:  cfg.Defines,
+			Defines:  append(slices.Clone(cfg.Defines), opts.Defines...),
 			Flags: toolchain.Flags{
 				Optimize:         optimization,
-				Warnings:         "default",
+				Warnings:         warnings,
 				WarningsAsErrors: false, // Don't fail dependency builds on warnings
 				Debug:            "none",
 				RawCompiler:      cfg.CompilerFlags,
@@ -289,6 +299,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		Type:        cfg.Type,
 		LibPath:     libPath,
 		IncludePath: includePath,
+		Usage:       usage,
 		Depends:     cfg.Depends,
 		SourceCount: len(cfg.Sources),
 		Duration:    time.Since(start),

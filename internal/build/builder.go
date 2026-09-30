@@ -350,6 +350,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 			CStd:         opts.Config.Toolchain.CStd,
 			CXXStd:       opts.Config.Toolchain.CXXStd,
 			Optimization: opts.Config.ActiveVariant.Optimization,
+			Defines:      opts.Config.ActiveVariant.Defines,
 			Verbosity:    opts.Verbosity,
 			ForceRebuild: opts.ForceRebuild,
 		}

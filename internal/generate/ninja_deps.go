@@ -51,9 +51,14 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
 		includes := append(resolved.Includes, dependencyUsage.Includes...)
-		depTarget := config.Target{Name: name, Defines: append(resolved.Defines, dependencyUsage.Defines...)}
-		buildCfg := toolchain.Flags{Optimize: variantConfig.Optimization, Warnings: "default"}
-		buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyUsage.CompilerFlags...)
+		defines := append(append(resolved.Defines, dependencyUsage.Defines...), variantConfig.Defines...)
+		depTarget := config.Target{Name: name, Defines: defines}
+		warnings := resolved.Warnings
+		if warnings == "" {
+			warnings = "default"
+		}
+		buildCfg := toolchain.Flags{Optimize: variantConfig.Optimization, Warnings: warnings}
+		buildCfg.RawCompiler = append(slices.Clone(resolved.CompilerFlags), dependencyUsage.CompilerFlags...)
 		if buildCfg.Optimize == "" {
 			buildCfg.Optimize = "none"
 		}
@@ -207,7 +212,16 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 			mergeDependencyUsage(&usage, resolved)
 			return nil
 		}
-		usage.Includes = append(usage.Includes, deps.IncludePath(current, current.CachePath(".")))
+		resolved, _ := deps.ResolveBuildConfig(current, current.CachePath("."))
+		if current == dep {
+			usage.Includes = append(usage.Includes, deps.IncludePath(current, current.CachePath(".")))
+		} else {
+			include, public := deps.ConsumerUsage(current, current.CachePath("."), resolved)
+			if include != "" {
+				usage.Includes = append(usage.Includes, include)
+			}
+			mergeDependencyUsage(&usage, public)
+		}
 		for _, name := range dependencyDepends(current) {
 			if child, ok := cfg.Dependencies[name]; ok {
 				if err := visit(child); err != nil {
@@ -248,9 +262,10 @@ func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc too
 		if err != nil {
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
+		include, usage := deps.ConsumerUsage(dependency, dependency.CachePath("."), build)
 		resolved[name] = plan.ExternalDependency{
 			Name: name, Type: build.Type, Output: dependencyOutputPath(buildDir, variant, dependency, platform),
-			Include: deps.IncludePath(dependency, dependency.CachePath(".")), Depends: build.Depends,
+			Include: include, Usage: usage, Depends: build.Depends,
 			RequiresCXX: sourcesUseCXX(build.Sources),
 		}
 		roots = append(roots, name)

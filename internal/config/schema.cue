@@ -137,6 +137,9 @@ package config
 	// Submodule paths to check out (shallow); all of them when omitted.
 	submodules?: [...string]
 	target?: string
+	// A clue file in this project describing how to build the dependency, with
+	// paths relative to the dependency; used instead of its own clue.cue.
+	file?: string
 	build?: #InlineBuildConfig
 }
 
@@ -147,6 +150,9 @@ package config
 	checksum: string & =~"^[a-f0-9]{64}$"  // SHA256 hex
 	stripPrefix?: string
 	target?: string
+	// A clue file in this project describing how to build the dependency, with
+	// paths relative to the dependency; used instead of its own clue.cue.
+	file?: string
 	build?: #InlineBuildConfig
 }
 
@@ -155,6 +161,9 @@ package config
 	type: "vendored"
 	path: string
 	target?: string
+	// A clue file in this project describing how to build the dependency, with
+	// paths relative to the dependency; used instead of its own clue.cue.
+	file?: string
 	build?: #InlineBuildConfig
 }
 

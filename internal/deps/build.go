@@ -22,6 +22,10 @@ type BuildConfig struct {
 	CompilerFlags []string
 	LinkerFlags   []string
 	Type          string
+	Warnings      string // semantic warning level; empty means "default"
+	// Public holds what consumers inherit. Includes are absolute or relative to
+	// the project; when empty, consumers get IncludePath instead.
+	Public Usage
 }
 
 // ResolveBuildConfig resolves an inline dependency build or its clue.cue file.
@@ -46,6 +50,13 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 		}, nil
 	}
 
+	if file := dep.ConfigFile(); file != "" {
+		config, err := loadBuildConfig(file, sourcePath, dep.Name(), dep.BuildTarget())
+		if err != nil {
+			return BuildConfig{}, fmt.Errorf("failed to load %s: %w", file, err)
+		}
+		return config, nil
+	}
 	clueFile := filepath.Join(sourcePath, "clue.cue")
 	if _, err := os.Stat(clueFile); err != nil {
 		return BuildConfig{}, fmt.Errorf("no build configuration for dependency %q: no inline config and no clue.cue found", dep.Name())
@@ -100,7 +111,8 @@ func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget stri
 		return BuildConfig{}, fmt.Errorf("clue.cue target %q not found; available targets: %v", targetName, names)
 	}
 
-	var sources, includes, defines, externalDepends []string
+	var sources, includes, defines, flags, externalDepends []string
+	var public Usage
 	seen := make(map[string]bool)
 	var collect func(string) error
 	collect = func(name string) error {
@@ -118,11 +130,16 @@ func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget stri
 			includes = append(includes, filepath.Join(sourcePath, include))
 		}
 		defines = append(defines, cueStrings(target, "defines")...)
-		if public := target.LookupPath(cue.ParsePath("public")); public.Exists() {
-			for _, include := range cueStrings(public, "includes") {
+		flags = append(flags, cueStrings(target, "flags.compiler")...)
+		if publicValue := target.LookupPath(cue.ParsePath("public")); publicValue.Exists() {
+			for _, include := range cueStrings(publicValue, "includes") {
 				includes = append(includes, filepath.Join(sourcePath, include))
+				public.Includes = append(public.Includes, filepath.Join(sourcePath, include))
 			}
-			defines = append(defines, cueStrings(public, "defines")...)
+			defines = append(defines, cueStrings(publicValue, "defines")...)
+			public.Defines = append(public.Defines, cueStrings(publicValue, "defines")...)
+			public.CompilerFlags = append(public.CompilerFlags, cueStrings(publicValue, "compilerFlags")...)
+			public.LinkerFlags = append(public.LinkerFlags, cueStrings(publicValue, "linkerFlags")...)
 		}
 		for _, dependency := range cueStrings(target, "depends") {
 			if err := collect(dependency); err != nil {
@@ -134,24 +151,30 @@ func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget stri
 	if err := collect(targetName); err != nil {
 		return BuildConfig{}, err
 	}
-	if len(sources) == 0 {
-		return BuildConfig{}, fmt.Errorf("clue.cue target %q has no sources", targetName)
-	}
-	sources, err = expandSourceGlobs(sources, sourcePath)
-	if err != nil {
-		return BuildConfig{}, fmt.Errorf("failed to expand source globs: %w", err)
-	}
 	targetType := "static_library"
 	if typeValue := targetValue.LookupPath(cue.ParsePath("type")); typeValue.Exists() {
 		targetType, _ = typeValue.String()
 	}
-	if targetType != "static_library" && targetType != "shared_library" {
-		return BuildConfig{}, fmt.Errorf("dependency target %q must be a static_library or shared_library", targetName)
+	warnings, _ := targetValue.LookupPath(cue.ParsePath("warnings")).String()
+	config := BuildConfig{
+		Includes: includes, Defines: defines, CompilerFlags: flags,
+		Depends: externalDepends, Type: targetType, Warnings: warnings, Public: public,
 	}
-	return BuildConfig{
-		Sources: sources, Includes: includes, Defines: defines,
-		Depends: externalDepends, Type: targetType,
-	}, nil
+	switch targetType {
+	case "interface_library":
+		config.Type = "header_only"
+		return config, nil
+	case "static_library", "shared_library":
+	default:
+		return BuildConfig{}, fmt.Errorf("dependency target %q must be a static_library, shared_library or interface_library", targetName)
+	}
+	// Sources may be empty here when the dependency is not fetched yet; the
+	// builders report that when they compile it.
+	config.Sources, err = expandSourceGlobs(sources, sourcePath)
+	if err != nil {
+		return BuildConfig{}, fmt.Errorf("failed to expand source globs: %w", err)
+	}
+	return config, nil
 }
 
 func cueStrings(value cue.Value, field string) []string {
@@ -195,6 +218,31 @@ func expandSourceGlobs(patterns []string, sourcePath string) ([]string, error) {
 		}
 	}
 	return result, nil
+}
+
+// ConsumerUsage returns the include root and usage a dependency passes to its
+// consumers: its public includes and defines when its build declares them,
+// otherwise the conventional include root.
+func ConsumerUsage(dep Dependency, sourcePath string, config BuildConfig) (string, Usage) {
+	if len(config.Public.Includes) > 0 {
+		return "", config.Public
+	}
+	return IncludePath(dep, sourcePath), config.Public
+}
+
+// DeclaredDepends returns the other dependencies a dependency builds against,
+// as far as they are known before it is fetched.
+func DeclaredDepends(dep Dependency) []string {
+	if inline := dep.InlineBuild(); inline != nil {
+		return inline.Depends
+	}
+	if dep.ConfigFile() != "" {
+		// A project file can be read before the dependency is fetched.
+		if config, err := ResolveBuildConfig(dep, dep.CachePath(".")); err == nil {
+			return config.Depends
+		}
+	}
+	return nil
 }
 
 // IncludePath returns the public include root for a dependency.

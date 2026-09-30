@@ -110,3 +110,53 @@ func TestIncludePath_DerivesRootFromConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveBuildConfig_UsesProjectBuildFile(t *testing.T) {
+	source := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(source, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "src", "a.cpp"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "sdk.cue")
+	content := `
+targets: sdk: {
+	type:    "static_library"
+	sources: ["src/*.cpp"]
+	warnings: "off"
+	flags: compiler: ["-fno-rtti"]
+	depends: ["base", "other"]
+	public: {includes: ["include"], defines: ["SDK=1"]}
+}
+targets: base: {type: "interface_library", public: includes: ["base"]}
+targets: headers: {type: "interface_library", public: includes: ["h"]}
+`
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dep := NewGitDependency("sdk", "https://example.com/sdk", "v1", nil)
+	dep.File = file
+	config, err := ResolveBuildConfig(dep, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(config.Sources, []string{filepath.Join("src", "a.cpp")}) || config.Warnings != "off" ||
+		!slices.Equal(config.CompilerFlags, []string{"-fno-rtti"}) || !slices.Equal(config.Depends, []string{"other"}) {
+		t.Fatalf("config = %+v", config)
+	}
+	include, usage := ConsumerUsage(dep, source, config)
+	wantIncludes := []string{filepath.Join(source, "include"), filepath.Join(source, "base")}
+	if include != "" || !slices.Equal(usage.Includes, wantIncludes) || !slices.Equal(usage.Defines, []string{"SDK=1"}) {
+		t.Fatalf("consumer usage = %q %+v", include, usage)
+	}
+	if got := DeclaredDepends(dep); !slices.Equal(got, []string{"other"}) {
+		t.Fatalf("DeclaredDepends = %q", got)
+	}
+
+	dep.TargetName = "headers"
+	config, err = ResolveBuildConfig(dep, source)
+	if err != nil || config.Type != "header_only" || len(config.Sources) != 0 {
+		t.Fatalf("interface library = %+v, %v", config, err)
+	}
+}
