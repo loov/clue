@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/loov/clue/internal/toolchain"
@@ -41,6 +42,17 @@ type Manager struct {
 	cacheDir     string           // e.g., .build/cache
 	manifestPath string           // e.g., .build/cache/manifest.json
 	manifest     map[string]Entry // source and object path -> entry
+	dirty        bool             // manifest has entries not yet written by Flush
+
+	hashMu sync.Mutex
+	hashes map[string]fileHash // content hashes computed during this run
+}
+
+// fileHash is a content hash together with the file state it was computed from.
+type fileHash struct {
+	size    int64
+	modTime time.Time
+	hash    string
 }
 
 // NewManager creates a cache manager for the given build directory
@@ -54,6 +66,7 @@ func NewManager(buildDir string) (*Manager, error) {
 		cacheDir:     cacheDir,
 		manifestPath: filepath.Join(cacheDir, "manifest.json"),
 		manifest:     make(map[string]Entry),
+		hashes:       make(map[string]fileHash),
 	}
 
 	// Load existing manifest if present
@@ -77,9 +90,46 @@ func (cm *Manager) loadManifest() error {
 	return json.Unmarshal(data, &cm.manifest)
 }
 
+// Flush writes the manifest if StoreResult changed it. Builders call it once
+// per build instead of rewriting the whole manifest after every compile.
+func (cm *Manager) Flush() error {
+	if !cm.dirty {
+		return nil
+	}
+	if err := cm.saveManifest(); err != nil {
+		return err
+	}
+	cm.dirty = false
+	return nil
+}
+
+// hash returns a file's content hash. Every source includes mostly the same
+// headers, so a hash is reused while the file's size and modification time
+// are unchanged.
+func (cm *Manager) hash(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	cm.hashMu.Lock()
+	cached, ok := cm.hashes[path]
+	cm.hashMu.Unlock()
+	if ok && cached.size == info.Size() && cached.modTime.Equal(info.ModTime()) {
+		return cached.hash, nil
+	}
+	hash, err := ComputeFileHash(path)
+	if err != nil {
+		return "", err
+	}
+	cm.hashMu.Lock()
+	cm.hashes[path] = fileHash{size: info.Size(), modTime: info.ModTime(), hash: hash}
+	cm.hashMu.Unlock()
+	return hash, nil
+}
+
 // saveManifest writes the cache manifest atomically
 func (cm *Manager) saveManifest() error {
-	data, err := json.MarshalIndent(cm.manifest, "", "  ")
+	data, err := json.Marshal(cm.manifest)
 	if err != nil {
 		return err
 	}
@@ -123,7 +173,7 @@ func (cm *Manager) NeedsRebuild(
 	}
 
 	// Check whether the source contents changed.
-	sourceHash, err := ComputeFileHash(source)
+	sourceHash, err := cm.hash(source)
 	if err != nil || sourceHash != entry.Key.SourceHash {
 		return true, ReasonSourceChanged, ""
 	}
@@ -191,13 +241,8 @@ func (cm *Manager) NeedsRebuild(
 			continue
 		}
 
-		// Check if header still exists
-		if _, err := os.Stat(dep); err != nil {
-			return true, ReasonHeaderChanged, dep
-		}
-
-		// Compute current header hash
-		currentHash, err := ComputeFileHash(dep)
+		// Compute current header hash (fails when the header is gone)
+		currentHash, err := cm.hash(dep)
 		if err != nil {
 			return true, ReasonHeaderChanged, dep
 		}
@@ -249,7 +294,7 @@ func (cm *Manager) StoreResult(
 	compilerPath string,
 ) error {
 	// Compute source hash
-	sourceHash, err := ComputeFileHash(source)
+	sourceHash, err := cm.hash(source)
 	if err != nil {
 		return fmt.Errorf("failed to hash source: %w", err)
 	}
@@ -284,7 +329,7 @@ func (cm *Manager) StoreResult(
 			continue
 		}
 
-		hash, err := ComputeFileHash(dep)
+		hash, err := cm.hash(dep)
 		if err != nil {
 			// Header might not exist (system header filtered by -MMD)
 			continue
@@ -310,11 +355,10 @@ func (cm *Manager) StoreResult(
 		CachedAt:    time.Now(),
 	}
 
-	// Store in manifest
+	// Store in manifest; Flush writes it
 	cm.manifest[cacheEntryID(source, objectPath)] = entry
-
-	// Save manifest atomically
-	return cm.saveManifest()
+	cm.dirty = true
+	return nil
 }
 
 var conditionalIncludePattern = regexp.MustCompile(`__has_include\s*\(\s*([<"])([^>"]+)[>"]\s*\)`)

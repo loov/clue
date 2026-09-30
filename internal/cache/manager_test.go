@@ -184,6 +184,9 @@ func TestStoreResult_PersistsCompileInputs(t *testing.T) {
 	}
 
 	// Verify manifest was saved
+	if err := cm.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(cm.manifestPath); err != nil {
 		t.Errorf("manifest file not created: %v", err)
 	}
@@ -465,6 +468,9 @@ func TestManifestPersistence_SurvivesManagerRestart(t *testing.T) {
 	err = cm1.StoreResult(srcPath, objPath, depPath, []string{}, []string{}, compilerPath)
 	if err != nil {
 		t.Fatalf("StoreResult failed: %v", err)
+	}
+	if err := cm1.Flush(); err != nil {
+		t.Fatal(err)
 	}
 
 	// Create second cache manager (loads existing manifest)

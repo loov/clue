@@ -3,6 +3,7 @@ package build
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -120,7 +121,7 @@ func (b *Builder) outputPath(buildDir, variant, target, targetType string) strin
 }
 
 // Build builds all targets in dependency order
-func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
+func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err error) {
 	start := time.Now()
 	for _, target := range opts.Targets {
 		if _, ok := opts.Config.Targets[target]; !ok {
@@ -142,12 +143,13 @@ func (b *Builder) Build(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// Initialize cache manager
-	var err error
 	b.targetModuleOutputs = make(map[string]map[string]string)
 	b.cacheManager, err = cache.NewManager(opts.BuildDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize cache manager: %w", err)
 	}
+	// Record what compiled, even when a later step fails.
+	defer func() { err = errors.Join(err, b.cacheManager.Flush()) }()
 
 	// Build dependencies first (unless skipped)
 	if !opts.SkipDeps {
@@ -266,7 +268,7 @@ func (b *Builder) BuildDependency(ctx context.Context, opts Options, name string
 		return fmt.Errorf("failed to initialize cache manager: %w", err)
 	}
 	b.depResults, err = b.buildDependencies(ctx, opts, name)
-	return err
+	return errors.Join(err, b.cacheManager.Flush())
 }
 
 func (b *Builder) buildDependencies(ctx context.Context, opts Options, only string) (map[string]*depBuildResult, error) {
