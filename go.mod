@@ -5,6 +5,7 @@ go 1.27
 require (
 	cuelang.org/go v0.18.0-alpha.2
 	github.com/Duncaen/go-ninja v0.0.0-20190726135315-8e5210064eb2
+	github.com/bluekeyes/go-gitdiff v0.9.0
 	github.com/dominikbraun/graph v0.23.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-git/go-git/v5 v5.19.2

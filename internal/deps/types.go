@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -81,6 +82,7 @@ type GitDependency struct {
 	Repo        string
 	Ref         string
 	Submodules  []string // submodule paths to check out; nil checks out all of them
+	Patches     []Patch  // applied in order to a copy of the checkout
 	TargetName  string
 	File        string    // project clue file describing the build, instead of the dependency's clue.cue
 	Spec        cue.Value // build description given with the dependency (defaults, targets)
@@ -111,8 +113,14 @@ func (g *GitDependency) Type() string {
 	return "git"
 }
 
-// CachePath returns the cache directory path for this dependency
+// CachePath returns the directory of the dependency's sources: the
+// checkout, or its patched copy when the dependency has patches.
 func (g *GitDependency) CachePath(baseDir string) string {
+	return patchedPath(g.PristinePath(baseDir), g.Patches)
+}
+
+// PristinePath returns the directory of the unpatched checkout.
+func (g *GitDependency) PristinePath(baseDir string) string {
 	sanitized := sanitizeName(g.name)
 	return filepath.Join(baseDir, ".deps", "git", fmt.Sprintf("%s-%s", sanitized, pathSafeRef(g.Ref)))
 }
@@ -154,6 +162,7 @@ type TarballDependency struct {
 	URL         string
 	Checksum    string
 	StripPrefix string
+	Patches     []Patch // applied in order to a copy of the extracted archive
 	TargetName  string
 	File        string    // project clue file describing the build, instead of the dependency's clue.cue
 	Spec        cue.Value // build description given with the dependency (defaults, targets)
@@ -182,8 +191,14 @@ func (t *TarballDependency) Type() string {
 	return "tarball"
 }
 
-// CachePath returns the cache directory path for this dependency
+// CachePath returns the directory of the dependency's sources: the
+// extracted archive, or its patched copy when the dependency has patches.
 func (t *TarballDependency) CachePath(baseDir string) string {
+	return patchedPath(t.PristinePath(baseDir), t.Patches)
+}
+
+// PristinePath returns the directory of the unpatched, extracted archive.
+func (t *TarballDependency) PristinePath(baseDir string) string {
 	sanitized := sanitizeName(t.name)
 	var checksumPrefix string
 	if t.Checksum != "" {
@@ -288,6 +303,52 @@ func (v *VendoredDependency) Validate() error {
 		}
 	}
 	return nil
+}
+
+// Patch is a unified diff applied to a dependency's fetched sources.
+type Patch struct {
+	Path   string // absolute path of the patch file
+	Data   []byte // its contents, read when the configuration is loaded
+	SHA256 string // hex digest of Data
+}
+
+// NewPatch reads the patch file at path.
+func NewPatch(path string) (Patch, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Patch{}, err
+	}
+	sum := sha256.Sum256(data)
+	return Patch{Path: path, Data: data, SHA256: hex.EncodeToString(sum[:])}, nil
+}
+
+// Patches returns the patches of a git or tarball dependency.
+func Patches(dependency Dependency) []Patch {
+	switch d := dependency.(type) {
+	case *GitDependency:
+		return d.Patches
+	case *TarballDependency:
+		return d.Patches
+	}
+	return nil
+}
+
+// PatchesHash identifies a list of patches by their contents and order.
+func PatchesHash(patches []Patch) string {
+	h := sha256.New()
+	for _, patch := range patches {
+		h.Write([]byte(patch.SHA256 + "\n"))
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// patchedPath names the patched copy of the sources in pristine, so a copy
+// with other patches, or none, is never mistaken for it.
+func patchedPath(pristine string, patches []Patch) string {
+	if len(patches) == 0 {
+		return pristine
+	}
+	return pristine + ".patched-" + PatchesHash(patches)[:12]
 }
 
 // Validate checks that the inline config is valid

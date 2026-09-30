@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -122,7 +123,18 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 			if value.LookupPath(cue.ParsePath("submodules")).Exists() {
 				override.Submodules = append([]string{}, extractStringList(value, "submodules")...)
 			}
-			cfg.Overrides[fields.Selector().Unquoted()] = override
+			name := fields.Selector().Unquoted()
+			var err error
+			if override.Patches, err = extractPatches(value, "patches"); err != nil {
+				return nil, fmt.Errorf("override of %q: %w", name, err)
+			}
+			if override.Patches == nil && value.LookupPath(cue.ParsePath("patches")).Exists() {
+				override.Patches = []deps.Patch{}
+			}
+			if override.ExtraPatches, err = extractPatches(value, "extraPatches"); err != nil {
+				return nil, fmt.Errorf("override of %q: %w", name, err)
+			}
+			cfg.Overrides[name] = override
 		}
 	}
 
@@ -444,6 +456,9 @@ func (l *Loader) extractGitDependency(name string, val cue.Value) (*deps.GitDepe
 	if val.LookupPath(cue.ParsePath("submodules")).Exists() {
 		dependency.Submodules = append([]string{}, extractStringList(val, "submodules")...)
 	}
+	if dependency.Patches, err = extractPatches(val, "patches"); err != nil {
+		return nil, fmt.Errorf("git dependency %q: %w", name, err)
+	}
 	return dependency, nil
 }
 
@@ -478,6 +493,9 @@ func (l *Loader) extractTarballDependency(name string, val cue.Value) (*deps.Tar
 	if hasSpec(val) {
 		dependency.Spec = val
 	}
+	if dependency.Patches, err = extractPatches(val, "patches"); err != nil {
+		return nil, fmt.Errorf("tarball dependency %q: %w", name, err)
+	}
 	return dependency, nil
 }
 
@@ -503,6 +521,42 @@ func (l *Loader) extractVendoredDependency(name string, val cue.Value) (*deps.Ve
 		dependency.Spec = val
 	}
 	return dependency, nil
+}
+
+// extractPatches reads the patch files a list names. A relative path is
+// relative to the directory of the CUE file that spells it, so patches
+// listed in an imported package, a description file or a dependency's own
+// clue.cue are found next to it.
+func extractPatches(val cue.Value, field string) ([]deps.Patch, error) {
+	list := val.LookupPath(cue.ParsePath(field))
+	if !list.Exists() {
+		return nil, nil
+	}
+	var patches []deps.Patch
+	iter, err := list.List()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", field, err)
+	}
+	for iter.Next() {
+		path, err := iter.Value().String()
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", field, err)
+		}
+		if !filepath.IsAbs(path) {
+			if file := iter.Value().Pos().Filename(); file != "" {
+				path = filepath.Join(filepath.Dir(file), path)
+			}
+			if path, err = filepath.Abs(path); err != nil {
+				return nil, err
+			}
+		}
+		patch, err := deps.NewPatch(path)
+		if err != nil {
+			return nil, fmt.Errorf("patch: %w", err)
+		}
+		patches = append(patches, patch)
+	}
+	return patches, nil
 }
 
 // extractInlineConfig extracts inline build configuration

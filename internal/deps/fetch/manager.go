@@ -2,6 +2,7 @@ package fetch
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -36,10 +37,11 @@ type Options struct {
 // Status describes a dependency's local state.
 type Status struct {
 	Name     string
-	Type     string // "git", "tarball", "vendored", "pkg_config"
-	Status   string // "cached", "missing", "system"
-	Location string // Local path
-	Ref      string // For git: branch/tag/commit
+	Type     string   // "git", "tarball", "vendored", "pkg_config"
+	Status   string   // "cached", "unpatched", "missing", "system"
+	Location string   // Local path
+	Ref      string   // For git: branch/tag/commit
+	Patches  []string // patch files applied to the sources, in order
 }
 
 // NewManager creates a new dependency manager
@@ -143,11 +145,11 @@ func (m *Manager) fetchListed(ctx context.Context, i, count int, name string) er
 	}
 	if cached {
 		m.progressf("  [%d/%d] Using cached %s\n", i+1, count, name)
-		return nil
+		return m.finish(ctx, dep, func() { m.progressf("  [%d/%d] Patching %s\n", i+1, count, name) })
 	}
 
 	// Fetch based on type
-	cachePath := m.cache.path(dep)
+	cachePath := m.cache.pristinePath(dep)
 	if dep.Type() == "git" || dep.Type() == "tarball" {
 		if err := os.RemoveAll(cachePath); err != nil {
 			return fmt.Errorf("remove incomplete cache for %q: %w", name, err)
@@ -189,10 +191,42 @@ func (m *Manager) fetchListed(ctx context.Context, i, count int, name string) er
 	if err := m.cache.markFetched(dep); err != nil {
 		return fmt.Errorf("failed to mark %s as fetched: %w", name, err)
 	}
-	if err := m.recordLock(dep); err != nil {
-		return err
+	return m.finish(ctx, dep, func() { m.progressf("  [%d/%d] Patching %s\n", i+1, count, name) })
+}
+
+// finish makes the patched copy of a fetched dependency when it has patches
+// and records it in the lock file. announce reports that patching starts.
+func (m *Manager) finish(ctx context.Context, dep deps.Dependency, announce func()) error {
+	if patches := deps.Patches(dep); len(patches) > 0 {
+		marker, err := m.patchedMarker(dep)
+		if err != nil {
+			return err
+		}
+		if !m.cache.hasPatched(dep, marker) {
+			announce()
+			data, err := json.MarshalIndent(marker, "", "  ")
+			if err != nil {
+				return err
+			}
+			if err := derivePatched(ctx, m.cache.pristinePath(dep), m.cache.path(dep), patches, m.projectDir, data); err != nil {
+				return fmt.Errorf("dependency %q: %w", dep.Name(), err)
+			}
+		}
 	}
-	return nil
+	return m.recordLock(dep)
+}
+
+// patchedMarker returns the marker that the patched copy of the fetched
+// sources of dep has when it is up to date.
+func (m *Manager) patchedMarker(dep deps.Dependency) (depMarker, error) {
+	commit := ""
+	if dep.Type() == "git" {
+		var err error
+		if commit, err = gitCommit(m.cache.pristinePath(dep)); err != nil {
+			return depMarker{}, fmt.Errorf("resolve commit for %q: %w", dep.Name(), err)
+		}
+	}
+	return patchedMarker(dep, commit), nil
 }
 
 // FetchOne fetches a single dependency by name
@@ -215,11 +249,11 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 		if m.verbose {
 			fmt.Printf("Using cached %s\n", name)
 		}
-		return nil
+		return m.finish(ctx, dep, func() { m.progressf("Patching %s...\n", name) })
 	}
 
 	// Fetch based on type
-	cachePath := m.cache.path(dep)
+	cachePath := m.cache.pristinePath(dep)
 	if dep.Type() == "git" || dep.Type() == "tarball" {
 		if err := os.RemoveAll(cachePath); err != nil {
 			return fmt.Errorf("remove incomplete cache for %q: %w", name, err)
@@ -267,7 +301,7 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 	if err := m.cache.markFetched(dep); err != nil {
 		return fmt.Errorf("failed to mark as fetched: %w", err)
 	}
-	if err := m.recordLock(dep); err != nil {
+	if err := m.finish(ctx, dep, func() { m.progressf("Patching %s...\n", name) }); err != nil {
 		return err
 	}
 
@@ -286,7 +320,7 @@ func (m *Manager) UpdateAll(ctx context.Context) error {
 			continue
 		}
 		delete(m.lock.Dependencies, name)
-		if err := os.RemoveAll(m.cache.path(dep)); err != nil {
+		if err := os.RemoveAll(m.cache.pristinePath(dep)); err != nil {
 			return fmt.Errorf("remove cached dependency %q: %w", name, err)
 		}
 		if err := m.FetchOne(ctx, name); err != nil {
@@ -318,6 +352,11 @@ func (m *Manager) Status() []Status {
 			status.Location = dep.(*deps.PkgConfigDependency).Package
 		} else if cached, _ := m.cacheReady(dep, false); cached {
 			status.Status = "cached"
+			if len(deps.Patches(dep)) > 0 {
+				if marker, err := m.patchedMarker(dep); err != nil || !m.cache.hasPatched(dep, marker) {
+					status.Status = "unpatched"
+				}
+			}
 		} else {
 			status.Status = "missing"
 		}
@@ -330,6 +369,10 @@ func (m *Manager) Status() []Status {
 			status.Ref = d.URL
 		case *deps.VendoredDependency:
 			status.Ref = d.Path
+		}
+
+		for _, patch := range deps.Patches(dep) {
+			status.Patches = append(status.Patches, displayPath(m.projectDir, patch.Path))
 		}
 
 		statuses = append(statuses, status)
@@ -361,7 +404,7 @@ func (m *Manager) cacheReady(dep deps.Dependency, record bool) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		commit, err := gitCommit(m.cache.path(dep))
+		commit, err := gitCommit(m.cache.pristinePath(dep))
 		return err == nil && commit == entry.Commit, err
 	case *deps.TarballDependency:
 		if entry.Type != dep.Type() || entry.URL != configured.URL || entry.Checksum != configured.Checksum {
@@ -394,7 +437,7 @@ func (m *Manager) recordLock(dep deps.Dependency) error {
 	var entry lockEntry
 	switch configured := dep.(type) {
 	case *deps.GitDependency:
-		commit, err := gitCommit(m.cache.path(dep))
+		commit, err := gitCommit(m.cache.pristinePath(dep))
 		if err != nil {
 			return fmt.Errorf("resolve commit for %q: %w", dep.Name(), err)
 		}

@@ -153,6 +153,10 @@ func listDependencies(dependencies map[string]deps.Dependency, verbose bool) err
 			location,
 		)
 
+		for _, patch := range status.Patches {
+			fmt.Printf("    patch: %s\n", patch)
+		}
+
 		// Show additional info in verbose mode
 		if verbose && status.Ref != "" {
 			switch status.Type {

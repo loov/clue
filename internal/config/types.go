@@ -226,4 +226,6 @@ type BundleSettings struct {
 type Override struct {
 	Repo, Ref, URL, Checksum, Path string
 	Submodules                     []string // nil keeps the declared submodules
+	// Patches replaces the declared patches unless nil; ExtraPatches follow them.
+	Patches, ExtraPatches []deps.Patch
 }

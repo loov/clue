@@ -631,3 +631,41 @@ them, and each target waits only for the dependencies it uses.
 Git dependencies are cloned at depth 1, including when `clue.lock` pins a commit, and their
 submodules are checked out (shallow) too. Objective-C (`.m`) and Objective-C++ (`.mm`) sources
 are compiled like C and C++ sources.
+
+### Patching dependencies
+
+Git and tarball dependencies can list unified diffs in `patches`, applied in order after fetching.
+A relative path is relative to the CUE file that lists it (`deps/visage.cue` below finds
+`deps/patches/metal.patch`), including a `file` description and a fetched dependency's own
+`clue.cue`:
+
+```cue
+// deps/visage.cue
+visage: clue.#Git & {
+    name:    "visage"
+    repo:    "https://github.com/VitalAudio/visage"
+    ref:     "v1.0.0"
+    patches: ["patches/metal.patch"]
+}
+```
+
+The fetched checkout or archive stays unpatched; the patches are applied to a copy of it,
+`.deps/git/visage-v1.0.0.patched-<hash>`, which builds, Ninja files and `{dep:visage}` use. The
+hash covers the contents of the patches, so editing one makes a new copy (and rebuilds the
+dependency) without fetching the sources again; generate Ninja files again after editing one. A copy is made in full or not at all: when a patch
+fails, clue reports the dependency, the patch file, the file in it and the hunk, and leaves no copy.
+`clue deps list` shows the patches of each dependency.
+
+Patches are applied without `git` or `patch`. Git diffs (`git diff`, `git format-patch`) may
+create, delete and rename files; other unified diffs (`diff -u`) have the first component of their
+paths removed, as with `patch -p1`. Hunks must match the files where they say (no offset or fuzz),
+as the sources they apply to are pinned. Vendored dependencies are part of the project and are
+edited in place instead.
+
+Patches belong to a dependency's source: declarations of a name must list the same patches. In
+`overrides`, `patches` replaces those of the dependency wherever it is declared (`[]` removes them),
+and `extraPatches` are applied after them:
+
+```cue
+overrides: vst3sdk: extraPatches: ["patches/vst3sdk-warnings.patch"]
+```

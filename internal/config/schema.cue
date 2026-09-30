@@ -244,6 +244,10 @@ package config
 	ref?: string | *"main"
 	// Submodule paths to check out (shallow); all of them when omitted.
 	submodules?: [...string]
+	// Unified diffs (git-style, or diff -u with a/ and b/ prefixes) applied
+	// in order to a copy of the fetched sources; paths are relative to the
+	// file that lists them.
+	patches?: [...string]
 	target?: string
 	// A clue file in this project describing how to build the dependency, with
 	// paths relative to the dependency; used instead of its own clue.cue.
@@ -258,6 +262,10 @@ package config
 	url: string & =~"^https://"
 	checksum: string & =~"^[a-f0-9]{64}$"  // SHA256 hex
 	stripPrefix?: string
+	// Unified diffs (git-style, or diff -u with a/ and b/ prefixes) applied
+	// in order to a copy of the fetched sources; paths are relative to the
+	// file that lists them.
+	patches?: [...string]
 	target?: string
 	// A clue file in this project describing how to build the dependency, with
 	// paths relative to the dependency; used instead of its own clue.cue.
@@ -294,6 +302,10 @@ package config
 	url?: string & =~"^https://"
 	checksum?: string & =~"^[a-f0-9]{64}$"
 	path?: string
+	// Replaces the patches of a git or tarball dependency ([] removes them)
+	patches?: [...string]
+	// Patches applied after the dependency's own (or those that patches sets)
+	extraPatches?: [...string]
 }
 
 // Union type for all dependency types

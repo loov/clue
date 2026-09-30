@@ -150,12 +150,26 @@ func applyOverride(dependency deps.Dependency, override Override) {
 		if override.Submodules != nil {
 			d.Submodules = override.Submodules
 		}
+		d.Patches = overridePatches(d.Patches, override)
 	case *deps.TarballDependency:
 		replace(&d.URL, override.URL)
 		replace(&d.Checksum, override.Checksum)
+		d.Patches = overridePatches(d.Patches, override)
 	case *deps.VendoredDependency:
 		replace(&d.Path, override.Path)
 	}
+}
+
+// overridePatches returns the patches of a dependency after an override:
+// its patches replace the declared ones, and its extraPatches follow.
+func overridePatches(declared []deps.Patch, override Override) []deps.Patch {
+	if override.Patches != nil {
+		declared = override.Patches
+	}
+	if len(override.ExtraPatches) == 0 {
+		return declared
+	}
+	return append(slices.Clone(declared), override.ExtraPatches...)
 }
 
 // checkDuplicateSources reports a source that dependencies declare under two
@@ -273,10 +287,11 @@ func sameSource(a, b deps.Dependency) bool {
 	case *deps.GitDependency:
 		y, ok := b.(*deps.GitDependency)
 		return ok && x.Repo == y.Repo && x.Ref == y.Ref && slices.Equal(x.Submodules, y.Submodules) &&
-			(x.Submodules == nil) == (y.Submodules == nil)
+			(x.Submodules == nil) == (y.Submodules == nil) && samePatches(x.Patches, y.Patches)
 	case *deps.TarballDependency:
 		y, ok := b.(*deps.TarballDependency)
-		return ok && x.URL == y.URL && x.Checksum == y.Checksum && x.StripPrefix == y.StripPrefix
+		return ok && x.URL == y.URL && x.Checksum == y.Checksum && x.StripPrefix == y.StripPrefix &&
+			samePatches(x.Patches, y.Patches)
 	case *deps.VendoredDependency:
 		y, ok := b.(*deps.VendoredDependency)
 		return ok && filepath.Clean(x.Path) == filepath.Clean(y.Path)
@@ -287,7 +302,18 @@ func sameSource(a, b deps.Dependency) bool {
 	return false
 }
 
+func samePatches(a, b []deps.Patch) bool {
+	return deps.PatchesHash(a) == deps.PatchesHash(b)
+}
+
 func describeSource(dependency deps.Dependency) string {
+	if patches := deps.Patches(dependency); len(patches) > 0 {
+		return fmt.Sprintf("%s with patches %s", describeUnpatched(dependency), deps.PatchesHash(patches)[:12])
+	}
+	return describeUnpatched(dependency)
+}
+
+func describeUnpatched(dependency deps.Dependency) string {
 	switch d := dependency.(type) {
 	case *deps.GitDependency:
 		if d.Submodules != nil {

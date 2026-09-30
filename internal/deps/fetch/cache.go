@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -32,6 +33,10 @@ type depMarker struct {
 	Checksum  string    `json:"checksum,omitzero"`
 	// Submodules records a git dependency's submodule selection; nil means all.
 	Submodules []string `json:"submodules,omitzero"`
+	// A patched copy records the commit it was made from (for git
+	// dependencies) and the hash of its patches.
+	Commit  string `json:"commit,omitzero"`
+	Patches string `json:"patches,omitzero"`
 }
 
 // newCache creates a dependency cache manager.
@@ -50,9 +55,9 @@ func newCache(projectDir string, verbose bool) (*cache, error) {
 	}, nil
 }
 
-// has reports whether a dependency is fetched and cached.
+// has reports whether a dependency's pristine sources are fetched and cached.
 func (c *cache) has(dep deps.Dependency) bool {
-	cachePath := dep.CachePath(c.baseDir)
+	cachePath := c.pristinePath(dep)
 
 	switch dep.Type() {
 	case "git":
@@ -84,7 +89,7 @@ func (c *cache) has(dep deps.Dependency) bool {
 }
 
 func (c *cache) markerMatches(dep deps.Dependency) bool {
-	data, err := os.ReadFile(filepath.Join(dep.CachePath(c.baseDir), ".clue-dep"))
+	data, err := os.ReadFile(filepath.Join(c.pristinePath(dep), ".clue-dep"))
 	if err != nil {
 		return false
 	}
@@ -103,16 +108,67 @@ func (c *cache) markerMatches(dep deps.Dependency) bool {
 	}
 }
 
-// path returns the local path where dependency sources are located.
+// path returns the local path where dependency sources are located: the
+// patched copy of a dependency with patches.
 func (c *cache) path(dep deps.Dependency) string {
 	return dep.CachePath(c.baseDir)
 }
 
+// pristinePath returns where a dependency's sources are fetched to.
+func (c *cache) pristinePath(dep deps.Dependency) string {
+	switch d := dep.(type) {
+	case *deps.GitDependency:
+		return d.PristinePath(c.baseDir)
+	case *deps.TarballDependency:
+		return d.PristinePath(c.baseDir)
+	}
+	return dep.CachePath(c.baseDir)
+}
+
+// patchedMarker is the marker of a dependency's patched copy made from the
+// given commit (empty for a tarball).
+func patchedMarker(dep deps.Dependency, commit string) depMarker {
+	marker := fetchMarker(dep)
+	marker.Commit = commit
+	marker.Patches = deps.PatchesHash(deps.Patches(dep))
+	return marker
+}
+
+// hasPatched reports whether the patched copy of dep matches marker.
+func (c *cache) hasPatched(dep deps.Dependency, want depMarker) bool {
+	data, err := os.ReadFile(filepath.Join(c.path(dep), ".clue-dep"))
+	if err != nil {
+		return false
+	}
+	var marker depMarker
+	if json.Unmarshal(data, &marker) != nil {
+		return false
+	}
+	marker.FetchedAt = want.FetchedAt
+	return reflect.DeepEqual(marker, want)
+}
+
 // markFetched records fetch metadata in the cache directory.
 func (c *cache) markFetched(dep deps.Dependency) error {
-	cachePath := dep.CachePath(c.baseDir)
-	markerPath := filepath.Join(cachePath, ".clue-dep")
+	markerPath := filepath.Join(c.pristinePath(dep), ".clue-dep")
+	data, err := json.MarshalIndent(fetchMarker(dep), "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal marker: %w", err)
+	}
 
+	if err := os.WriteFile(markerPath, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write marker file: %w", err)
+	}
+
+	if c.verbose {
+		fmt.Printf("Marked %s as fetched in cache\n", dep.Name())
+	}
+
+	return nil
+}
+
+// fetchMarker returns the marker of a dependency's fetched sources.
+func fetchMarker(dep deps.Dependency) depMarker {
 	marker := depMarker{
 		Name:      dep.Name(),
 		Type:      dep.Type(),
@@ -131,21 +187,7 @@ func (c *cache) markFetched(dep deps.Dependency) error {
 	case *deps.VendoredDependency:
 		marker.Path = d.Path
 	}
-
-	data, err := json.MarshalIndent(marker, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal marker: %w", err)
-	}
-
-	if err := os.WriteFile(markerPath, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write marker file: %w", err)
-	}
-
-	if c.verbose {
-		fmt.Printf("Marked %s as fetched in cache\n", dep.Name())
-	}
-
-	return nil
+	return marker
 }
 
 // clean removes the entire .deps directory.
