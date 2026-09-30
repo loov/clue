@@ -83,6 +83,17 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 			cfg.Targets[name] = target
 		}
 	}
+	if defaults := val.LookupPath(cue.ParsePath("defaults")); defaults.Exists() {
+		base, err := l.extractTarget("defaults", defaults)
+		if err != nil {
+			return nil, err
+		}
+		for name, target := range cfg.Targets {
+			if target.Type != "custom" && target.Type != "interface_library" {
+				cfg.Targets[name] = applyTargetDefaults(target, base)
+			}
+		}
+	}
 
 	// Extract variants
 	if variants := val.LookupPath(cue.ParsePath("variants")); variants.Exists() {
@@ -463,4 +474,40 @@ func extractOptionalString(val cue.Value, field string) string {
 	}
 	result, _ := value.String()
 	return result
+}
+
+// applyTargetDefaults merges the project's defaults into a target: lists are
+// prepended, and single values fill in what the target leaves unset.
+func applyTargetDefaults(target, defaults Target) Target {
+	prepend := func(base, own []string) []string {
+		if len(base) == 0 {
+			return own
+		}
+		return append(slices.Clone(base), own...)
+	}
+	target.Includes = prepend(defaults.Includes, target.Includes)
+	target.SystemIncludes = prepend(defaults.SystemIncludes, target.SystemIncludes)
+	target.Defines = prepend(defaults.Defines, target.Defines)
+	target.SysLibs = prepend(defaults.SysLibs, target.SysLibs)
+	target.Flags.Compiler = prepend(defaults.Flags.Compiler, target.Flags.Compiler)
+	target.Flags.Linker = prepend(defaults.Flags.Linker, target.Flags.Linker)
+	for _, field := range []struct{ own, base *string }{
+		{&target.CStd, &defaults.CStd},
+		{&target.CXXStd, &defaults.CXXStd},
+		{&target.Optimize, &defaults.Optimize},
+		{&target.Warnings, &defaults.Warnings},
+		{&target.Debug, &defaults.Debug},
+	} {
+		if *field.own == "" {
+			*field.own = *field.base
+		}
+	}
+	for _, field := range []struct{ own, base **bool }{
+		{&target.WarningsAsErrors, &defaults.WarningsAsErrors}, {&target.PIC, &defaults.PIC}, {&target.LTO, &defaults.LTO},
+	} {
+		if *field.own == nil {
+			*field.own = *field.base
+		}
+	}
+	return target
 }

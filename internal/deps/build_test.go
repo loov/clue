@@ -141,8 +141,8 @@ targets: headers: {type: "interface_library", public: includes: ["h"]}
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(config.Sources, []string{filepath.Join("src", "a.cpp")}) || config.Warnings != "off" ||
-		!slices.Equal(config.CompilerFlags, []string{"-fno-rtti"}) || !slices.Equal(config.Depends, []string{"other"}) {
+	if !slices.Equal(config.Sources, []string{filepath.Join("src", "a.cpp")}) || config.Flags.Warnings != "off" ||
+		!slices.Equal(config.Flags.RawCompiler, []string{"-fno-rtti"}) || !slices.Equal(config.Depends, []string{"other"}) {
 		t.Fatalf("config = %+v", config)
 	}
 	include, usage := ConsumerUsage(dep, source, config)
@@ -171,12 +171,56 @@ func TestResolveBuildConfig_InlineFlagsAndIncludes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(config.CompilerFlags, []string{"-fno-rtti"}) || config.Warnings != "off" {
+	if !slices.Equal(config.Flags.RawCompiler, []string{"-fno-rtti"}) || config.Flags.Warnings != "off" {
 		t.Fatalf("config = %+v", config)
 	}
 	include, usage := ConsumerUsage(dep, source, config)
 	want := []string{filepath.Join(source, "include"), filepath.Join(source, "extra")}
 	if include != "" || !slices.Equal(usage.Includes, want) {
 		t.Fatalf("consumers get %q %q, want %q", include, usage.Includes, want)
+	}
+}
+
+func TestResolveBuildConfig_AppliesFileDefaults(t *testing.T) {
+	source := t.TempDir()
+	file := filepath.Join(t.TempDir(), "lib.cue")
+	content := `
+defaults: {
+ warnings: "off", defines: ["BASE=1"], includes: ["private"], systemIncludes: ["system"]
+ sysLibs: ["m"], cStd: "c17", cxxStd: "c++20", optimize: "size", debug: "full"
+ pic: true, lto: true, warningsAsErrors: true, visibility: "hidden"
+ flags: {compiler: ["-fvisibility=hidden"], linker: ["-Wl,--no-undefined"]}
+}
+targets: lib: {
+ type: "static_library", sources: ["a.cpp"], includes: ["own"], pic: false
+ flags: {compiler: ["-fno-rtti"], linker: ["-Wl,--as-needed"]}
+}
+`
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dep := NewGitDependency("lib", "https://example.com/lib", "v1", nil)
+	dep.File = file
+	config, err := ResolveBuildConfig(dep, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Flags.Warnings != "off" || !slices.Equal(config.Flags.RawCompiler, []string{"-fvisibility=hidden", "-fno-rtti"}) ||
+		!slices.Equal(config.Defines, []string{"BASE=1"}) {
+		t.Fatalf("config = %+v", config)
+	}
+	if !slices.Equal(config.Includes, []string{filepath.Join(source, "private"), filepath.Join(source, "own")}) ||
+		!slices.Equal(config.SystemIncludes, []string{filepath.Join(source, "system")}) ||
+		!slices.Equal(config.SysLibs, []string{"m"}) || !slices.Equal(config.Public.SysLibs, []string{"m"}) {
+		t.Fatalf("default paths and libraries missing: %+v", config)
+	}
+	flags := config.BuildFlags("fast")
+	if flags.Optimize != "size" || flags.Debug != "full" || flags.PIC || !flags.LTO ||
+		!flags.WarningsAsErrors || flags.Visibility != "hidden" ||
+		!slices.Equal(flags.RawLinker, []string{"-Wl,--no-undefined", "-Wl,--as-needed"}) {
+		t.Fatalf("default settings or target overrides missing: %+v", flags)
+	}
+	if config.Standard("a.cpp", "c++11") != "c++20" || config.Standard("a.c", "c99") != "c17" {
+		t.Fatalf("default language standards missing: %+v", config)
 	}
 }

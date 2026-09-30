@@ -146,19 +146,12 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 
 	// Determine include path for compilation
 	compilationIncludes := append(cfg.Includes, deps.IncludePath(dep, sourcePath))
-	warnings := cfg.Warnings
-	if warnings == "" {
-		warnings = "default"
-	}
+	buildFlags := cfg.BuildFlags(opts.Optimization)
 
-	// Compile each source file to object file
+	// Compile each source file to object file.
 	var objectFiles []string
 	requiresCXX := false
 	objectNames := plan.ObjectNames(cfg.Sources)
-	optimization := opts.Optimization
-	if optimization == "" {
-		optimization = "none"
-	}
 	type pending struct {
 		opts   plan.CompileOptions
 		inputs []string
@@ -172,22 +165,15 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		objectFiles = append(objectFiles, objPath)
 
 		compileOpts := plan.CompileOptions{
-			Source:   absPath,
-			Output:   objPath,
-			Includes: compilationIncludes,
-			Defines:  append(slices.Clone(cfg.Defines), opts.Defines...),
-			Flags: toolchain.Flags{
-				Optimize:         optimization,
-				Warnings:         warnings,
-				WarningsAsErrors: false, // Don't fail dependency builds on warnings
-				Debug:            "none",
-				RawCompiler:      cfg.CompilerFlags,
-			},
-			Std: config.Toolchain{
-				Std: opts.Std, CStd: opts.CStd, CXXStd: opts.CXXStd,
-			}.Standard(absPath),
-			TargetType: cfg.Type,
-			Platform:   opts.Platform,
+			Source:         absPath,
+			Output:         objPath,
+			Includes:       compilationIncludes,
+			Defines:        append(slices.Clone(cfg.Defines), opts.Defines...),
+			SystemIncludes: cfg.SystemIncludes,
+			Flags:          buildFlags,
+			Std:            cfg.Standard(absPath, config.Toolchain{Std: opts.Std, CStd: opts.CStd, CXXStd: opts.CXXStd}.Standard(absPath)),
+			TargetType:     cfg.Type,
+			Platform:       opts.Platform,
 		}
 		invocation, err := plan.Compile(db.toolchain, compileOpts)
 		if err != nil {
@@ -286,7 +272,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 		linkOpts := plan.SharedLibraryOptions{
 			Objects: append(objectFiles, linkFiles...), Output: libPath, LibPaths: libPaths, Libs: libs,
-			Flags: toolchain.Flags{Optimize: optimization, Warnings: "default", RawLinker: cfg.LinkerFlags}, UseCXX: requiresCXX,
+			Flags: buildFlags, SysLibs: cfg.SysLibs, UseCXX: requiresCXX,
 		}
 		linkInvocation := plan.LinkShared(db.toolchain, opts.Platform, linkOpts)
 		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, linkInvocation.Tool, linkOpts, append(objectFiles, dependencyArtifacts...))
@@ -356,8 +342,9 @@ func (db *depBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 		}
 		cfg.Includes = append(cfg.Includes, builtDep.Usage.Includes...)
 		cfg.Defines = append(cfg.Defines, builtDep.Usage.Defines...)
-		cfg.CompilerFlags = append(cfg.CompilerFlags, builtDep.Usage.CompilerFlags...)
-		cfg.LinkerFlags = append(cfg.LinkerFlags, builtDep.Usage.LinkerFlags...)
+		cfg.Flags.RawCompiler = append(cfg.Flags.RawCompiler, builtDep.Usage.CompilerFlags...)
+		cfg.Flags.RawLinker = append(cfg.Flags.RawLinker, builtDep.Usage.LinkerFlags...)
+		cfg.SysLibs = append(cfg.SysLibs, builtDep.Usage.SysLibs...)
 		for _, child := range builtDep.Depends {
 			addUsage(child)
 		}

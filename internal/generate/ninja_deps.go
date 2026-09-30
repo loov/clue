@@ -54,15 +54,8 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 		includes := append(resolved.Includes, dependencyUsage.Includes...)
 		defines := append(append(resolved.Defines, dependencyUsage.Defines...), variantConfig.Defines...)
 		depTarget := config.Target{Name: name, Defines: defines}
-		warnings := resolved.Warnings
-		if warnings == "" {
-			warnings = "default"
-		}
-		buildCfg := toolchain.Flags{Optimize: variantConfig.Optimization, Warnings: warnings}
-		buildCfg.RawCompiler = append(slices.Clone(resolved.CompilerFlags), dependencyUsage.CompilerFlags...)
-		if buildCfg.Optimize == "" {
-			buildCfg.Optimize = "none"
-		}
+		buildCfg := resolved.BuildFlags(variantConfig.Optimization)
+		buildCfg.RawCompiler = append(slices.Clone(buildCfg.RawCompiler), dependencyUsage.CompilerFlags...)
 		objectNames := plan.ObjectNames(sources)
 		objects := make([]string, 0, len(sources))
 		dependencyOutputs := externalDependencyOutputs(opts.Config, resolved.Depends, opts.BuildDir, variant, opts.Platform)
@@ -91,8 +84,9 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			}
 			compileOpts := ninjaCompileOptions(plan.CompileOptions{
 				Source: srcPath, Output: objPath, Includes: compileIncludes, Defines: depTarget.Defines,
-				Flags: buildCfg, Std: opts.Config.Toolchain.Standard(source), TargetType: resolved.Type,
-				Platform: opts.Platform, DependencyMode: plan.DependencyModeAll,
+				Flags: buildCfg, Std: resolved.Standard(source, opts.Config.Toolchain.Standard(source)), TargetType: resolved.Type,
+				SystemIncludes: resolved.SystemIncludes,
+				Platform:       opts.Platform, DependencyMode: plan.DependencyModeAll,
 			})
 			invocation, err := plan.Compile(tc, compileOpts)
 			if err != nil {
@@ -123,7 +117,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			dependencyInputs := ninjaArtifactPaths(dependencyPlan.Artifacts, opts.Platform)
 			inputs := append(objects, dependencyInputs...)
 			flags := buildCfg
-			flags.RawLinker = append(slices.Clone(resolved.LinkerFlags), dependencyUsage.LinkerFlags...)
+			flags.RawLinker = append(slices.Clone(flags.RawLinker), dependencyUsage.LinkerFlags...)
 			runtimeFlags, err := runtimeLibraryFlags(NinjaPath(rawOutput), dependencyPlan.SharedLibraryPaths, opts.Platform)
 			if err != nil {
 				return nil, err
@@ -131,7 +125,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			flags.RawLinker = append(flags.RawLinker, runtimeFlags...)
 			invocation := plan.LinkShared(tc, opts.Platform, plan.SharedLibraryOptions{
 				Objects: ninjaArgumentPaths(inputs), Output: NinjaPath(rawOutput),
-				LibPaths: ninjaMSVCLibraryPaths(tc), Flags: flags,
+				LibPaths: ninjaMSVCLibraryPaths(tc), Flags: flags, SysLibs: append(slices.Clone(resolved.SysLibs), dependencyUsage.SysLibs...),
 				SymbolVisibility: "default", UseCXX: sourcesUseCXX(sources),
 			})
 			rule := "link_shared_c"
@@ -256,6 +250,7 @@ func mergeDependencyUsage(dst *deps.Usage, src deps.Usage) {
 	dst.Defines = append(dst.Defines, src.Defines...)
 	dst.CompilerFlags = append(dst.CompilerFlags, src.CompilerFlags...)
 	dst.LinkerFlags = append(dst.LinkerFlags, src.LinkerFlags...)
+	dst.SysLibs = append(dst.SysLibs, src.SysLibs...)
 }
 
 func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc toolchain.Toolchain, buildDir, variant string, platform toolchain.Platform) (map[string]plan.ExternalDependency, error) {

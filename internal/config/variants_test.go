@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -161,5 +162,35 @@ targets: app: {
 	want := `DATA="` + filepath.ToSlash(dir) + `/data"`
 	if got := cfg.Targets["app"].Defines; len(got) != 1 || got[0] != want {
 		t.Errorf("defines = %q, want %q", got, want)
+	}
+}
+
+func TestLoad_TargetDefaultsAndNames(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: "defaults"
+defaults: {
+	warnings: "strict"
+	warningsAsErrors: false
+	defines: ["PROJECT=1"]
+	flags: compiler: ["-fno-rtti"]
+}
+targets: {
+	lib: {type: "static_library", sources: ["lib.cpp"], defines: ["LIB=1"], warnings: "off"}
+	gen: {type: "custom", command: ["gen"], outputs: ["gen.h"]}
+}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib := cfg.Targets["lib"]
+	if lib.Name != "lib" || lib.Warnings != "off" || lib.WarningsAsErrors == nil || *lib.WarningsAsErrors ||
+		!slices.Equal(lib.Defines, []string{"PROJECT=1", "LIB=1"}) || !slices.Equal(lib.Flags.Compiler, []string{"-fno-rtti"}) {
+		t.Fatalf("lib = %+v", lib)
+	}
+	if gen := cfg.Targets["gen"]; gen.Name != "gen" || len(gen.Defines) != 0 || len(gen.Flags.Compiler) != 0 {
+		t.Fatalf("custom target got defaults: %+v", gen)
 	}
 }

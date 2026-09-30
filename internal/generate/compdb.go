@@ -258,15 +258,7 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 	objectNames := plan.ObjectNames(resolved.Sources)
 	includes := append(append([]string(nil), resolved.Includes...), deps.IncludePath(dep, depPath))
 
-	optimization := variant.Optimization
-	if optimization == "" {
-		optimization = "none"
-	}
-	buildCfg := toolchain.Flags{
-		Optimize:         optimization,
-		Warnings:         "default",
-		WarningsAsErrors: false, // Don't treat warnings as errors for deps
-	}
+	buildCfg := resolved.BuildFlags(variant.Optimization)
 
 	for _, source := range resolved.Sources {
 		srcPath := filepath.Join(depPath, source)
@@ -277,7 +269,8 @@ func buildDependencyCommands(workDir string, opts CompDBOptions, dep deps.Depend
 		}
 		compileOpts := absoluteCompileOptions(plan.CompileOptions{
 			Source: srcPath, Output: objPath, Includes: compileIncludes, Defines: resolved.Defines,
-			Flags: buildCfg, Std: opts.Config.Toolchain.Standard(source), Platform: opts.Platform,
+			Flags: buildCfg, Std: resolved.Standard(source, opts.Config.Toolchain.Standard(source)), Platform: opts.Platform,
+			SystemIncludes: slices.Clone(resolved.SystemIncludes),
 		})
 		invocation, err := plan.Compile(tc, compileOpts)
 		if err != nil {

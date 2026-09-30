@@ -9,23 +9,60 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 // BuildConfig is the source-level build configuration for a dependency.
 type BuildConfig struct {
-	Sources       []string
-	Includes      []string
-	Defines       []string
-	Depends       []string
-	Library       string
-	Commands      [][]string
-	CompilerFlags []string
-	LinkerFlags   []string
-	Type          string
-	Warnings      string // semantic warning level; empty means "default"
+	Sources        []string
+	Includes       []string
+	Defines        []string
+	Depends        []string
+	Library        string
+	Commands       [][]string
+	Flags          toolchain.Flags
+	SystemIncludes []string
+	SysLibs        []string
+	CStd           string
+	CXXStd         string
+	Type           string
 	// Public holds what consumers inherit. Includes are absolute or relative to
 	// the project; when empty, consumers get IncludePath instead.
 	Public Usage
+}
+
+// BuildFlags supplies the variant optimization and dependency defaults where
+// the build description leaves them unset.
+func (c BuildConfig) BuildFlags(optimization string) toolchain.Flags {
+	flags := c.Flags
+	if flags.Optimize == "" {
+		flags.Optimize = optimization
+	}
+	if flags.Optimize == "" {
+		flags.Optimize = "none"
+	}
+	if flags.Warnings == "" {
+		flags.Warnings = "default"
+	}
+	if flags.Debug == "" {
+		flags.Debug = "none"
+	}
+	return flags
+}
+
+// Standard selects the dependency's language standard over the project's.
+func (c BuildConfig) Standard(source, fallback string) string {
+	if toolchain.IsAssemblySource(source) {
+		return ""
+	}
+	if toolchain.IsCXXSource(source) {
+		if c.CXXStd != "" {
+			return c.CXXStd
+		}
+	} else if c.CStd != "" {
+		return c.CStd
+	}
+	return fallback
 }
 
 // ResolveBuildConfig resolves an inline dependency build or its clue.cue file.
@@ -47,8 +84,7 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 			Sources: sources, Includes: includes, Defines: slices.Clone(inline.Defines),
 			Depends: slices.Clone(inline.Depends), Library: inline.Library,
 			Commands: inline.Commands, Type: targetType,
-			CompilerFlags: slices.Clone(inline.CompilerFlags), LinkerFlags: slices.Clone(inline.LinkerFlags),
-			Warnings: inline.Warnings,
+			Flags: toolchain.Flags{RawCompiler: slices.Clone(inline.CompilerFlags), RawLinker: slices.Clone(inline.LinkerFlags), Warnings: inline.Warnings},
 		}
 		// Consumers get every include directory, not only the first.
 		if len(inline.Headers) == 0 && len(includes) > 1 {
@@ -118,7 +154,7 @@ func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget stri
 		return BuildConfig{}, fmt.Errorf("clue.cue target %q not found; available targets: %v", targetName, names)
 	}
 
-	var sources, includes, defines, flags, externalDepends []string
+	var sources, includes, systemIncludes, defines, flags, linkerFlags, sysLibs, externalDepends []string
 	var public Usage
 	seen := make(map[string]bool)
 	var collect func(string) error
@@ -136,8 +172,13 @@ func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget stri
 		for _, include := range cueStrings(target, "includes") {
 			includes = append(includes, filepath.Join(sourcePath, include))
 		}
+		for _, include := range cueStrings(target, "systemIncludes") {
+			systemIncludes = append(systemIncludes, filepath.Join(sourcePath, include))
+		}
 		defines = append(defines, cueStrings(target, "defines")...)
 		flags = append(flags, cueStrings(target, "flags.compiler")...)
+		linkerFlags = append(linkerFlags, cueStrings(target, "flags.linker")...)
+		sysLibs = append(sysLibs, cueStrings(target, "sysLibs")...)
 		if publicValue := target.LookupPath(cue.ParsePath("public")); publicValue.Exists() {
 			for _, include := range cueStrings(publicValue, "includes") {
 				includes = append(includes, filepath.Join(sourcePath, include))
@@ -162,11 +203,47 @@ func loadBuildConfig(clueFile, sourcePath, dependencyName, configuredTarget stri
 	if typeValue := targetValue.LookupPath(cue.ParsePath("type")); typeValue.Exists() {
 		targetType, _ = typeValue.String()
 	}
-	warnings, _ := targetValue.LookupPath(cue.ParsePath("warnings")).String()
-	config := BuildConfig{
-		Includes: includes, Defines: defines, CompilerFlags: flags,
-		Depends: externalDepends, Type: targetType, Warnings: warnings, Public: public,
+	// Defaults precede the selected target's own lists and fill unset scalars.
+	defaults := value.LookupPath(cue.ParsePath("defaults"))
+	if targetType == "interface_library" {
+		defaults = cue.Value{}
 	}
+	paths := func(field string, own []string) []string {
+		var base []string
+		for _, path := range cueStrings(defaults, field) {
+			base = append(base, filepath.Join(sourcePath, path))
+		}
+		return append(base, own...)
+	}
+	setting := func(field string) cue.Value {
+		v := targetValue.LookupPath(cue.ParsePath(field))
+		if !v.Exists() && defaults.Exists() {
+			v = defaults.LookupPath(cue.ParsePath(field))
+		}
+		return v
+	}
+	config := BuildConfig{
+		Includes: paths("includes", includes), SystemIncludes: paths("systemIncludes", systemIncludes),
+		Defines: append(cueStrings(defaults, "defines"), defines...),
+		SysLibs: append(cueStrings(defaults, "sysLibs"), sysLibs...),
+		Depends: externalDepends, Type: targetType, Public: public,
+		Flags: toolchain.Flags{
+			RawCompiler: append(cueStrings(defaults, "flags.compiler"), flags...),
+			RawLinker:   append(cueStrings(defaults, "flags.linker"), linkerFlags...),
+		},
+	}
+	config.CStd, _ = setting("cStd").String()
+	config.CXXStd, _ = setting("cxxStd").String()
+	config.Flags.Optimize, _ = setting("optimize").String()
+	config.Flags.Warnings, _ = setting("warnings").String()
+	config.Flags.Debug, _ = setting("debug").String()
+	config.Flags.Visibility, _ = setting("visibility").String()
+	config.Flags.WarningsAsErrors, _ = setting("warningsAsErrors").Bool()
+	config.Flags.PIC, _ = setting("pic").Bool()
+	config.Flags.LTO, _ = setting("lto").Bool()
+	// A static library's system libraries must also reach its consumers.
+	config.Public.SysLibs = append(config.Public.SysLibs, config.SysLibs...)
+
 	switch targetType {
 	case "interface_library":
 		config.Type = "header_only"

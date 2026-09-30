@@ -51,6 +51,7 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 				result.Usage.Includes = append(result.Usage.Includes, dependency.Include)
 			}
 			mergeUsage(&result.Usage, dependency.Usage)
+			result.SystemLibraries = appendUnique(result.SystemLibraries, dependency.Usage.SysLibs...)
 			result.UsesCXX = result.UsesCXX || dependency.RequiresCXX
 			if dependency.Output != "" {
 				artifactType := normalizedLibraryType(dependency.Type)
@@ -139,6 +140,7 @@ func mergeUsage(dst *deps.Usage, src deps.Usage) {
 	dst.Defines = append(dst.Defines, src.Defines...)
 	dst.CompilerFlags = append(dst.CompilerFlags, src.CompilerFlags...)
 	dst.LinkerFlags = append(dst.LinkerFlags, src.LinkerFlags...)
+	dst.SysLibs = append(dst.SysLibs, src.SysLibs...)
 }
 
 func appendUnique(values []string, additions ...string) []string {

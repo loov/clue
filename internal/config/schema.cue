@@ -2,7 +2,7 @@ package config
 
 // Core target definition - base for all buildable units
 #Target: {
-	name:    string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$"
+	name?:   string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$" // defaults to the key in targets
 	type:    "executable" | "static_library" | "shared_library" | "interface_library" | "custom"
 	sources?: [...string]
 	headers?: [...string]
@@ -67,6 +67,25 @@ package config
 	}
 	if type != "executable" {
 		test?: _|_
+	}
+}
+
+#TargetDefaults: {
+	includes?: [...string]
+	systemIncludes?: [...string]
+	defines?: [...string]
+	sysLibs?: [...string]
+	cStd?: string
+	cxxStd?: string
+	optimize?: "none" | "size" | "fast" | "aggressive"
+	warnings?: "off" | "default" | "strict" | "pedantic"
+	warningsAsErrors?: bool
+	debug?: "none" | "minimal" | "full"
+	pic?: bool
+	lto?: bool
+	flags?: {
+		compiler?: [...string]
+		linker?: [...string]
 	}
 }
 
@@ -220,6 +239,11 @@ package config
 
 	// Build targets
 	targets: [string]: #Target
+
+	// Settings for every compiled target (not custom or interface libraries).
+	// Lists come before the target's own entries; single values apply where
+	// the target sets none.
+	defaults?: #TargetDefaults
 
 	// Variant definitions (user can define any variants)
 	variants?: [string]: #Variant

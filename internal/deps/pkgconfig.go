@@ -15,6 +15,7 @@ type Usage struct {
 	Defines       []string
 	CompilerFlags []string
 	LinkerFlags   []string
+	SysLibs       []string
 }
 
 // CommandRunner executes pkg-config and returns its standard output.
