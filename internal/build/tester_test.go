@@ -2,7 +2,11 @@ package build
 
 import (
 	"os"
+	"slices"
 	"testing"
+
+	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestRunTestsAggregatesResults(t *testing.T) {
@@ -28,4 +32,28 @@ func TestTestHelperProcess(t *testing.T) {
 	}
 	_, _ = os.Stdout.WriteString("passed\n")
 	os.Exit(0)
+}
+
+func TestRunTests_Emulator(t *testing.T) {
+	summary := RunTests(t.Context(), []TestCase{{
+		Name: "emulated", Executable: "prog.wasm", Args: []string{"arg"}, WorkingDirectory: t.TempDir(),
+		Emulator: []string{"echo", "runtime"},
+	}}, 1, VerbosityQuiet)
+	if summary.Failed != 0 || summary.Results[0].Output != "runtime prog.wasm arg\n" {
+		t.Fatalf("summary = %+v", summary)
+	}
+}
+
+func TestEmulator_OnlyForOtherTargets(t *testing.T) {
+	cfg := &config.Config{Toolchain: config.Toolchain{Emulator: []string{"wasmtime"}}}
+	if emulator, err := Emulator(cfg, toolchain.HostPlatform()); err != nil || emulator != nil {
+		t.Errorf("host: %q, %v", emulator, err)
+	}
+	wasi := toolchain.Platform{OS: "wasi", Arch: "wasm32"}
+	if emulator, err := Emulator(cfg, wasi); err != nil || !slices.Equal(emulator, []string{"wasmtime"}) {
+		t.Errorf("wasi: %q, %v", emulator, err)
+	}
+	if _, err := Emulator(&config.Config{}, wasi); err == nil {
+		t.Error("ran a wasi program without an emulator")
+	}
 }

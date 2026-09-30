@@ -17,6 +17,7 @@ type TestCase struct {
 	Name, Executable, WorkingDirectory string
 	Args                               []string
 	Environment                        map[string]string
+	Emulator                           []string // runs the executable when set
 }
 
 // TestResult records one test invocation.
@@ -84,7 +85,8 @@ func RunTests(ctx context.Context, cases []TestCase, jobs int, verbosity Verbosi
 
 func runTest(ctx context.Context, test TestCase) TestResult {
 	start := time.Now()
-	command := exec.CommandContext(ctx, test.Executable, test.Args...)
+	name, args := EmulatedCommand(test.Emulator, test.Executable, test.Args)
+	command := exec.CommandContext(ctx, name, args...)
 	command.Dir = test.WorkingDirectory
 	command.Env = os.Environ()
 	for _, name := range sortedKeys(test.Environment) {

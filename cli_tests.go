@@ -10,7 +10,6 @@ import (
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/plan"
-	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/clingy"
 )
 
@@ -34,8 +33,9 @@ func runTests(ctx context.Context, dir, variant, target string, verbosity build.
 		printError(err)
 		return 1
 	}
-	if platform != toolchain.HostPlatform() {
-		printError(fmt.Errorf("cannot run tests for non-host target %s", platform))
+	emulator, err := build.Emulator(cfg, platform)
+	if err != nil {
+		printError(err)
 		return 1
 	}
 	targets, err := selectConfiguredTests(cfg, selectors)
@@ -67,6 +67,7 @@ func runTests(ctx context.Context, dir, variant, target string, verbosity build.
 		cases = append(cases, build.TestCase{
 			Name: name, Executable: executable, Args: configured.Args,
 			Environment: configured.Environment, WorkingDirectory: workingDirectory,
+			Emulator: emulator,
 		})
 	}
 	summary := build.RunTests(ctx, cases, resolvedJobs(jobs), verbosity)

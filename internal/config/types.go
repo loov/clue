@@ -67,6 +67,7 @@ type Toolchain struct {
 	CStd         string
 	CXXStd       string
 	Container    *ContainerToolchain
+	Emulator     []string // runs built programs: emulator... program args...
 }
 
 // ContainerToolchain runs toolchain commands in a container image.

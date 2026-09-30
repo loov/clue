@@ -16,10 +16,11 @@ type RunOptions struct {
 	Config    *config.Config
 	Variant   string
 	BuildDir  string
-	Target    string    // Target name to run
-	Args      []string  // Arguments to pass to executable
-	Verbosity Verbosity // For build output
-	Jobs      int       // Parallel jobs for build
+	Target    string             // Target name to run
+	Args      []string           // Arguments to pass to executable
+	Verbosity Verbosity          // For build output
+	Jobs      int                // Parallel jobs for build
+	Platform  toolchain.Platform // Target platform; the host when empty
 }
 
 // RunResult contains the result of running an executable
@@ -41,7 +42,14 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 	}
 
 	// 2. Build the target first
-	platform := toolchain.HostPlatform() // Run always uses host platform
+	platform := opts.Platform
+	if platform.OS == "" {
+		platform = toolchain.HostPlatform()
+	}
+	emulator, err := Emulator(opts.Config, platform)
+	if err != nil {
+		return nil, err
+	}
 	builder, err := NewConfiguredBuilder(opts.Config.Toolchain, platform, ".", opts.Verbosity, opts.Jobs, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create builder: %w", err)
@@ -74,7 +82,8 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 	}
 
 	// 4. Execute binary in current working directory
-	cmd := exec.CommandContext(ctx, execPath, opts.Args...)
+	name, args := EmulatedCommand(emulator, execPath, opts.Args)
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -98,4 +107,25 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 		ExitCode: exitCode,
 		Output:   execPath,
 	}, nil
+}
+
+// Emulator returns the command that runs programs built for platform:
+// nothing for the host, toolchain.emulator for other targets.
+func Emulator(cfg *config.Config, platform toolchain.Platform) ([]string, error) {
+	if platform == toolchain.HostPlatform() {
+		return nil, nil
+	}
+	if len(cfg.Toolchain.Emulator) == 0 {
+		return nil, fmt.Errorf("cannot run programs for non-host target %s without toolchain.emulator", platform)
+	}
+	return cfg.Toolchain.Emulator, nil
+}
+
+// EmulatedCommand returns the command that runs program with args: through
+// emulator when it is set, else directly.
+func EmulatedCommand(emulator []string, program string, args []string) (string, []string) {
+	if len(emulator) == 0 {
+		return program, args
+	}
+	return emulator[0], append(append(append([]string(nil), emulator[1:]...), program), args...)
 }

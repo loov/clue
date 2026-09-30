@@ -321,6 +321,10 @@ package config
 		std?: string     // Backward-compatible single-language standard
 		cStd?: string    // e.g., "c17"
 		cxxStd?: string  // e.g., "c++23"
+		// Command that runs built programs for clue run and clue test, followed
+		// by the program and its arguments; for example a WASI runtime or an
+		// emulator when cross-compiling
+		emulator?: [...string]
 		container?: {
 			runtime?: string
 			platform?: string & != ""

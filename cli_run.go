@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 
 	"github.com/loov/clue/internal/build"
-	"github.com/loov/clue/internal/toolchain"
 	"github.com/zeebo/clingy"
 )
 
@@ -33,10 +31,6 @@ func runRun(ctx context.Context, dir, variant, target string, verbosity build.Ve
 		printError(err)
 		return 1
 	}
-	if platform != toolchain.HostPlatform() {
-		printError(fmt.Errorf("cannot run executable for non-host target %s", platform))
-		return 1
-	}
 
 	// Compute actual job count (same as runBuild)
 	actualJobs := jobs
@@ -54,6 +48,7 @@ func runRun(ctx context.Context, dir, variant, target string, verbosity build.Ve
 		Args:      execArgs,
 		Verbosity: verbosity,
 		Jobs:      actualJobs,
+		Platform:  platform,
 	})
 
 	if ctx.Err() != nil {
