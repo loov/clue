@@ -265,8 +265,18 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		}, compileErr
 	}
 
-	// Combine pre-existing and newly compiled objects
-	objectFiles := append(preExistingObjects, compiledObjects...)
+	// Link the objects in source order, whichever finished compiling first,
+	// so the output and its fingerprint do not depend on scheduling.
+	built := make(map[string]bool, len(preExistingObjects)+len(compiledObjects))
+	for _, object := range append(preExistingObjects, compiledObjects...) {
+		built[object] = true
+	}
+	var objectFiles []string
+	for _, source := range sourcesToCompile {
+		if object := sourcePlans[source].Object; built[object] {
+			objectFiles = append(objectFiles, object)
+		}
+	}
 
 	// Link or archive based on target type
 	switch target.Type {
