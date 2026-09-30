@@ -41,6 +41,7 @@ const (
 type Manager struct {
 	cacheDir     string           // e.g., .build/cache
 	manifestPath string           // e.g., .build/cache/manifest.json
+	mu           sync.Mutex       // guards manifest and dirty; targets build concurrently
 	manifest     map[string]Entry // source and object path -> entry
 	dirty        bool             // manifest has entries not yet written by Flush
 
@@ -93,6 +94,8 @@ func (cm *Manager) loadManifest() error {
 // Flush writes the manifest if StoreResult changed it. Builders call it once
 // per build instead of rewriting the whole manifest after every compile.
 func (cm *Manager) Flush() error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
 	if !cm.dirty {
 		return nil
 	}
@@ -167,7 +170,9 @@ func (cm *Manager) NeedsRebuild(
 	}
 
 	// Check if we have a cache entry
+	cm.mu.Lock()
 	entry, exists := cm.manifest[cacheEntryID(source, objectPath)]
+	cm.mu.Unlock()
 	if !exists {
 		return true, ReasonNotCached, ""
 	}
@@ -356,8 +361,10 @@ func (cm *Manager) StoreResult(
 	}
 
 	// Store in manifest; Flush writes it
+	cm.mu.Lock()
 	cm.manifest[cacheEntryID(source, objectPath)] = entry
 	cm.dirty = true
+	cm.mu.Unlock()
 	return nil
 }
 

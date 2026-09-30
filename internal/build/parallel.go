@@ -35,9 +35,13 @@ type parallelCompiler struct {
 	verbosity Verbosity
 	profiler  *profile.Profiler
 
-	// Progress tracking
+	// slots bounds compiler processes across concurrent CompileParallel calls
+	// (targets that build at the same time share the -j limit).
+	slots chan struct{}
+
+	// Progress tracking, summed over all calls
 	completed atomic.Int64
-	total     int
+	total     atomic.Int64
 	active    []string
 	activeMu  sync.Mutex
 }
@@ -49,6 +53,7 @@ func newParallelCompiler(toolchain toolchain.Toolchain, jobs int, keepGoing bool
 		jobs:      jobs,
 		keepGoing: keepGoing,
 		verbosity: verbosity,
+		slots:     make(chan struct{}, max(jobs, 1)),
 	}
 }
 
@@ -58,9 +63,9 @@ func (p *parallelCompiler) CompileParallel(ctx context.Context, sources []plan.C
 		return nil, nil
 	}
 
-	// Initialize progress tracking
-	p.total = len(sources)
-	p.completed.Store(0)
+	// Progress of this batch; the [n/total] lines count within it.
+	p.total.Add(int64(len(sources)))
+	var completed atomic.Int64
 
 	// Create errgroup with context for automatic cancellation
 	g, ctx := errgroup.WithContext(ctx)
@@ -78,8 +83,15 @@ func (p *parallelCompiler) CompileParallel(ctx context.Context, sources []plan.C
 			p.addActive(opts.Source)
 			defer p.removeActive(opts.Source)
 
+			select {
+			case p.slots <- struct{}{}:
+			case <-ctx.Done():
+				results <- parallelResult{Source: opts.Source, Object: opts.Output, Error: ctx.Err()}
+				return ctx.Err()
+			}
 			// Compile with buffering
-			result := p.compileWithBuffering(ctx, opts)
+			result := p.compileWithBuffering(ctx, opts, &completed, len(sources))
+			<-p.slots
 			results <- result
 
 			// If not keeping going and there's an error, return it to cancel other goroutines
@@ -112,7 +124,7 @@ func (p *parallelCompiler) CompileParallel(ctx context.Context, sources []plan.C
 }
 
 // compileWithBuffering compiles a single source file and captures output to a buffer
-func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts plan.CompileOptions) parallelResult {
+func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts plan.CompileOptions, batchCompleted *atomic.Int64, batchTotal int) parallelResult {
 	var buf bytes.Buffer
 	start := time.Now()
 
@@ -133,7 +145,8 @@ func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts plan.C
 	duration := time.Since(start)
 
 	// Get current count and increment
-	completed := p.completed.Add(1)
+	p.completed.Add(1)
+	completed := batchCompleted.Add(1)
 
 	// Record timing in profiler (use completed as threadID for simplicity)
 	if p.profiler != nil {
@@ -146,10 +159,10 @@ func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts plan.C
 		// In verbose mode, show timing with adaptive precision
 		if p.verbosity == VerbosityVerbose {
 			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s %s\n",
-				completed, p.total, filepath.Base(opts.Source), formatDuration(duration))
+				completed, batchTotal, filepath.Base(opts.Source), formatDuration(duration))
 		} else {
 			fmt.Fprintf(&buf, "[%d/%d] Compiling: %s\n",
-				completed, p.total, filepath.Base(opts.Source))
+				completed, batchTotal, filepath.Base(opts.Source))
 		}
 	}
 
@@ -217,7 +230,7 @@ func (p *parallelCompiler) Active() []string {
 
 // Progress returns the current progress (completed, total).
 func (p *parallelCompiler) Progress() (int64, int) {
-	return p.completed.Load(), p.total
+	return p.completed.Load(), int(p.total.Load())
 }
 
 // formatDuration formats a duration with adaptive precision

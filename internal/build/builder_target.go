@@ -50,10 +50,13 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyPlan.Usage.CompilerFlags...)
 
 	// Module compilation setup
+	b.modulesMu.Lock()
 	if b.targetModuleOutputs == nil {
 		b.targetModuleOutputs = make(map[string]map[string]string)
 	}
-	dependencyModules, err := plan.DependencyModuleOutputs(opts.Config, target, b.targetModuleOutputs)
+	moduleOutputs := maps.Clone(b.targetModuleOutputs)
+	b.modulesMu.Unlock()
+	dependencyModules, err := plan.DependencyModuleOutputs(opts.Config, target, moduleOutputs)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +394,9 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	duration := time.Since(start)
 
 	// Get cache stats from progress
+	b.modulesMu.Lock()
 	b.targetModuleOutputs[target.Name] = providedModules
+	b.modulesMu.Unlock()
 	_, cachedCount := progress.Stats()
 	progress.Complete(outputPath, len(target.Sources), cachedCount, duration)
 

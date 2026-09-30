@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/loov/clue/internal/cache"
@@ -63,6 +64,7 @@ type Builder struct {
 	target              toolchain.Platform
 	depResults          map[string]*depBuildResult // Built dependencies
 	profiler            *profile.Profiler
+	modulesMu           sync.Mutex // guards targetModuleOutputs; targets build concurrently
 	targetModuleOutputs map[string]map[string]string
 }
 
@@ -200,28 +202,9 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 	// Create progress tracker
 	progress := newProgress(totalSources, opts.Verbosity)
 
-	// Build each target in order
-	var results []TargetResult
-	for _, targetName := range buildOrder {
-		if selected != nil && !selected[targetName] {
-			continue
-		}
-
-		target := opts.Config.Targets[targetName]
-
-		// Build the target
-		result, err := b.buildTarget(ctx, opts, target, progress)
-		if err != nil {
-			// Fail-fast: report error and stop
-			progress.Error(targetName, err)
-			return &Result{
-				Targets:  results,
-				Duration: time.Since(start),
-				Success:  false,
-			}, err
-		}
-
-		results = append(results, *result)
+	results, err := b.buildTargets(ctx, opts, buildOrder, selected, progress)
+	if err != nil {
+		return &Result{Targets: results, Duration: time.Since(start), Success: false}, err
 	}
 
 	// Print summary
@@ -255,6 +238,84 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 		Duration: time.Since(start),
 		Success:  true,
 	}, nil
+}
+
+// errDependencyFailed marks targets skipped because a target they depend on failed.
+var errDependencyFailed = errors.New("a dependency failed")
+
+// buildTargets builds each selected target as soon as the targets it depends on
+// are built; compiles of concurrent targets share the -j limit. Without
+// KeepGoing the first failure stops targets that have not started yet.
+func (b *Builder) buildTargets(ctx context.Context, opts Options, order []string, selected map[string]bool, progress *progress) ([]TargetResult, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	position := make(map[string]int, len(order))
+	done := make([]chan struct{}, len(order))
+	for index, name := range order {
+		if selected == nil || selected[name] {
+			position[name] = index
+			done[index] = make(chan struct{})
+		}
+	}
+	results := make([]*TargetResult, len(order))
+	errs := make([]error, len(order))
+	var workers sync.WaitGroup
+	for index, name := range order {
+		if done[index] == nil {
+			continue
+		}
+		workers.Go(func() {
+			defer close(done[index])
+			target := opts.Config.Targets[name]
+			for _, dependency := range target.Depends {
+				other, ok := position[dependency]
+				if !ok {
+					continue
+				}
+				select {
+				case <-done[other]:
+				case <-ctx.Done():
+				}
+				// errs[other] is only safe to read once done[other] is closed.
+				if ctx.Err() != nil || errs[other] != nil {
+					errs[index] = fmt.Errorf("target %q not built: %q: %w", name, dependency, errDependencyFailed)
+					return
+				}
+			}
+			result, err := b.buildTarget(ctx, opts, target, progress)
+			if err != nil {
+				errs[index] = err
+				progress.Error(name, err)
+				if !opts.KeepGoing {
+					cancel()
+				}
+				return
+			}
+			results[index] = result
+		})
+	}
+	workers.Wait()
+
+	var built []TargetResult
+	var failures []error
+	for index := range order {
+		if results[index] != nil {
+			built = append(built, *results[index])
+		}
+		// Report the targets that failed, not the ones skipped because of them.
+		if errs[index] != nil && !errors.Is(errs[index], errDependencyFailed) && !errors.Is(errs[index], context.Canceled) {
+			failures = append(failures, errs[index])
+		}
+	}
+	if len(failures) == 0 {
+		for _, err := range errs {
+			if err != nil {
+				failures = append(failures, err)
+				break
+			}
+		}
+	}
+	return built, errors.Join(failures...)
 }
 
 // BuildDependency fetches and builds one external dependency and its prerequisites.
