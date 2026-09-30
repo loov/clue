@@ -18,6 +18,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 	names := slices.Sorted(maps.Keys(opts.Config.Dependencies))
 
 	var outputs []string
+	fetchOutputs := make(map[string]bool)
 	for _, name := range names {
 		dep := opts.Config.Dependencies[name]
 		if _, ok := dep.(*deps.PkgConfigDependency); ok {
@@ -67,11 +68,17 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 		dependencyOutputs := externalDependencyOutputs(opts.Config, resolved.Depends, opts.BuildDir, variant, opts.Platform)
 		sourcePaths := make([]string, 0, len(sources))
 		for _, source := range sources {
-			sourcePaths = append(sourcePaths, ninjaPathLocal(filepath.Join(depPath, source)))
+			path := ninjaPathLocal(filepath.Join(depPath, source))
+			if !fetchOutputs[path] {
+				fetchOutputs[path] = true
+				sourcePaths = append(sourcePaths, path)
+			}
 		}
-		if emitFetchRules {
+		if emitFetchRules && len(sourcePaths) > 0 {
 			*file = append(*file, ninja.Build{
-				Rule: "fetch_dep", Out: sourcePaths, InImplicit: []string{"clue.cue"},
+				// One fetch at a time: targets of a dependency share its
+				// checkout, and every fetch updates clue.lock.
+				Rule: "fetch_dep", Out: sourcePaths, InImplicit: []string{"clue.cue"}, Pool: "fetch",
 				Vars: ninja.Vars{{Key: "dep", Val: name}},
 			})
 		}
@@ -191,8 +198,9 @@ func dependencyOutputPath(buildDir, variant string, dep deps.Dependency, platfor
 	if dependencyTargetType(dep) == "header_only" {
 		return ""
 	}
-	return filepath.Join(buildDir, variant, "deps", dep.Name(), "lib",
-		outputNameForTarget(dep.Name(), dependencyTargetType(dep), platform))
+	name := deps.ArtifactName(dep.Name())
+	return filepath.Join(buildDir, variant, "deps", name, "lib",
+		outputNameForTarget(name, dependencyTargetType(dep), platform))
 }
 
 func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *config.Config, tc toolchain.Toolchain) (deps.Usage, error) {

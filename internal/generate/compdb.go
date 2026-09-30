@@ -312,5 +312,5 @@ func absoluteCompileOptions(opts plan.CompileOptions) plan.CompileOptions {
 
 // depObjectPath returns the object file path for a dependency source
 func depObjectPath(buildDir, variant, depName, objectName string) string {
-	return filepath.Join(buildDir, variant, "deps", depName, "obj", objectName)
+	return filepath.Join(buildDir, variant, "deps", deps.ArtifactName(depName), "obj", objectName)
 }

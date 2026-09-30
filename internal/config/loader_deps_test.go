@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/loov/clue/internal/deps"
@@ -542,5 +543,50 @@ targets: app: {
 	want := filepath.Join(".deps", "git", "sdk-v1.0.0")
 	if app.Sources[1] != filepath.Join(want, "src", "entry.cpp") || app.Includes[0] != filepath.Join(want, "include") {
 		t.Fatalf("placeholders not expanded: %q %q", app.Sources, app.Includes)
+	}
+}
+
+func TestLoad_AddsDependencyTargets(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Not next to clue.cue: every .cue file there belongs to the project configuration.
+	if err := os.Mkdir(filepath.Join(dir, "deps"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write("deps/sdk.cue", `
+targets: core: {type: "static_library", sources: ["core.cpp"]}
+targets: extra: {type: "static_library", sources: ["extra.cpp"], depends: ["sdk"]}
+`)
+	write("clue.cue", `
+name: "targets"
+dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v1", file: "deps/sdk.cue", target: "core"}
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"], depends: ["sdk:extra"]}
+`)
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	extra, ok := cfg.Dependencies["sdk:extra"].(*deps.TargetDependency)
+	if !ok {
+		t.Fatalf("dependencies = %v", cfg.Dependencies)
+	}
+	if extra.BuildTarget() != "extra" || extra.CachePath(".") != cfg.Dependencies["sdk"].CachePath(".") {
+		t.Fatalf("sdk:extra builds %q from %q", extra.BuildTarget(), extra.CachePath("."))
+	}
+	if got := deps.ArtifactName(extra.Name()); got != "sdk.extra" {
+		t.Fatalf("artifact name = %q", got)
+	}
+
+	write("clue.cue", `
+name: "targets"
+dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v1", build: {targetType: "header_only"}}
+targets: app: {name: "app", type: "executable", sources: ["main.cpp"], depends: ["sdk:extra"]}
+`)
+	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "inline build") {
+		t.Fatalf("inline dependency target: %v", err)
 	}
 }

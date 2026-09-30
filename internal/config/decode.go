@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -103,6 +104,18 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 			return nil, err
 		}
 		cfg.Dependencies = deps
+	}
+	var referenced []string
+	for _, target := range cfg.Targets {
+		referenced = append(referenced, target.Depends...)
+	}
+	if len(cfg.Dependencies) > 0 || slices.ContainsFunc(referenced, func(name string) bool { return strings.Contains(name, ":") }) {
+		if cfg.Dependencies == nil {
+			cfg.Dependencies = make(map[string]deps.Dependency)
+		}
+		if err := deps.AddTargetDependencies(cfg.Dependencies, referenced); err != nil {
+			return nil, err
+		}
 	}
 
 	return cfg, nil

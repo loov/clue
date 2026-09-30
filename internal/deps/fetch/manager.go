@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/loov/clue/internal/deps"
@@ -20,7 +21,6 @@ type Manager struct {
 	gitFetcher      *gitFetcher
 	tarballFetcher  *tarballFetcher
 	vendoredFetcher *vendoredFetcher
-	resolver        *deps.Resolver
 	verbose         bool
 	quiet           bool       // no progress output, only errors
 	lockMu          sync.Mutex // guards lock; FetchAll fetches concurrently
@@ -44,6 +44,16 @@ type Status struct {
 
 // NewManager creates a new dependency manager
 func NewManager(projectDir string, dependencies map[string]deps.Dependency, opts Options) (*Manager, error) {
+	// "<dependency>:<target>" entries share their dependency's checkout, so
+	// only that dependency is fetched, locked and listed.
+	checkouts := make(map[string]deps.Dependency, len(dependencies))
+	for name, dependency := range dependencies {
+		if _, ok := dependency.(*deps.TargetDependency); !ok {
+			checkouts[name] = dependency
+		}
+	}
+	dependencies = checkouts
+
 	// Initialize cache
 	cache, err := newCache(projectDir, opts.Verbose)
 	if err != nil {
@@ -55,8 +65,6 @@ func NewManager(projectDir string, dependencies map[string]deps.Dependency, opts
 	tarballFetcher := newTarballFetcher(opts.Verbose)
 	vendoredFetcher := newVendoredFetcher(projectDir, opts.Verbose)
 
-	// Initialize resolver
-	resolver := deps.NewResolver(dependencies)
 	lock, err := loadLockFile(projectDir)
 	if err != nil {
 		return nil, err
@@ -69,19 +77,16 @@ func NewManager(projectDir string, dependencies map[string]deps.Dependency, opts
 		gitFetcher:      gitFetcher,
 		tarballFetcher:  tarballFetcher,
 		vendoredFetcher: vendoredFetcher,
-		resolver:        resolver,
 		verbose:         opts.Verbose,
 		quiet:           opts.Quiet,
 		lock:            lock,
 	}, nil
 }
 
-// FetchAll fetches all dependencies in build order
+// FetchAll fetches independent checkouts. Build dependencies are resolved by
+// the builder, after every checkout's description is available.
 func (m *Manager) FetchAll(ctx context.Context) error {
-	order, err := m.resolver.BuildOrder()
-	if err != nil {
-		return fmt.Errorf("failed to determine build order: %w", err)
-	}
+	order := slices.Sorted(maps.Keys(m.dependencies))
 
 	if len(order) == 0 {
 		if m.verbose {
@@ -192,6 +197,7 @@ func (m *Manager) fetchListed(ctx context.Context, i, count int, name string) er
 
 // FetchOne fetches a single dependency by name
 func (m *Manager) FetchOne(ctx context.Context, name string) error {
+	name, _, _ = strings.Cut(name, ":") // a dependency's target is fetched with the dependency
 	dep := m.dependencies[name]
 	if dep == nil {
 		return fmt.Errorf("dependency %q not found", name)

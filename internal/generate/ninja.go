@@ -125,6 +125,7 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	// Rules
 	file = append(file, ninja.Comment{Lines: []string{"Compilation rules"}})
 	addNinjaRules(&file, toolchain.Name() == "msvc")
+	file = append(file, ninja.Pool{Name: "fetch", Depth: 1})
 	file = append(file, ninja.Build{Rule: "phony", Out: []string{"force_external"}})
 
 	targetOrder, err := config.ComputeBuildOrder(opts.Config)

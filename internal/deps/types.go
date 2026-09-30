@@ -308,3 +308,59 @@ func truncate(s string, n int) string {
 	}
 	return s[:n]
 }
+
+// TargetDependency is a library target of another dependency, named
+// "<dependency>:<target>". It uses the checkout of that dependency, which is
+// fetched and locked under its own name, and builds the named target of the
+// dependency's clue file.
+type TargetDependency struct {
+	Dependency   // the dependency whose checkout this target builds
+	name, target string
+}
+
+// Name returns "<dependency>:<target>".
+func (t *TargetDependency) Name() string { return t.name }
+
+// BuildTarget returns the target of the dependency's clue file.
+func (t *TargetDependency) BuildTarget() string { return t.target }
+
+// Parent returns the dependency that owns the checkout.
+func (t *TargetDependency) Parent() Dependency { return t.Dependency }
+
+// ArtifactName returns the file-system name of a dependency's library and
+// build directory; "a:b" becomes "a.b", which linkers and file systems accept.
+func ArtifactName(name string) string {
+	return strings.ReplaceAll(name, ":", ".")
+}
+
+// AddTargetDependencies adds a TargetDependency for every "<dependency>:<target>"
+// that targets or dependencies refer to. The referenced dependency must build
+// from a clue file (its own or a project "file"), not an inline build.
+func AddTargetDependencies(dependencies map[string]Dependency, referenced []string) error {
+	pending := append([]string(nil), referenced...)
+	for _, dependency := range dependencies {
+		pending = append(pending, DeclaredDepends(dependency)...)
+	}
+	for len(pending) > 0 {
+		name := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		parentName, target, ok := strings.Cut(name, ":")
+		if !ok || dependencies[name] != nil {
+			continue
+		}
+		parent, exists := dependencies[parentName]
+		if !exists {
+			return fmt.Errorf("%q refers to unknown dependency %q", name, parentName)
+		}
+		if _, nested := parent.(*TargetDependency); nested || parent.CachePath(".") == "" {
+			return fmt.Errorf("%q: dependency %q has no checkout to build targets from", name, parentName)
+		}
+		if parent.InlineBuild() != nil {
+			return fmt.Errorf("%q: dependency %q has an inline build; describe it with a clue file to select targets", name, parentName)
+		}
+		dependency := &TargetDependency{Dependency: parent, name: name, target: target}
+		dependencies[name] = dependency
+		pending = append(pending, DeclaredDepends(dependency)...)
+	}
+	return nil
+}

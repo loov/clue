@@ -61,7 +61,7 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 					result.LinkFiles = append(result.LinkFiles, dependency.Output)
 				default:
 					result.LibraryPaths = appendUnique(result.LibraryPaths, path)
-					result.Libraries = append(result.Libraries, dependency.Name)
+					result.Libraries = append(result.Libraries, deps.ArtifactName(dependency.Name))
 				}
 				if artifactType == "shared_library" {
 					result.SharedLibraryPaths = appendUnique(result.SharedLibraryPaths, path)

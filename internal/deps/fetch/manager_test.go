@@ -265,3 +265,38 @@ func TestManager_BuildOrdersDependenciesFirst(t *testing.T) {
 		}
 	}
 }
+
+func TestNewManager_LeavesDependencyTargetsToTheirDependency(t *testing.T) {
+	sdk := deps.NewGitDependency("sdk", "https://example.com/sdk", "v1", nil)
+	sdk.File = "sdk.cue"
+	dependencies := map[string]deps.Dependency{"sdk": sdk}
+	if err := deps.AddTargetDependencies(dependencies, []string{"sdk:extra"}); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := NewManager(t.TempDir(), dependencies, Options{Quiet: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statuses := manager.Status(); len(statuses) != 1 || statuses[0].Name != "sdk" {
+		t.Fatalf("statuses = %+v", statuses)
+	}
+}
+
+func TestFetchAll_DependencyOnAnotherCheckoutTarget(t *testing.T) {
+	dir := t.TempDir()
+	sdk := deps.NewVendoredDependency("sdk", dir, nil)
+	wrapper := deps.NewVendoredDependency("wrapper", dir, &deps.InlineConfig{
+		Type: "header_only", Depends: []string{"sdk:extra"},
+	})
+	dependencies := map[string]deps.Dependency{"sdk": sdk, "wrapper": wrapper}
+	if err := deps.AddTargetDependencies(dependencies, []string{"sdk:extra"}); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := NewManager(dir, dependencies, Options{Quiet: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.FetchAll(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -1082,3 +1082,41 @@ func TestNinjaShellCommand_KeepsMultilineArgumentsOnOneLine(t *testing.T) {
 		t.Fatalf("command output = %q", got)
 	}
 }
+
+func TestNinja_DependencyTargetsShareFetchOutputs(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(`targets: {
+		core: {type: "static_library", sources: ["core.c"]}
+		extra: {type: "static_library", sources: ["extra.c"], depends: ["core"]}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sdk := deps.NewVendoredDependency("sdk", root, nil)
+	sdk.TargetName = "core"
+	cfg := createMinimalConfig("app", "executable", []string{"main.c"})
+	cfg.Dependencies = map[string]deps.Dependency{"sdk": sdk}
+	if err := deps.AddTargetDependencies(cfg.Dependencies, []string{"sdk:extra"}); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
+		Config: cfg, Toolchain: "clang", Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	producers := make(map[string]int)
+	for line := range strings.SplitSeq(buf.String(), "\n") {
+		outputs, _, fetch := strings.Cut(line, ": fetch_dep ")
+		if fetch {
+			for _, output := range strings.Fields(strings.TrimPrefix(outputs, "build ")) {
+				producers[output]++
+			}
+		}
+	}
+	for _, source := range []string{"core.c", "extra.c"} {
+		path := ninja.Escape(ninjaPathLocal(filepath.Join(root, source)))
+		if producers[path] != 1 {
+			t.Errorf("%s has %d fetch producers, want one", source, producers[path])
+		}
+	}
+}

@@ -133,8 +133,9 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}
 
 	// Create output directories
-	objDir := filepath.Join(opts.BuildDir, opts.Variant, "deps", dep.Name(), "obj")
-	libDir := filepath.Join(opts.BuildDir, opts.Variant, "deps", dep.Name(), "lib")
+	artifactName := deps.ArtifactName(dep.Name())
+	objDir := filepath.Join(opts.BuildDir, opts.Variant, "deps", artifactName, "obj")
+	libDir := filepath.Join(opts.BuildDir, opts.Variant, "deps", artifactName, "lib")
 
 	if err := os.MkdirAll(objDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create object directory: %w", err)
@@ -241,9 +242,9 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}
 	}
 
-	libName := plan.StaticLibraryName(dep.Name(), opts.Platform)
+	libName := plan.StaticLibraryName(artifactName, opts.Platform)
 	if cfg.Type == "shared_library" {
-		libName = plan.SharedLibraryName(dep.Name(), opts.Platform)
+		libName = plan.SharedLibraryName(artifactName, opts.Platform)
 	}
 	libPath := filepath.Join(libDir, libName)
 	var dependencyArtifacts []string
@@ -270,7 +271,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 					linkFiles = append(linkFiles, result.LibPath)
 				} else {
 					libPaths = append(libPaths, filepath.Dir(result.LibPath))
-					libs = append(libs, result.Name)
+					libs = append(libs, deps.ArtifactName(result.Name))
 				}
 				for _, child := range result.Depends {
 					addLibrary(child)
