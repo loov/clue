@@ -85,6 +85,16 @@ func runDeps(ctx context.Context, dir, target string, verbosity build.Verbosity,
 			return 1
 		}
 
+	case "tidy":
+		options := fetch.Options{Verbose: verbose, Quiet: verbosity == build.VerbosityQuiet}
+		if err := build.TidyLock(ctx, cfg, options); err != nil {
+			if ctx.Err() != nil {
+				return 1
+			}
+			printError(err)
+			return 1
+		}
+
 	case "update":
 		if err := updateDependencies(ctx, cfg.Dependencies); err != nil {
 			if ctx.Err() != nil {
@@ -96,7 +106,7 @@ func runDeps(ctx context.Context, dir, target string, verbosity build.Verbosity,
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown deps subcommand: %s\n", subCmd)
-		fmt.Fprintln(os.Stderr, "Available subcommands: list, fetch, build, clean, update")
+		fmt.Fprintln(os.Stderr, "Available subcommands: list, fetch, build, clean, update, tidy")
 		return 1
 	}
 

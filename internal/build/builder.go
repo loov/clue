@@ -403,7 +403,10 @@ func (b *Builder) fetchDependencies(ctx context.Context, opts Options, only stri
 		fmt.Println("Building dependencies...")
 	}
 
-	options := fetch.Options{Verbose: opts.Verbosity == VerbosityVerbose, Quiet: opts.Verbosity == VerbosityQuiet}
+	options := fetch.Options{
+		Verbose: opts.Verbosity == VerbosityVerbose,
+		Quiet:   opts.Verbosity == VerbosityQuiet,
+	}
 	if only == "" {
 		if err := FetchDependencies(ctx, opts.Config, options); err != nil {
 			return nil, err
@@ -436,23 +439,38 @@ func (b *Builder) fetchDependencies(ctx context.Context, opts Options, only stri
 }
 
 // FetchDependencies fetches every dependency, including those that fetched
-// dependencies declare in their clue.cue, which it adds to cfg, and then
-// drops lock entries of dependencies that are gone.
+// dependencies declare in their clue.cue, which it adds to cfg.
 func FetchDependencies(ctx context.Context, cfg *config.Config, options fetch.Options) error {
+	_, err := fetchAll(ctx, cfg, options)
+	return err
+}
+
+// TidyLock fetches every dependency and drops the lock entries of
+// dependencies that cfg does not declare. Those can be dependencies that only
+// the configuration of another target declares.
+func TidyLock(ctx context.Context, cfg *config.Config, options fetch.Options) error {
+	manager, err := fetchAll(ctx, cfg, options)
+	if err != nil {
+		return err
+	}
+	return manager.PruneLock()
+}
+
+func fetchAll(ctx context.Context, cfg *config.Config, options fetch.Options) (*fetch.Manager, error) {
 	for {
 		manager, err := fetch.NewManager(".", cfg.Dependencies, options)
 		if err != nil {
-			return fmt.Errorf("failed to create dependency manager: %w", err)
+			return nil, fmt.Errorf("failed to create dependency manager: %w", err)
 		}
 		if err := manager.FetchAll(ctx); err != nil {
-			return fmt.Errorf("failed to fetch dependencies: %w", err)
+			return nil, fmt.Errorf("failed to fetch dependencies: %w", err)
 		}
 		added, err := config.ExpandDependencies(cfg)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if added == 0 {
-			return manager.PruneLock()
+			return manager, nil
 		}
 	}
 }

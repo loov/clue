@@ -83,6 +83,7 @@ func registerCommands(commands clingy.Commands, options *options) {
 		commands.New("build", "build one dependency", &depsCommand{options: options, action: "build", takesName: true})
 		commands.New("clean", "remove dependency cache entries", &depsCommand{options: options, action: "clean", takesName: true, optional: true})
 		commands.New("update", "update dependencies and rewrite clue.lock", &depsCommand{options: options, action: "update"})
+		commands.New("tidy", "remove clue.lock entries of undeclared dependencies", &depsCommand{options: options, action: "tidy"})
 	})
 
 	commands.Group("generate", "generate build-system integration files", func() {

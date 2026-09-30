@@ -113,7 +113,7 @@ toolchain: {
 - `clue run <target>` - Build and run an executable target
 - `clue test [name|label...]` - Build and run configured tests
 - `clue install [target...]` - Build and install artifacts and public headers (not bundles)
-- `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
+- `clue deps <list|fetch|build|clean|update|tidy>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
 - `clue generate schema` - Write the `loov.dev/clue` schema into the CUE module for `cue` and editors
 - `clue help [command]`, `clue version`
@@ -126,7 +126,9 @@ executable that generated them to fetch dependencies.
 
 Fetched Git commits and tarball checksums are recorded in `clue.lock`. Commit
 that file so builds use the same dependency revisions; run `clue deps update`
-to resolve configured Git refs again.
+to resolve configured Git refs again. Builds leave entries of other dependencies in
+`clue.lock`, as another target's configuration can declare them; `clue deps tidy`
+removes the entries that the configuration of the selected target does not declare.
 
 ### Watch mode and build profiles
 
