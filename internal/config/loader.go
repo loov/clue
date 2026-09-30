@@ -53,7 +53,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if target.OS == "" || target.Arch == "" {
 		target = toolchain.HostPlatform()
 	}
-	val, err := l.buildValue(absDir, overlay, target)
+	val, err := l.buildValue(absDir, overlay, target, true)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 // buildValue evaluates the package of dir/clue.cue: with _target and
 // _project, the implicit module and package when it has none, clue's schema
 // as "loov.dev/clue", and registry modules.
-func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, target toolchain.Platform) (cue.Value, error) {
+func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, target toolchain.Platform, enclosingModule bool) (cue.Value, error) {
 	var err error
 	// clue.cue is the project entry point; the CUE loader evaluates its package.
 	configPath := filepath.Join(absDir, "clue.cue")
@@ -87,7 +87,7 @@ func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, targe
 	if overlay == nil {
 		overlay = make(map[string]load.Source)
 	}
-	addImplicitModule(absDir, overlay)
+	addImplicitModule(absDir, enclosingModule, overlay)
 	if json.Valid(data) {
 		if packageName == "" {
 			packageName = "_"
@@ -388,17 +388,37 @@ const (
 	implicitPackage = "clue"
 )
 
-func addImplicitModule(dir string, overlay map[string]load.Source) {
-	// clue's own schema is importable as "loov.dev/clue", in every project.
-	schema := strings.Replace(Schema, "package config", "package clue", 1) + SchemaShorthands
-	overlay[filepath.Join(dir, "cue.mod", "gen", "loov.dev", "clue", "schema.cue")] = load.FromString(schema)
-	if _, err := os.Stat(filepath.Join(dir, "cue.mod")); err == nil {
-		return
+// addImplicitModule makes clue's schema importable as "loov.dev/clue" and,
+// when dir is in no CUE module, makes dir the module "clue.local" at the
+// language version of the CUE library, so every experiment it offers, such
+// as @experiment(functions), is available. A project may be inside a module
+// declared further up, as with the cue command; a dependency's checkout
+// (enclosing false) is a module of its own. The schema needs language
+// version v0.15.0 or later (it embeds with the explicitopen "...").
+func addImplicitModule(dir string, enclosing bool, overlay map[string]load.Source) {
+	root, ok := findModuleRoot(dir, enclosing)
+	if !ok {
+		root = dir
+		module := fmt.Sprintf("module: %q\nlanguage: version: %q\n", implicitModule, cue.LanguageVersion())
+		overlay[filepath.Join(dir, "cue.mod", "module.cue")] = load.FromString(module)
 	}
-	// The language version of the CUE library, so every experiment it offers,
-	// such as @experiment(functions), is available.
-	module := fmt.Sprintf("module: %q\nlanguage: version: %q\n", implicitModule, cue.LanguageVersion())
-	overlay[filepath.Join(dir, "cue.mod", "module.cue")] = load.FromString(module)
+	schema := strings.Replace(Schema, "package config", "package clue", 1) + SchemaShorthands
+	overlay[filepath.Join(root, "cue.mod", "gen", "loov.dev", "clue", "schema.cue")] = load.FromString(schema)
+}
+
+// findModuleRoot returns the directory of the nearest cue.mod/module.cue at
+// dir or, when enclosing, above it.
+func findModuleRoot(dir string, enclosing bool) (string, bool) {
+	for {
+		if info, err := os.Stat(filepath.Join(dir, "cue.mod", "module.cue")); err == nil && info.Mode().IsRegular() {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if !enclosing || parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
 }
 
 // addImplicitPackage gives the .cue files next to clue.cue that have no
@@ -454,5 +474,5 @@ func (cfg *Config) loadDescriptionFile(path string) (cue.Value, error) {
 	if target.OS == "" || target.Arch == "" {
 		target = toolchain.HostPlatform()
 	}
-	return NewLoader().buildValue(dir, nil, target)
+	return NewLoader().buildValue(dir, nil, target, false)
 }

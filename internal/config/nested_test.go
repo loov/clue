@@ -464,6 +464,43 @@ targets: deps.Plugin(name: "synth", sources: ["plugin.c"]).targets
 	}
 }
 
+func TestLoad_ProjectInsideAnEnclosingModule(t *testing.T) {
+	root := writeProject(t, map[string]string{
+		"cue.mod/module.cue": `module: "example.com/mono@v0"
+language: version: "v0.18.0"
+`,
+		"app/deps/sdk.cue": `package deps
+
+import "loov.dev/clue"
+
+sdk: clue.#Git & {name: "sdk", repo: "https://example.com/sdk", ref: "v1", targets: sdk: {type: "static_library", sources: ["s.cpp"]}}
+`,
+		"app/clue.cue": `import "example.com/mono/app/deps"
+
+name: "enclosed"
+dependencies: [deps.sdk]
+targets: app: {type: "executable", sources: ["main.cpp"], depends: [deps.sdk.lib.sdk]}
+`,
+		// the checkout's clue.cue is its own module, not part of example.com/mono
+		"app/.deps/git/sdk-v1/clue.cue": `import "clue.local/build"
+targets: sdk: {type: "static_library", sources: build.sources}
+`,
+		"app/.deps/git/sdk-v1/build/b.cue": `package build
+sources: ["s.cpp"]
+`,
+	})
+	cfg, err := NewLoader().Load(filepath.Join(root, "app"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Targets["app"].Depends; !slices.Equal(got, []string{"sdk"}) {
+		t.Fatalf("depends = %q", got)
+	}
+	if _, err := cfg.loadDescriptionFile(filepath.Join(root, "app", ".deps", "git", "sdk-v1", "clue.cue")); err != nil {
+		t.Fatalf("checkout clue.cue: %v", err)
+	}
+}
+
 func TestExpandDependencies_KeepsEachConfigurationsPlatform(t *testing.T) {
 	root := writeProject(t, map[string]string{
 		"clue.cue": `name: "first"
