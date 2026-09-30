@@ -49,8 +49,11 @@ clue build       # Build project
 ```
 
 `clue.cue` may use a CUE package and split configuration across other `.cue` files in the same directory.
+(Every `.cue` file next to `clue.cue` belongs to the project configuration, so keep clue files
+that describe dependencies in a subdirectory.) A target's `name` defaults to its key.
 Target `sources` and `headers` accept standard file globs such as `src/*.cpp`.
-Configuration can branch on the selected platform through `_target.os` and `_target.arch`:
+Configuration can branch on the selected platform through `_target.os` and `_target.arch`, and
+`_project.dir` is the absolute project directory:
 
 ```cue
 if _target.os == "windows" {
@@ -108,12 +111,16 @@ toolchain: {
 - `clue clean` - Remove build artifacts (use `-all` to clean all variants)
 - `clue run <target>` - Build and run an executable target
 - `clue test [name|label...]` - Build and run configured tests
-- `clue install [target...]` - Build and install artifacts and public headers
+- `clue install [target...]` - Build and install artifacts and public headers (not bundles)
 - `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
+- `clue help [command]`, `clue version`
 
 Long GCC, Clang, and MSVC compile/link invocations automatically use response
 files, including commands emitted by the Ninja generator.
+
+Ninja files build into `<buildDir>/ninja`, apart from `clue build`, and call the `clue`
+executable that generated them to fetch dependencies.
 
 Fetched Git commits and tarball checksums are recorded in `clue.lock`. Commit
 that file so builds use the same dependency revisions; run `clue deps update`
@@ -138,7 +145,7 @@ trace viewer.
 
 ## Common Flags
 
-- `-variant debug|release` - Select build variant (default: debug)
+- `-variant debug|release` - Select build variant (default: `defaultVariant`, else debug)
 - `-j N` - Number of parallel jobs (0 = half CPU cores, -1 = all cores)
 - `-v` - Verbose output showing detailed build steps
 - `-quiet` - Suppress all non-error output
@@ -218,6 +225,7 @@ as header units.
 ### Build variants
 
 ```cue
+defaultVariant: "release" // used without --variant or CLUE_VARIANT; default "debug"
 variants: {
     debug: {
         optimization: "none"
@@ -227,6 +235,28 @@ variants: {
         optimization: "aggressive"
         debug_info:   false
     }
+}
+```
+
+### Defaults for every target
+
+Settings shared by all compiled targets (not custom targets or interface libraries) go in
+`defaults`. Its lists come before each target's own entries, and its single values apply where a
+target sets none:
+
+```cue
+defaults: {
+    warnings:         "strict"
+    warningsAsErrors: false
+    visibility:       "hidden" // -fvisibility=hidden
+    flags: compiler: ["-fno-exceptions", "-fno-rtti"]
+}
+targets: legacy: {
+    type:    "static_library"
+    sources: ["legacy/*.cpp"]
+    warnings: "off"
+    // flags for some sources only, after the target's; these stay out of unity batches
+    sourceFlags: "legacy/rtti.cpp": ["-frtti"]
 }
 ```
 
@@ -331,6 +361,33 @@ targets: bundle: {
 
 The build fingerprint of a custom target is kept in the build directory, not beside its outputs.
 
+### Plugins and other loadable modules
+
+A `bundle` target links a loadable module. On macOS it is linked with `-bundle` and placed in
+`<dir>/<name>.<extension>/Contents/MacOS/<name>` with `Info.plist` and `PkgInfo`, and the bundle is
+signed; elsewhere the module is `<dir>/<name>.<extension>`. `exports` keeps the listed C symbols
+even when only static libraries define them, and exports only those:
+
+```cue
+targets: plugin: {
+    type:    "bundle"
+    sources: ["plugin/entry.cpp"]
+    depends: ["dsp"]
+    exports: ["clap_entry"]
+    bundle: {
+        extension:  "clap"
+        name:       "My Plugin"                // default: the target name
+        dir:        "dist/{variant}"           // default: {buildDir}
+        identifier: "com.example.my-plugin"    // generates Info.plist; or infoPlist: "path"
+        // sign: "Developer ID Application: ..." // default ad hoc; false to skip
+    }
+}
+```
+
+`exports` also works on shared libraries and executables. A static library with
+`linkWhole: true` is linked completely into its consumers, and a shared library or bundle may
+consist of its dependencies alone, without sources of its own.
+
 ### Header-only dependency
 
 Header-only Git, tarball, and vendored dependencies need only their include directory:
@@ -423,6 +480,7 @@ dependencies: vst3sdk: {
 
 ```cue
 // deps/vst3sdk.cue
+defaults: flags: compiler: ["-fvisibility=hidden"]
 targets: vst3sdk: {
     type:     "static_library"
     warnings: "off"
@@ -431,8 +489,23 @@ targets: vst3sdk: {
 }
 ```
 
+A dependency's clue file may describe several libraries. `target` selects the one the dependency
+name refers to, and `"<dependency>:<target>"` in `depends` uses another target of the same
+checkout, which is fetched once:
+
+```cue
+dependencies: "clap-wrapper": {type: "git", repo: "https://github.com/free-audio/clap-wrapper",
+                                ref: "v0.16.0", file: "deps/clap-wrapper.cue", target: "shared"}
+targets: plugin_vst3: {type: "bundle", depends: ["clap-wrapper:vst3"], bundle: extension: "vst3"}
+```
+
+Inline `build` blocks accept `flags` and `warnings` too, and pass every include directory to
+consumers.
+
 Project targets can compile files of a dependency checkout with `{dep:name}`, for example
-`sources: ["{dep:clap-wrapper}/src/wrapasauv2.cpp"]`.
+`sources: ["{dep:clap-wrapper}/src/wrapasauv2.cpp"]`; globs there are expanded once the
+dependency is fetched. Dependencies build in parallel, alongside the targets that do not need
+them, and each target waits only for the dependencies it uses.
 
 Git dependencies are cloned at depth 1, including when `clue.lock` pins a commit, and their
 submodules are checked out (shallow) too. Objective-C (`.m`) and Objective-C++ (`.mm`) sources
