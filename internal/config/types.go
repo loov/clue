@@ -19,6 +19,10 @@ type Config struct {
 	// BuildDir is the build output directory (default: ".build")
 	BuildDir string
 
+	// DefaultVariant is the variant used when neither --variant nor
+	// CLUE_VARIANT selects one (default: "debug")
+	DefaultVariant string
+
 	// Toolchain specifies compiler settings
 	Toolchain Toolchain
 

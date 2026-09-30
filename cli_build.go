@@ -181,8 +181,7 @@ func runClean(dir, variant, target string, all bool, verbosity build.Verbosity) 
 				// If can't load config, default to "debug"
 				variant = "debug"
 			} else {
-				selector := config.NewVariantSelector()
-				variant = selector.Select()
+				variant = config.SelectConfigVariant(cfg, "")
 			}
 		}
 	}

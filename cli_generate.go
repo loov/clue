@@ -55,11 +55,7 @@ func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
 	}
 
 	// Determine selected variant for compile-commands
-	selector := config.NewVariantSelector()
-	if variant != "" {
-		selector.SetCLIFlag(variant)
-	}
-	selectedVariant := selector.Select()
+	selectedVariant := config.SelectConfigVariant(cfg, variant)
 
 	switch subCmd {
 	case "ninja":

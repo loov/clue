@@ -159,7 +159,11 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	}
 
 	if len(opts.Variants) > 0 {
-		file = append(file, defaultTarget{targets: []string{opts.Variants[0]}})
+		defaultVariant := opts.Variants[0]
+		if slices.Contains(opts.Variants, opts.Config.DefaultVariant) {
+			defaultVariant = opts.Config.DefaultVariant
+		}
+		file = append(file, defaultTarget{targets: []string{defaultVariant}})
 	}
 
 	escapeBuildPaths(file)

@@ -35,7 +35,8 @@ func (l *Loader) Load(dir string) (*Config, error) {
 	return l.LoadForTarget(dir, toolchain.HostPlatform())
 }
 
-// LoadForTarget reads configuration with target platform values available as _target.
+// LoadForTarget reads configuration with target platform values available as
+// _target and the absolute project directory as _project.dir.
 func (l *Loader) LoadForTarget(dir string, target toolchain.Platform) (*Config, error) {
 	return l.load(dir, nil, target)
 }
@@ -74,7 +75,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 		overlay = make(map[string]load.Source)
 	}
 	if !json.Valid(data) {
-		data = fmt.Appendf(data, "\n_target: {os: %q, arch: %q}\n", target.OS, target.Arch)
+		data = fmt.Appendf(data, "\n_target: {os: %q, arch: %q}\n_project: dir: %q\n", target.OS, target.Arch, filepath.ToSlash(absDir))
 		overlay[configPath] = load.FromBytes(data)
 	}
 

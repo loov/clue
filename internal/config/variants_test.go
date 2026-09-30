@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -130,5 +132,34 @@ func TestMergeVariantFlags_CombinesBaseAndVariantFlags(t *testing.T) {
 		if merged.Compiler[i] != f {
 			t.Errorf("Compiler[%d] = %s, want %s", i, merged.Compiler[i], f)
 		}
+	}
+}
+
+func TestLoad_DefaultVariantAndProjectDirectory(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: "defaults"
+defaultVariant: "release"
+variants: {debug: {}, release: {}}
+targets: app: {
+	name: "app", type: "executable", sources: ["main.cpp"]
+	defines: ["DATA=\"\(_project.dir)/data\""]
+}`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(VariantEnvVar, "")
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := SelectConfigVariant(cfg, ""); got != "release" {
+		t.Errorf("default variant = %q, want release", got)
+	}
+	if got := SelectConfigVariant(cfg, "debug"); got != "debug" {
+		t.Errorf("--variant debug selected %q", got)
+	}
+	want := `DATA="` + filepath.ToSlash(dir) + `/data"`
+	if got := cfg.Targets["app"].Defines; len(got) != 1 || got[0] != want {
+		t.Errorf("defines = %q, want %q", got, want)
 	}
 }

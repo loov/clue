@@ -51,6 +51,17 @@ func (vs *VariantSelector) SetCLIFlag(variant string) {
 	vs.CLIFlag = variant
 }
 
+// SelectConfigVariant returns the variant to build: the CLI flag, then
+// CLUE_VARIANT, then the configuration's defaultVariant, then "debug".
+func SelectConfigVariant(cfg *Config, cliFlag string) string {
+	vs := NewVariantSelector()
+	if cfg != nil && cfg.DefaultVariant != "" {
+		vs.Default = cfg.DefaultVariant
+	}
+	vs.SetCLIFlag(cliFlag)
+	return vs.Select()
+}
+
 // SelectVariant returns the appropriate variant based on precedence:
 // CLI flag > environment variable > default
 func SelectVariant(cliFlag string) string {

@@ -185,6 +185,9 @@ package config
 	// Build output directory
 	buildDir?: string | *".build"
 
+	// Variant used when neither --variant nor CLUE_VARIANT selects one
+	defaultVariant?: string
+
 	// Toolchain selection
 	toolchain?: {
 		compiler: string | *"clang"

@@ -189,11 +189,7 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 	}
 
 	// Select and apply variant
-	selector := config.NewVariantSelector()
-	if variant != "" {
-		selector.SetCLIFlag(variant)
-	}
-	selectedVariant := selector.Select()
+	selectedVariant := config.SelectConfigVariant(cfg, variant)
 
 	// Only apply variant if variants are defined
 	if len(cfg.Variants) > 0 {

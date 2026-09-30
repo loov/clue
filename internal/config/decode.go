@@ -31,6 +31,7 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 	if cfg.BuildDir == "" {
 		cfg.BuildDir = ".build"
 	}
+	cfg.DefaultVariant = extractOptionalString(val, "defaultVariant")
 
 	// Extract toolchain
 	if tc := val.LookupPath(cue.ParsePath("toolchain")); tc.Exists() {
