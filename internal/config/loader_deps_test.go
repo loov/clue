@@ -660,3 +660,35 @@ targets: app: {type: "executable", sources: ["main.cpp"], depends: ["sdk", "sdk:
 		t.Fatalf("sdk:extra = %+v", extra)
 	}
 }
+
+func TestLoad_ExpandsDependencyPlaceholdersInEveryPath(t *testing.T) {
+	dir := writeProject(t, map[string]string{"clue.cue": `
+name: "placeholders"
+dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v1"}
+targets: {
+	lib: {
+		type: "static_library"
+		sources: ["{dep:sdk}/a.cpp", "{dep:sdk}/b.cpp"]
+		exclude: ["{dep:sdk}/b.cpp"]
+		unity: exclude: ["{dep:sdk}/a.cpp"]
+	}
+	gen: {
+		type: "custom", command: ["gen"]
+		workingDirectory: "{dep:sdk}/gen"
+		stdout: "{dep:sdk}/gen/out.h"
+	}
+}
+`})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sdk := filepath.Join(".deps", "git", "sdk-v1")
+	lib, gen := cfg.Targets["lib"], cfg.Targets["gen"]
+	if !slices.Equal(lib.Exclude, []string{filepath.Join(sdk, "b.cpp")}) || !slices.Equal(lib.Unity.Exclude, []string{filepath.Join(sdk, "a.cpp")}) {
+		t.Errorf("exclude = %q, unity exclude = %q", lib.Exclude, lib.Unity.Exclude)
+	}
+	if gen.WorkDir != filepath.Join(sdk, "gen") || gen.Stdout != filepath.Join(sdk, "gen", "out.h") {
+		t.Errorf("working directory = %q, stdout = %q", gen.WorkDir, gen.Stdout)
+	}
+}

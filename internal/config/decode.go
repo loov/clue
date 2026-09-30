@@ -151,6 +151,7 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	}
 
 	t.Sources = extractStringList(val, "sources")
+	t.Exclude = extractStringList(val, "exclude")
 	t.Headers = extractStringList(val, "headers")
 	if unity := val.LookupPath(cue.ParsePath("unity")); unity.Exists() {
 		t.Unity = &UnityBuild{BatchSize: 8, Exclude: extractStringList(unity, "exclude")}
@@ -477,6 +478,7 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 	config := &deps.InlineConfig{}
 
 	config.Sources = extractStringList(val, "sources")
+	config.Exclude = extractStringList(val, "exclude")
 	config.Headers = extractStringList(val, "headers")
 	config.Includes = extractStringList(val, "includes")
 	config.Defines = extractStringList(val, "defines")

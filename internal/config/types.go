@@ -111,8 +111,9 @@ type Target struct {
 	Command        []string
 	Inputs         []string
 	Outputs        []string
-	WorkDir        string // custom targets: directory the command runs in
-	Stdout         string // custom targets: file for the command's standard output
+	Exclude        []string // sources to leave out of those that sources match
+	WorkDir        string   // custom targets: directory the command runs in
+	Stdout         string   // custom targets: file for the command's standard output
 	Includes       []string
 	SystemIncludes []string
 	Defines        []string

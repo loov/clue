@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -216,5 +217,35 @@ sdk: {
 	}
 	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "clue.cue:3:") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestLoad_RecursiveGlobsAndExclude(t *testing.T) {
+	dir := writeProject(t, map[string]string{
+		"clue.cue":                 `name: "globs", targets: lib: {type: "static_library", sources: ["src/**/*.cpp"], exclude: ["**/win32/*"]}`,
+		"src/a.cpp":                "",
+		"src/sub/b.cpp":            "",
+		"src/sub/win32/c.cpp":      "",
+		"vendor/sdk/x/y.cpp":       "",
+		"vendor/sdk/x/linux/z.cpp": "",
+	})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{filepath.Join("src", "a.cpp"), filepath.Join("src", "sub", "b.cpp")}
+	if got := cfg.Targets["lib"].Sources; !slices.Equal(got, want) {
+		t.Fatalf("sources = %q, want %q", got, want)
+	}
+
+	sdk := deps.NewVendoredDependency("sdk", filepath.Join(dir, "vendor", "sdk"), &deps.InlineConfig{
+		Type: "static_library", Sources: []string{"**/*.cpp"}, Exclude: []string{"**/linux/*"},
+	})
+	build, err := deps.ResolveBuildConfig(sdk, filepath.Join(dir, "vendor", "sdk"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(build.Sources, []string{filepath.Join("x", "y.cpp")}) {
+		t.Fatalf("dependency sources = %q", build.Sources)
 	}
 }

@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"github.com/loov/clue/internal/pathglob"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -72,7 +72,7 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 		if targetType == "" {
 			targetType = "static_library"
 		}
-		sources, err := expandSourceGlobs(inline.Sources, sourcePath)
+		sources, err := expandSourceGlobs(inline.Sources, inline.Exclude, sourcePath)
 		if err != nil {
 			return BuildConfig{}, fmt.Errorf("failed to expand source globs: %w", err)
 		}
@@ -167,7 +167,7 @@ func buildConfigFromValue(value cue.Value, sourcePath, dependencyName, configure
 		return BuildConfig{}, fmt.Errorf("clue.cue target %q not found; available targets: %v", targetName, names)
 	}
 
-	var sources, includes, systemIncludes, defines, flags, linkerFlags, sysLibs, externalDepends []string
+	var sources, excludes, includes, systemIncludes, defines, flags, linkerFlags, sysLibs, externalDepends []string
 	var public Usage
 	seen := make(map[string]bool)
 	var collect func(string) error
@@ -182,6 +182,7 @@ func buildConfigFromValue(value cue.Value, sourcePath, dependencyName, configure
 			return nil
 		}
 		sources = append(sources, cueStrings(target, "sources")...)
+		excludes = append(excludes, cueStrings(target, "exclude")...)
 		for _, include := range cueStrings(target, "includes") {
 			includes = append(includes, filepath.Join(sourcePath, include))
 		}
@@ -267,7 +268,7 @@ func buildConfigFromValue(value cue.Value, sourcePath, dependencyName, configure
 	}
 	// Sources may be empty here when the dependency is not fetched yet; the
 	// builders report that when they compile it.
-	config.Sources, err = expandSourceGlobs(sources, sourcePath)
+	config.Sources, err = expandSourceGlobs(sources, excludes, sourcePath)
 	if err != nil {
 		return BuildConfig{}, fmt.Errorf("failed to expand source globs: %w", err)
 	}
@@ -288,33 +289,25 @@ func cueStrings(value cue.Value, field string) []string {
 	return result
 }
 
-func expandSourceGlobs(patterns []string, sourcePath string) ([]string, error) {
+func expandSourceGlobs(patterns, excludes []string, sourcePath string) ([]string, error) {
 	var result []string
 	seen := make(map[string]bool)
 	for _, pattern := range patterns {
-		if !strings.ContainsAny(pattern, "*?") {
-			if !seen[pattern] {
-				result = append(result, pattern)
-				seen[pattern] = true
+		matches := []string{pattern}
+		if pathglob.HasMeta(pattern) {
+			var err error
+			if matches, err = pathglob.Glob(sourcePath, pattern); err != nil {
+				return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
 			}
-			continue
-		}
-		matches, err := filepath.Glob(filepath.Join(sourcePath, pattern))
-		if err != nil {
-			return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
 		}
 		for _, match := range matches {
-			relative, err := filepath.Rel(sourcePath, match)
-			if err != nil {
-				relative = match
-			}
-			if !seen[relative] {
-				result = append(result, relative)
-				seen[relative] = true
+			if !seen[match] {
+				result = append(result, match)
+				seen[match] = true
 			}
 		}
 	}
-	return result, nil
+	return pathglob.Exclude(result, excludes), nil
 }
 
 // ConsumerUsage returns the include root and usage a dependency passes to its

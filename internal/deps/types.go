@@ -29,6 +29,7 @@ type Dependency interface {
 // InlineConfig defines build configuration for dependencies without clue.cue
 type InlineConfig struct {
 	Sources  []string
+	Exclude  []string // globs of sources to leave out
 	Headers  []string
 	Includes []string
 	Defines  []string

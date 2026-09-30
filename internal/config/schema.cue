@@ -4,7 +4,10 @@ package config
 #Target: {
 	name?:   string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$" // defaults to the key in targets
 	type:    "executable" | "static_library" | "shared_library" | "bundle" | "interface_library" | "custom"
+	// Files or globs; "**" matches any number of directories
 	sources?: [...string]
+	// Globs of sources to leave out, such as "**/win32/*"
+	exclude?: [...string]
 	headers?: [...string]
 	unity?: {
 		batchSize?: int & >=2
@@ -168,6 +171,7 @@ package config
 // Inline build configuration for dependencies without clue.cue
 #InlineBuildConfig: {
 	sources?: [...string]
+	exclude?: [...string]
 	headers?: [...string]
 	includes?: [...string]
 	defines?: [...string]

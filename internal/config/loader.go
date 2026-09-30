@@ -16,6 +16,7 @@ import (
 	"cuelang.org/go/cue/parser"
 
 	"github.com/loov/clue/internal/diagnostic"
+	"github.com/loov/clue/internal/pathglob"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -173,6 +174,16 @@ func expandDependencyPaths(config *Config, strict bool) error {
 		target.Includes, target.SystemIncludes = expand(target.Includes), expand(target.SystemIncludes)
 		target.Public.Includes, target.Public.SystemIncludes = expand(target.Public.Includes), expand(target.Public.SystemIncludes)
 		target.Command, target.Inputs, target.Outputs = expand(target.Command), expand(target.Inputs), expand(target.Outputs)
+		target.Exclude = expand(target.Exclude)
+		if target.Unity != nil {
+			target.Unity.Exclude = expand(target.Unity.Exclude)
+		}
+		if target.WorkDir != "" {
+			target.WorkDir = expand([]string{target.WorkDir})[0]
+		}
+		if target.Stdout != "" {
+			target.Stdout = expand([]string{target.Stdout})[0]
+		}
 		if len(target.SourceFlags) > 0 {
 			sourceFlags := make(map[string][]string, len(target.SourceFlags))
 			for pattern, flags := range target.SourceFlags {
@@ -231,6 +242,7 @@ func expandTargetGlobs(config *Config, root string, deferMissingDependencies boo
 		if err != nil {
 			return fmt.Errorf("target %q sources: %w", name, err)
 		}
+		target.Sources = pathglob.Exclude(target.Sources, target.Exclude)
 		target.Headers, err = expandFileGlobs(root, target.Headers, deferred)
 		if err != nil {
 			return fmt.Errorf("target %q headers: %w", name, err)
@@ -259,42 +271,25 @@ func expandFileGlobs(root string, entries []string, deferred func(string) bool) 
 	result := make([]string, 0, len(entries))
 	seen := make(map[string]bool)
 	for _, entry := range entries {
-		if !strings.ContainsAny(entry, "*?[") || deferred(entry) {
+		if !pathglob.HasMeta(entry) || deferred(entry) {
 			if !seen[entry] {
 				seen[entry] = true
 				result = append(result, entry)
 			}
 			continue
 		}
-		pattern := entry
-		if !filepath.IsAbs(pattern) {
-			pattern = filepath.Join(root, pattern)
-		}
-		matches, err := filepath.Glob(pattern)
+		matches, err := pathglob.Glob(root, entry)
 		if err != nil {
 			return nil, fmt.Errorf("invalid pattern %q: %w", entry, err)
 		}
-		matched := false
-		for _, match := range matches {
-			info, err := os.Stat(match)
-			if err != nil || !info.Mode().IsRegular() {
-				continue
-			}
-			matched = true
-			path := match
-			if !filepath.IsAbs(entry) {
-				path, err = filepath.Rel(root, match)
-				if err != nil {
-					return nil, err
-				}
-			}
+		if len(matches) == 0 {
+			return nil, fmt.Errorf("pattern %q matched no files", entry)
+		}
+		for _, path := range matches {
 			if !seen[path] {
 				seen[path] = true
 				result = append(result, path)
 			}
-		}
-		if !matched {
-			return nil, fmt.Errorf("pattern %q matched no files", entry)
 		}
 	}
 	return result, nil
