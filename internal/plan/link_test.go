@@ -38,7 +38,7 @@ func TestExportAndWholeArchiveArguments(t *testing.T) {
 	darwin := toolchain.Platform{OS: "darwin", Arch: "arm64"}
 	gnu := gccish.New("gcc", "gcc", "g++", "ar", linux)
 	if got, want := ExportArguments(gnu, linux, []string{"entry"}, "obj/exports.map"),
-		[]string{"-Wl,--undefined=entry", "-Wl,--version-script=obj/exports.map"}; !slices.Equal(got, want) {
+		[]string{"-Wl,-u,entry", "-Wl,--version-script=obj/exports.map"}; !slices.Equal(got, want) {
 		t.Errorf("linux exports = %q, want %q", got, want)
 	}
 	if got, want := ExportArguments(gnu, darwin, []string{"entry"}, ""),

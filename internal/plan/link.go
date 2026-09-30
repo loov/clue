@@ -82,7 +82,7 @@ func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts Shared
 	args = append(args, "-o", opts.Output)
 	if importLibrary != "" {
 		compiler := strings.ToLower(tc.CC())
-		if tc.Name() == "gcc" || strings.Contains(compiler, "mingw") || strings.Contains(compiler, "w64") {
+		if tc.Name() == "gcc" || tc.Name() == "zig" || strings.Contains(compiler, "mingw") || strings.Contains(compiler, "w64") {
 			args = append(args, "-Wl,--out-implib,"+importLibrary)
 		} else {
 			args = append(args, "-Wl,-implib:"+importLibrary)
@@ -194,7 +194,7 @@ func ExportArguments(tc toolchain.Toolchain, platform toolchain.Platform, symbol
 		case platform.IsWASI():
 			args = append(args, "-Wl,--export="+symbol)
 		default:
-			args = append(args, "-Wl,--undefined="+symbol)
+			args = append(args, "-Wl,-u,"+symbol)
 		}
 	}
 	if len(symbols) > 0 && tc.Name() != "msvc" && platform.OS != "darwin" && platform.OS != "windows" && !platform.IsWASI() {

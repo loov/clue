@@ -79,7 +79,7 @@ func TestNewToolchain_RejectsUnknownCompiler(t *testing.T) {
 		t.Fatal("NewToolchain(unknown) should fail")
 	}
 
-	want := "unknown toolchain: unknown-compiler (supported: gcc, clang, msvc)"
+	want := "unknown toolchain: unknown-compiler (supported: gcc, clang, msvc, zig)"
 	if err.Error() != want {
 		t.Errorf("error = %q, want %q", err.Error(), want)
 	}

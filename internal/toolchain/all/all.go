@@ -16,6 +16,7 @@ import (
 	toolchaincontainer "github.com/loov/clue/internal/toolchain/container"
 	"github.com/loov/clue/internal/toolchain/gcc"
 	"github.com/loov/clue/internal/toolchain/msvc"
+	"github.com/loov/clue/internal/toolchain/zig"
 )
 
 // NewToolchain creates a toolchain by name for the given target platform.
@@ -57,6 +58,10 @@ func NewProjectToolchain(settings config.Toolchain, target toolchain.Platform, p
 
 // NewConfiguredToolchain creates a toolchain with optional explicit commands.
 func NewConfiguredToolchain(name string, target toolchain.Platform, config Config) (toolchain.Toolchain, error) {
+	if name == "zig" {
+		// Zig cross-compiles by itself; toolchain.cc may name the zig executable.
+		return zig.New(configuredCommand(config.CC, "ZIG", "zig"), target)
+	}
 	prefix := crossPrefix(target)
 	if target.IsCrossCompile() && prefix == "" && config.TargetTriple == "" && config.CC == "" && config.CXX == "" {
 		return nil, fmt.Errorf("cross-compilation from %s to %s requires explicit toolchain.cc/toolchain.cxx or toolchain.targetTriple", toolchain.HostPlatform(), target)
@@ -87,7 +92,7 @@ func NewConfiguredToolchain(name string, target toolchain.Platform, config Confi
 		return msvc.FindAndNew(target)
 
 	default:
-		return nil, fmt.Errorf("unknown toolchain: %s (supported: gcc, clang, msvc)", name)
+		return nil, fmt.Errorf("unknown toolchain: %s (supported: gcc, clang, msvc, zig)", name)
 	}
 }
 
