@@ -14,6 +14,7 @@ import (
 	cueerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/cue/parser"
+	"cuelang.org/go/mod/modconfig"
 
 	"github.com/loov/clue/internal/diagnostic"
 	"github.com/loov/clue/internal/pathglob"
@@ -95,7 +96,14 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 		overlay[configPath] = source
 	}
 
-	instances := load.Instances([]string{"."}, &load.Config{Dir: absDir, Package: packageName, Overlay: overlay})
+	// Modules the project's cue.mod depends on come from the CUE registry
+	// ($CUE_REGISTRY, by default the central registry), cached as by the cue
+	// command.
+	registry, err := modconfig.NewRegistry(nil)
+	if err != nil {
+		return nil, fmt.Errorf("CUE registry: %w", err)
+	}
+	instances := load.Instances([]string{"."}, &load.Config{Dir: absDir, Package: packageName, Overlay: overlay, Registry: registry})
 	if len(instances) == 0 {
 		return nil, fmt.Errorf("failed to load CUE package from %s", absDir)
 	}
