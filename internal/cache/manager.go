@@ -1,16 +1,21 @@
 package cache
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/zeebo/xxh3"
 )
 
 // Entry represents a cached compilation result
@@ -45,8 +50,10 @@ type Manager struct {
 	manifest     map[string]Entry // source and object path -> entry
 	dirty        bool             // manifest has entries not yet written by Flush
 
-	hashMu sync.Mutex
-	hashes map[string]fileHash // content hashes computed during this run
+	hashMu   sync.Mutex
+	hashes   map[string]fileHash     // content hashes, loaded and computed during this run
+	recorded map[string]string       // hashes as entries last recorded them; names changed headers
+	includes map[string][]hasInclude // __has_include uses per file, parsed once per run
 }
 
 // fileHash is a content hash together with the file state it was computed from.
@@ -68,6 +75,8 @@ func NewManager(buildDir string) (*Manager, error) {
 		manifestPath: filepath.Join(cacheDir, "manifest.json"),
 		manifest:     make(map[string]Entry),
 		hashes:       make(map[string]fileHash),
+		recorded:     make(map[string]string),
+		includes:     make(map[string][]hasInclude),
 	}
 
 	// Load existing manifest if present
@@ -88,7 +97,41 @@ func (cm *Manager) loadManifest() error {
 		}
 		return err
 	}
-	return json.Unmarshal(data, &cm.manifest)
+	var file manifestFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		return err
+	}
+	if file.Version != manifestVersion {
+		return nil // an older format; everything rebuilds once
+	}
+	for _, record := range file.Files {
+		if record.Hash != "" {
+			cm.hashes[record.Path] = fileHash{size: record.Size, modTime: time.Unix(0, record.ModTime), hash: record.Hash}
+			cm.recorded[record.Path] = record.Hash
+		}
+	}
+	for id, entry := range file.Entries {
+		entry.Key.Headers = make([]string, 0, len(entry.Key.HeaderIDs))
+		for _, index := range entry.Key.HeaderIDs {
+			if index < 0 || index >= len(file.Files) {
+				return fmt.Errorf("manifest entry %q refers to file %d of %d", id, index, len(file.Files))
+			}
+			entry.Key.Headers = append(entry.Key.Headers, file.Files[index].Path)
+		}
+		entry.Key.HeaderIDs = nil
+		entry.Key.ConditionalIncludes = make(map[string]bool, len(entry.Key.PresentIncludes)+len(entry.Key.AbsentIncludes))
+		for present, indexes := range map[bool][]int{true: entry.Key.PresentIncludes, false: entry.Key.AbsentIncludes} {
+			for _, index := range indexes {
+				if index < 0 || index >= len(file.Files) {
+					return fmt.Errorf("manifest entry %q refers to file %d of %d", id, index, len(file.Files))
+				}
+				entry.Key.ConditionalIncludes[file.Files[index].Path] = present
+			}
+		}
+		entry.Key.PresentIncludes, entry.Key.AbsentIncludes = nil, nil
+		cm.manifest[id] = entry
+	}
+	return nil
 }
 
 // Flush writes the manifest if StoreResult changed it. Builders call it once
@@ -130,13 +173,102 @@ func (cm *Manager) hash(path string) (string, error) {
 	return hash, nil
 }
 
+// manifestVersion identifies the manifest layout; other versions are ignored.
+const manifestVersion = 2
+
+// manifestFile is the manifest on disk. Every file path appears once, in
+// Files, with the content hash last computed for it and the size and
+// modification time it had then; entries refer to headers by index, so a
+// header shared by many sources is stored once.
+type manifestFile struct {
+	Version int              `json:"version"`
+	Files   []fileRecord     `json:"files"`
+	Entries map[string]Entry `json:"entries"`
+}
+
+type fileRecord struct {
+	Path    string `json:"path"`
+	Size    int64  `json:"size,omitzero"`
+	ModTime int64  `json:"mtime,omitzero"` // Unix nanoseconds
+	Hash    string `json:"hash,omitzero"`
+}
+
 // saveManifest writes the cache manifest atomically
 func (cm *Manager) saveManifest() error {
-	data, err := json.Marshal(cm.manifest)
+	file := manifestFile{Version: manifestVersion, Entries: make(map[string]Entry, len(cm.manifest))}
+	index := make(map[string]int)
+	add := func(path string) int {
+		if i, ok := index[path]; ok {
+			return i
+		}
+		record := fileRecord{Path: path}
+		cm.hashMu.Lock()
+		if known, ok := cm.hashes[path]; ok {
+			record.Size, record.ModTime, record.Hash = known.size, known.modTime.UnixNano(), known.hash
+		}
+		cm.hashMu.Unlock()
+		index[path] = len(file.Files)
+		file.Files = append(file.Files, record)
+		return index[path]
+	}
+	for id, entry := range cm.manifest {
+		entry.Key.HeaderIDs = make([]int, len(entry.Key.Headers))
+		for i, header := range entry.Key.Headers {
+			entry.Key.HeaderIDs[i] = add(header)
+		}
+		entry.Key.PresentIncludes, entry.Key.AbsentIncludes = nil, nil
+		for _, candidate := range slices.Sorted(maps.Keys(entry.Key.ConditionalIncludes)) {
+			if entry.Key.ConditionalIncludes[candidate] {
+				entry.Key.PresentIncludes = append(entry.Key.PresentIncludes, add(candidate))
+			} else {
+				entry.Key.AbsentIncludes = append(entry.Key.AbsentIncludes, add(candidate))
+			}
+		}
+		file.Entries[id] = entry
+	}
+	// Keep the hashes of sources too, so a no-op build need not read them.
+	cm.hashMu.Lock()
+	paths := slices.Sorted(maps.Keys(cm.hashes))
+	cm.hashMu.Unlock()
+	for _, path := range paths {
+		add(path)
+	}
+	data, err := json.Marshal(file)
 	if err != nil {
 		return err
 	}
 	return atomicWrite(cm.manifestPath, data)
+}
+
+// changedHeader returns the first header whose content differs from when an
+// entry last recorded it, or "" when that is not known.
+func (cm *Manager) changedHeader(headers []string) string {
+	cm.hashMu.Lock()
+	defer cm.hashMu.Unlock()
+	for _, header := range headers {
+		if cm.hashes[header].hash != cm.recorded[header] {
+			return header
+		}
+	}
+	return ""
+}
+
+// headersDigest hashes the headers' paths and current contents. It fails
+// when a header can no longer be read, and then names that header.
+func (cm *Manager) headersDigest(headers []string) (string, string, error) {
+	var buffer strings.Builder
+	for _, header := range headers {
+		hash, err := cm.hash(header)
+		if err != nil {
+			return "", header, err
+		}
+		buffer.WriteString(header)
+		buffer.WriteByte(0)
+		buffer.WriteString(hash)
+		buffer.WriteByte('\n')
+	}
+	sum := xxh3.HashString128(buffer.String()).Bytes()
+	return hex.EncodeToString(sum[:]), "", nil
 }
 
 // atomicWrite writes data to a file atomically using temp file + rename
@@ -217,45 +349,19 @@ func (cm *Manager) NeedsRebuild(
 		return true, ReasonFlagsChanged, ""
 	}
 
-	// Parse dep file to check header changes
-	depInfo, err := ParseDepFile(entry.DepFilePath)
-	if err != nil {
-		return true, ReasonDepFileMissing, ""
-	}
 	for candidate, existed := range entry.Key.ConditionalIncludes {
-		_, err := os.Stat(candidate)
-		if (err == nil) != existed {
+		if _, err := os.Stat(candidate); (err == nil) != existed {
 			return true, ReasonConditionalInclude, candidate
 		}
 	}
 
-	// Check each dependency (headers)
-	for _, dep := range depInfo.Sources {
-		// Convert both to absolute paths for comparison
-		absDep, err := filepath.Abs(dep)
-		if err != nil {
-			absDep = dep
-		}
-		absSource, err := filepath.Abs(source)
-		if err != nil {
-			absSource = source
-		}
-
-		// Skip the source file itself
-		if absDep == absSource {
-			continue
-		}
-
-		// Compute current header hash (fails when the header is gone)
-		currentHash, err := cm.hash(dep)
-		if err != nil {
-			return true, ReasonHeaderChanged, dep
-		}
-
-		// Compare with cached header hashes
-		if cachedHash, ok := entry.Key.HeaderHashes[dep]; !ok || cachedHash != currentHash {
-			return true, ReasonHeaderChanged, dep
-		}
+	// Check the headers the source included
+	digest, missing, err := cm.headersDigest(entry.Key.Headers)
+	if err != nil {
+		return true, ReasonHeaderChanged, missing
+	}
+	if digest != entry.Key.HeadersDigest {
+		return true, ReasonHeaderChanged, cm.changedHeader(entry.Key.Headers)
 	}
 
 	// All checks passed - no rebuild needed
@@ -316,37 +422,41 @@ func (cm *Manager) StoreResult(
 		return fmt.Errorf("failed to parse dep file: %w", err)
 	}
 
-	// Compute header hashes
-	headerHashes := make(map[string]string)
+	// Collect the headers that can be hashed; system headers may be missing
+	// from -MMD output or unreadable.
+	absSource, err := filepath.Abs(source)
+	if err != nil {
+		absSource = source
+	}
+	var headers []string
 	for _, dep := range depInfo.Sources {
-		// Convert both to absolute paths for comparison
 		absDep, err := filepath.Abs(dep)
 		if err != nil {
 			absDep = dep
 		}
-		absSource, err := filepath.Abs(source)
-		if err != nil {
-			absSource = source
-		}
-
-		// Skip the source file itself
 		if absDep == absSource {
-			continue
+			continue // the source file itself
 		}
-
-		hash, err := cm.hash(dep)
-		if err != nil {
-			// Header might not exist (system header filtered by -MMD)
-			continue
+		if _, err := cm.hash(dep); err == nil {
+			headers = append(headers, dep)
 		}
-		headerHashes[dep] = hash
 	}
+	digest, _, err := cm.headersDigest(headers)
+	if err != nil {
+		return fmt.Errorf("failed to hash headers: %w", err)
+	}
+	cm.hashMu.Lock()
+	for _, header := range headers {
+		cm.recorded[header] = cm.hashes[header].hash
+	}
+	cm.hashMu.Unlock()
 
 	// Build cache key
 	key := CacheKey{
 		SourceHash:          sourceHash,
-		HeaderHashes:        headerHashes,
-		ConditionalIncludes: conditionalIncludeStates(depInfo.Sources, includes),
+		Headers:             headers,
+		HeadersDigest:       digest,
+		ConditionalIncludes: cm.conditionalIncludeStates(depInfo.Sources, includes),
 		CompilerID:          compilerID,
 		Flags:               append([]string(nil), compilerFlags...),
 		IncludePaths:        normalizeIncludePaths(includes),
@@ -370,7 +480,33 @@ func (cm *Manager) StoreResult(
 
 var conditionalIncludePattern = regexp.MustCompile(`__has_include\s*\(\s*([<"])([^>"]+)[>"]\s*\)`)
 
-func conditionalIncludeStates(files, includePaths []string) map[string]bool {
+// hasInclude is one __has_include in a file: whether it is quoted, and its argument.
+type hasInclude struct {
+	quoted bool
+	name   string
+}
+
+// hasIncludes returns the __has_include uses of a file, reading it once per run.
+func (cm *Manager) hasIncludes(file string) []hasInclude {
+	cm.hashMu.Lock()
+	found, ok := cm.includes[file]
+	cm.hashMu.Unlock()
+	if ok {
+		return found
+	}
+	content, err := os.ReadFile(file)
+	if err == nil {
+		for _, match := range conditionalIncludePattern.FindAllStringSubmatch(string(content), -1) {
+			found = append(found, hasInclude{quoted: match[1] == `"`, name: match[2]})
+		}
+	}
+	cm.hashMu.Lock()
+	cm.includes[file] = found
+	cm.hashMu.Unlock()
+	return found
+}
+
+func (cm *Manager) conditionalIncludeStates(files, includePaths []string) map[string]bool {
 	searchDirs := normalizeIncludePaths(includePaths)
 	for _, file := range files {
 		searchDirs = append(searchDirs, filepath.Dir(file))
@@ -379,24 +515,22 @@ func conditionalIncludeStates(files, includePaths []string) map[string]bool {
 
 	states := make(map[string]bool)
 	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			continue
-		}
-		for _, match := range conditionalIncludePattern.FindAllStringSubmatch(string(content), -1) {
+		for _, use := range cm.hasIncludes(file) {
 			dirs := searchDirs
-			if match[1] == `"` {
+			if use.quoted {
 				dirs = append([]string{filepath.Dir(file)}, dirs...)
 			}
 			for _, dir := range dirs {
-				candidate := filepath.Clean(filepath.Join(dir, match[2]))
+				candidate := filepath.Clean(filepath.Join(dir, use.name))
+				// Checked afresh: a custom target may have created it since
+				// NeedsRebuild looked.
 				_, err := os.Stat(candidate)
 				states[candidate] = err == nil
 			}
 		}
 	}
-	// ponytail: macro-expanded __has_include arguments are not portable to
-	// resolve here; use compiler-produced negative dependencies if needed.
+	// Macro-expanded __has_include arguments are not resolved here; that
+	// would need compiler-produced negative dependencies.
 	return states
 }
 

@@ -3,6 +3,7 @@ package cache
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -716,5 +717,64 @@ func TestNeedsRebuild_ReturnsTrueWhenFlagsChange(t *testing.T) {
 
 	if reason != ReasonFlagsChanged {
 		t.Errorf("reason = %s, want %s", reason, ReasonFlagsChanged)
+	}
+}
+
+func TestManifest_StoresHeadersOnceAndDetectsChangesAfterRestart(t *testing.T) {
+	dir := t.TempDir()
+	header := filepath.Join(dir, "shared.h")
+	if err := os.WriteFile(header, []byte("int x;"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	compiler, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildDir := filepath.Join(dir, "build")
+	cm, err := NewManager(buildDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := []string{"a.cpp", "b.cpp"}
+	for _, name := range sources {
+		source, object, depfile := filepath.Join(dir, name), filepath.Join(dir, name+".o"), filepath.Join(dir, name+".d")
+		for path, content := range map[string]string{source: "#include \"shared.h\"", object: "o", depfile: object + ": " + source + " " + header + "\n"} {
+			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := cm.StoreResult(source, object, depfile, nil, nil, compiler); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := cm.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(cm.manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(string(data), header); count != 1 {
+		t.Errorf("header path stored %d times:\n%s", count, data)
+	}
+
+	restarted, err := NewManager(buildDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := filepath.Join(dir, "a.cpp")
+	if rebuild, reason, _ := restarted.NeedsRebuild(a, a+".o", nil, nil, compiler, false); rebuild {
+		t.Fatalf("unchanged source needs rebuild: %s", reason)
+	}
+	later := time.Now().Add(time.Second)
+	if err := os.WriteFile(header, []byte("int y;"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(header, later, later); err != nil {
+		t.Fatal(err)
+	}
+	rebuild, reason, changed := restarted.NeedsRebuild(a, a+".o", nil, nil, compiler, false)
+	if !rebuild || reason != ReasonHeaderChanged || changed != header {
+		t.Fatalf("after header change: %v %s %q", rebuild, reason, changed)
 	}
 }
