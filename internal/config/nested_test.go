@@ -249,3 +249,36 @@ func TestLoad_RecursiveGlobsAndExclude(t *testing.T) {
 		t.Fatalf("dependency sources = %q", build.Sources)
 	}
 }
+
+func TestLoad_ImportableSchema(t *testing.T) {
+	sdk := `package deps
+
+import "loov.dev/clue"
+
+sdk: clue.#Git & {
+	repo: "https://example.com/sdk"
+	ref:  "v1"
+	targets: sdk: {type: "static_library", sources: ["a.cpp"], warnings: WARNINGS}
+}
+`
+	project := `import "clue.local/deps"
+
+name: "schema"
+dependencies: sdk: deps.sdk
+targets: app: {type: "executable", sources: ["main.cpp"], depends: ["sdk"]}
+`
+	dir := writeProject(t, map[string]string{"clue.cue": project, "deps/sdk.cue": strings.Replace(sdk, "WARNINGS", `"off"`, 1)})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dependency := cfg.Dependencies["sdk"]; dependency.Type() != "git" {
+		t.Fatalf("sdk = %#v", dependency)
+	}
+
+	// A mistake is reported in the file that makes it.
+	dir = writeProject(t, map[string]string{"clue.cue": project, "deps/sdk.cue": strings.Replace(sdk, "WARNINGS", `"loud"`, 1)})
+	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "loud") {
+		t.Fatalf("error = %v", err)
+	}
+}

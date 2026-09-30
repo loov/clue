@@ -363,6 +363,9 @@ const (
 )
 
 func addImplicitModule(dir string, overlay map[string]load.Source) {
+	// clue's own schema is importable as "loov.dev/clue", in every project.
+	schema := strings.Replace(Schema, "package config", "package clue", 1) + SchemaShorthands
+	overlay[filepath.Join(dir, "cue.mod", "gen", "loov.dev", "clue", "schema.cue")] = load.FromString(schema)
 	if _, err := os.Stat(filepath.Join(dir, "cue.mod")); err == nil {
 		return
 	}
