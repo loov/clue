@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -588,5 +589,34 @@ targets: app: {name: "app", type: "executable", sources: ["main.cpp"], depends: 
 `)
 	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "inline build") {
 		t.Fatalf("inline dependency target: %v", err)
+	}
+}
+
+func TestLoad_DefersGlobsInUnfetchedDependencies(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+name: "deferred"
+dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v1", build: {targetType: "header_only"}}
+targets: app: {name: "app", type: "executable", sources: ["{dep:sdk}/src/*.cpp"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatalf("load before fetch: %v", err)
+	}
+	checkout := filepath.Join(dir, ".deps", "git", "sdk-v1", "src")
+	if err := os.MkdirAll(checkout, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(checkout, "a.cpp"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ExpandTargetGlobs(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := cfg.Targets["app"].Sources, []string{filepath.Join(".deps", "git", "sdk-v1", "src", "a.cpp")}; !slices.Equal(got, want) {
+		t.Fatalf("sources = %q, want %q", got, want)
 	}
 }

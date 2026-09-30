@@ -16,6 +16,9 @@ type Config struct {
 	// Version is the optional project version
 	Version string
 
+	// Dir is the absolute project directory
+	Dir string
+
 	// BuildDir is the build output directory (default: ".build")
 	BuildDir string
 

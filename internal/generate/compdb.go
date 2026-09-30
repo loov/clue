@@ -35,6 +35,10 @@ type CompDBOptions struct {
 
 // CompileCommands creates a compile_commands.json file
 func CompileCommands(ctx context.Context, opts CompDBOptions) error {
+	if err := config.ExpandTargetGlobs(opts.Config); err != nil {
+		return fmt.Errorf("%w (run 'clue deps fetch' before generating)", err)
+	}
+
 	// Get working directory with absolute path
 	workDir, err := filepath.Abs(".")
 	if err != nil {

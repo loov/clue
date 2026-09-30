@@ -164,6 +164,10 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 	} else {
 		b.depResults = make(map[string]*depBuildResult)
 	}
+	// Globs inside dependency checkouts can be expanded now that they are fetched.
+	if err := config.ExpandTargetGlobs(opts.Config); err != nil {
+		return nil, err
+	}
 
 	// Get build order from config
 	buildOrder, err := config.ComputeBuildOrder(opts.Config)

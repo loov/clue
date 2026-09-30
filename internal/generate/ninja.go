@@ -99,6 +99,10 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 		slices.Sort(opts.Variants)
 	}
 
+	if err := config.ExpandTargetGlobs(opts.Config); err != nil {
+		return fmt.Errorf("%w (run 'clue deps fetch' before generating)", err)
+	}
+
 	// Discover toolchain
 	toolchain, err := configuredToolchain(opts.Config.Toolchain, opts.Toolchain, opts.Platform)
 	if err != nil {

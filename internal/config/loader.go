@@ -114,7 +114,8 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if err := expandDependencyPaths(config); err != nil {
 		return nil, err
 	}
-	if err := expandTargetGlobs(config, absDir); err != nil {
+	config.Dir = absDir
+	if err := expandTargetGlobs(config, absDir, true); err != nil {
 		return nil, err
 	}
 	return config, nil
@@ -160,19 +161,49 @@ func expandDependencyPaths(config *Config) error {
 	return nil
 }
 
-func expandTargetGlobs(config *Config, root string) error {
+// ExpandTargetGlobs expands the source globs that were left for after the
+// dependencies are fetched: those inside a dependency checkout that did not
+// exist when the configuration was loaded. Builders and generators call it
+// once the dependencies are available.
+func ExpandTargetGlobs(config *Config) error {
+	root := config.Dir
+	if root == "" {
+		root = "."
+	}
+	return expandTargetGlobs(config, root, false)
+}
+
+func expandTargetGlobs(config *Config, root string, deferMissingDependencies bool) error {
+	// Globs in a dependency checkout that is not fetched yet cannot match.
+	deferred := func(pattern string) bool {
+		if !deferMissingDependencies {
+			return false
+		}
+		for _, dependency := range config.Dependencies {
+			checkout := dependency.CachePath(".")
+			if checkout == "" {
+				continue
+			}
+			if relative, err := filepath.Rel(checkout, pattern); err == nil && !strings.HasPrefix(relative, "..") {
+				if _, err := os.Stat(filepath.Join(root, checkout)); err != nil {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	for name, target := range config.Targets {
 		var err error
-		target.Sources, err = expandFileGlobs(root, target.Sources)
+		target.Sources, err = expandFileGlobs(root, target.Sources, deferred)
 		if err != nil {
 			return fmt.Errorf("target %q sources: %w", name, err)
 		}
-		target.Headers, err = expandFileGlobs(root, target.Headers)
+		target.Headers, err = expandFileGlobs(root, target.Headers, deferred)
 		if err != nil {
 			return fmt.Errorf("target %q headers: %w", name, err)
 		}
 		if target.Unity != nil {
-			target.Unity.Exclude, err = expandFileGlobs(root, target.Unity.Exclude)
+			target.Unity.Exclude, err = expandFileGlobs(root, target.Unity.Exclude, deferred)
 			if err != nil {
 				return fmt.Errorf("target %q unity exclusions: %w", name, err)
 			}
@@ -191,11 +222,11 @@ func expandTargetGlobs(config *Config, root string) error {
 	return nil
 }
 
-func expandFileGlobs(root string, entries []string) ([]string, error) {
+func expandFileGlobs(root string, entries []string, deferred func(string) bool) ([]string, error) {
 	result := make([]string, 0, len(entries))
 	seen := make(map[string]bool)
 	for _, entry := range entries {
-		if !strings.ContainsAny(entry, "*?[") {
+		if !strings.ContainsAny(entry, "*?[") || deferred(entry) {
 			if !seen[entry] {
 				seen[entry] = true
 				result = append(result, entry)
