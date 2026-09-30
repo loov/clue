@@ -27,8 +27,8 @@ type Target struct {
 func ForTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform toolchain.Platform) Target {
 	objectDir := objectDir(buildDir, variantName, target.Name)
 	usage := config.CompileUsage(cfg, target)
-	target.Includes = append([]string(nil), usage.Includes...)
-	target.SystemIncludes = append([]string(nil), usage.SystemIncludes...)
+	target.Includes = expandVariantPaths(usage.Includes, buildDir, variantName)
+	target.SystemIncludes = expandVariantPaths(usage.SystemIncludes, buildDir, variantName)
 	target.Defines = append(append([]string(nil), usage.Defines...), variant.Defines...)
 	if target.CStd == "" {
 		target.CStd = usage.CStd

@@ -20,8 +20,9 @@ func TestBuilderCustomTarget_RunsOnlyWhenInputsChange(t *testing.T) {
 		Command: []string{os.Args[0], "-test.run=TestBuilderCustomTargetHelper_CreatesDeclaredOutputs", "--", output},
 	}
 	b := &Builder{executor: newExecutor(executorConfig{})}
+	opts := Options{BuildDir: t.TempDir(), Variant: "debug"}
 	for range 2 {
-		if _, err := b.buildCustomTarget(t.Context(), Options{}, target); err != nil {
+		if _, err := b.buildCustomTarget(t.Context(), opts, target); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -31,7 +32,7 @@ func TestBuilderCustomTarget_RunsOnlyWhenInputsChange(t *testing.T) {
 	if err := os.WriteFile(input, []byte("changed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.buildCustomTarget(t.Context(), Options{}, target); err != nil {
+	if _, err := b.buildCustomTarget(t.Context(), opts, target); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := os.ReadFile(output); err != nil || !slices.Equal(got, []byte("rerun")) {
