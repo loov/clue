@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/loov/clue/internal/build"
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/deps/fetch"
 	"github.com/zeebo/clingy"
@@ -55,7 +56,7 @@ func runDeps(ctx context.Context, dir, target string, verbosity build.Verbosity,
 		}
 
 	case "fetch":
-		if err := fetchDependencies(ctx, cfg.Dependencies, verbosity, name); err != nil {
+		if err := fetchDependencies(ctx, cfg, verbosity, name); err != nil {
 			if ctx.Err() != nil {
 				return 1
 			}
@@ -159,7 +160,8 @@ func listDependencies(dependencies map[string]deps.Dependency, verbose bool) err
 }
 
 // fetchDependencies fetches one dependency, or all dependencies when name is empty.
-func fetchDependencies(ctx context.Context, dependencies map[string]deps.Dependency, verbosity build.Verbosity, name string) error {
+func fetchDependencies(ctx context.Context, cfg *config.Config, verbosity build.Verbosity, name string) error {
+	dependencies := cfg.Dependencies
 	quiet := verbosity == build.VerbosityQuiet
 	if len(dependencies) == 0 {
 		if !quiet {
@@ -190,16 +192,20 @@ func fetchDependencies(ctx context.Context, dependencies map[string]deps.Depende
 		}
 	}
 
-	// Fetch all
-	if err := mgr.FetchAll(ctx); err != nil {
+	// Fetch all, including what fetched dependencies declare
+	if err := build.FetchDependencies(ctx, cfg, fetch.Options{Verbose: verbosity == build.VerbosityVerbose, Quiet: quiet}); err != nil {
 		return err
 	}
 
 	// Calculate summary
-	downloadedCount := len(initialStatuses) - cachedCount
+	total := len(initialStatuses)
+	if final, err := fetch.NewManager(".", cfg.Dependencies, fetch.Options{Quiet: true}); err == nil {
+		total = len(final.Status())
+	}
+	downloadedCount := total - cachedCount
 	if downloadedCount > 0 && !quiet {
 		fmt.Printf("\nFetched %d dependencies (%d cached, %d downloaded)\n",
-			len(initialStatuses), cachedCount, downloadedCount)
+			total, cachedCount, downloadedCount)
 	}
 
 	return nil

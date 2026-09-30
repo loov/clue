@@ -106,9 +106,6 @@ func (m *Manager) FetchAll(ctx context.Context) error {
 	if err := group.Wait(); err != nil {
 		return err
 	}
-	if err := m.pruneLock(); err != nil {
-		return err
-	}
 
 	m.progress("All dependencies ready")
 	return nil
@@ -374,8 +371,10 @@ func (m *Manager) cacheReady(dep deps.Dependency, record bool) (bool, error) {
 	return true, nil
 }
 
-// pruneLock removes lock entries of dependencies that are no longer configured.
-func (m *Manager) pruneLock() error {
+// PruneLock removes lock entries of dependencies that are no longer
+// configured. Call it once every dependency, including those that fetched
+// dependencies declare, has been fetched.
+func (m *Manager) PruneLock() error {
 	m.lockMu.Lock()
 	defer m.lockMu.Unlock()
 	pruned := false

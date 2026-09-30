@@ -116,18 +116,6 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		}
 		cfg.Dependencies = deps
 	}
-	var referenced []string
-	for _, target := range cfg.Targets {
-		referenced = append(referenced, target.Depends...)
-	}
-	if len(cfg.Dependencies) > 0 || slices.ContainsFunc(referenced, func(name string) bool { return strings.Contains(name, ":") }) {
-		if cfg.Dependencies == nil {
-			cfg.Dependencies = make(map[string]deps.Dependency)
-		}
-		if err := deps.AddTargetDependencies(cfg.Dependencies, referenced); err != nil {
-			return nil, err
-		}
-	}
 
 	return cfg, nil
 }
@@ -361,6 +349,12 @@ func (l *Loader) extractDependencies(val cue.Value) (map[string]deps.Dependency,
 	return result, nil
 }
 
+// hasSpec reports whether a dependency is given with a description of
+// its build (targets) or of its own dependencies.
+func hasSpec(val cue.Value) bool {
+	return val.LookupPath(cue.ParsePath("targets")).Exists() || val.LookupPath(cue.ParsePath("dependencies")).Exists()
+}
+
 // extractGitDependency extracts a git dependency
 func (l *Loader) extractGitDependency(name string, val cue.Value) (*deps.GitDependency, error) {
 	repo, err := extractString(val, "repo")
@@ -384,7 +378,7 @@ func (l *Loader) extractGitDependency(name string, val cue.Value) (*deps.GitDepe
 	dependency := deps.NewGitDependency(name, repo, ref, buildConfig)
 	dependency.TargetName = extractOptionalString(val, "target")
 	dependency.File = extractOptionalString(val, "file")
-	if val.LookupPath(cue.ParsePath("targets")).Exists() {
+	if hasSpec(val) {
 		dependency.Spec = val
 	}
 	if val.LookupPath(cue.ParsePath("submodules")).Exists() {
@@ -421,7 +415,7 @@ func (l *Loader) extractTarballDependency(name string, val cue.Value) (*deps.Tar
 	dependency := deps.NewTarballDependency(name, url, checksum, stripPrefix, buildConfig)
 	dependency.TargetName = extractOptionalString(val, "target")
 	dependency.File = extractOptionalString(val, "file")
-	if val.LookupPath(cue.ParsePath("targets")).Exists() {
+	if hasSpec(val) {
 		dependency.Spec = val
 	}
 	return dependency, nil
@@ -445,7 +439,7 @@ func (l *Loader) extractVendoredDependency(name string, val cue.Value) (*deps.Ve
 	dependency := deps.NewVendoredDependency(name, path, buildConfig)
 	dependency.TargetName = extractOptionalString(val, "target")
 	dependency.File = extractOptionalString(val, "file")
-	if val.LookupPath(cue.ParsePath("targets")).Exists() {
+	if hasSpec(val) {
 		dependency.Spec = val
 	}
 	return dependency, nil

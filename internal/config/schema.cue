@@ -193,6 +193,9 @@ package config
 #Description: {
 	defaults?: #TargetDefaults
 	targets?: [string]: #Target
+	// The dependency's own dependencies, added to the project's; a name
+	// declared in several places must name the same source everywhere
+	dependencies?: [string]: #Dependency
 }
 
 // Git repository dependency

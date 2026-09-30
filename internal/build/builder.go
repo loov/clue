@@ -403,22 +403,15 @@ func (b *Builder) fetchDependencies(ctx context.Context, opts Options, only stri
 		fmt.Println("Building dependencies...")
 	}
 
-	// Create dependency manager
-	mgr, err := fetch.NewManager(
-		".", // Current directory as project root
-		opts.Config.Dependencies,
-		fetch.Options{
-			Verbose: opts.Verbosity == VerbosityVerbose,
-			Quiet:   opts.Verbosity == VerbosityQuiet,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create dependency manager: %w", err)
+	options := fetch.Options{Verbose: opts.Verbosity == VerbosityVerbose, Quiet: opts.Verbosity == VerbosityQuiet}
+	if only == "" {
+		if err := FetchDependencies(ctx, opts.Config, options); err != nil {
+			return nil, err
+		}
 	}
 
-	// Get build order using resolver (respects inter-dependency order)
-	resolver := deps.NewResolver(opts.Config.Dependencies)
-	buildOrder, err := resolver.BuildOrder()
+	// Build order (respects inter-dependency order)
+	buildOrder, err := deps.NewResolver(opts.Config.Dependencies).BuildOrder()
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve dependency build order: %w", err)
 	}
@@ -429,15 +422,39 @@ func (b *Builder) fetchDependencies(ctx context.Context, opts Options, only stri
 				break
 			}
 		}
+		manager, err := fetch.NewManager(".", opts.Config.Dependencies, options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create dependency manager: %w", err)
+		}
 		for _, name := range buildOrder {
-			if err := mgr.FetchOne(ctx, name); err != nil {
+			if err := manager.FetchOne(ctx, name); err != nil {
 				return nil, fmt.Errorf("failed to fetch dependency %q: %w", name, err)
 			}
 		}
-	} else if err := mgr.FetchAll(ctx); err != nil {
-		return nil, fmt.Errorf("failed to fetch dependencies: %w", err)
 	}
 	return buildOrder, nil
+}
+
+// FetchDependencies fetches every dependency, including those that fetched
+// dependencies declare in their clue.cue, which it adds to cfg, and then
+// drops lock entries of dependencies that are gone.
+func FetchDependencies(ctx context.Context, cfg *config.Config, options fetch.Options) error {
+	for {
+		manager, err := fetch.NewManager(".", cfg.Dependencies, options)
+		if err != nil {
+			return fmt.Errorf("failed to create dependency manager: %w", err)
+		}
+		if err := manager.FetchAll(ctx); err != nil {
+			return fmt.Errorf("failed to fetch dependencies: %w", err)
+		}
+		added, err := config.ExpandDependencies(cfg)
+		if err != nil {
+			return err
+		}
+		if added == 0 {
+			return manager.PruneLock()
+		}
+	}
 }
 
 // dependencyBuilds builds dependencies in the background, each once the

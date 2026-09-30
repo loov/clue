@@ -46,6 +46,9 @@ type Config struct {
 
 	// Raw is the underlying CUE value for advanced access
 	Raw cue.Value
+
+	declaredBy map[string]string // who declared each dependency, for conflict messages
+	expanded   map[string]bool   // dependencies whose own declarations were added
 }
 
 // Toolchain configuration

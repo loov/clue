@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/build"
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -105,7 +106,7 @@ func TestFetchDependenciesReturnsWithoutDependencies(t *testing.T) {
 
 	// Run fetch
 	ctx := t.Context()
-	err := fetchDependencies(ctx, deps, build.VerbosityNormal, "")
+	err := fetchDependencies(ctx, &config.Config{Dependencies: deps}, build.VerbosityNormal, "")
 	if err != nil {
 		t.Fatalf("fetchDependencies failed: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestFetchDependenciesRejectsUnknownDependency(t *testing.T) {
 
 	// Run fetch - should fail
 	ctx := t.Context()
-	err := fetchDependencies(ctx, deps, build.VerbosityNormal, "")
+	err := fetchDependencies(ctx, &config.Config{Dependencies: deps}, build.VerbosityNormal, "")
 
 	if err == nil {
 		t.Fatal("fetchDependencies succeeded with an invalid URL")
@@ -259,7 +260,7 @@ func TestFetchDependencies_QuietPrintsNothing(t *testing.T) {
 	t.Chdir(dir)
 	dependencies := map[string]deps.Dependency{"local": deps.NewVendoredDependency("local", vendor, &deps.InlineConfig{Type: "header_only"})}
 	output, err := captureCLIStdout(t, func() error {
-		return fetchDependencies(t.Context(), dependencies, build.VerbosityQuiet, "")
+		return fetchDependencies(t.Context(), &config.Config{Dependencies: dependencies}, build.VerbosityQuiet, "")
 	})
 	if err != nil || output != "" {
 		t.Fatalf("quiet fetch printed %q, %v", output, err)

@@ -111,10 +111,15 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if err != nil {
 		return nil, err
 	}
-	if err := expandDependencyPaths(config); err != nil {
+	config.Dir = absDir
+	// Dependencies declared by dependencies; those in clue.cue files of
+	// checkouts that are not fetched yet are added after fetching.
+	if _, err := ExpandDependencies(config); err != nil {
 		return nil, err
 	}
-	config.Dir = absDir
+	if err := expandDependencyPaths(config, false); err != nil {
+		return nil, err
+	}
 	if err := expandTargetGlobs(config, absDir, true); err != nil {
 		return nil, err
 	}
@@ -126,7 +131,7 @@ var dependencyPlaceholder = regexp.MustCompile(`\{dep:([^{}]+)\}`)
 // expandDependencyPaths replaces {dep:name} in target paths and custom commands
 // with the checkout directory of dependency name, so targets can compile files
 // from a dependency without spelling out its cache location.
-func expandDependencyPaths(config *Config) error {
+func expandDependencyPaths(config *Config, strict bool) error {
 	for name, target := range config.Targets {
 		var err error
 		expand := func(values []string) []string {
@@ -138,7 +143,10 @@ func expandDependencyPaths(config *Config) error {
 				result[index] = dependencyPlaceholder.ReplaceAllStringFunc(value, func(match string) string {
 					dependency, ok := config.Dependencies[match[len("{dep:"):len(match)-1]]
 					if !ok || dependency.CachePath(".") == "" {
-						err = fmt.Errorf("target %q: %s does not name a fetched dependency", name, match)
+						// A dependency declared by another one may be known only after fetching.
+						if strict || ok {
+							err = fmt.Errorf("target %q: %s does not name a fetched dependency", name, match)
+						}
 						return match
 					}
 					return dependency.CachePath(".")
@@ -173,6 +181,9 @@ func expandDependencyPaths(config *Config) error {
 // exist when the configuration was loaded. Builders and generators call it
 // once the dependencies are available.
 func ExpandTargetGlobs(config *Config) error {
+	if err := expandDependencyPaths(config, true); err != nil {
+		return err
+	}
 	root := config.Dir
 	if root == "" {
 		root = "."

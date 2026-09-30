@@ -302,6 +302,9 @@ func TestFetchAll_RemovesLockEntriesOfRemovedDependencies(t *testing.T) {
 	if err := manager.FetchAll(t.Context()); err != nil {
 		t.Fatal(err)
 	}
+	if err := manager.PruneLock(); err != nil {
+		t.Fatal(err)
+	}
 	data, err := os.ReadFile(filepath.Join(dir, lockFileName))
 	if err != nil {
 		t.Fatal(err)
