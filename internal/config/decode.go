@@ -412,6 +412,9 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 	config.Includes = extractStringList(val, "includes")
 	config.Defines = extractStringList(val, "defines")
 	config.Depends = extractStringList(val, "depends")
+	config.CompilerFlags = extractStringList(val, "flags.compiler")
+	config.LinkerFlags = extractStringList(val, "flags.linker")
+	config.Warnings = extractOptionalString(val, "warnings")
 	if commands := val.LookupPath(cue.ParsePath("commands")); commands.Exists() {
 		outer, _ := commands.List()
 		for outer.Next() {

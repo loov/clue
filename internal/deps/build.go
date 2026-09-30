@@ -43,11 +43,18 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 		for _, include := range inline.Includes {
 			includes = append(includes, filepath.Join(sourcePath, include))
 		}
-		return BuildConfig{
+		config := BuildConfig{
 			Sources: sources, Includes: includes, Defines: slices.Clone(inline.Defines),
 			Depends: slices.Clone(inline.Depends), Library: inline.Library,
 			Commands: inline.Commands, Type: targetType,
-		}, nil
+			CompilerFlags: slices.Clone(inline.CompilerFlags), LinkerFlags: slices.Clone(inline.LinkerFlags),
+			Warnings: inline.Warnings,
+		}
+		// Consumers get every include directory, not only the first.
+		if len(inline.Headers) == 0 && len(includes) > 1 {
+			config.Public.Includes = slices.Clone(includes)
+		}
+		return config, nil
 	}
 
 	if file := dep.ConfigFile(); file != "" {

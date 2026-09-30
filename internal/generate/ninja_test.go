@@ -1120,3 +1120,21 @@ func TestNinja_DependencyTargetsShareFetchOutputs(t *testing.T) {
 		}
 	}
 }
+
+func TestNinja_InlineDependencyLinkerFlags(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.c"})
+	cfg.Dependencies = map[string]deps.Dependency{
+		"lib": deps.NewVendoredDependency("lib", t.TempDir(), &deps.InlineConfig{
+			Type: "shared_library", Sources: []string{"lib.c"}, LinkerFlags: []string{"-Wl,--no-undefined"},
+		}),
+	}
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
+		Config: cfg, Toolchain: "clang", Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `"-Wl,--no-undefined"`) {
+		t.Fatalf("dependency linker flags missing:\n%s", buf.String())
+	}
+}

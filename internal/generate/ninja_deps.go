@@ -123,7 +123,7 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 			dependencyInputs := ninjaArtifactPaths(dependencyPlan.Artifacts, opts.Platform)
 			inputs := append(objects, dependencyInputs...)
 			flags := buildCfg
-			flags.RawLinker = append(slices.Clone(flags.RawLinker), dependencyUsage.LinkerFlags...)
+			flags.RawLinker = append(slices.Clone(resolved.LinkerFlags), dependencyUsage.LinkerFlags...)
 			runtimeFlags, err := runtimeLibraryFlags(NinjaPath(rawOutput), dependencyPlan.SharedLibraryPaths, opts.Platform)
 			if err != nil {
 				return nil, err

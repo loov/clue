@@ -31,6 +31,10 @@ type InlineConfig struct {
 	Library  string
 	Commands [][]string
 	Type     string // built, header-only, or prebuilt library type
+
+	CompilerFlags []string // raw flags for compiling the dependency's sources
+	LinkerFlags   []string // raw flags for linking a shared dependency
+	Warnings      string   // semantic warning level for its sources
 }
 
 // PkgConfigDependency represents a system library described by pkg-config.

@@ -160,3 +160,23 @@ targets: headers: {type: "interface_library", public: includes: ["h"]}
 		t.Fatalf("interface library = %+v, %v", config, err)
 	}
 }
+
+func TestResolveBuildConfig_InlineFlagsAndIncludes(t *testing.T) {
+	source := t.TempDir()
+	dep := NewGitDependency("lib", "https://example.com/lib", "v1", &InlineConfig{
+		Type: "header_only", Includes: []string{"include", "extra"},
+		CompilerFlags: []string{"-fno-rtti"}, Warnings: "off",
+	})
+	config, err := ResolveBuildConfig(dep, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(config.CompilerFlags, []string{"-fno-rtti"}) || config.Warnings != "off" {
+		t.Fatalf("config = %+v", config)
+	}
+	include, usage := ConsumerUsage(dep, source, config)
+	want := []string{filepath.Join(source, "include"), filepath.Join(source, "extra")}
+	if include != "" || !slices.Equal(usage.Includes, want) {
+		t.Fatalf("consumers get %q %q, want %q", include, usage.Includes, want)
+	}
+}
