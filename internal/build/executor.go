@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -21,9 +22,10 @@ type commandResult struct {
 
 // ExecutorConfig configures command execution behavior
 type executorConfig struct {
-	Verbose      bool   // If true, print commands before execution
-	StreamOutput bool   // If true, stream to os.Stdout/Stderr; if false, capture
-	WorkDir      string // Working directory for commands
+	Verbose      bool      // If true, print commands before execution
+	StreamOutput bool      // If true, stream to os.Stdout/Stderr; if false, capture
+	WorkDir      string    // Working directory for commands
+	Stdout       io.Writer // receives standard output instead of the terminal or result, when set
 	Environment  []string
 	WrapCommand  func(string, []string, string) (string, []string)
 }
@@ -74,6 +76,9 @@ func (e *executor) RunCommand(ctx context.Context, name string, args ...string) 
 		// Capture output
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
+	}
+	if e.config.Stdout != nil {
+		cmd.Stdout = e.config.Stdout
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

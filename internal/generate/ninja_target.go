@@ -62,7 +62,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			*file = append(*file, ninja.Build{
 				Rule: "custom", In: ninjaPaths(expanded.Inputs), Out: ninjaPaths(expanded.Outputs),
 				InOrderOnly: ninjaPaths(targetDependencyOutputs(opts.Config, target, opts.BuildDir, variant, opts.Platform)),
-				Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaShellCommand(opts.Platform, expanded.Command)}},
+				Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaCustomCommand(opts.Platform, expanded)}},
 			})
 		}
 		return expanded.Outputs, nil
@@ -351,6 +351,44 @@ touch "$6"`
 		})}},
 	})
 	return stamp, nil
+}
+
+// ninjaCustomCommand returns a custom target's command line, run in its
+// working directory and with its standard output redirected when set.
+func ninjaCustomCommand(platform toolchain.Platform, target config.Target) string {
+	command := ninjaShellCommand(platform, target.Command)
+	quote := func(path string) string { return ninjaShellCommand(platform, []string{NinjaPath(path)}) }
+	if target.Stdout != "" {
+		stdout := target.Stdout
+		if target.WorkDir != "" {
+			// The redirection happens in the working directory.
+			if abs, err := filepath.Abs(stdout); err == nil {
+				stdout = abs
+			}
+		}
+		// Ninja runs only one producer for this output. Keep the previous
+		// file until the command succeeds, as the direct builder does.
+		temporary := quote(stdout + ".clue-tmp")
+		if platform.OS == "windows" {
+			command += " > " + temporary + " && move /y " + temporary + " " + quote(stdout) +
+				" > nul || (del /q " + temporary + " & exit /b 1)"
+		} else {
+			command += " > " + temporary + " && mv -f " + temporary + " " + quote(stdout) +
+				" || { rm -f " + temporary + "; exit 1; }"
+		}
+	}
+	if target.WorkDir != "" {
+		// The directory may not exist yet, as in the direct build.
+		if platform.OS == "windows" {
+			return "cmd /c (if not exist " + quote(target.WorkDir) + " mkdir " + quote(target.WorkDir) + ") && cd /d " +
+				quote(target.WorkDir) + " && " + command
+		}
+		command = "mkdir -p " + quote(target.WorkDir) + " && cd " + quote(target.WorkDir) + " && " + command
+	}
+	if platform.OS == "windows" && target.Stdout != "" {
+		return "cmd /c " + command
+	}
+	return command
 }
 
 // ninjaShellCommand quotes a custom target's argument vector for the ninja

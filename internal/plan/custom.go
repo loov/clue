@@ -28,7 +28,7 @@ func expandVariantPaths(paths []string, buildDir, variant string) []string {
 
 // CustomTargetPerVariant reports whether a custom target uses variant placeholders.
 func CustomTargetPerVariant(target config.Target) bool {
-	for _, list := range [][]string{target.Command, target.Inputs, target.Outputs} {
+	for _, list := range [][]string{target.Command, target.Inputs, target.Outputs, {target.WorkDir, target.Stdout}} {
 		for _, value := range list {
 			if customPlaceholder.MatchString(value) {
 				return true
@@ -46,6 +46,16 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 		return target, nil
 	}
 	var expandErr error
+	// A command in another directory gets absolute paths.
+	absolute := func(path string) string {
+		if target.WorkDir == "" || filepath.IsAbs(path) {
+			return path
+		}
+		if abs, err := filepath.Abs(path); err == nil {
+			return abs
+		}
+		return path
+	}
 	expand := func(value string) string {
 		return customPlaceholder.ReplaceAllStringFunc(value, func(match string) string {
 			key := match[1 : len(match)-1]
@@ -53,7 +63,7 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 			case "variant":
 				return variant
 			case "buildDir":
-				return filepath.Join(buildDir, variant)
+				return absolute(filepath.Join(buildDir, variant))
 			}
 			name := strings.TrimPrefix(key, "output:")
 			dependency, ok := cfg.Targets[name]
@@ -70,9 +80,9 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 					expandErr = err
 					return match
 				}
-				return expanded.Outputs[0]
+				return absolute(expanded.Outputs[0])
 			default:
-				return TargetOutput(dependency, buildDir, variant, platform)
+				return absolute(TargetOutput(dependency, buildDir, variant, platform))
 			}
 			return match
 		})
@@ -85,7 +95,12 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 		return result
 	}
 	target.Command = expandAll(target.Command)
+	// Inputs, outputs and the directories are relative to the project.
+	commandDir := target.WorkDir
+	target.WorkDir = ""
 	target.Inputs = expandAll(target.Inputs)
 	target.Outputs = expandAll(target.Outputs)
+	target.Stdout = expandAll([]string{target.Stdout})[0]
+	target.WorkDir = expandAll([]string{commandDir})[0]
 	return target, expandErr
 }

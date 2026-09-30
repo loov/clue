@@ -178,6 +178,16 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.Command = extractStringList(val, "command")
 	t.Inputs = extractStringList(val, "inputs")
 	t.Outputs = extractStringList(val, "outputs")
+	if t.Type == "custom" {
+		t.WorkDir = extractOptionalString(val, "workingDirectory")
+		t.Stdout = extractOptionalString(val, "stdout")
+		if t.Stdout != "" && !slices.Contains(t.Outputs, t.Stdout) {
+			t.Outputs = append([]string{t.Stdout}, t.Outputs...)
+		}
+		if len(t.Outputs) == 0 {
+			return Target{}, fmt.Errorf("custom target %q: outputs or stdout is required", name)
+		}
+	}
 	t.Includes = extractStringList(val, "includes")
 	t.SystemIncludes = extractStringList(val, "systemIncludes")
 	t.Defines = extractStringList(val, "defines")

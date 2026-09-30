@@ -69,7 +69,13 @@ package config
 	if type == "custom" {
 		command: [...string] & [_, ...]
 		inputs?: [...string]
-		outputs: [...string] & [_, ...]
+		// Files the command writes; stdout counts as one. One of them is required.
+		outputs?: [...string]
+		// Directory the command runs in (default: the project directory);
+		// placeholders then expand to absolute paths
+		workingDirectory?: string
+		// File the command's standard output is written to
+		stdout?: string
 	}
 	// A loadable module (plugin), packaged on macOS as
 	// <dir>/<name>.<extension>/Contents/MacOS/<name> with Info.plist and PkgInfo

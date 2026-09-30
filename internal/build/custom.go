@@ -21,7 +21,11 @@ func (b *Builder) buildCustomTarget(ctx context.Context, opts Options, target co
 		}
 		target = expanded
 	}
-	fingerprint, err := linkFingerprint(b.toolchain, target.Command[0], target.Command, target.Inputs)
+	fingerprint, err := linkFingerprint(b.toolchain, target.Command[0],
+		struct {
+			Command         []string
+			WorkDir, Stdout string
+		}{target.Command, target.WorkDir, target.Stdout}, target.Inputs)
 	if err != nil {
 		return nil, fmt.Errorf("fingerprinting custom target %q: %w", target.Name, err)
 	}
@@ -43,7 +47,7 @@ func (b *Builder) buildCustomTarget(ctx context.Context, opts Options, target co
 			return nil, fmt.Errorf("creating output directory for custom target %q: %w", target.Name, err)
 		}
 	}
-	if _, err := b.executor.RunCommand(ctx, target.Command[0], target.Command[1:]...); err != nil {
+	if err := b.runCustomCommand(ctx, target); err != nil {
 		return nil, fmt.Errorf("running custom target %q: %w", target.Name, err)
 	}
 	for _, output := range target.Outputs {
@@ -65,4 +69,41 @@ func customTargetResult(target config.Target, start time.Time) *TargetResult {
 		Name: target.Name, Type: target.Type, Output: target.Outputs[0],
 		Duration: time.Since(start), Success: true,
 	}
+}
+
+// runCustomCommand runs a custom target's command in its working directory,
+// writing its standard output to target.Stdout when set. The file is replaced
+// only when the command succeeds.
+func (b *Builder) runCustomCommand(ctx context.Context, target config.Target) error {
+	config := b.executor.config
+	if target.WorkDir != "" {
+		if err := os.MkdirAll(target.WorkDir, 0o755); err != nil {
+			return err
+		}
+		config.WorkDir = target.WorkDir
+	}
+	var output *os.File
+	if target.Stdout != "" {
+		var err error
+		output, err = os.CreateTemp(filepath.Dir(target.Stdout), ".clue-stdout-*")
+		if err != nil {
+			return err
+		}
+		defer func() { _ = os.Remove(output.Name()) }()
+		config.Stdout = output
+	}
+	_, err := newExecutor(config).RunCommand(ctx, target.Command[0], target.Command[1:]...)
+	if output == nil {
+		return err
+	}
+	if closeErr := output.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+	if err := os.Chmod(output.Name(), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(output.Name(), target.Stdout)
 }

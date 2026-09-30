@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1173,6 +1174,26 @@ func TestNinja_CompilesWaitForHeadersGeneratedForTheirDependencies(t *testing.T)
 	}
 }
 
+func TestNinja_CustomTargetWorkingDirectoryAndStdout(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["gen"] = config.Target{
+		Name: "gen", Type: "custom", Command: []string{"tool", "{buildDir}/in"},
+		WorkDir: "work dir", Stdout: "gen/{variant}/out.h", Outputs: []string{"gen/{variant}/out.h"},
+	}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}, Clue: "clue",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	wd, _ := os.Getwd()
+	want := "cmd = mkdir -p 'work dir' && cd 'work dir' && 'tool' '" + filepath.Join(wd, ".build", "debug") + "/in' > '" + filepath.Join(wd, "gen", "debug", "out.h.clue-tmp") + "'"
+	if !strings.Contains(output.String(), want) {
+		t.Fatalf("Ninja output missing %q:\n%s", want, output.String())
+	}
+}
+
 func TestNinja_DependencyTargetsShareFetchOutputs(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(`targets: {
@@ -1245,5 +1266,37 @@ func TestNinja_BundleRuntimePathUsesPackagedBinary(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), `"-Wl,-rpath,@loader_path/../../../lib"`) {
 		t.Fatalf("bundle runtime path does not reach .build/debug/lib from Contents/MacOS:\n%s", output.String())
+	}
+}
+
+func TestNinja_CustomStdoutReplacedOnlyOnSuccess(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a POSIX shell generator")
+	}
+	output := filepath.Join(t.TempDir(), "output file.h")
+	if err := os.WriteFile(output, []byte("original"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, exit := range []string{"1", "0"} {
+		target := config.Target{Stdout: output, Command: []string{"sh", "-c", "printf replacement; exit " + exit}}
+		command := strings.ReplaceAll(ninjaCustomCommand(target), "$$", "$")
+		err := exec.CommandContext(t.Context(), "sh", "-c", command).Run()
+		if (err != nil) != (exit == "1") {
+			t.Fatalf("exit %s: %v", exit, err)
+		}
+		got, err := os.ReadFile(output)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "original"
+		if exit == "0" {
+			want = "replacement"
+		}
+		if string(got) != want {
+			t.Fatalf("exit %s left %q, want %q", exit, got, want)
+		}
+		if _, err := os.Stat(output + ".clue-tmp"); !os.IsNotExist(err) {
+			t.Fatalf("temporary output remains: %v", err)
+		}
 	}
 }
