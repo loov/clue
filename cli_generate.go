@@ -27,6 +27,15 @@ func (c *generateCommand) Execute(ctx context.Context) error {
 }
 
 func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
+	if subCmd == "schema" {
+		path, err := config.WriteSchemaPackage(dir)
+		if err != nil {
+			printError(err)
+			return 1
+		}
+		fmt.Printf("Generated: %s\n", path)
+		return 0
+	}
 	targetPlatform, err := parseTargetPlatform(target)
 	if err != nil {
 		printError(err)

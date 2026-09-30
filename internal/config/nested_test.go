@@ -501,6 +501,27 @@ sources: ["s.cpp"]
 	}
 }
 
+func TestWriteSchemaPackage(t *testing.T) {
+	root := writeProject(t, map[string]string{
+		"cue.mod/module.cue": "module: \"example.com/mono@v0\"\nlanguage: version: \"v0.18.0\"\n",
+		"app/clue.cue":       "name: \"x\"\n",
+	})
+	path, err := WriteSchemaPackage(filepath.Join(root, "app"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != filepath.Join(root, "cue.mod", "gen", "loov.dev", "clue", "schema.cue") {
+		t.Fatalf("path = %s", path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(data), "package clue") || !strings.Contains(string(data), "#Git:") {
+		t.Fatalf("schema = %.200s, %v", data, err)
+	}
+	if _, err := WriteSchemaPackage(t.TempDir()); err == nil {
+		t.Fatal("wrote a schema without a module")
+	}
+}
+
 func TestExpandDependencies_KeepsEachConfigurationsPlatform(t *testing.T) {
 	root := writeProject(t, map[string]string{
 		"clue.cue": `name: "first"

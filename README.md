@@ -115,6 +115,7 @@ toolchain: {
 - `clue install [target...]` - Build and install artifacts and public headers (not bundles)
 - `clue deps <list|fetch|build|clean|update>` - Manage external dependencies
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
+- `clue generate schema` - Write the `loov.dev/clue` schema into the CUE module for `cue` and editors
 - `clue help [command]`, `clue version`
 
 Long GCC, Clang, and MSVC compile/link invocations automatically use response
@@ -482,9 +483,12 @@ A dependency without a `clue.cue` can carry its build description itself: `defau
 `dependencies`; they join the project's, recursively, and are fetched, locked in the project's
 `clue.lock` and built like the project's own.
 
-Descriptions fit in a CUE package of the project, which `clue.cue` imports. Projects without a
-`cue.mod` are the module `clue.local`, so `deps/` is imported as `"clue.local/deps"` with no
-further setup. Clue's schema is importable as `"loov.dev/clue"`: `clue.#Git`, `clue.#Tarball`,
+Descriptions fit in a CUE package of the project, which `clue.cue` imports. A project belongs
+to the nearest `cue.mod` at or above it, as with the `cue` command; projects in no module are
+the module `clue.local` at clue's CUE language version, so `deps/` is imported as
+`"clue.local/deps"` with no further setup. Clue's schema is importable as `"loov.dev/clue"` (it
+needs language version v0.15.0 or later; `clue generate schema` writes it into the module's
+`cue.mod/gen`, so the `cue` command and editors find it too): `clue.#Git`, `clue.#Tarball`,
 `clue.#Vendored` and `clue.#PkgConfig` check a description in its own file and fill in its type.
 A dependency that carries its `name` can be listed without repeating it, and gets `lib`, a
 reference for each of its libraries (`lib.vst3 == "clap-wrapper:vst3"`), which CUE checks where

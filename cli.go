@@ -89,6 +89,7 @@ func registerCommands(commands clingy.Commands, options *options) {
 		commands.New("ninja", "generate build.ninja", &generateCommand{options: options, format: "ninja"})
 		commands.New("compile-commands", "generate compile_commands.json", &generateCommand{options: options, format: "compile-commands"})
 		commands.New("all", "generate Ninja and compilation database files", &generateCommand{options: options, format: "all"})
+		commands.New("schema", "write the loov.dev/clue schema into the CUE module for cue and editors", &generateCommand{options: options, format: "schema"})
 	})
 
 	commands.New("run", "build and run an executable target", &runCommand{options: options})
