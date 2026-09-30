@@ -64,7 +64,7 @@ type Builder struct {
 	parallelCompiler    *parallelCompiler
 	toolchain           toolchain.Toolchain
 	target              toolchain.Platform
-	depResults          map[string]*depBuildResult // Built dependencies
+	depBuilds           *dependencyBuilds // dependencies, built alongside the targets
 	profiler            *profile.Profiler
 	modulesMu           sync.Mutex // guards targetModuleOutputs; targets build concurrently
 	targetModuleOutputs map[string]map[string]string
@@ -155,14 +155,18 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 	// Record what compiled, even when a later step fails.
 	defer func() { err = errors.Join(err, b.cacheManager.Flush()) }()
 
-	// Build dependencies first (unless skipped)
-	if !opts.SkipDeps {
-		b.depResults, err = b.buildDependencies(ctx, opts, "")
+	// Fetch dependencies, then build them alongside the project targets.
+	// Without KeepGoing, a failed dependency also stops the targets.
+	ctx, stopBuild := context.WithCancel(ctx)
+	defer stopBuild()
+	b.depBuilds = &dependencyBuilds{results: make(map[string]*depBuildResult), cancel: func() {}}
+	if !opts.SkipDeps && len(opts.Config.Dependencies) > 0 {
+		order, err := b.fetchDependencies(ctx, opts, "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build dependencies: %w", err)
 		}
-	} else {
-		b.depResults = make(map[string]*depBuildResult)
+		b.depBuilds = b.startDependencyBuilds(ctx, opts, order, stopBuild)
+		defer b.depBuilds.stop() // on early returns
 	}
 	// Globs inside dependency checkouts can be expanded now that they are fetched.
 	if err := config.ExpandTargetGlobs(opts.Config); err != nil {
@@ -209,6 +213,10 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 	progress := newProgress(totalSources, opts.Verbosity)
 
 	results, err := b.buildTargets(ctx, opts, buildOrder, selected, progress)
+	if depErr := b.depBuilds.waitAll(); depErr != nil {
+		// The dependency's error explains the targets it stopped.
+		err = errors.Join(fmt.Errorf("failed to build dependencies: %w", depErr), err)
+	}
 	if err != nil {
 		return &Result{Targets: results, Duration: time.Since(start), Success: false}, err
 	}
@@ -288,6 +296,10 @@ func (b *Builder) buildTargets(ctx context.Context, opts Options, order []string
 					return
 				}
 			}
+			if err := b.depBuilds.wait(ctx, externalDependencies(opts.Config, target)); err != nil {
+				errs[index] = fmt.Errorf("target %q not built: %w", name, err)
+				return
+			}
 			result, err := b.buildTarget(ctx, opts, target, progress)
 			if err != nil {
 				errs[index] = err
@@ -364,7 +376,7 @@ func (b *Builder) BuildDependency(ctx context.Context, opts Options, name string
 	if err != nil {
 		return fmt.Errorf("failed to initialize cache manager: %w", err)
 	}
-	b.depResults, err = b.buildDependencies(ctx, opts, name)
+	_, err = b.buildDependencies(ctx, opts, name)
 	return errors.Join(err, b.cacheManager.Flush())
 }
 
@@ -373,7 +385,20 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 	if len(opts.Config.Dependencies) == 0 {
 		return make(map[string]*depBuildResult), nil
 	}
+	buildOrder, err := b.fetchDependencies(ctx, opts, only)
+	if err != nil {
+		return nil, err
+	}
+	b.depBuilds = b.startDependencyBuilds(ctx, opts, buildOrder, nil)
+	if err := b.depBuilds.waitAll(); err != nil {
+		return nil, err
+	}
+	return b.depBuilds.snapshot(), nil
+}
 
+// fetchDependencies fetches the dependencies (or those up to only) and
+// returns the order they build in.
+func (b *Builder) fetchDependencies(ctx context.Context, opts Options, only string) ([]string, error) {
 	if opts.Verbosity >= VerbosityNormal {
 		fmt.Println("Building dependencies...")
 	}
@@ -412,70 +437,174 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 	} else if err := mgr.FetchAll(ctx); err != nil {
 		return nil, fmt.Errorf("failed to fetch dependencies: %w", err)
 	}
+	return buildOrder, nil
+}
 
-	// Create dependency builder
+// dependencyBuilds builds dependencies in the background, each once the
+// dependencies it builds against are built, so that project targets can
+// start as soon as the dependencies they use are ready.
+type dependencyBuilds struct {
+	done    map[string]chan struct{}
+	mu      sync.Mutex
+	results map[string]*depBuildResult
+	errs    []error
+	workers sync.WaitGroup
+	cancel  context.CancelFunc
+
+	verbosity Verbosity
+	files     *atomic.Int64 // sources compiled, for the summary
+	start     time.Time
+}
+
+// Without KeepGoing, the first failure calls stopBuild, or stops the other
+// dependency builds when it is nil.
+func (b *Builder) startDependencyBuilds(ctx context.Context, opts Options, buildOrder []string, stopBuild context.CancelFunc) *dependencyBuilds {
 	depBuilder := newDepBuilder(b.compiler, b.linker, b.toolchain, opts.Verbosity)
 	depBuilder.cache = b.cacheManager
 	depBuilder.parallel = b.parallelCompiler
 
-	// Build each dependency once the dependencies it builds against are built.
-	results := make(map[string]*depBuildResult)
-	var resultsMu sync.Mutex
+	ctx, cancel := context.WithCancel(ctx)
+	if stopBuild == nil {
+		stopBuild = cancel
+	}
+	fail := func() {
+		if !opts.KeepGoing {
+			stopBuild()
+		}
+	}
+	builds := &dependencyBuilds{
+		done: make(map[string]chan struct{}, len(buildOrder)), results: make(map[string]*depBuildResult),
+		errs: make([]error, len(buildOrder)), cancel: cancel,
+	}
+	for _, depName := range buildOrder {
+		builds.done[depName] = make(chan struct{})
+	}
 	var totalFiles atomic.Int64
 	depStart := time.Now()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	done := make(map[string]chan struct{}, len(buildOrder))
-	for _, depName := range buildOrder {
-		done[depName] = make(chan struct{})
-	}
-	errs := make([]error, len(buildOrder))
-	var workers sync.WaitGroup
 	for index, depName := range buildOrder {
-		workers.Go(func() {
-			defer close(done[depName])
+		builds.workers.Go(func() {
+			defer close(builds.done[depName])
 			dep := opts.Config.Dependencies[depName]
 			if dep == nil {
-				errs[index] = fmt.Errorf("dependency %q not found", depName)
-				cancel()
+				builds.errs[index] = fmt.Errorf("dependency %q not found", depName)
+				fail()
 				return
 			}
 			for _, other := range deps.DeclaredDepends(dep) {
-				if wait, ok := done[other]; ok {
-					select {
-					case <-wait:
-					case <-ctx.Done():
-					}
+				wait, ok := builds.done[other]
+				if !ok {
+					continue
+				}
+				select {
+				case <-wait:
+				case <-ctx.Done():
+					return
+				}
+				if !builds.built(other) {
+					builds.errs[index] = fmt.Errorf("dependency %q not built: %q: %w", depName, other, errDependencyFailed)
+					return
 				}
 			}
 			if ctx.Err() != nil {
 				return
 			}
-			result, err := b.buildDependency(ctx, opts, depBuilder, dep, func() map[string]*depBuildResult {
-				resultsMu.Lock()
-				defer resultsMu.Unlock()
-				return maps.Clone(results)
-			}())
+			result, err := b.buildDependency(ctx, opts, depBuilder, dep, builds.snapshot())
 			if err != nil {
-				errs[index] = err
-				cancel()
+				builds.errs[index] = err
+				fail()
 				return
 			}
-			resultsMu.Lock()
-			results[depName] = result
-			resultsMu.Unlock()
+			builds.mu.Lock()
+			builds.results[depName] = result
+			builds.mu.Unlock()
 			totalFiles.Add(int64(result.SourceCount))
 		})
 	}
-	workers.Wait()
-	if err := errors.Join(errs...); err != nil {
-		return nil, err
-	}
+	builds.verbosity, builds.files, builds.start = opts.Verbosity, &totalFiles, depStart
+	return builds
+}
 
-	depDuration := time.Since(depStart)
-	if opts.Verbosity >= VerbosityNormal {
-		fmt.Printf("Dependencies built (%d files, %s)\n\n", totalFiles.Load(), depDuration.String())
-	}
+// snapshot returns the dependencies built so far.
+func (d *dependencyBuilds) snapshot() map[string]*depBuildResult {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return maps.Clone(d.results)
+}
 
-	return results, nil
+// err returns the failures, not the dependencies skipped because of them.
+func (d *dependencyBuilds) err() error {
+	var failures []error
+	for _, err := range d.errs {
+		if !errors.Is(err, errDependencyFailed) {
+			failures = append(failures, err)
+		}
+	}
+	return errors.Join(failures...)
+}
+
+// built reports whether the named dependency was built.
+func (d *dependencyBuilds) built(name string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	_, ok := d.results[name]
+	return ok
+}
+
+// wait blocks until the named dependencies are built.
+func (d *dependencyBuilds) wait(ctx context.Context, names []string) error {
+	for _, name := range names {
+		if done, ok := d.done[name]; ok {
+			select {
+			case <-done:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			if !d.built(name) {
+				return fmt.Errorf("dependency %q: %w", name, errDependencyFailed)
+			}
+		}
+	}
+	return nil
+}
+
+// stop cancels the dependency builds that have not finished and waits for them.
+func (d *dependencyBuilds) stop() {
+	d.cancel()
+	d.workers.Wait()
+}
+
+// waitAll blocks until every dependency build has finished.
+func (d *dependencyBuilds) waitAll() error {
+	d.workers.Wait()
+	d.cancel()
+	if err := d.err(); err != nil {
+		return err
+	}
+	if d.verbosity >= VerbosityNormal && len(d.done) > 0 {
+		fmt.Printf("Dependencies built (%d files, %s)\n", d.files.Load(), time.Since(d.start).String())
+	}
+	return nil
+}
+
+// externalDependencies returns the dependencies a target uses, directly or
+// through the project targets it depends on.
+func externalDependencies(cfg *config.Config, target config.Target) []string {
+	var names []string
+	seen := make(map[string]bool)
+	var visit func(config.Target)
+	visit = func(current config.Target) {
+		for _, name := range current.Depends {
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			if dependency, ok := cfg.Targets[name]; ok {
+				visit(dependency)
+			} else if _, ok := cfg.Dependencies[name]; ok {
+				names = append(names, name)
+			}
+		}
+	}
+	visit(target)
+	return names
 }

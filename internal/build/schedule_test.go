@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -166,5 +167,76 @@ func TestBuild_SharedLibraryFromArchivesWithExports(t *testing.T) {
 	}
 	if exported := symbols("all"); !strings.Contains(exported, "kept_whole") {
 		t.Errorf("whole archive member missing:\n%s", exported)
+	}
+}
+
+func TestBuild_TargetsWaitOnlyForTheirDependencies(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	for name, content := range map[string]string{
+		"vendor/broken/broken.c": "this is not C\n",
+		"app.c":                  "int main(void) { return 0; }\n",
+		"user.c":                 "int main(void) { return 0; }\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := &config.Config{
+		Targets: map[string]config.Target{
+			"app":  {Name: "app", Type: "executable", Sources: []string{"app.c"}},
+			"user": {Name: "user", Type: "executable", Sources: []string{"user.c"}, Depends: []string{"broken"}},
+		},
+		Dependencies: map[string]deps.Dependency{
+			"broken": deps.NewVendoredDependency("broken", "vendor/broken", &deps.InlineConfig{Type: "static_library", Sources: []string{"broken.c"}}),
+		},
+	}
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 2, true)
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = builder.Build(t.Context(), Options{Config: cfg, Variant: "debug", BuildDir: ".build", Verbosity: VerbosityQuiet, KeepGoing: true})
+	if err == nil || !strings.Contains(err.Error(), "broken") {
+		t.Fatalf("error = %v, want the dependency failure", err)
+	}
+	if _, err := os.Stat(plan.ArtifactPath(".build", "debug", "app", "executable", toolchain.HostPlatform())); err != nil {
+		t.Errorf("app does not use the broken dependency but was not built: %v", err)
+	}
+	if _, err := os.Stat(plan.ArtifactPath(".build", "debug", "user", "executable", toolchain.HostPlatform())); err == nil {
+		t.Error("user was linked without its dependency")
+	}
+}
+
+func TestBuild_FailedDependencyStopsTargets(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.MkdirAll("vendor/broken", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("vendor/broken/broken.c", []byte("this is not C\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	slow := filepath.Join(dir, "slow")
+	cfg := &config.Config{
+		Targets: map[string]config.Target{
+			"slow": {Name: "slow", Type: "custom", Command: []string{"sh", "-c", "sleep 2; touch " + slow}, Outputs: []string{slow}},
+		},
+		Dependencies: map[string]deps.Dependency{
+			"broken": deps.NewVendoredDependency("broken", "vendor/broken", &deps.InlineConfig{Type: "static_library", Sources: []string{"broken.c"}}),
+		},
+	}
+	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 2, true)
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = builder.Build(t.Context(), Options{Config: cfg, Variant: "debug", BuildDir: ".build", Verbosity: VerbosityQuiet})
+	if err == nil || !strings.Contains(err.Error(), "broken") {
+		t.Fatalf("error = %v, want the dependency failure", err)
+	}
+	if _, err := os.Stat(slow); err == nil {
+		t.Error("slow target finished after a dependency failed without --keep-going")
 	}
 }

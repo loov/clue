@@ -6,8 +6,9 @@ import (
 )
 
 func (b *Builder) resolveDependencies(opts Options, target config.Target) (plan.Dependencies, error) {
-	external := make(map[string]plan.ExternalDependency, len(b.depResults))
-	for name, result := range b.depResults {
+	built := b.depBuilds.snapshot()
+	external := make(map[string]plan.ExternalDependency, len(built))
+	for name, result := range built {
 		external[name] = plan.ExternalDependency{
 			Name: name, Type: result.Type, Output: result.LibPath, Include: result.IncludePath,
 			Depends: result.Depends, Usage: result.Usage, RequiresCXX: result.RequiresCXX,
