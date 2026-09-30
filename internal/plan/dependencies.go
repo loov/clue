@@ -32,6 +32,7 @@ type Dependencies struct {
 	LinkFiles          []string
 	SystemLibraries    []string
 	SharedLibraryPaths []string
+	WholeArchives      []string // static libraries to link completely
 	UsesCXX            bool
 }
 
@@ -80,7 +81,11 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 		if !ok {
 			return fmt.Errorf("unknown dependency or target: %q", name)
 		}
-		if dependency.Type == "static_library" || dependency.Type == "shared_library" {
+		if dependency.Type == "static_library" && dependency.LinkWhole {
+			output := ArtifactPath(buildDir, variant, name, dependency.Type, platform)
+			result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: dependency.Type})
+			result.WholeArchives = appendUnique(result.WholeArchives, output)
+		} else if dependency.Type == "static_library" || dependency.Type == "shared_library" {
 			output := ArtifactPath(buildDir, variant, name, dependency.Type, platform)
 			result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: dependency.Type})
 			path := filepath.Dir(output)

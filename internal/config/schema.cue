@@ -53,8 +53,11 @@ package config
 	// Symbol visibility of the target's code (-fvisibility); "hidden" exports
 	// only what the sources mark as exported
 	visibility?: "default" | "hidden"
-
-	// Compiler/linker flags (raw flags for escape hatch)
+	// C symbols (such as a plugin's entry point) to keep in a linked output even
+	// when only static libraries define them, and to export alone from it
+	exports?: [...string]
+	// Link every member of this static library into its consumers
+	linkWhole?: bool
 	flags?: {
 		compiler?: [...string]
 		linker?: [...string]
@@ -65,8 +68,15 @@ package config
 		inputs?: [...string]
 		outputs: [...string] & [_, ...]
 	}
-	if type != "custom" && type != "interface_library" {
+	// A shared library may consist of its dependencies alone.
+	if type == "static_library" || type == "executable" {
 		sources: [...string] & [_, ...]
+	}
+	if type != "static_library" {
+		linkWhole?: _|_
+	}
+	if type != "executable" && type != "shared_library" {
+		exports?: _|_
 	}
 	if type != "executable" {
 		test?: _|_

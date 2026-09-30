@@ -150,3 +150,53 @@ func msvcTool(tc toolchain.Toolchain, name string) string {
 	}
 	return name
 }
+
+// WholeArchiveArguments returns linker arguments that link every member of
+// the given static libraries, not only the members something references.
+func WholeArchiveArguments(tc toolchain.Toolchain, platform toolchain.Platform, archives []string) []string {
+	var args []string
+	for _, archive := range archives {
+		switch {
+		case tc.Name() == "msvc":
+			args = append(args, "/WHOLEARCHIVE:"+archive)
+		case platform.OS == "darwin":
+			args = append(args, "-Wl,-force_load,"+archive)
+		default:
+			args = append(args, "-Wl,--whole-archive", archive, "-Wl,--no-whole-archive")
+		}
+	}
+	return args
+}
+
+// ExportArguments returns linker arguments that keep the given C symbols in
+// the output even when only static libraries define them, and export only
+// them. On ELF platforms the export list is a version script at
+// versionScript, which the caller writes with VersionScript.
+func ExportArguments(tc toolchain.Toolchain, platform toolchain.Platform, symbols []string, versionScript string) []string {
+	var args []string
+	for _, symbol := range symbols {
+		switch {
+		case tc.Name() == "msvc":
+			args = append(args, "/INCLUDE:"+symbol, "/EXPORT:"+symbol)
+		case platform.OS == "darwin":
+			args = append(args, "-Wl,-u,_"+symbol, "-Wl,-exported_symbol,_"+symbol)
+		default:
+			args = append(args, "-Wl,--undefined="+symbol)
+		}
+	}
+	if len(symbols) > 0 && tc.Name() != "msvc" && platform.OS != "darwin" && platform.OS != "windows" {
+		args = append(args, "-Wl,--version-script="+versionScript)
+	}
+	return args
+}
+
+// VersionScript returns the ELF version script that exports only symbols.
+func VersionScript(symbols []string) string {
+	var script strings.Builder
+	script.WriteString("{\n  global:\n")
+	for _, symbol := range symbols {
+		script.WriteString("    " + symbol + ";\n")
+	}
+	script.WriteString("  local: *;\n};\n")
+	return script.String()
+}

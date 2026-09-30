@@ -1067,6 +1067,30 @@ func TestNinjaUsesResponseFilesForGCCStyleCommands(t *testing.T) {
 	}
 }
 
+func TestNinja_LinksWholeArchivesInPlace(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["app"] = config.Target{
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"whole"},
+	}
+	cfg.Targets["whole"] = config.Target{
+		Name: "whole", Type: "static_library", Sources: []string{"whole.cpp"}, Depends: []string{"impl"}, LinkWhole: true,
+	}
+	cfg.Targets["impl"] = config.Target{Name: "impl", Type: "static_library", Sources: []string{"impl.cpp"}}
+
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// impl follows whole, which refers to it.
+	want := `"-Wl,--whole-archive" ".build/debug/lib/libwhole.a" "-Wl,--no-whole-archive" ".build/debug/lib/libimpl.a"`
+	if content := buf.String(); !strings.Contains(content, want) {
+		t.Errorf("whole archive is not linked in place:\n%s", content)
+	}
+}
+
 func TestNinjaShellCommand_KeepsMultilineArgumentsOnOneLine(t *testing.T) {
 	command := []string{"sh", "-c", "set -e\necho 'a b' \"$1\"\n", "name", "x y"}
 	quoted := ninjaShellCommand(toolchain.Platform{OS: "darwin", Arch: "arm64"}, command)

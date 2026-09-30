@@ -3,6 +3,7 @@ package generate
 import (
 	"fmt"
 	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -197,7 +198,37 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	dependencyInputs := ninjaArtifactPaths(dependencyPlan.Artifacts, opts.Platform)
 	linkInputs := append(append([]string(nil), objects...), dependencyInputs...)
 	argumentInputs := ninjaArgumentPaths(linkInputs)
+	if len(dependencyPlan.WholeArchives) > 0 {
+		// Link each whole archive in its place: GNU ld resolves its
+		// references only from the libraries that follow it.
+		whole := make(map[string]bool, len(dependencyPlan.WholeArchives))
+		for _, archive := range ninjaArgumentPaths(ninjaPaths(slices.Clone(dependencyPlan.WholeArchives))) {
+			whole[archive] = true
+		}
+		var arguments []string
+		for _, input := range argumentInputs {
+			if whole[input] {
+				arguments = append(arguments, plan.WholeArchiveArguments(tc, opts.Platform, []string{input})...)
+			} else {
+				arguments = append(arguments, input)
+			}
+		}
+		argumentInputs = arguments
+	}
 	argumentOutput := NinjaPath(targetPlan.Output)
+	if len(target.Exports) > 0 {
+		script := filepath.Join(targetPlan.ObjectDir, "exports.map")
+		exportFlags := plan.ExportArguments(tc, opts.Platform, target.Exports, NinjaPath(script))
+		if slices.ContainsFunc(exportFlags, func(flag string) bool { return strings.HasPrefix(flag, "-Wl,--version-script=") }) {
+			if err := os.MkdirAll(targetPlan.ObjectDir, 0o755); err != nil {
+				return nil, err
+			}
+			if err := os.WriteFile(script, []byte(plan.VersionScript(target.Exports)), 0o644); err != nil {
+				return nil, err
+			}
+		}
+		buildCfg.RawLinker = append(slices.Clone(buildCfg.RawLinker), exportFlags...)
+	}
 	systemLibraries := append(append(slices.Clone(target.SysLibs), usage.SysLibs...), dependencyPlan.SystemLibraries...)
 
 	switch target.Type {

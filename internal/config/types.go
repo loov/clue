@@ -120,7 +120,9 @@ type Target struct {
 	LTO              *bool
 	PIC              *bool
 	Coverage         *bool
-	Visibility       string // "default" or "hidden"; empty leaves the compiler default
+	Visibility       string   // "default" or "hidden"; empty leaves the compiler default
+	Exports          []string // C symbols to keep and export (only these) from a linked output
+	LinkWhole        bool     // consumers link every member of this static library
 	Test             *Test
 	Unity            *UnityBuild
 }

@@ -236,6 +236,10 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.PIC = extractOptionalBool(val, "pic")
 	t.Coverage = extractOptionalBool(val, "coverage")
 	t.Visibility = extractOptionalString(val, "visibility")
+	t.Exports = extractStringList(val, "exports")
+	if linkWhole := extractOptionalBool(val, "linkWhole"); linkWhole != nil {
+		t.LinkWhole = *linkWhole
+	}
 
 	return t, nil
 }

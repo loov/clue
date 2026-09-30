@@ -7,6 +7,8 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/loov/clue/internal/cache"
@@ -287,10 +289,15 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		}
 		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyPlan.Usage.LinkerFlags...)
 		buildCfg.RawLinker = append(buildCfg.RawLinker, runtimeFlags...)
+		exportFlags, err := b.exportFlags(target, objDir)
+		if err != nil {
+			return nil, err
+		}
+		buildCfg.RawLinker = append(buildCfg.RawLinker, exportFlags...)
 
 		useCXX := dependencyPlan.UsesCXX
 		linkOpts := plan.LinkOptions{
-			Objects:  append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
+			Objects:  linkObjects(b, objectFiles, dependencyPlan),
 			Output:   outputPath,
 			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
 			LibPaths: dependencyPlan.LibraryPaths,
@@ -360,10 +367,15 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		}
 		buildCfg.RawLinker = append(buildCfg.RawLinker, dependencyPlan.Usage.LinkerFlags...)
 		buildCfg.RawLinker = append(buildCfg.RawLinker, runtimeFlags...)
+		exportFlags, err := b.exportFlags(target, objDir)
+		if err != nil {
+			return nil, err
+		}
+		buildCfg.RawLinker = append(buildCfg.RawLinker, exportFlags...)
 
 		useCXX := dependencyPlan.UsesCXX
 		sharedOpts := plan.SharedLibraryOptions{
-			Objects:  append(append([]string(nil), objectFiles...), dependencyPlan.LinkFiles...),
+			Objects:  linkObjects(b, objectFiles, dependencyPlan),
 			Output:   outputPath,
 			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
 			LibPaths: dependencyPlan.LibraryPaths,
@@ -417,4 +429,27 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		Duration: duration,
 		Success:  true,
 	}, nil
+}
+
+// linkObjects returns the object and library arguments of a link: the
+// target's objects, prebuilt libraries and completely linked archives.
+func linkObjects(b *Builder, objects []string, dependencies plan.Dependencies) []string {
+	result := append(append([]string(nil), objects...), dependencies.LinkFiles...)
+	return append(result, plan.WholeArchiveArguments(b.toolchain, b.target, dependencies.WholeArchives)...)
+}
+
+// exportFlags returns the linker flags for the target's exports, writing the
+// version script they need on ELF platforms.
+func (b *Builder) exportFlags(target config.Target, objDir string) ([]string, error) {
+	if len(target.Exports) == 0 {
+		return nil, nil
+	}
+	script := filepath.Join(objDir, "exports.map")
+	flags := plan.ExportArguments(b.toolchain, b.target, target.Exports, script)
+	if slices.ContainsFunc(flags, func(flag string) bool { return strings.HasPrefix(flag, "-Wl,--version-script=") }) {
+		if err := os.WriteFile(script, []byte(plan.VersionScript(target.Exports)), 0o644); err != nil {
+			return nil, fmt.Errorf("writing export list: %w", err)
+		}
+	}
+	return flags, nil
 }
