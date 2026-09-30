@@ -72,7 +72,7 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 				}
 				return expanded.Outputs[0]
 			default:
-				return ArtifactPath(buildDir, variant, name, dependency.Type, platform)
+				return TargetOutput(dependency, buildDir, variant, platform)
 			}
 			return match
 		})

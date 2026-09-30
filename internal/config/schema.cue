@@ -3,7 +3,7 @@ package config
 // Core target definition - base for all buildable units
 #Target: {
 	name?:   string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$" // defaults to the key in targets
-	type:    "executable" | "static_library" | "shared_library" | "interface_library" | "custom"
+	type:    "executable" | "static_library" | "shared_library" | "bundle" | "interface_library" | "custom"
 	sources?: [...string]
 	headers?: [...string]
 	unity?: {
@@ -71,6 +71,22 @@ package config
 		inputs?: [...string]
 		outputs: [...string] & [_, ...]
 	}
+	// A loadable module (plugin), packaged on macOS as
+	// <dir>/<name>.<extension>/Contents/MacOS/<name> with Info.plist and PkgInfo
+	// and signed; elsewhere the module is <dir>/<name>.<extension>
+	if type == "bundle" {
+		bundle: {
+			extension: string & =~"^[a-zA-Z0-9]+$"
+			name?:       string
+			dir?:        string // may use {variant} and {buildDir}; defaults to {buildDir}
+			infoPlist?:  string // Info.plist to copy; may use {variant} and {buildDir}
+			identifier?: string // CFBundleIdentifier for a generated Info.plist
+			sign?:       string | bool // codesign identity; true or omitted signs ad hoc
+		}
+	}
+	if type != "bundle" {
+		bundle?: _|_
+	}
 	// A shared library may consist of its dependencies alone.
 	if type == "static_library" || type == "executable" {
 		sources: [...string] & [_, ...]
@@ -78,7 +94,7 @@ package config
 	if type != "static_library" {
 		linkWhole?: _|_
 	}
-	if type != "executable" && type != "shared_library" {
+	if type != "executable" && type != "shared_library" && type != "bundle" {
 		exports?: _|_
 	}
 	if type != "executable" {

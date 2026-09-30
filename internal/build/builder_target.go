@@ -360,8 +360,12 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			fmt.Printf("  Warning: failed to cache archive result: %v\n", err)
 		}
 
-	case "shared_library":
-		runtimeFlags, err := plan.RuntimeLibraryFlags(outputPath, dependencyPlan.SharedLibraryPaths, b.target)
+	case "shared_library", "bundle":
+		runtimeOutput := outputPath
+		if target.Type == "bundle" {
+			runtimeOutput = plan.BundleLayout(target, opts.BuildDir, opts.Variant, b.target).Binary
+		}
+		runtimeFlags, err := plan.RuntimeLibraryFlags(runtimeOutput, dependencyPlan.SharedLibraryPaths, b.target)
 		if err != nil {
 			return nil, err
 		}
@@ -382,13 +386,20 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			Libs:     dependencyPlan.Libraries,
 			Flags:    buildCfg,
 			UseCXX:   useCXX,
+			Bundle:   target.Type == "bundle",
 		}
 		linkInvocation := plan.LinkShared(b.toolchain, b.target, sharedOpts)
 		fingerprint, err := linkFingerprint(b.toolchain, linkInvocation.Tool, sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}
-		if !opts.ForceRebuild && linkIsCurrent(outputPath, fingerprint) {
+		linkStamp := outputPath
+		if !opts.ForceRebuild && linkIsCurrentAt(outputPath, linkStamp, fingerprint) {
+			if target.Type == "bundle" {
+				if err := b.finishBundle(ctx, opts, target, fingerprint); err != nil {
+					return nil, err
+				}
+			}
 			break
 		}
 		progress.Linking(target.Name)
@@ -404,8 +415,13 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 				Success:  false,
 			}, err
 		}
-		if err := storeLinkFingerprint(outputPath, fingerprint); err != nil && opts.Verbosity == VerbosityVerbose {
+		if err := storeLinkFingerprint(linkStamp, fingerprint); err != nil && opts.Verbosity == VerbosityVerbose {
 			fmt.Printf("  Warning: failed to cache link result: %v\n", err)
+		}
+		if target.Type == "bundle" {
+			if err := b.finishBundle(ctx, opts, target, fingerprint); err != nil {
+				return nil, err
+			}
 		}
 
 	default:

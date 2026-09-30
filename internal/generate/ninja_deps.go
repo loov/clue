@@ -352,6 +352,8 @@ func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir,
 				outputs = append(outputs, customOutputs(cfg, dependency, buildDir, variant, platform)...)
 			case "interface_library":
 				outputs = append(outputs, targetDependencyOutputs(cfg, dependency, buildDir, variant, platform)...)
+			case "bundle":
+				outputs = append(outputs, bundleOutputs(dependency, buildDir, variant, platform)...)
 			default:
 				outputs = append(outputs, outputPathForTarget(buildDir, variant, dependency.Name, dependency.Type, platform))
 			}

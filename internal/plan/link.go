@@ -27,6 +27,7 @@ type SharedLibraryOptions struct {
 	Libs     []string        // Additional libraries to link
 	Flags    toolchain.Flags // For raw linker flags and debug info
 	UseCXX   bool            // Use the C++ driver when the link graph contains C++
+	Bundle   bool            // a loadable module: -bundle on macOS, not linkable by others
 }
 
 // ArchiveOptions holds options for creating a static library.
@@ -69,6 +70,9 @@ func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts Shared
 		return Invocation{Tool: msvcTool(tc, "link.exe"), Arguments: args, ImportLibrary: importLibrary}
 	}
 	args := []string{"-shared"}
+	if opts.Bundle && platform.OS == "darwin" {
+		args = []string{"-bundle"}
+	}
 	args = append(args, opts.Objects...)
 	args = append(args, "-o", opts.Output)
 	if importLibrary != "" {
@@ -82,7 +86,9 @@ func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts Shared
 	libName := filepath.Base(opts.Output)
 	switch platform.OS {
 	case "darwin":
-		args = append(args, "-install_name", "@rpath/"+libName)
+		if !opts.Bundle {
+			args = append(args, "-install_name", "@rpath/"+libName)
+		}
 	case "linux":
 		args = append(args, "-Wl,-soname,"+libName)
 	}

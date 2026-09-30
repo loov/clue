@@ -264,8 +264,12 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			Vars: ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
 		})
 
-	case "shared_library":
-		runtimeFlags, err := runtimeLibraryFlags(argumentOutput, dependencyPlan.SharedLibraryPaths, opts.Platform)
+	case "shared_library", "bundle":
+		runtimeOutput := argumentOutput
+		if target.Type == "bundle" {
+			runtimeOutput = NinjaPath(plan.BundleLayout(target, opts.BuildDir, variant, opts.Platform).Binary)
+		}
+		runtimeFlags, err := runtimeLibraryFlags(runtimeOutput, dependencyPlan.SharedLibraryPaths, opts.Platform)
 		if err != nil {
 			return nil, err
 		}
@@ -275,7 +279,7 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		invocation := plan.LinkShared(tc, opts.Platform, plan.SharedLibraryOptions{
 			Objects: argumentInputs, Output: argumentOutput, SysLibs: systemLibraries,
 			LibPaths: ninjaMSVCLibraryPaths(tc), Flags: flags,
-			UseCXX: dependencyPlan.UsesCXX,
+			UseCXX: dependencyPlan.UsesCXX, Bundle: target.Type == "bundle",
 		})
 		rule := "link_shared_c"
 		if dependencyPlan.UsesCXX {
@@ -289,12 +293,64 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		}
 		addImportLibraryOutput(&statement, invocation.ImportLibrary)
 		*file = append(*file, statement)
+		if target.Type == "bundle" {
+			stamp, err := addBundleFinish(file, opts, variant, target, outputPath)
+			if err != nil {
+				return nil, err
+			}
+			if stamp != "" {
+				return append([]string{outputPath, stamp}, headerUnitBuilds...), nil
+			}
+		}
 	}
 
 	if target.Type == "interface_library" {
 		return headerUnitBuilds, nil
 	}
 	return append([]string{outputPath}, headerUnitBuilds...), nil
+}
+
+// addBundleFinish adds the statement that writes a macOS bundle's Info.plist
+// and PkgInfo and signs it, and returns the stamp it produces ("" when the
+// platform has no bundle directory). A generated Info.plist is written now.
+func addBundleFinish(file *ninja.File, opts NinjaOptions, variant string, target config.Target, module string) (string, error) {
+	bundle := plan.BundleLayout(target, opts.BuildDir, variant, opts.Platform)
+	if bundle.InfoPlist == "" {
+		return "", nil
+	}
+	source := bundle.Source
+	if source == "" {
+		generated, err := plan.BundleInfoPlist(target, opts.Config.Version)
+		if err != nil {
+			return "", err
+		}
+		source = filepath.Join(opts.BuildDir, variant, target.Name, "Info.plist")
+		if err := os.MkdirAll(filepath.Dir(source), 0o755); err != nil {
+			return "", err
+		}
+		if err := writeIfChanged(source, []byte(generated)); err != nil {
+			return "", err
+		}
+	}
+	stamp := ninjaPathLocal(filepath.Join(opts.BuildDir, variant, target.Name, "bundle.stamp"))
+	script := `set -e
+rm -rf "$4" && mkdir -p "$(dirname "$7")"
+cp "$1" "$2"
+printf 'BNDL????' > "$3"
+cp "$8" "$7"
+if [ -n "$5" ]; then
+  out=$(codesign --force --sign "$5" "$4" 2>&1) || { echo "$out" >&2; exit 1; }
+fi
+touch "$6"`
+	*file = append(*file, ninja.Build{
+		Rule: "custom", In: []string{module, ninjaPathLocal(source)}, Out: []string{stamp},
+		OutImplicit: ninjaPaths([]string{bundle.Binary, bundle.InfoPlist, bundle.PkgInfo}),
+		Vars: ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaShellCommand(opts.Platform, []string{
+			"sh", "-c", script, "bundle", NinjaPath(source), NinjaPath(bundle.InfoPlist), NinjaPath(bundle.PkgInfo),
+			NinjaPath(bundle.Dir), bundle.Sign, NinjaPath(stamp), NinjaPath(bundle.Binary), NinjaPath(bundle.Module),
+		})}},
+	})
+	return stamp, nil
 }
 
 // ninjaShellCommand quotes a custom target's argument vector for the ninja
@@ -432,6 +488,16 @@ func ninjaCompileOptions(opts plan.CompileOptions) plan.CompileOptions {
 // outputPathForTarget returns the output path for a target
 func outputPathForTarget(buildDir, variant, target, targetType string, platform toolchain.Platform) string {
 	return plan.ArtifactPath(buildDir, variant, target, targetType, platform)
+}
+
+// bundleOutputs returns what depending on a bundle target waits for: the
+// module and, on macOS, the stamp of the finished bundle.
+func bundleOutputs(target config.Target, buildDir, variant string, platform toolchain.Platform) []string {
+	outputs := []string{plan.TargetOutput(target, buildDir, variant, platform)}
+	if plan.BundleLayout(target, buildDir, variant, platform).InfoPlist != "" {
+		outputs = append(outputs, filepath.Join(buildDir, variant, target.Name, "bundle.stamp"))
+	}
+	return outputs
 }
 
 func outputNameForTarget(target, targetType string, platform toolchain.Platform) string {

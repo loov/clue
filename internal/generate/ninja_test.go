@@ -1123,6 +1123,38 @@ func TestNinja_CallsTheGeneratingClueAndKeepsItsLogInTheBuildDir(t *testing.T) {
 	}
 }
 
+func TestNinja_BundleTarget(t *testing.T) {
+	cfg := createMinimalConfig("plugin", "bundle", []string{"plugin.c"})
+	cfg.Targets["plugin"] = config.Target{
+		Name: "plugin", Type: "bundle", Sources: []string{"plugin.c"},
+		Bundle: config.BundleSettings{Extension: "clap", Name: "My Plugin", Dir: "dist/{variant}", InfoPlist: "Info.plist", Sign: "-"},
+	}
+	cfg.Variants = map[string]config.Variant{"release": {}}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, Variants: []string{"release"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "darwin", Arch: "arm64"}, Clue: "clue",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	for _, want := range []string{
+		"build .build/release/plugin/My$ Plugin: link_shared_c",
+		`"-bundle"`,
+		"build .build/release/plugin/bundle.stamp | dist/release/My$ Plugin.clap/Contents/MacOS/My$ Plugin " +
+			"dist/release/My$ Plugin.clap/Contents/Info.plist dist/release/My$ Plugin.clap/Contents/PkgInfo: " +
+			"custom .build/release/plugin/My$ Plugin Info.plist",
+		"build release: phony .build/release/plugin/My$ Plugin .build/release/plugin/bundle.stamp",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Ninja output missing %q:\n%s", want, content)
+		}
+	}
+	if strings.Contains(content, "-install_name") {
+		t.Errorf("bundle linked with an install name:\n%s", content)
+	}
+}
+
 func TestNinja_DependencyTargetsShareFetchOutputs(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(`targets: {
@@ -1176,5 +1208,24 @@ func TestNinja_InlineDependencyLinkerFlags(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), `"-Wl,--no-undefined"`) {
 		t.Fatalf("dependency linker flags missing:\n%s", buf.String())
+	}
+}
+
+func TestNinja_BundleRuntimePathUsesPackagedBinary(t *testing.T) {
+	cfg := createMinimalConfig("plugin", "bundle", []string{"plugin.c"})
+	cfg.Targets["plugin"] = config.Target{
+		Name: "plugin", Type: "bundle", Sources: []string{"plugin.c"}, Depends: []string{"helper"},
+		Bundle: config.BundleSettings{Extension: "clap", InfoPlist: "Info.plist"},
+	}
+	cfg.Targets["helper"] = config.Target{Name: "helper", Type: "shared_library", Sources: []string{"helper.c"}}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "darwin", Arch: "arm64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), `"-Wl,-rpath,@loader_path/../../../lib"`) {
+		t.Fatalf("bundle runtime path does not reach .build/debug/lib from Contents/MacOS:\n%s", output.String())
 	}
 }

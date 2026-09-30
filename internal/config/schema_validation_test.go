@@ -277,3 +277,29 @@ variants: {
 		})
 	}
 }
+
+func TestSchemaValidation_Bundle(t *testing.T) {
+	for _, test := range []struct {
+		name, target string
+		valid        bool
+	}{
+		{"bundle with extension", `{type: "bundle", sources: ["a.c"], bundle: {extension: "clap", sign: false}}`, true},
+		{"bundle without extension", `{type: "bundle", sources: ["a.c"], bundle: {}}`, false},
+		{"bundle settings on a library", `{type: "shared_library", sources: ["a.c"], bundle: {extension: "clap"}}`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			content := "name: \"bundle\"\ntargets: plugin: " + test.target + "\n"
+			if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := NewLoader().Load(dir)
+			if (err == nil) != test.valid {
+				t.Fatalf("Load() error = %v, want valid=%v", err, test.valid)
+			}
+			if err == nil && (cfg.Targets["plugin"].Bundle.Extension != "clap" || cfg.Targets["plugin"].Bundle.Sign != "") {
+				t.Fatalf("bundle = %+v", cfg.Targets["plugin"].Bundle)
+			}
+		})
+	}
+}

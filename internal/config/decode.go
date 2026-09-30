@@ -237,6 +237,22 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.Coverage = extractOptionalBool(val, "coverage")
 	t.Visibility = extractOptionalString(val, "visibility")
 	t.Exports = extractStringList(val, "exports")
+	if bundle := val.LookupPath(cue.ParsePath("bundle")); bundle.Exists() {
+		t.Bundle = BundleSettings{
+			Extension: extractOptionalString(bundle, "extension"), Name: extractOptionalString(bundle, "name"),
+			Dir: extractOptionalString(bundle, "dir"), InfoPlist: extractOptionalString(bundle, "infoPlist"),
+			Identifier: extractOptionalString(bundle, "identifier"), Sign: "-",
+		}
+		if sign := bundle.LookupPath(cue.ParsePath("sign")); sign.Exists() {
+			if enabled, err := sign.Bool(); err == nil {
+				if !enabled {
+					t.Bundle.Sign = ""
+				}
+			} else {
+				t.Bundle.Sign, _ = sign.String()
+			}
+		}
+	}
 	if sourceFlags := val.LookupPath(cue.ParsePath("sourceFlags")); sourceFlags.Exists() {
 		t.SourceFlags = make(map[string][]string)
 		fields, _ := sourceFlags.Fields()

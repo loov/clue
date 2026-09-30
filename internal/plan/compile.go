@@ -90,7 +90,7 @@ func compileGNU(tc toolchain.Toolchain, opts CompileOptions) Invocation {
 	if platform.OS == "" {
 		platform = toolchain.HostPlatform()
 	}
-	if opts.TargetType == "shared_library" && platform.OS != "windows" && !opts.Flags.PIC {
+	if (opts.TargetType == "shared_library" || opts.TargetType == "bundle") && platform.OS != "windows" && !opts.Flags.PIC {
 		args = append(args, "-fPIC") // otherwise added with the other semantic flags
 	}
 	for _, include := range opts.Includes {

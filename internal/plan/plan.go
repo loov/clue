@@ -49,7 +49,7 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 	objectNames := ObjectNames(target.Sources)
 	plan := Target{
 		Target: target, Usage: usage, Flags: flags, ObjectDir: objectDir,
-		Output:  ArtifactPath(buildDir, variantName, target.Name, target.Type, platform),
+		Output:  TargetOutput(target, buildDir, variantName, platform),
 		Sources: make([]Source, 0, len(target.Sources)),
 	}
 	for _, source := range target.Sources {
@@ -137,4 +137,13 @@ func WithSourceFlags(flags toolchain.Flags, source Source) toolchain.Flags {
 		flags.RawCompiler = append(append([]string(nil), flags.RawCompiler...), source.Flags...)
 	}
 	return flags
+}
+
+// TargetOutput returns the file a target links or archives: ArtifactPath,
+// or the module inside a bundle target's layout.
+func TargetOutput(target config.Target, buildDir, variant string, platform toolchain.Platform) string {
+	if target.Type == "bundle" {
+		return BundleLayout(target, buildDir, variant, platform).Module
+	}
+	return ArtifactPath(buildDir, variant, target.Name, target.Type, platform)
 }

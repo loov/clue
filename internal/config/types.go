@@ -127,6 +127,7 @@ type Target struct {
 	Exports          []string            // C symbols to keep and export (only these) from a linked output
 	LinkWhole        bool                // consumers link every member of this static library
 	SourceFlags      map[string][]string // extra compiler flags per source path or glob
+	Bundle           BundleSettings      // layout of a "bundle" target
 	Test             *Test
 	Unity            *UnityBuild
 }
@@ -196,4 +197,15 @@ func (t Target) FlagsForSource(source string) []string {
 		}
 	}
 	return flags
+}
+
+// BundleSettings describes the output of a "bundle" target: a loadable
+// module, packaged on macOS as <dir>/<name>.<extension>/Contents/MacOS/<name>.
+type BundleSettings struct {
+	Extension  string // "clap", "vst3", "component", "bundle", ...
+	Name       string // module and bundle name; defaults to the target name
+	Dir        string // directory for the bundle; defaults to {buildDir}
+	InfoPlist  string // Info.plist to copy into the bundle (macOS)
+	Identifier string // CFBundleIdentifier of a generated Info.plist (macOS)
+	Sign       string // codesign identity (macOS); "-" signs ad hoc, "" not at all
 }

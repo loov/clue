@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 
 	"github.com/loov/clue/internal/cache"
 	"github.com/loov/clue/internal/toolchain"
@@ -35,13 +36,22 @@ func linkFingerprint(tc toolchain.Toolchain, tool string, options any, inputs []
 }
 
 func linkIsCurrent(output string, fingerprint []byte) bool {
+	return linkIsCurrentAt(output, output, fingerprint)
+}
+
+// linkIsCurrentAt reports whether output exists and stamp+".clue-link"
+// records fingerprint.
+func linkIsCurrentAt(output, stamp string, fingerprint []byte) bool {
 	if _, err := os.Stat(output); err != nil {
 		return false
 	}
-	previous, err := os.ReadFile(output + ".clue-link")
+	previous, err := os.ReadFile(stamp + ".clue-link")
 	return err == nil && bytes.Equal(previous, fingerprint)
 }
 
 func storeLinkFingerprint(output string, fingerprint []byte) error {
+	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+		return err
+	}
 	return os.WriteFile(output+".clue-link", fingerprint, 0o644)
 }
