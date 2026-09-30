@@ -99,6 +99,15 @@ func registerCommands(commands clingy.Commands, options *options) {
 
 // runCLI executes Clue with args and returns its process exit code.
 func runCLI(ctx context.Context, args []string, version string) int {
+	// "clue help [command]" and "clue version" are spelled as flags by clingy.
+	if len(args) > 0 {
+		switch args[0] {
+		case "help":
+			args = append(append([]string(nil), args[1:]...), "--help")
+		case "version":
+			args = append([]string{"--version"}, args[1:]...)
+		}
+	}
 	options := &options{}
 	env := clingy.Environment{Name: "clue", Args: args, Root: &validateCommand{options: options}}
 	env.Wrap = func(ctx context.Context, command clingy.Command) error {

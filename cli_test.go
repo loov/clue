@@ -56,6 +56,17 @@ func TestCLI_HelpListsCommandsAndGlobalFlags(t *testing.T) {
 	}
 }
 
+func TestCLI_HelpAndVersionCommands(t *testing.T) {
+	stdout, stderr, exitCode := runClue(t, ".", "help", "build")
+	if exitCode != 0 || !strings.Contains(stdout, "--variant") {
+		t.Fatalf("clue help build = %d %q %q", exitCode, stdout, stderr)
+	}
+	stdout, stderr, exitCode = runClue(t, ".", "version")
+	if exitCode != 0 || !strings.HasPrefix(stdout, "clue version ") {
+		t.Fatalf("clue version = %d %q %q", exitCode, stdout, stderr)
+	}
+}
+
 func TestCLI_QuietMode_NoOutputOnSuccess(t *testing.T) {
 	testDir := filepath.Join("testdata", "multi-target")
 
