@@ -61,7 +61,7 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 		)
 	}
 	*file = append(*file, ninja.Rule{
-		Name: "fetch_dep", Command: "$clue deps fetch $dep", Description: "FETCH $dep",
+		Name: "fetch_dep", Command: "$clue -target $platform deps fetch $dep", Description: "FETCH $dep",
 	}, ninja.Rule{
 		Name: "external_dep", Command: "$clue -quiet -variant $variant -target $platform deps build $dep", Description: "EXTERNAL $dep", Restat: true,
 	}, ninja.Rule{

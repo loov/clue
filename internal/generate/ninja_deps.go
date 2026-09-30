@@ -72,7 +72,8 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 				// One fetch at a time: targets of a dependency share its
 				// checkout, and every fetch updates clue.lock.
 				Rule: "fetch_dep", Out: sourcePaths, InImplicit: []string{"clue.cue"}, Pool: "fetch",
-				Vars: ninja.Vars{{Key: "dep", Val: name}},
+				// The target's configuration, which can have other dependencies than the host's.
+				Vars: ninja.Vars{{Key: "dep", Val: name}, {Key: "platform", Val: opts.Platform.String()}},
 			})
 		}
 		for _, source := range sources {

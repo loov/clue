@@ -443,7 +443,7 @@ func TestNinja_BuildsExternalDependencies(t *testing.T) {
 	content := buf.String()
 	checks := []string{
 		"rule fetch_dep",
-		"command = $clue deps fetch $dep",
+		"command = $clue -target $platform deps fetch $dep",
 		"build .build/debug/deps/math/obj/math.cpp.o: cxx " + ninjaPathLocal(filepath.Join(depRoot, "math.cpp")),
 		"-I" + NinjaPath(filepath.Join(depRoot, "include")),
 		"-DMATH_BUILD",
