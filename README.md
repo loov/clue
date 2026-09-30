@@ -312,6 +312,25 @@ targets: {
 }
 ```
 
+A custom target's `command`, `inputs` and `outputs` may use `{variant}`, `{buildDir}`
+(for example `.build/release`) and `{output:name}` (the artifact of target `name`, which must
+be listed in `depends`). Such a target runs once per variant, so its outputs must also be
+per-variant. Include paths may use `{variant}` and `{buildDir}` to reach generated headers:
+
+```cue
+targets: bundle: {
+    name:    "bundle"
+    type:    "custom"
+    depends: ["plugin"]
+    command: ["sh", "-c", "mkdir -p \"$(dirname \"$2\")\" && cp \"$1\" \"$2\"", "bundle",
+              "{output:plugin}", "dist/{variant}/Plugin.clap/Contents/MacOS/Plugin"]
+    inputs:  ["{output:plugin}"]
+    outputs: ["dist/{variant}/Plugin.clap/Contents/MacOS/Plugin"]
+}
+```
+
+The build fingerprint of a custom target is kept in the build directory, not beside its outputs.
+
 ### Header-only dependency
 
 Header-only Git, tarball, and vendored dependencies need only their include directory:
@@ -383,3 +402,38 @@ dependencies: foo: {
     }
 }
 ```
+
+### Describing a dependency's build in the project
+
+A dependency without a `clue.cue` can be described by a clue file in the project. The file is
+written as if it were the dependency's own `clue.cue`: paths are relative to the checkout,
+`target` picks the library, targets may set `flags.compiler` and `warnings`, and `public`
+includes and defines are passed to consumers. Names in `depends` that are not targets of the
+file refer to the project's other dependencies:
+
+```cue
+dependencies: vst3sdk: {
+    type:       "git"
+    repo:       "https://github.com/steinbergmedia/vst3sdk"
+    ref:        "v3.8.0_build_66"
+    submodules: ["base", "public.sdk", "pluginterfaces"] // all submodules when omitted
+    file:       "deps/vst3sdk.cue"
+}
+```
+
+```cue
+// deps/vst3sdk.cue
+targets: vst3sdk: {
+    type:     "static_library"
+    warnings: "off"
+    sources:  ["base/source/fobject.cpp", "public.sdk/source/main/pluginfactory.cpp"]
+    public: {includes: [".", "public.sdk", "pluginterfaces"], defines: ["RELEASE=1"]}
+}
+```
+
+Project targets can compile files of a dependency checkout with `{dep:name}`, for example
+`sources: ["{dep:clap-wrapper}/src/wrapasauv2.cpp"]`.
+
+Git dependencies are cloned at depth 1, including when `clue.lock` pins a commit, and their
+submodules are checked out (shallow) too. Objective-C (`.m`) and Objective-C++ (`.mm`) sources
+are compiled like C and C++ sources.
