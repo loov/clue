@@ -375,6 +375,62 @@ sources: ["lib.cpp"]
 	}
 }
 
+func TestLoad_NestedDependenciesAreSchemaChecked(t *testing.T) {
+	for name, nested := range map[string]string{
+		"ref":        `{type: "git", repo: "https://example.com/sdk", ref: 123}`,
+		"submodules": `{type: "git", repo: "https://example.com/sdk", submodules: [1]}`,
+		"tagets":     `{type: "git", repo: "https://example.com/sdk", tagets: {}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			project := `
+name: "checked"
+dependencies: wrapper: {
+	type: "git", repo: "https://example.com/wrapper", ref: "v1"
+	targets: wrapper: {type: "static_library", sources: ["w.cpp"], depends: ["sdk"]}
+	dependencies: sdk: ` + nested + `
+}
+targets: app: {type: "executable", sources: ["main.cpp"], depends: ["wrapper"]}
+`
+			_, err := NewLoader().Load(writeProject(t, map[string]string{"clue.cue": project}))
+			if err == nil || !strings.Contains(err.Error(), `"sdk"`) || !strings.Contains(err.Error(), name) {
+				t.Fatalf("error = %v, want one about %s", err, name)
+			}
+		})
+	}
+}
+
+func TestLoad_NestedListOfSchemaCheckedDependencies(t *testing.T) {
+	dir := writeProject(t, map[string]string{
+		"deps/deps.cue": `package deps
+
+import "loov.dev/clue"
+
+sdk: clue.#Git & {
+	name: "sdk", repo: "https://example.com/sdk", ref: "v1"
+	targets: sdk: {type: "static_library", sources: ["s.cpp"]}
+}
+wrapper: clue.#Git & {
+	name: "wrapper", repo: "https://example.com/wrapper", ref: "v1"
+	dependencies: [sdk]
+	targets: wrapper: {type: "static_library", sources: ["w.cpp"], depends: ["sdk"]}
+}
+`,
+		"clue.cue": `import "clue.local/deps"
+
+name: "nested-list"
+dependencies: [deps.wrapper]
+targets: app: {type: "executable", sources: ["main.cpp"], depends: [deps.wrapper.lib.wrapper]}
+`,
+	})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Dependencies["sdk"]; !ok {
+		t.Fatalf("dependencies = %v", cfg.Dependencies)
+	}
+}
+
 func TestExpandDependencies_KeepsEachConfigurationsPlatform(t *testing.T) {
 	root := writeProject(t, map[string]string{
 		"clue.cue": `name: "first"

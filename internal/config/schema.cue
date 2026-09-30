@@ -207,8 +207,10 @@ package config
 	defaults?: #TargetDefaults
 	targets?: [string]: #Target
 	// The dependency's own dependencies, added to the project's; a name
-	// declared in several places must name the same source everywhere
-	dependencies?: #Dependencies
+	// declared in several places must name the same source everywhere. They
+	// are checked as dependencies of the project when they are added (CUE
+	// cannot unify a recursive definition with values already closed by it).
+	dependencies?: {[string]: {...}} | [...{name: string, ...}]
 
 	// References to the dependency's libraries for depends, such as
 	// lib.vst3 == "clap-wrapper:vst3"; the library the name itself refers

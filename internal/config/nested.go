@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -56,6 +57,9 @@ func ExpandDependencies(cfg *Config) (int, error) {
 			if !declared.Exists() {
 				continue
 			}
+			if err := checkDeclaredDependencies(declared); err != nil {
+				return added, fmt.Errorf("dependencies of %q: %w", name, err)
+			}
 			nested, err := loader.extractDependencies(declared)
 			if err != nil {
 				return added, fmt.Errorf("dependencies of %q: %w", name, err)
@@ -88,6 +92,48 @@ func ExpandDependencies(cfg *Config) (int, error) {
 		return added, err
 	}
 	return added, addTargetDependencies(cfg)
+}
+
+// checkDeclaredDependencies checks each declared dependency against the
+// schema, which leaves them open: CUE cannot unify its recursive
+// #Dependency with values that it already closed.
+func checkDeclaredDependencies(declared cue.Value) error {
+	schema := cuecontext.New().CompileString(Schema, cue.Filename("schema.cue"))
+	definitions := map[string]string{
+		"git": "#GitDependency", "tarball": "#TarballDependency",
+		"vendored": "#VendoredDependency", "pkg_config": "#PkgConfigDependency",
+	}
+	check := func(value cue.Value) error {
+		// The definition of its type reports errors a disjunction would hide.
+		kind, _ := value.LookupPath(cue.ParsePath("type")).String()
+		definition, ok := definitions[kind]
+		if !ok {
+			definition = "#Dependency"
+		}
+		return schema.LookupPath(cue.ParsePath(definition)).Unify(value.Eval()).Validate(cue.Concrete(true))
+	}
+	if declared.IncompleteKind() == cue.ListKind {
+		list, err := declared.List()
+		if err != nil {
+			return err
+		}
+		for list.Next() {
+			if err := check(list.Value()); err != nil {
+				return fmt.Errorf("%q: %w", extractOptionalString(list.Value(), "name"), err)
+			}
+		}
+		return nil
+	}
+	fields, err := declared.Fields()
+	if err != nil {
+		return err
+	}
+	for fields.Next() {
+		if err := check(fields.Value()); err != nil {
+			return fmt.Errorf("%q: %w", fields.Selector().Unquoted(), err)
+		}
+	}
+	return nil
 }
 
 // applyOverride replaces the source fields an override sets.
