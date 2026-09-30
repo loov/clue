@@ -537,6 +537,31 @@ func TestLoadForTarget_CrossBuildDirectory(t *testing.T) {
 	}
 }
 
+func TestLoad_TargetInSchemaPackage(t *testing.T) {
+	dir := writeProject(t, map[string]string{
+		"deps/sdk.cue": `package deps
+
+import "loov.dev/clue"
+
+sources: [if clue.target.os == "windows" {"win.cpp"}, if clue.target.os != "windows" {"posix.cpp"}]
+`,
+		"clue.cue": `import "clue.local/deps"
+
+name: "target"
+targets: app: {type: "executable", sources: deps.sources}
+`,
+		"win.cpp":   "",
+		"posix.cpp": "",
+	})
+	cfg, err := NewLoader().LoadForTarget(dir, toolchain.Platform{OS: "windows", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Targets["app"].Sources; !slices.Equal(got, []string{"win.cpp"}) {
+		t.Fatalf("windows sources = %q", got)
+	}
+}
+
 func TestExpandDependencies_KeepsEachConfigurationsPlatform(t *testing.T) {
 	root := writeProject(t, map[string]string{
 		"clue.cue": `name: "first"
