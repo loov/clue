@@ -51,7 +51,8 @@ clue build       # Build project
 `clue.cue` may use a CUE package and split configuration across other `.cue` files in the same directory.
 (Every `.cue` file next to `clue.cue` belongs to the project configuration, so keep
 dependency descriptions in a subdirectory, as a package that `clue.cue` imports.) A target's `name` defaults to its key.
-Target `sources` and `headers` accept standard file globs such as `src/*.cpp`.
+Target `sources` and `headers` accept file globs such as `src/*.cpp`, and `**` matches any
+number of directories; `exclude` leaves sources out again (`exclude: ["**/win32/*"]`).
 Configuration can branch on the selected platform through `_target.os` and `_target.arch`, and
 `_project.dir` is the absolute project directory:
 
@@ -342,6 +343,18 @@ targets: {
 }
 ```
 
+A custom target may run in a `workingDirectory` (its placeholders then expand to absolute
+paths) and write its standard output to a `stdout` file, which counts as an output, so
+generators need no shell:
+
+```cue
+targets: version_header: {
+    type:    "custom"
+    command: ["git", "describe", "--always"]
+    stdout:  "{buildDir}/gen/version.txt"
+}
+```
+
 A custom target's `command`, `inputs` and `outputs` may use `{variant}`, `{buildDir}`
 (for example `.build/release`) and `{output:name}` (the artifact of target `name`, which must
 be listed in `depends`). Such a target runs once per variant, so its outputs must also be
@@ -471,14 +484,20 @@ A dependency without a `clue.cue` can carry its build description itself: `defau
 
 Descriptions fit in a CUE package of the project, which `clue.cue` imports. Projects without a
 `cue.mod` are the module `clue.local`, so `deps/` is imported as `"clue.local/deps"` with no
-further setup:
+further setup. Clue's schema is importable as `"loov.dev/clue"`: `clue.#Git`, `clue.#Tarball`,
+`clue.#Vendored` and `clue.#PkgConfig` check a description in its own file and fill in its type.
+A dependency that carries its `name` can be listed without repeating it, and gets `lib`, a
+reference for each of its libraries (`lib.vst3 == "clap-wrapper:vst3"`), which CUE checks where
+it is used:
 
 ```cue
 // deps/vst3sdk.cue
 package deps
 
-vst3sdk: {
-    type:       "git"
+import "loov.dev/clue"
+
+vst3sdk: clue.#Git & {
+    name:       "vst3sdk"
     repo:       "https://github.com/steinbergmedia/vst3sdk"
     ref:        "v3.8.0_build_66"
     submodules: ["base", "public.sdk", "pluginterfaces"] // all submodules when omitted
@@ -486,7 +505,8 @@ vst3sdk: {
     targets: vst3sdk: {
         type:     "static_library"
         warnings: "off"
-        sources:  ["base/source/fobject.cpp", "public.sdk/source/main/pluginfactory.cpp"]
+        sources:  ["base/**/*.cpp", "public.sdk/source/main/*.cpp"]
+        exclude:  ["**/dllmain.cpp", "**/linuxmain.cpp"]
         public: {includes: [".", "public.sdk", "pluginterfaces"], defines: ["RELEASE=1"]}
     }
 }
@@ -496,15 +516,18 @@ vst3sdk: {
 // deps/clap-wrapper.cue
 package deps
 
-clapWrapper: {
-    type:   "git"
+import "loov.dev/clue"
+
+clapWrapper: clue.#Git & {
+    name:   "clap-wrapper"
     repo:   "https://github.com/free-audio/clap-wrapper"
     ref:    "v0.16.0"
     target: "shared"
-    dependencies: vst3sdk: vst3sdk // brought in for the project
+    dependencies: [vst3sdk] // brought in for the project
     targets: {
         shared: {type: "static_library", sources: ["src/clap_proxy.cpp"]}
-        vst3: {type: "static_library", sources: ["src/wrapasvst3.cpp"], depends: ["clap-wrapper", "vst3sdk"]}
+        // inside a description, its libraries are named with strings
+        vst3: {type: "static_library", sources: ["src/wrapasvst3*.cpp"], depends: ["clap-wrapper", "vst3sdk"]}
     }
 }
 ```
@@ -513,12 +536,23 @@ clapWrapper: {
 // clue.cue
 import "clue.local/deps"
 
-dependencies: "clap-wrapper": deps.clapWrapper
-targets: plugin_vst3: {type: "bundle", depends: ["clap-wrapper:vst3"], bundle: extension: "vst3"}
+dependencies: [deps.clapWrapper]
+targets: plugin_vst3: {type: "bundle", depends: [deps.clapWrapper.lib.vst3], bundle: extension: "vst3"}
 ```
 
+A description package can also offer templates for its consumers: a definition that turns a few
+parameters into `targets` (and the `dependencies` they need), which a project unifies with its
+values and uses, as CMake modules do for CMake projects.
+
+Descriptions can be shared as CUE modules: clue loads the configuration with the CUE registry
+settings of the `cue` command (`$CUE_REGISTRY`, the central registry by default), so a project
+whose `cue.mod` depends on a published module of descriptions imports them like its own packages
+(`cue mod get` and `cue mod tidy` manage those). A dependency's own `clue.cue` is evaluated as
+the package of its directory, like a project's, so it can import clue's schema and packages of
+its repository and use `_target`.
+
 A description may instead be a separate file named by `file` (read on its own, not as part of
-a package), and a dependency's own `clue.cue` may declare `dependencies` too; those are found
+a package), and a dependency's own `clue.cue` may declare `dependencies` too, keyed or listed; those are found
 after it is fetched, and fetching repeats until no more are declared. Paths in a fetched
 `clue.cue` are relative to its checkout.
 
