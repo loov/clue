@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	cueerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
@@ -65,18 +66,32 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 		return nil, l.convertCUEError(err, absDir)
 	}
 	packageName := entry.PackageName()
-	if packageName == "" {
-		packageName = "_"
-	}
-	if target.OS == "" || target.Arch == "" {
-		target = toolchain.HostPlatform()
-	}
 	if overlay == nil {
 		overlay = make(map[string]load.Source)
 	}
-	if !json.Valid(data) {
+	addImplicitModule(absDir, overlay)
+	if target.OS == "" || target.Arch == "" {
+		target = toolchain.HostPlatform()
+	}
+	if json.Valid(data) {
+		if packageName == "" {
+			packageName = "_"
+		}
+	} else {
 		data = fmt.Appendf(data, "\n_target: {os: %q, arch: %q}\n_project: dir: %q\n", target.OS, target.Arch, filepath.ToSlash(absDir))
-		overlay[configPath] = load.FromBytes(data)
+		source := load.FromBytes(data)
+		if packageName == "" {
+			// Imports need a named package: clue.cue and the other files
+			// without a package clause become package "clue".
+			packageName = implicitPackage
+			if source, err = withImplicitPackage(configPath, data); err != nil {
+				return nil, l.convertCUEError(err, absDir)
+			}
+			if err := addImplicitPackage(absDir, configPath, overlay); err != nil {
+				return nil, err
+			}
+		}
+		overlay[configPath] = source
 	}
 
 	instances := load.Instances([]string{"."}, &load.Config{Dir: absDir, Package: packageName, Overlay: overlay})
@@ -343,4 +358,57 @@ func (l *Loader) suggestFix(msg string) string {
 		}
 	}
 	return ""
+}
+
+// Projects without a cue.mod get this module, so that clue.cue can import
+// CUE packages from project directories as "clue.local/<directory>".
+const (
+	implicitModule  = "clue.local"
+	implicitPackage = "clue"
+)
+
+func addImplicitModule(dir string, overlay map[string]load.Source) {
+	if _, err := os.Stat(filepath.Join(dir, "cue.mod")); err == nil {
+		return
+	}
+	module := fmt.Sprintf("module: %q\nlanguage: version: \"v0.14.0\"\n", implicitModule)
+	overlay[filepath.Join(dir, "cue.mod", "module.cue")] = load.FromString(module)
+}
+
+// addImplicitPackage gives the .cue files next to clue.cue that have no
+// package clause the package of clue.cue.
+func addImplicitPackage(dir, configPath string, overlay map[string]load.Source) error {
+	files, err := filepath.Glob(filepath.Join(dir, "*.cue"))
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if file == configPath {
+			continue
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		if parsed, err := parser.ParseFile(file, data, parser.PackageClauseOnly); err != nil || parsed.PackageName() != "" {
+			continue
+		}
+		source, err := withImplicitPackage(file, data)
+		if err != nil {
+			return err
+		}
+		overlay[file] = source
+	}
+	return nil
+}
+
+// withImplicitPackage returns the file with a package clause added to its
+// syntax tree, which keeps the positions of its own lines in messages.
+func withImplicitPackage(path string, data []byte) (load.Source, error) {
+	file, err := parser.ParseFile(path, data, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+	file.Decls = append([]ast.Decl{&ast.Package{Name: ast.NewIdent(implicitPackage)}}, file.Decls...)
+	return load.FromFile(file), nil
 }

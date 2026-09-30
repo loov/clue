@@ -182,3 +182,39 @@ targets: app: {type: "executable", sources: ["main.cpp"], depends: ["wrapper", "
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestLoad_ImportsProjectPackagesWithoutSetup(t *testing.T) {
+	dir := writeProject(t, map[string]string{
+		"clue.cue": `import "clue.local/deps"
+
+name: "imports"
+dependencies: sdk: deps.sdk
+targets: app: {type: "executable", sources: ["main.cpp"], depends: ["sdk"]}
+`,
+		// a second project file without a package clause joins clue.cue
+		"extra.cue": `version: "1.2.3"
+`,
+		"deps/sdk.cue": `package deps
+
+sdk: {
+	type: "git", repo: "https://example.com/sdk", ref: "v1"
+	targets: sdk: {type: "static_library", sources: ["sdk.cpp"]}
+}
+`,
+	})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Version != "1.2.3" || !cfg.Dependencies["sdk"].Description().Exists() {
+		t.Fatalf("version %q, dependencies %v", cfg.Version, cfg.Dependencies)
+	}
+
+	// Errors keep the line numbers of the file.
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte("name: \"x\"\n\ntargets: app: {type: \"executable\", sources: 5}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "clue.cue:3:") {
+		t.Fatalf("error = %v", err)
+	}
+}
