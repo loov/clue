@@ -276,11 +276,15 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 		flags := buildCfg
 		flags.RawLinker = append(slices.Clone(flags.RawLinker), dependencyPlan.Usage.LinkerFlags...)
 		flags.RawLinker = append(flags.RawLinker, runtimeFlags...)
-		invocation := plan.LinkShared(tc, opts.Platform, plan.SharedLibraryOptions{
+		sharedOpts := plan.SharedLibraryOptions{
 			Objects: argumentInputs, Output: argumentOutput, SysLibs: systemLibraries,
 			LibPaths: ninjaMSVCLibraryPaths(tc), Flags: flags,
 			UseCXX: dependencyPlan.UsesCXX, Bundle: target.Type == "bundle",
-		})
+		}
+		if target.Type == "bundle" {
+			sharedOpts.ImportLibrary = NinjaPath(filepath.Join(targetPlan.ObjectDir, target.Name+".lib"))
+		}
+		invocation := plan.LinkShared(tc, opts.Platform, sharedOpts)
 		rule := "link_shared_c"
 		if dependencyPlan.UsesCXX {
 			rule = "link_shared"

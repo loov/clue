@@ -388,12 +388,20 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			UseCXX:   useCXX,
 			Bundle:   target.Type == "bundle",
 		}
+		if target.Type == "bundle" {
+			// Nothing links against a plugin: keep its import library out of dist/.
+			sharedOpts.ImportLibrary = filepath.Join(objDir, target.Name+".lib")
+		}
 		linkInvocation := plan.LinkShared(b.toolchain, b.target, sharedOpts)
 		fingerprint, err := linkFingerprint(b.toolchain, linkInvocation.Tool, sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}
 		linkStamp := outputPath
+		if target.Type == "bundle" {
+			// Keep the record out of the bundle's directory, such as dist/.
+			linkStamp = filepath.Join(objDir, "link")
+		}
 		if !opts.ForceRebuild && linkIsCurrentAt(outputPath, linkStamp, fingerprint) {
 			if target.Type == "bundle" {
 				if err := b.finishBundle(ctx, opts, target, fingerprint); err != nil {

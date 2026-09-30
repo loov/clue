@@ -39,7 +39,7 @@ func TestBuild_ZigCrossCompiles(t *testing.T) {
 			cfg := &config.Config{Targets: map[string]config.Target{
 				"lib":    {Name: "lib", Type: "static_library", Sources: []string{"lib.cpp"}},
 				"app":    {Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"lib"}},
-				"plugin": {Name: "plugin", Type: "bundle", Sources: []string{"plugin.cpp"}, Depends: []string{"lib"}, Exports: []string{"plugin_entry"}, Bundle: config.BundleSettings{Extension: "plug", Dir: "dist"}},
+				"plugin": {Name: "plugin", Type: "bundle", Sources: []string{"plugin.cpp"}, Depends: []string{"lib"}, Exports: []string{"plugin_entry"}, Bundle: config.BundleSettings{Extension: "plug", Dir: filepath.Join("dist", test.platform.String())}},
 			}}
 			builder, err := NewConfiguredBuilder(config.Toolchain{Compiler: "zig"}, test.platform, ".", VerbosityQuiet, 4, false)
 			if err != nil {
@@ -56,6 +56,17 @@ func TestBuild_ZigCrossCompiles(t *testing.T) {
 				data, err := os.ReadFile(output)
 				if err != nil || !bytes.HasPrefix(data, []byte(test.magic)) {
 					t.Errorf("%s: %v, starts with %q", output, err, data[:min(len(data), 4)])
+				}
+			}
+			// Only the plugin (and its debug information) goes next to it: no import
+			// library and no build records.
+			entries, err := os.ReadDir(filepath.Join("dist", test.platform.String()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, entry := range entries {
+				if name := entry.Name(); name != "plugin.plug" && name != "plugin.pdb" {
+					t.Errorf("unexpected %s next to the bundle", name)
 				}
 			}
 		})

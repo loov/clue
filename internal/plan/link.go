@@ -28,6 +28,10 @@ type SharedLibraryOptions struct {
 	Flags    toolchain.Flags // For raw linker flags and debug info
 	UseCXX   bool            // Use the C++ driver when the link graph contains C++
 	Bundle   bool            // a loadable module: -bundle on macOS, not linkable by others
+
+	// ImportLibrary is where Windows links write the import library; next to
+	// Output when empty.
+	ImportLibrary string
 }
 
 // ArchiveOptions holds options for creating a static library.
@@ -56,7 +60,10 @@ func Link(tc toolchain.Toolchain, platform toolchain.Platform, opts LinkOptions)
 func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts SharedLibraryOptions) Invocation {
 	importLibrary := ""
 	if platform.OS == "windows" {
-		importLibrary = strings.TrimSuffix(opts.Output, filepath.Ext(opts.Output)) + ".lib"
+		importLibrary = opts.ImportLibrary
+		if importLibrary == "" {
+			importLibrary = strings.TrimSuffix(opts.Output, filepath.Ext(opts.Output)) + ".lib"
+		}
 	}
 	if tc.Name() == "msvc" {
 		args := append([]string(nil), tc.LinkerFlags(opts.Flags, nil)...)
