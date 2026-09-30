@@ -395,7 +395,9 @@ func addImplicitModule(dir string, overlay map[string]load.Source) {
 	if _, err := os.Stat(filepath.Join(dir, "cue.mod")); err == nil {
 		return
 	}
-	module := fmt.Sprintf("module: %q\nlanguage: version: \"v0.14.0\"\n", implicitModule)
+	// The language version of the CUE library, so every experiment it offers,
+	// such as @experiment(functions), is available.
+	module := fmt.Sprintf("module: %q\nlanguage: version: %q\n", implicitModule, cue.LanguageVersion())
 	overlay[filepath.Join(dir, "cue.mod", "module.cue")] = load.FromString(module)
 }
 

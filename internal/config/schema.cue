@@ -1,3 +1,5 @@
+@experiment(explicitopen)
+
 package config
 
 // Core target definition - base for all buildable units
@@ -197,7 +199,8 @@ package config
 	}
 }
 
-// How to build a dependency, given with it: like a clue.cue of the dependency,
+// How to build a dependency, given with it (embedded with "...", as since
+// CUE v0.18 embedding a definition closes the struct to its fields): like a clue.cue of the dependency,
 // with paths relative to its checkout. "target" selects the library the
 // dependency's name refers to; "<dependency>:<target>" refers to the others.
 #Description: {
@@ -243,7 +246,7 @@ package config
 	// paths relative to the dependency; used instead of its own clue.cue.
 	file?: string
 	build?: #InlineBuildConfig
-	#Description
+	#Description...
 }
 
 // Tarball dependency
@@ -257,7 +260,7 @@ package config
 	// paths relative to the dependency; used instead of its own clue.cue.
 	file?: string
 	build?: #InlineBuildConfig
-	#Description
+	#Description...
 }
 
 // Vendored dependency
@@ -269,7 +272,7 @@ package config
 	// paths relative to the dependency; used instead of its own clue.cue.
 	file?: string
 	build?: #InlineBuildConfig
-	#Description
+	#Description...
 }
 
 // System dependency discovered through pkg-config

@@ -431,6 +431,39 @@ targets: app: {type: "executable", sources: ["main.cpp"], depends: [deps.wrapper
 	}
 }
 
+func TestLoad_ExperimentalFunctions(t *testing.T) {
+	dir := writeProject(t, map[string]string{
+		"deps/plugins.cue": `@experiment(functions)
+
+package deps
+
+// Plugin makes a bundle target for a CLAP plugin.
+Plugin: func(dir: string = "dist/{variant}", name!: string, sources!: [...string]) -> {...}: {
+	// Parameters named like the fields they fill are bound first: inside
+	// {dir: dir}, dir would be the field itself.
+	let Sources = sources
+	let Dir = dir
+	targets: "\(name)_clap": {type: "bundle", sources: Sources, bundle: {extension: "clap", dir: Dir}}
+}
+`,
+		"clue.cue": `@experiment(functions)
+
+import "clue.local/deps"
+
+name: "functions"
+targets: deps.Plugin(name: "synth", sources: ["plugin.c"]).targets
+`,
+	})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	synth := cfg.Targets["synth_clap"]
+	if synth.Type != "bundle" || synth.Bundle.Dir != "dist/{variant}" || !slices.Equal(synth.Sources, []string{"plugin.c"}) {
+		t.Fatalf("synth_clap = %+v", synth)
+	}
+}
+
 func TestExpandDependencies_KeepsEachConfigurationsPlatform(t *testing.T) {
 	root := writeProject(t, map[string]string{
 		"clue.cue": `name: "first"

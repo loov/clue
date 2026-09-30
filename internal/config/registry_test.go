@@ -14,7 +14,7 @@ func TestLoad_ImportsDescriptionsFromARegistry(t *testing.T) {
 	// A module of shared dependency descriptions, published to a registry.
 	registry, err := modregistrytest.New(fstest.MapFS{
 		"example.com_ports_v0.1.0/cue.mod/module.cue": {Data: []byte(`module: "example.com/ports@v0"
-language: version: "v0.14.0"
+language: version: "v0.18.0"
 `)},
 		"example.com_ports_v0.1.0/sdk/sdk.cue": {Data: []byte(`package sdk
 
@@ -44,7 +44,7 @@ sdk: clue.#Git & {
 
 	dir := writeProject(t, map[string]string{
 		"cue.mod/module.cue": `module: "example.com/app@v0"
-language: version: "v0.14.0"
+language: version: "v0.18.0"
 deps: "example.com/ports@v0": v: "v0.1.0"
 `,
 		"clue.cue": `import "example.com/ports/sdk"

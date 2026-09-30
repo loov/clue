@@ -540,9 +540,34 @@ dependencies: [deps.clapWrapper]
 targets: plugin_vst3: {type: "bundle", depends: [deps.clapWrapper.lib.vst3], bundle: extension: "vst3"}
 ```
 
-A description package can also offer templates for its consumers: a definition that turns a few
-parameters into `targets` (and the `dependencies` they need), which a project unifies with its
-values and uses, as CMake modules do for CMake projects.
+A description package can also offer templates for its consumers, as CMake modules do for CMake
+projects. With CUE's experimental functions (clue uses CUE v0.18.0-alpha.2, and projects get its
+language version), a template is a function with declared, required (`!`) and optional (`?`)
+parameters and defaults:
+
+```cue
+@experiment(functions)
+
+package deps
+
+// Plugin makes the bundle targets of a CLAP plugin.
+Plugin: func(dir: string = "dist/{variant}", name!: string, sources!: [...string]) -> {...}: {
+    // Bind parameters first: inside {dir: dir}, dir would be the field itself.
+    let Sources = sources
+    let Dir = dir
+    targets: "\(name)_clap": {type: "bundle", sources: Sources, bundle: {extension: "clap", dir: Dir}}
+}
+```
+
+```cue
+@experiment(functions)
+
+import "clue.local/deps"
+
+targets: deps.Plugin(name: "synth", sources: ["plugin.c"]).targets
+```
+
+Without the experiment, a definition that a project unifies with its values does the same.
 
 Descriptions can be shared as CUE modules: clue loads the configuration with the CUE registry
 settings of the `cue` command (`$CUE_REGISTRY`, the central registry by default), so a project
