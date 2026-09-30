@@ -91,7 +91,11 @@ func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform
 		variants = []string{"debug"}
 	}
 
+	// A cross build gets its own Ninja file: build.<os-arch>.ninja.
 	outputPath := filepath.Join(dir, "build.ninja")
+	if platform.IsCrossCompile() {
+		outputPath = filepath.Join(dir, "build."+platform.String()+".ninja")
+	}
 	err := generate.Ninja(ctx, generate.NinjaOptions{
 		Config:   cfg,
 		Variants: variants,

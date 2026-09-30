@@ -522,6 +522,21 @@ func TestWriteSchemaPackage(t *testing.T) {
 	}
 }
 
+func TestLoadForTarget_CrossBuildDirectory(t *testing.T) {
+	dir := writeProject(t, map[string]string{"clue.cue": `name: "cross", targets: app: {type: "executable", sources: ["main.c"]}`})
+	cfg, err := NewLoader().LoadForTarget(dir, toolchain.Platform{OS: "wasi", Arch: "wasm32"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BuildDir != filepath.Join(".build", "wasi-wasm32") {
+		t.Fatalf("build directory = %q", cfg.BuildDir)
+	}
+	host, err := NewLoader().Load(dir)
+	if err != nil || host.BuildDir != ".build" {
+		t.Fatalf("host build directory = %q, %v", host.BuildDir, err)
+	}
+}
+
 func TestExpandDependencies_KeepsEachConfigurationsPlatform(t *testing.T) {
 	root := writeProject(t, map[string]string{
 		"clue.cue": `name: "first"

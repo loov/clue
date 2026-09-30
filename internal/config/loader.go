@@ -57,8 +57,16 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if err != nil {
 		return nil, err
 	}
-
-	return l.finish(val, absDir, target)
+	cfg, err := l.finish(val, absDir, target)
+	if err != nil {
+		return nil, err
+	}
+	// A cross build has its own build directory, so it does not replace the
+	// host build's outputs or share its compile cache.
+	if target.IsCrossCompile() {
+		cfg.BuildDir = filepath.Join(cfg.BuildDir, target.String())
+	}
+	return cfg, nil
 }
 
 // buildValue evaluates the package of dir/clue.cue: with _target and
