@@ -246,6 +246,16 @@ package config
 	static?: bool | *false
 }
 
+// Fields of a dependency's source that overrides may replace
+#Override: {
+	repo?: string & =~"^(https://|git@)"
+	ref?: string
+	submodules?: [...string]
+	url?: string & =~"^https://"
+	checksum?: string & =~"^[a-f0-9]{64}$"
+	path?: string
+}
+
 // Union type for all dependency types
 #Dependency: #GitDependency | #TarballDependency | #VendoredDependency | #PkgConfigDependency
 
@@ -300,4 +310,8 @@ package config
 
 	// External dependencies
 	dependencies?: [string]: #Dependency
+
+	// Source changes for dependencies wherever they are declared, for example
+	// to pick one ref when dependencies declare different ones
+	overrides?: [string]: #Override
 }

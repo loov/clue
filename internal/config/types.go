@@ -47,6 +47,9 @@ type Config struct {
 	// Raw is the underlying CUE value for advanced access
 	Raw cue.Value
 
+	// Overrides replace source fields of dependencies wherever declared
+	Overrides map[string]Override
+
 	declaredBy map[string]string // who declared each dependency, for conflict messages
 	expanded   map[string]bool   // dependencies whose own declarations were added
 }
@@ -211,4 +214,10 @@ type BundleSettings struct {
 	InfoPlist  string // Info.plist to copy into the bundle (macOS)
 	Identifier string // CFBundleIdentifier of a generated Info.plist (macOS)
 	Sign       string // codesign identity (macOS); "-" signs ad hoc, "" not at all
+}
+
+// Override replaces source fields of a dependency; empty fields keep theirs.
+type Override struct {
+	Repo, Ref, URL, Checksum, Path string
+	Submodules                     []string // nil keeps the declared submodules
 }

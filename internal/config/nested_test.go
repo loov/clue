@@ -132,3 +132,53 @@ targets: lib: {type: "static_library", sources: ["lib.cpp"], depends: ["base"]}
 		t.Fatalf("second expansion added %d, %v", added, err)
 	}
 }
+
+func TestLoad_ProjectDeclarationsAndOverridesResolveConflicts(t *testing.T) {
+	conflict := `
+dependencies: {
+	wrapper: {
+		type: "git", repo: "https://example.com/wrapper", ref: "v2"
+		targets: wrapper: {type: "static_library", sources: ["w.cpp"], depends: ["sdk"]}
+		dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v1", targets: sdk: {type: "static_library", sources: ["s.cpp"]}}
+	}
+	other: {
+		type: "git", repo: "https://example.com/other", ref: "v3"
+		targets: other: {type: "static_library", sources: ["o.cpp"], depends: ["sdk"]}
+		dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v9"}
+	}
+}
+targets: app: {type: "executable", sources: ["main.cpp"], depends: ["wrapper", "other"]}
+`
+	for name, resolution := range map[string]string{
+		"project declaration": `dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v10"}`,
+		"override":            `overrides: sdk: ref: "v10"`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg, err := NewLoader().Load(writeProject(t, map[string]string{"clue.cue": "name: \"resolved\"\n" + conflict + resolution + "\n"}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			sdk := cfg.Dependencies["sdk"].(*deps.GitDependency)
+			if sdk.Ref != "v10" || !sdk.Description().Exists() {
+				t.Fatalf("sdk = %s, described %v", sdk.Ref, sdk.Description().Exists())
+			}
+		})
+	}
+}
+
+func TestLoad_SameSourceUnderTwoNames(t *testing.T) {
+	project := `
+name: "duplicate"
+dependencies: wrapper: {
+	type: "git", repo: "https://example.com/wrapper", ref: "v2"
+	targets: wrapper: {type: "static_library", sources: ["w.cpp"], depends: ["vst3"]}
+	dependencies: vst3: {type: "git", repo: "https://example.com/sdk", ref: "v1", build: targetType: "header_only"}
+}
+dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v1", build: targetType: "header_only"}
+targets: app: {type: "executable", sources: ["main.cpp"], depends: ["wrapper", "sdk"]}
+`
+	_, err := NewLoader().Load(writeProject(t, map[string]string{"clue.cue": project}))
+	if err == nil || !strings.Contains(err.Error(), "use one name") {
+		t.Fatalf("error = %v", err)
+	}
+}

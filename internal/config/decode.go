@@ -108,6 +108,23 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		}
 	}
 
+	if overrides := val.LookupPath(cue.ParsePath("overrides")); overrides.Exists() {
+		cfg.Overrides = make(map[string]Override)
+		fields, _ := overrides.Fields()
+		for fields.Next() {
+			value := fields.Value()
+			override := Override{
+				Repo: extractOptionalString(value, "repo"), Ref: extractOptionalString(value, "ref"),
+				URL: extractOptionalString(value, "url"), Checksum: extractOptionalString(value, "checksum"),
+				Path: extractOptionalString(value, "path"),
+			}
+			if value.LookupPath(cue.ParsePath("submodules")).Exists() {
+				override.Submodules = append([]string{}, extractStringList(value, "submodules")...)
+			}
+			cfg.Overrides[fields.Selector().Unquoted()] = override
+		}
+	}
+
 	// Extract dependencies
 	if depVal := val.LookupPath(cue.ParsePath("dependencies")); depVal.Exists() {
 		deps, err := l.extractDependencies(depVal)

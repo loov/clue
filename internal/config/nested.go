@@ -19,15 +19,18 @@ import (
 // added; after a fetch, callers repeat fetching until it adds none.
 //
 // Dependencies share one namespace. Declarations of a name must agree on
-// where it comes from; different ones are reported as a conflict.
+// where it comes from, after the project's overrides; the project's own
+// declaration stands over those of dependencies, and other disagreements are
+// reported as conflicts.
 func ExpandDependencies(cfg *Config) (int, error) {
 	if len(cfg.Dependencies) == 0 {
 		return 0, addTargetDependencies(cfg)
 	}
 	if cfg.declaredBy == nil {
 		cfg.declaredBy = make(map[string]string)
-		for name := range cfg.Dependencies {
+		for name, dependency := range cfg.Dependencies {
 			cfg.declaredBy[name] = "the project"
+			applyOverride(dependency, cfg.Overrides[name])
 		}
 	}
 	if cfg.expanded == nil {
@@ -60,6 +63,7 @@ func ExpandDependencies(cfg *Config) (int, error) {
 			}
 			for _, nestedName := range slices.Sorted(maps.Keys(nested)) {
 				candidate := relocate(nested[nestedName], root)
+				applyOverride(candidate, cfg.Overrides[nestedName])
 				existing, ok := cfg.Dependencies[nestedName]
 				if !ok {
 					cfg.Dependencies[nestedName] = candidate
@@ -67,7 +71,8 @@ func ExpandDependencies(cfg *Config) (int, error) {
 					added++
 					continue
 				}
-				if !sameSource(existing, candidate) {
+				// The project decides: its declaration stands.
+				if !sameSource(existing, candidate) && cfg.declaredBy[nestedName] != "the project" {
 					return added, fmt.Errorf("conflicting declarations of dependency %q: %s uses %s, %q uses %s",
 						nestedName, cfg.declaredBy[nestedName], describeSource(existing), name, describeSource(candidate))
 				}
@@ -80,7 +85,52 @@ func ExpandDependencies(cfg *Config) (int, error) {
 			break
 		}
 	}
+	if err := checkDuplicateSources(cfg); err != nil {
+		return added, err
+	}
 	return added, addTargetDependencies(cfg)
+}
+
+// applyOverride replaces the source fields an override sets.
+func applyOverride(dependency deps.Dependency, override Override) {
+	replace := func(field *string, value string) {
+		if value != "" {
+			*field = value
+		}
+	}
+	switch d := dependency.(type) {
+	case *deps.GitDependency:
+		replace(&d.Repo, override.Repo)
+		replace(&d.Ref, override.Ref)
+		if override.Submodules != nil {
+			d.Submodules = override.Submodules
+		}
+	case *deps.TarballDependency:
+		replace(&d.URL, override.URL)
+		replace(&d.Checksum, override.Checksum)
+	case *deps.VendoredDependency:
+		replace(&d.Path, override.Path)
+	}
+}
+
+// checkDuplicateSources reports a source that dependencies declare under two
+// names, which would fetch and build it twice; a project may still declare
+// one source twice itself.
+func checkDuplicateSources(cfg *Config) error {
+	owner := make(map[string]string)
+	for _, name := range slices.Sorted(maps.Keys(cfg.Dependencies)) {
+		dependency := cfg.Dependencies[name]
+		if _, target := dependency.(*deps.TargetDependency); target {
+			continue
+		}
+		key := dependency.Type() + " " + describeSource(dependency)
+		if other, ok := owner[key]; ok && (cfg.declaredBy[name] != "the project" || cfg.declaredBy[other] != "the project") {
+			return fmt.Errorf("dependencies %q (declared by %s) and %q (declared by %s) both use %s; use one name for it",
+				other, cfg.declaredBy[other], name, cfg.declaredBy[name], describeSource(dependency))
+		}
+		owner[key] = name
+	}
+	return nil
 }
 
 // addTargetDependencies adds the "<dependency>:<target>" entries that targets
