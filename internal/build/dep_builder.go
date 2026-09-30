@@ -128,7 +128,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	}
 
 	// Print progress (collapsed output)
-	if opts.Verbosity != VerbosityVerbose {
+	if opts.Verbosity == VerbosityNormal {
 		fmt.Printf("  Building %s [%d files]\n", dep.Name(), len(cfg.Sources))
 	}
 

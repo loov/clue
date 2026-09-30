@@ -36,15 +36,11 @@ func (c *depsCommand) Setup(params clingy.Parameters) {
 }
 
 func (c *depsCommand) Execute(ctx context.Context) error {
-	return result(runDeps(ctx, c.options.dir, c.options.target, c.options.verbose, c.action, c.name))
+	return result(runDeps(ctx, c.options.dir, c.options.target, c.options.verbosity(), c.action, c.name))
 }
 
-func runDeps(ctx context.Context, dir, target string, verbose bool, subCmd, name string) int {
-	// Load config
-	verbosity := build.VerbosityNormal
-	if verbose {
-		verbosity = build.VerbosityVerbose
-	}
+func runDeps(ctx context.Context, dir, target string, verbosity build.Verbosity, subCmd, name string) int {
+	verbose := verbosity == build.VerbosityVerbose
 	cfg, variant, platform, err := loadConfig(dir, "", target, verbosity)
 	if err != nil {
 		printError(err)
@@ -59,7 +55,7 @@ func runDeps(ctx context.Context, dir, target string, verbose bool, subCmd, name
 		}
 
 	case "fetch":
-		if err := fetchDependencies(ctx, cfg.Dependencies, verbose, name); err != nil {
+		if err := fetchDependencies(ctx, cfg.Dependencies, verbosity, name); err != nil {
 			if ctx.Err() != nil {
 				return 1
 			}
@@ -163,15 +159,18 @@ func listDependencies(dependencies map[string]deps.Dependency, verbose bool) err
 }
 
 // fetchDependencies fetches one dependency, or all dependencies when name is empty.
-func fetchDependencies(ctx context.Context, dependencies map[string]deps.Dependency, verbose bool, name string) error {
+func fetchDependencies(ctx context.Context, dependencies map[string]deps.Dependency, verbosity build.Verbosity, name string) error {
+	quiet := verbosity == build.VerbosityQuiet
 	if len(dependencies) == 0 {
-		fmt.Println("No dependencies to fetch")
+		if !quiet {
+			fmt.Println("No dependencies to fetch")
+		}
 		return nil
 	}
 
 	// Create manager
 	mgr, err := fetch.NewManager(".", dependencies, fetch.Options{
-		Verbose: verbose,
+		Verbose: verbosity == build.VerbosityVerbose, Quiet: quiet,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create manager: %w", err)
@@ -198,7 +197,7 @@ func fetchDependencies(ctx context.Context, dependencies map[string]deps.Depende
 
 	// Calculate summary
 	downloadedCount := len(initialStatuses) - cachedCount
-	if downloadedCount > 0 {
+	if downloadedCount > 0 && !quiet {
 		fmt.Printf("\nFetched %d dependencies (%d cached, %d downloaded)\n",
 			len(initialStatuses), cachedCount, downloadedCount)
 	}

@@ -60,11 +60,16 @@ func gitCommit(path string) (string, error) {
 	return head.Hash().String(), nil
 }
 
+// progressWriter returns where go-git writes its progress: only verbose
+// output to a terminal, as the progress uses carriage returns.
 func (f *gitFetcher) progressWriter() io.Writer {
-	if f.verbose {
-		return os.Stdout
+	if !f.verbose {
+		return nil
 	}
-	return nil
+	if info, err := os.Stdout.Stat(); err != nil || info.Mode()&os.ModeCharDevice == 0 {
+		return nil
+	}
+	return os.Stdout
 }
 
 // cloneGitRef checks out ref (a branch, tag or commit) with the given

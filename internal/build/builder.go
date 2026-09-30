@@ -380,6 +380,7 @@ func (b *Builder) buildDependencies(ctx context.Context, opts Options, only stri
 		opts.Config.Dependencies,
 		fetch.Options{
 			Verbose: opts.Verbosity == VerbosityVerbose,
+			Quiet:   opts.Verbosity == VerbosityQuiet,
 		},
 	)
 	if err != nil {

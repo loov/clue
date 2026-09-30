@@ -22,6 +22,7 @@ type Manager struct {
 	vendoredFetcher *vendoredFetcher
 	resolver        *deps.Resolver
 	verbose         bool
+	quiet           bool       // no progress output, only errors
 	lockMu          sync.Mutex // guards lock; FetchAll fetches concurrently
 	lock            *lockFile
 }
@@ -29,6 +30,7 @@ type Manager struct {
 // Options configures a Manager.
 type Options struct {
 	Verbose bool
+	Quiet   bool // suppress progress output
 }
 
 // Status describes a dependency's local state.
@@ -69,6 +71,7 @@ func NewManager(projectDir string, dependencies map[string]deps.Dependency, opts
 		vendoredFetcher: vendoredFetcher,
 		resolver:        resolver,
 		verbose:         opts.Verbose,
+		quiet:           opts.Quiet,
 		lock:            lock,
 	}, nil
 }
@@ -87,7 +90,7 @@ func (m *Manager) FetchAll(ctx context.Context) error {
 		return nil
 	}
 
-	fmt.Println("Fetching dependencies...")
+	m.progress("Fetching dependencies...")
 
 	// Fetches are independent of each other; the build order only numbers them.
 	group, ctx := errgroup.WithContext(ctx)
@@ -99,8 +102,20 @@ func (m *Manager) FetchAll(ctx context.Context) error {
 		return err
 	}
 
-	fmt.Println("All dependencies ready")
+	m.progress("All dependencies ready")
 	return nil
+}
+
+func (m *Manager) progress(message string) {
+	if !m.quiet {
+		fmt.Println(message)
+	}
+}
+
+func (m *Manager) progressf(format string, args ...any) {
+	if !m.quiet {
+		fmt.Printf(format, args...)
+	}
 }
 
 // fetchListed fetches dependency name, number i of count in FetchAll's listing.
@@ -122,7 +137,7 @@ func (m *Manager) fetchListed(ctx context.Context, i, count int, name string) er
 		return err
 	}
 	if cached {
-		fmt.Printf("  [%d/%d] Using cached %s\n", i+1, count, name)
+		m.progressf("  [%d/%d] Using cached %s\n", i+1, count, name)
 		return nil
 	}
 
@@ -138,7 +153,7 @@ func (m *Manager) fetchListed(ctx context.Context, i, count int, name string) er
 	switch dep.Type() {
 	case "git":
 		gitDep := dep.(*deps.GitDependency)
-		fmt.Printf("  [%d/%d] Cloning %s (git:%s)\n", i+1, count, name, gitDep.Ref)
+		m.progressf("  [%d/%d] Cloning %s (git:%s)\n", i+1, count, name, gitDep.Ref)
 		m.lockMu.Lock()
 		ref, err := m.lock.gitRef(gitDep)
 		m.lockMu.Unlock()
@@ -149,11 +164,11 @@ func (m *Manager) fetchListed(ctx context.Context, i, count int, name string) er
 
 	case "tarball":
 		tarballDep := dep.(*deps.TarballDependency)
-		fmt.Printf("  [%d/%d] Downloading %s.tar.gz\n", i+1, count, name)
+		m.progressf("  [%d/%d] Downloading %s.tar.gz\n", i+1, count, name)
 		fetchErr = m.tarballFetcher.fetch(ctx, tarballDep, cachePath)
 
 	case "vendored":
-		fmt.Printf("  [%d/%d] Validating vendored %s\n", i+1, count, name)
+		m.progressf("  [%d/%d] Validating vendored %s\n", i+1, count, name)
 		fetchErr = m.vendoredFetcher.fetch(ctx, dep, cachePath)
 
 	default:
@@ -206,7 +221,7 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 	}
 	var fetchErr error
 
-	fmt.Printf("Fetching %s...\n", name)
+	m.progressf("Fetching %s...\n", name)
 
 	switch dep.Type() {
 	case "git":
@@ -250,7 +265,7 @@ func (m *Manager) FetchOne(ctx context.Context, name string) error {
 		return err
 	}
 
-	fmt.Printf("Dependency %s ready\n", name)
+	m.progressf("Dependency %s ready\n", name)
 	return nil
 }
 
@@ -271,11 +286,11 @@ func (m *Manager) UpdateAll(ctx context.Context) error {
 		if err := m.FetchOne(ctx, name); err != nil {
 			return err
 		}
-		fmt.Printf("Updated %s\n", name)
+		m.progressf("Updated %s\n", name)
 		updated++
 	}
 	if updated == 0 {
-		fmt.Println("All dependencies are up to date")
+		m.progress("All dependencies are up to date")
 	}
 	return nil
 }

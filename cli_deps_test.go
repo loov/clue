@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/deps"
 )
 
@@ -104,7 +105,7 @@ func TestFetchDependenciesReturnsWithoutDependencies(t *testing.T) {
 
 	// Run fetch
 	ctx := t.Context()
-	err := fetchDependencies(ctx, deps, false, "")
+	err := fetchDependencies(ctx, deps, build.VerbosityNormal, "")
 	if err != nil {
 		t.Fatalf("fetchDependencies failed: %v", err)
 	}
@@ -124,7 +125,7 @@ func TestFetchDependenciesRejectsUnknownDependency(t *testing.T) {
 
 	// Run fetch - should fail
 	ctx := t.Context()
-	err := fetchDependencies(ctx, deps, false, "")
+	err := fetchDependencies(ctx, deps, build.VerbosityNormal, "")
 
 	if err == nil {
 		t.Fatal("fetchDependencies succeeded with an invalid URL")
@@ -246,5 +247,21 @@ func TestUpdateDependenciesRefreshesConfiguredDependencies(t *testing.T) {
 	err := updateDependencies(ctx, deps)
 	if err != nil {
 		t.Fatalf("updateDependencies failed: %v", err)
+	}
+}
+
+func TestFetchDependencies_QuietPrintsNothing(t *testing.T) {
+	dir := t.TempDir()
+	vendor := filepath.Join(dir, "vendor")
+	if err := os.MkdirAll(vendor, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	dependencies := map[string]deps.Dependency{"local": deps.NewVendoredDependency("local", vendor, &deps.InlineConfig{Type: "header_only"})}
+	output, err := captureCLIStdout(t, func() error {
+		return fetchDependencies(t.Context(), dependencies, build.VerbosityQuiet, "")
+	})
+	if err != nil || output != "" {
+		t.Fatalf("quiet fetch printed %q, %v", output, err)
 	}
 }
