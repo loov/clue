@@ -323,13 +323,27 @@ func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc too
 	return resolved, nil
 }
 
+// targetCustomOutputs returns the outputs of the custom targets that target
+// depends on, directly or through other targets: a header generated for a
+// library is included by its consumers' sources too.
 func targetCustomOutputs(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) []string {
 	var outputs []string
-	for _, name := range target.Depends {
-		if dependency, ok := cfg.Targets[name]; ok && dependency.Type == "custom" {
-			outputs = append(outputs, customOutputs(cfg, dependency, buildDir, variant, platform)...)
+	seen := make(map[string]bool)
+	var visit func(config.Target)
+	visit = func(current config.Target) {
+		for _, name := range current.Depends {
+			dependency, ok := cfg.Targets[name]
+			if !ok || seen[name] {
+				continue
+			}
+			seen[name] = true
+			if dependency.Type == "custom" {
+				outputs = append(outputs, customOutputs(cfg, dependency, buildDir, variant, platform)...)
+			}
+			visit(dependency)
 		}
 	}
+	visit(target)
 	return outputs
 }
 

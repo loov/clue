@@ -1155,6 +1155,24 @@ func TestNinja_BundleTarget(t *testing.T) {
 	}
 }
 
+func TestNinja_CompilesWaitForHeadersGeneratedForTheirDependencies(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Targets["gen"] = config.Target{Name: "gen", Type: "custom", Command: []string{"gen"}, Outputs: []string{"gen/table.inc"}}
+	cfg.Targets["lib"] = config.Target{Name: "lib", Type: "static_library", Sources: []string{"lib.cpp"}, Depends: []string{"gen"}}
+	cfg.Targets["app"] = config.Target{Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"lib"}}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "build .build/debug/app/obj/main.cpp.o: cxx main.cpp || "; !strings.Contains(output.String(), want) ||
+		!strings.Contains(output.String(), "main.cpp || gen/table.inc") {
+		t.Fatalf("main.cpp does not wait for gen/table.inc:\n%s", output.String())
+	}
+}
+
 func TestNinja_DependencyTargetsShareFetchOutputs(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(`targets: {
