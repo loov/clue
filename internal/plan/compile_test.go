@@ -31,3 +31,17 @@ func TestCompile_PlansToolArgumentsAndDependencies(t *testing.T) {
 		t.Errorf("Compile() = %+v, want %+v", got, want)
 	}
 }
+
+func TestCompile_SharedLibraryWithPICPassesFPICOnce(t *testing.T) {
+	tc := gccish.New("clang", "clang", "clang++", "ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	invocation, err := Compile(tc, CompileOptions{
+		Source: "a.cpp", Output: "a.o", TargetType: "shared_library",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}, Flags: toolchain.Flags{PIC: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := slices.Index(invocation.Arguments, "-fPIC"); count < 0 || slices.Contains(invocation.Arguments[count+1:], "-fPIC") {
+		t.Fatalf("arguments = %q, want -fPIC once", invocation.Arguments)
+	}
+}
