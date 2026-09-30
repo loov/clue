@@ -282,3 +282,52 @@ targets: app: {type: "executable", sources: ["main.cpp"], depends: ["sdk"]}
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestLoad_ListedDependenciesAndLibraryReferences(t *testing.T) {
+	dir := writeProject(t, map[string]string{
+		"deps/wrapper.cue": `package deps
+
+import "loov.dev/clue"
+
+wrapper: clue.#Git & {
+	name:   "clap-wrapper"
+	repo:   "https://example.com/wrapper"
+	ref:    "v1"
+	target: "shared"
+	targets: {
+		shared: {type: "static_library", sources: ["s.cpp"]}
+		vst3: {type: "static_library", sources: ["v.cpp"], depends: ["clap-wrapper"]}
+	}
+}
+`,
+		"clue.cue": `import "clue.local/deps"
+
+name: "listed"
+dependencies: [deps.wrapper]
+targets: app: {type: "executable", sources: ["main.cpp"], depends: [deps.wrapper.lib.vst3, deps.wrapper.lib.shared]}
+`,
+	})
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Targets["app"].Depends; !slices.Equal(got, []string{"clap-wrapper:vst3", "clap-wrapper"}) {
+		t.Fatalf("depends = %q", got)
+	}
+	if _, ok := cfg.Dependencies["clap-wrapper:vst3"]; !ok {
+		t.Fatalf("dependencies = %v", cfg.Dependencies)
+	}
+
+	// A misspelt library is a CUE error, not a missing dependency later.
+	project := `import "clue.local/deps"
+name: "typo"
+dependencies: [deps.wrapper]
+targets: app: {type: "executable", sources: ["main.cpp"], depends: [deps.wrapper.lib.vts3]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(project), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewLoader().Load(dir); err == nil || !strings.Contains(err.Error(), "vts3") {
+		t.Fatalf("error = %v", err)
+	}
+}

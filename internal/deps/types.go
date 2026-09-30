@@ -372,6 +372,9 @@ func AddTargetDependencies(dependencies map[string]Dependency, referenced []stri
 		if _, nested := parent.(*TargetDependency); nested || parent.CachePath(".") == "" {
 			return fmt.Errorf("%q: dependency %q has no checkout to build targets from", name, parentName)
 		}
+		if parent.BuildTarget() == target {
+			return fmt.Errorf("%q is the library %q itself refers to; depend on %q", name, parentName, parentName)
+		}
 		if parent.InlineBuild() != nil {
 			return fmt.Errorf("%q: dependency %q has an inline build; describe it with a clue file to select targets", name, parentName)
 		}

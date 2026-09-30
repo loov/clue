@@ -201,12 +201,33 @@ package config
 // with paths relative to its checkout. "target" selects the library the
 // dependency's name refers to; "<dependency>:<target>" refers to the others.
 #Description: {
+	// The dependency's name; needed when it is listed rather than keyed by name
+	name?: string & =~"^[a-zA-Z][a-zA-Z0-9_.-]*$"
+	target?: string
 	defaults?: #TargetDefaults
 	targets?: [string]: #Target
 	// The dependency's own dependencies, added to the project's; a name
 	// declared in several places must name the same source everywhere
-	dependencies?: [string]: #Dependency
+	dependencies?: #Dependencies
+
+	// References to the dependency's libraries for depends, such as
+	// lib.vst3 == "clap-wrapper:vst3"; the library the name itself refers
+	// to is just the name.
+	if name != _|_ if targets != _|_ {
+		lib: {
+			for key, _ in targets {
+				(key): [
+					if target != _|_ if key == target {name},
+					if target == _|_ if key == name || len(targets) == 1 {name},
+					"\(name):\(key)",
+				][0]
+			}
+		}
+	}
 }
+
+// Dependencies keyed by name, or listed with their names.
+#Dependencies: {[string]: #Dependency} | [...(#Dependency & {name: string})]
 
 // Git repository dependency
 #GitDependency: {
@@ -252,6 +273,7 @@ package config
 // System dependency discovered through pkg-config
 #PkgConfigDependency: {
 	type: "pkg_config"
+	name?: string
 	package?: string
 	static?: bool | *false
 }
@@ -319,7 +341,7 @@ package config
 	env?: [string]: #EnvVar
 
 	// External dependencies
-	dependencies?: [string]: #Dependency
+	dependencies?: #Dependencies
 
 	// Source changes for dependencies wherever they are declared, for example
 	// to pick one ref when dependencies declare different ones

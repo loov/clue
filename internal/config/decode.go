@@ -323,14 +323,44 @@ func containsIgnoreCase(s, substr string) bool {
 func (l *Loader) extractDependencies(val cue.Value) (map[string]deps.Dependency, error) {
 	result := make(map[string]deps.Dependency)
 
-	iter, err := val.Fields()
-	if err != nil {
-		return nil, fmt.Errorf("failed to iterate dependencies: %w", err)
+	// Dependencies are keyed by name, or listed with their names.
+	type entry struct {
+		name  string
+		value cue.Value
+	}
+	var entries []entry
+	if val.IncompleteKind() == cue.ListKind {
+		list, err := val.List()
+		if err != nil {
+			return nil, fmt.Errorf("failed to iterate dependencies: %w", err)
+		}
+		for index := 0; list.Next(); index++ {
+			name := extractOptionalString(list.Value(), "name")
+			if name == "" {
+				return nil, fmt.Errorf("dependency %d of the list has no name", index)
+			}
+			if _, duplicate := result[name]; duplicate || slices.ContainsFunc(entries, func(e entry) bool { return e.name == name }) {
+				return nil, fmt.Errorf("dependency %q is listed twice", name)
+			}
+			entries = append(entries, entry{name, list.Value()})
+		}
+	} else {
+		iter, err := val.Fields()
+		if err != nil {
+			return nil, fmt.Errorf("failed to iterate dependencies: %w", err)
+		}
+		for iter.Next() {
+			name := iter.Selector().Unquoted()
+			if own := extractOptionalString(iter.Value(), "name"); own != "" && own != name {
+				return nil, fmt.Errorf("dependency key %q does not match its name %q", name, own)
+			}
+			entries = append(entries, entry{name, iter.Value()})
+		}
 	}
 
-	for iter.Next() {
-		name := iter.Selector().Unquoted()
-		depVal := iter.Value()
+	for _, entry := range entries {
+		name := entry.name
+		depVal := entry.value
 
 		// Get the type field to determine which dependency type to create
 		typeVal := depVal.LookupPath(cue.ParsePath("type"))
