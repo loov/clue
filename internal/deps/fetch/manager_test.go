@@ -3,6 +3,7 @@ package fetch
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/loov/clue/internal/deps"
@@ -279,6 +280,34 @@ func TestNewManager_LeavesDependencyTargetsToTheirDependency(t *testing.T) {
 	}
 	if statuses := manager.Status(); len(statuses) != 1 || statuses[0].Name != "sdk" {
 		t.Fatalf("statuses = %+v", statuses)
+	}
+}
+
+func TestFetchAll_RemovesLockEntriesOfRemovedDependencies(t *testing.T) {
+	dir := t.TempDir()
+	lock := `{"version": 1, "dependencies": {"gone": {"type": "git", "url": "https://example.com/gone", "ref": "v1", "commit": "0123456789012345678901234567890123456789"}}}`
+	if err := os.WriteFile(filepath.Join(dir, lockFileName), []byte(lock), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	vendor := filepath.Join(dir, "vendor")
+	if err := os.Mkdir(vendor, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := NewManager(dir, map[string]deps.Dependency{
+		"local": deps.NewVendoredDependency("local", vendor, &deps.InlineConfig{Type: "header_only"}),
+	}, Options{Quiet: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.FetchAll(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, lockFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "gone") {
+		t.Fatalf("lock file keeps a removed dependency:\n%s", data)
 	}
 }
 
