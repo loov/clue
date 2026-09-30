@@ -3,6 +3,7 @@ package deps
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -100,8 +101,7 @@ func (g *GitDependency) Type() string {
 // CachePath returns the cache directory path for this dependency
 func (g *GitDependency) CachePath(baseDir string) string {
 	sanitized := sanitizeName(g.name)
-	shortRef := strings.NewReplacer("/", "_", "\\", "_").Replace(truncate(g.Ref, 12))
-	return filepath.Join(baseDir, ".deps", "git", fmt.Sprintf("%s-%s", sanitized, shortRef))
+	return filepath.Join(baseDir, ".deps", "git", fmt.Sprintf("%s-%s", sanitized, pathSafeRef(g.Ref)))
 }
 
 func (g *GitDependency) InlineBuild() *InlineConfig { return g.BuildConfig }
@@ -287,6 +287,18 @@ func sanitizeName(name string) string {
 	// Replace any non-alphanumeric/underscore/dash with underscore
 	re := regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 	return re.ReplaceAllString(name, "_")
+}
+
+// pathSafeRef turns a git ref into a directory name component. The whole ref
+// is kept, so refs sharing a prefix (v3.8.0_build_66, v3.8.0_build_67) get
+// separate checkouts; very long refs are shortened with a hash of the ref.
+func pathSafeRef(ref string) string {
+	safe := strings.NewReplacer("/", "_", "\\", "_").Replace(ref)
+	if len(safe) <= 64 {
+		return safe
+	}
+	sum := sha256.Sum256([]byte(ref))
+	return safe[:48] + "-" + hex.EncodeToString(sum[:])[:12]
 }
 
 // truncate returns the first n characters of s

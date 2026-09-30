@@ -8,9 +8,21 @@ import (
 
 func TestGitDependencyCachePathCannotEscapeCache(t *testing.T) {
 	dep := NewGitDependency("repo", "https://example.com/repo.git", "../../outside", nil)
-	want := filepath.Join("project", ".deps", "git", "repo-.._.._outsid")
+	want := filepath.Join("project", ".deps", "git", "repo-.._.._outside")
 	if got := dep.CachePath("project"); got != want {
 		t.Fatalf("CachePath() = %q, want %q", got, want)
+	}
+}
+
+func TestGitDependencyCachePathKeepsWholeRef(t *testing.T) {
+	a := NewGitDependency("sdk", "https://example.com/sdk", "v3.8.0_build_66", nil)
+	b := NewGitDependency("sdk", "https://example.com/sdk", "v3.8.0_build_67", nil)
+	if a.CachePath(".") == b.CachePath(".") {
+		t.Fatalf("refs with a common prefix share %q", a.CachePath("."))
+	}
+	long := NewGitDependency("sdk", "https://example.com/sdk", strings.Repeat("x", 100), nil)
+	if name := filepath.Base(long.CachePath(".")); len(name) > 80 {
+		t.Fatalf("long ref gives %d-character directory name", len(name))
 	}
 }
 
