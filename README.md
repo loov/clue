@@ -49,8 +49,8 @@ clue build       # Build project
 ```
 
 `clue.cue` may use a CUE package and split configuration across other `.cue` files in the same directory.
-(Every `.cue` file next to `clue.cue` belongs to the project configuration, so keep clue files
-that describe dependencies in a subdirectory.) A target's `name` defaults to its key.
+(Every `.cue` file next to `clue.cue` belongs to the project configuration, so keep
+dependency descriptions in a subdirectory, as a package that `clue.cue` imports.) A target's `name` defaults to its key.
 Target `sources` and `headers` accept standard file globs such as `src/*.cpp`.
 Configuration can branch on the selected platform through `_target.os` and `_target.arch`, and
 `_project.dir` is the absolute project directory:
@@ -460,43 +460,76 @@ dependencies: foo: {
 }
 ```
 
-### Describing a dependency's build in the project
+### Describing dependencies
 
-A dependency without a `clue.cue` can be described by a clue file in the project. The file is
-written as if it were the dependency's own `clue.cue`: paths are relative to the checkout,
-`target` picks the library, targets may set `flags.compiler` and `warnings`, and `public`
-includes and defines are passed to consumers. Names in `depends` that are not targets of the
-file refer to the project's other dependencies:
+A dependency without a `clue.cue` can carry its build description itself: `defaults` and
+`targets`, written as in a `clue.cue` of the dependency, with paths relative to its checkout.
+`target` picks the library the dependency's name refers to, and `"<dependency>:<target>"` in
+`depends` uses another target of the same checkout. A dependency may also declare its own
+`dependencies`; they join the project's, recursively, and are fetched, locked in the project's
+`clue.lock` and built like the project's own.
+
+Descriptions fit in a CUE package of the project, which `clue.cue` imports. Projects without a
+`cue.mod` are the module `clue.local`, so `deps/` is imported as `"clue.local/deps"` with no
+further setup:
 
 ```cue
-dependencies: vst3sdk: {
+// deps/vst3sdk.cue
+package deps
+
+vst3sdk: {
     type:       "git"
     repo:       "https://github.com/steinbergmedia/vst3sdk"
     ref:        "v3.8.0_build_66"
     submodules: ["base", "public.sdk", "pluginterfaces"] // all submodules when omitted
-    file:       "deps/vst3sdk.cue"
+    defaults: flags: compiler: ["-fvisibility=hidden"]
+    targets: vst3sdk: {
+        type:     "static_library"
+        warnings: "off"
+        sources:  ["base/source/fobject.cpp", "public.sdk/source/main/pluginfactory.cpp"]
+        public: {includes: [".", "public.sdk", "pluginterfaces"], defines: ["RELEASE=1"]}
+    }
 }
 ```
 
 ```cue
-// deps/vst3sdk.cue
-defaults: flags: compiler: ["-fvisibility=hidden"]
-targets: vst3sdk: {
-    type:     "static_library"
-    warnings: "off"
-    sources:  ["base/source/fobject.cpp", "public.sdk/source/main/pluginfactory.cpp"]
-    public: {includes: [".", "public.sdk", "pluginterfaces"], defines: ["RELEASE=1"]}
+// deps/clap-wrapper.cue
+package deps
+
+clapWrapper: {
+    type:   "git"
+    repo:   "https://github.com/free-audio/clap-wrapper"
+    ref:    "v0.16.0"
+    target: "shared"
+    dependencies: vst3sdk: vst3sdk // brought in for the project
+    targets: {
+        shared: {type: "static_library", sources: ["src/clap_proxy.cpp"]}
+        vst3: {type: "static_library", sources: ["src/wrapasvst3.cpp"], depends: ["clap-wrapper", "vst3sdk"]}
+    }
 }
 ```
 
-A dependency's clue file may describe several libraries. `target` selects the one the dependency
-name refers to, and `"<dependency>:<target>"` in `depends` uses another target of the same
-checkout, which is fetched once:
-
 ```cue
-dependencies: "clap-wrapper": {type: "git", repo: "https://github.com/free-audio/clap-wrapper",
-                                ref: "v0.16.0", file: "deps/clap-wrapper.cue", target: "shared"}
+// clue.cue
+import "clue.local/deps"
+
+dependencies: "clap-wrapper": deps.clapWrapper
 targets: plugin_vst3: {type: "bundle", depends: ["clap-wrapper:vst3"], bundle: extension: "vst3"}
+```
+
+A description may instead be a separate file named by `file` (read on its own, not as part of
+a package), and a dependency's own `clue.cue` may declare `dependencies` too; those are found
+after it is fetched, and fetching repeats until no more are declared. Paths in a fetched
+`clue.cue` are relative to its checkout.
+
+Dependencies share one namespace. Declarations of a name must name the same source (repository,
+ref and submodules; URL and checksum; path), and a source declared by dependencies under two
+names is reported. The project decides conflicts: its own declaration of a name stands (and
+takes the description another declaration gives), and `overrides` changes the source of a
+dependency wherever it is declared:
+
+```cue
+overrides: vst3sdk: ref: "v3.8.1_build_12"
 ```
 
 Inline `build` blocks accept `flags` and `warnings` too, and pass every include directory to
