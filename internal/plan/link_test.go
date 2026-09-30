@@ -56,3 +56,26 @@ func TestExportAndWholeArchiveArguments(t *testing.T) {
 		t.Errorf("darwin whole archive = %q, want %q", got, want)
 	}
 }
+
+func TestWASIModules(t *testing.T) {
+	wasi := toolchain.Platform{OS: "wasi", Arch: "wasm32"}
+	tc := gccish.New("clang", "clang", "clang++", "ar", wasi)
+	invocation := LinkShared(tc, wasi, SharedLibraryOptions{Objects: []string{"a.o"}, Output: "plugin.wasm", Bundle: true})
+	if slices.Contains(invocation.Arguments, "-shared") || !slices.Contains(invocation.Arguments, "-mexec-model=reactor") ||
+		slices.ContainsFunc(invocation.Arguments, func(a string) bool { return strings.Contains(a, "soname") }) {
+		t.Errorf("wasi module link = %q", invocation.Arguments)
+	}
+	if got, want := ExportArguments(tc, wasi, []string{"clap_entry"}, "x.map"), []string{"-Wl,--export=clap_entry"}; !slices.Equal(got, want) {
+		t.Errorf("wasi exports = %q, want %q", got, want)
+	}
+	if got := ExecutableName("test", wasi); got != "test.wasm" {
+		t.Errorf("executable name = %q", got)
+	}
+	if got := SharedLibraryName("plugin", wasi); got != "plugin.wasm" {
+		t.Errorf("shared library name = %q", got)
+	}
+	compile, err := Compile(tc, CompileOptions{Source: "a.cpp", Output: "a.o", TargetType: "bundle", Platform: wasi, Flags: toolchain.Flags{PIC: true}})
+	if err != nil || slices.Contains(compile.Arguments, "-fPIC") {
+		t.Errorf("wasi compile = %q, %v", compile.Arguments, err)
+	}
+}

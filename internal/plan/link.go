@@ -70,7 +70,12 @@ func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts Shared
 		return Invocation{Tool: msvcTool(tc, "link.exe"), Arguments: args, ImportLibrary: importLibrary}
 	}
 	args := []string{"-shared"}
-	if opts.Bundle && platform.OS == "darwin" {
+	switch {
+	case platform.IsWASI():
+		// WebAssembly has no shared libraries: a module whose exports a host
+		// calls, without a main, is a WASI reactor.
+		args = []string{"-mexec-model=reactor"}
+	case opts.Bundle && platform.OS == "darwin":
 		args = []string{"-bundle"}
 	}
 	args = append(args, opts.Objects...)
@@ -186,11 +191,13 @@ func ExportArguments(tc toolchain.Toolchain, platform toolchain.Platform, symbol
 			args = append(args, "/INCLUDE:"+symbol, "/EXPORT:"+symbol)
 		case platform.OS == "darwin":
 			args = append(args, "-Wl,-u,_"+symbol, "-Wl,-exported_symbol,_"+symbol)
+		case platform.IsWASI():
+			args = append(args, "-Wl,--export="+symbol)
 		default:
 			args = append(args, "-Wl,--undefined="+symbol)
 		}
 	}
-	if len(symbols) > 0 && tc.Name() != "msvc" && platform.OS != "darwin" && platform.OS != "windows" {
+	if len(symbols) > 0 && tc.Name() != "msvc" && platform.OS != "darwin" && platform.OS != "windows" && !platform.IsWASI() {
 		args = append(args, "-Wl,--version-script="+versionScript)
 	}
 	return args

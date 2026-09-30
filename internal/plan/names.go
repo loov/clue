@@ -11,6 +11,8 @@ func SharedLibraryExtension(target toolchain.Platform) string {
 		return ".dylib"
 	case "windows":
 		return ".dll"
+	case "wasi":
+		return ".wasm"
 	default:
 		return ".so"
 	}
@@ -18,8 +20,11 @@ func SharedLibraryExtension(target toolchain.Platform) string {
 
 // ExecutableName returns the platform-specific executable filename.
 func ExecutableName(name string, target toolchain.Platform) string {
-	if target.OS == "windows" {
+	switch target.OS {
+	case "windows":
 		return name + ".exe"
+	case "wasi":
+		return name + ".wasm"
 	}
 	return name
 }
@@ -34,8 +39,8 @@ func StaticLibraryName(name string, target toolchain.Platform) string {
 
 // SharedLibraryName returns the platform-specific shared library filename.
 func SharedLibraryName(name string, target toolchain.Platform) string {
-	if target.OS == "windows" {
-		return name + ".dll"
+	if target.OS == "windows" || target.OS == "wasi" {
+		return name + SharedLibraryExtension(target)
 	}
 	return "lib" + name + SharedLibraryExtension(target)
 }

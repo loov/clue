@@ -8,8 +8,8 @@ import (
 
 // Platform represents an OS-architecture combination for cross-platform builds.
 type Platform struct {
-	OS   string // "linux", "darwin", "windows"
-	Arch string // "amd64", "arm64"
+	OS   string // "linux", "darwin", "windows", "wasi"
+	Arch string // "amd64", "arm64", "wasm32"
 }
 
 // HostPlatform returns the platform this binary was built for using Go runtime constants.
@@ -25,6 +25,12 @@ func (p Platform) String() string {
 	return fmt.Sprintf("%s-%s", p.OS, p.Arch)
 }
 
+// IsWASI reports whether the platform is WebAssembly with WASI, where
+// programs are .wasm modules and plugins are reactor modules.
+func (p Platform) IsWASI() bool {
+	return p.OS == "wasi"
+}
+
 // IsCrossCompile checks if this platform differs from the host platform.
 func (p Platform) IsCrossCompile() bool {
 	host := HostPlatform()
@@ -38,6 +44,8 @@ var supportedPlatforms = map[string]bool{
 	"darwin-amd64":  true,
 	"darwin-arm64":  true,
 	"windows-amd64": true,
+	"windows-arm64": true,
+	"wasi-wasm32":   true,
 }
 
 // IsSupportedTarget checks if a platform is supported for building.
@@ -47,7 +55,7 @@ func IsSupportedTarget(p Platform) bool {
 
 // SupportedTargetsList returns a list of supported target platforms for error messages.
 func SupportedTargetsList() []string {
-	return []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64", "windows-amd64"}
+	return []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64", "windows-amd64", "windows-arm64", "wasi-wasm32"}
 }
 
 // ParseTarget parses a target flag in "os-arch" format into a Platform.

@@ -151,7 +151,7 @@ func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 	}
 
 	// Add PIC flag
-	if config.PIC && t.target.OS != "windows" {
+	if config.PIC && t.target.OS != "windows" && !t.target.IsWASI() {
 		flags = append(flags, "-fPIC")
 	}
 
