@@ -74,6 +74,16 @@ func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 	return flags
 }
 
+// LinkerFlags adds -Wl,--strip-debug to Windows links without debug
+// information: Zig writes a PDB next to every DLL and executable otherwise.
+func (t *Toolchain) LinkerFlags(config toolchain.Flags, sysLibs []string) []string {
+	flags := t.Toolchain.LinkerFlags(config, sysLibs)
+	if t.target.OS == "windows" && toolchain.DebugFlag(config.Debug) == "" {
+		flags = append(flags, "-Wl,--strip-debug")
+	}
+	return flags
+}
+
 // IsCrossCompiler reports whether the toolchain targets another platform.
 func (t *Toolchain) IsCrossCompiler() bool { return t.target.IsCrossCompile() }
 

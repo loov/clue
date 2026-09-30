@@ -58,14 +58,14 @@ func TestBuild_ZigCrossCompiles(t *testing.T) {
 					t.Errorf("%s: %v, starts with %q", output, err, data[:min(len(data), 4)])
 				}
 			}
-			// Only the plugin (and its debug information) goes next to it: no import
-			// library and no build records.
+			// Only the plugin goes there: no import library, no build records and,
+			// without debug information, no PDB.
 			entries, err := os.ReadDir(filepath.Join("dist", test.platform.String()))
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, entry := range entries {
-				if name := entry.Name(); name != "plugin.plug" && name != "plugin.pdb" {
+				if name := entry.Name(); name != "plugin.plug" {
 					t.Errorf("unexpected %s next to the bundle", name)
 				}
 			}
