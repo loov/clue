@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -109,10 +110,53 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if err != nil {
 		return nil, err
 	}
+	if err := expandDependencyPaths(config); err != nil {
+		return nil, err
+	}
 	if err := expandTargetGlobs(config, absDir); err != nil {
 		return nil, err
 	}
 	return config, nil
+}
+
+var dependencyPlaceholder = regexp.MustCompile(`\{dep:([^{}]+)\}`)
+
+// expandDependencyPaths replaces {dep:name} in target paths and custom commands
+// with the checkout directory of dependency name, so targets can compile files
+// from a dependency without spelling out its cache location.
+func expandDependencyPaths(config *Config) error {
+	for name, target := range config.Targets {
+		var err error
+		expand := func(values []string) []string {
+			if len(values) == 0 {
+				return values
+			}
+			result := make([]string, len(values))
+			for index, value := range values {
+				result[index] = dependencyPlaceholder.ReplaceAllStringFunc(value, func(match string) string {
+					dependency, ok := config.Dependencies[match[len("{dep:"):len(match)-1]]
+					if !ok || dependency.CachePath(".") == "" {
+						err = fmt.Errorf("target %q: %s does not name a fetched dependency", name, match)
+						return match
+					}
+					return dependency.CachePath(".")
+				})
+			}
+			return result
+		}
+		target.Sources, target.Headers = expand(target.Sources), expand(target.Headers)
+		target.Includes, target.SystemIncludes = expand(target.Includes), expand(target.SystemIncludes)
+		target.Public.Includes, target.Public.SystemIncludes = expand(target.Public.Includes), expand(target.Public.SystemIncludes)
+		target.Command, target.Inputs, target.Outputs = expand(target.Command), expand(target.Inputs), expand(target.Outputs)
+		for index := range target.HeaderUnits {
+			target.HeaderUnits[index].Path = expand([]string{target.HeaderUnits[index].Path})[0]
+		}
+		if err != nil {
+			return err
+		}
+		config.Targets[name] = target
+	}
+	return nil
 }
 
 func expandTargetGlobs(config *Config, root string) error {

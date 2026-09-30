@@ -517,3 +517,30 @@ dependencies: {
 		})
 	}
 }
+
+func TestLoad_ExpandsDependencyPathPlaceholders(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig := func(content string) {
+		if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeConfig(`
+name: "placeholders"
+dependencies: sdk: {type: "git", repo: "https://example.com/sdk", ref: "v1.0.0"}
+targets: app: {
+	name: "app", type: "executable"
+	sources: ["main.cpp", "{dep:sdk}/src/entry.cpp"]
+	includes: ["{dep:sdk}/include"]
+}
+`)
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := cfg.Targets["app"]
+	want := filepath.Join(".deps", "git", "sdk-v1.0.0")
+	if app.Sources[1] != filepath.Join(want, "src", "entry.cpp") || app.Includes[0] != filepath.Join(want, "include") {
+		t.Fatalf("placeholders not expanded: %q %q", app.Sources, app.Includes)
+	}
+}
