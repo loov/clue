@@ -6,8 +6,10 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"sync"
 
 	"github.com/loov/clue/internal/deps"
+	"golang.org/x/sync/errgroup"
 )
 
 // Manager coordinates dependency fetching and caching.
@@ -20,6 +22,7 @@ type Manager struct {
 	vendoredFetcher *vendoredFetcher
 	resolver        *deps.Resolver
 	verbose         bool
+	lockMu          sync.Mutex // guards lock; FetchAll fetches concurrently
 	lock            *lockFile
 }
 
@@ -86,75 +89,89 @@ func (m *Manager) FetchAll(ctx context.Context) error {
 
 	fmt.Println("Fetching dependencies...")
 
+	// Fetches are independent of each other; the build order only numbers them.
+	group, ctx := errgroup.WithContext(ctx)
+	group.SetLimit(4)
 	for i, name := range order {
-		dep := m.dependencies[name]
-		if dep == nil {
-			return fmt.Errorf("dependency %q not found", name)
-		}
-		if dep.Type() == "pkg_config" {
-			if m.verbose {
-				fmt.Printf("  [%d/%d] Using system package %s\n", i+1, len(order), dep.(*deps.PkgConfigDependency).Package)
-			}
-			continue
-		}
-
-		// Check cache
-		cached, err := m.cacheReady(dep, true)
-		if err != nil {
-			return err
-		}
-		if cached {
-			fmt.Printf("  [%d/%d] Using cached %s\n", i+1, len(order), name)
-			continue
-		}
-
-		// Fetch based on type
-		cachePath := m.cache.path(dep)
-		if dep.Type() == "git" || dep.Type() == "tarball" {
-			if err := os.RemoveAll(cachePath); err != nil {
-				return fmt.Errorf("remove incomplete cache for %q: %w", name, err)
-			}
-		}
-		var fetchErr error
-
-		switch dep.Type() {
-		case "git":
-			gitDep := dep.(*deps.GitDependency)
-			fmt.Printf("  [%d/%d] Cloning %s (git:%s)\n", i+1, len(order), name, gitDep.Ref)
-			ref, err := m.lock.gitRef(gitDep)
-			if err != nil {
-				return err
-			}
-			fetchErr = m.gitFetcher.fetchRef(ctx, gitDep, ref, cachePath)
-
-		case "tarball":
-			tarballDep := dep.(*deps.TarballDependency)
-			fmt.Printf("  [%d/%d] Downloading %s.tar.gz\n", i+1, len(order), name)
-			fetchErr = m.tarballFetcher.fetch(ctx, tarballDep, cachePath)
-
-		case "vendored":
-			fmt.Printf("  [%d/%d] Validating vendored %s\n", i+1, len(order), name)
-			fetchErr = m.vendoredFetcher.fetch(ctx, dep, cachePath)
-
-		default:
-			return fmt.Errorf("unsupported dependency type %q for %s", dep.Type(), name)
-		}
-
-		// Fail-fast on error
-		if fetchErr != nil {
-			return fmt.Errorf("failed to fetch %s: %w", name, fetchErr)
-		}
-
-		// Mark as fetched
-		if err := m.cache.markFetched(dep); err != nil {
-			return fmt.Errorf("failed to mark %s as fetched: %w", name, err)
-		}
-		if err := m.recordLock(dep); err != nil {
-			return err
-		}
+		group.Go(func() error { return m.fetchListed(ctx, i, len(order), name) })
+	}
+	if err := group.Wait(); err != nil {
+		return err
 	}
 
 	fmt.Println("All dependencies ready")
+	return nil
+}
+
+// fetchListed fetches dependency name, number i of count in FetchAll's listing.
+func (m *Manager) fetchListed(ctx context.Context, i, count int, name string) error {
+	dep := m.dependencies[name]
+	if dep == nil {
+		return fmt.Errorf("dependency %q not found", name)
+	}
+	if dep.Type() == "pkg_config" {
+		if m.verbose {
+			fmt.Printf("  [%d/%d] Using system package %s\n", i+1, count, dep.(*deps.PkgConfigDependency).Package)
+		}
+		return nil
+	}
+
+	// Check cache
+	cached, err := m.cacheReady(dep, true)
+	if err != nil {
+		return err
+	}
+	if cached {
+		fmt.Printf("  [%d/%d] Using cached %s\n", i+1, count, name)
+		return nil
+	}
+
+	// Fetch based on type
+	cachePath := m.cache.path(dep)
+	if dep.Type() == "git" || dep.Type() == "tarball" {
+		if err := os.RemoveAll(cachePath); err != nil {
+			return fmt.Errorf("remove incomplete cache for %q: %w", name, err)
+		}
+	}
+	var fetchErr error
+
+	switch dep.Type() {
+	case "git":
+		gitDep := dep.(*deps.GitDependency)
+		fmt.Printf("  [%d/%d] Cloning %s (git:%s)\n", i+1, count, name, gitDep.Ref)
+		m.lockMu.Lock()
+		ref, err := m.lock.gitRef(gitDep)
+		m.lockMu.Unlock()
+		if err != nil {
+			return err
+		}
+		fetchErr = m.gitFetcher.fetchRef(ctx, gitDep, ref, cachePath)
+
+	case "tarball":
+		tarballDep := dep.(*deps.TarballDependency)
+		fmt.Printf("  [%d/%d] Downloading %s.tar.gz\n", i+1, count, name)
+		fetchErr = m.tarballFetcher.fetch(ctx, tarballDep, cachePath)
+
+	case "vendored":
+		fmt.Printf("  [%d/%d] Validating vendored %s\n", i+1, count, name)
+		fetchErr = m.vendoredFetcher.fetch(ctx, dep, cachePath)
+
+	default:
+		return fmt.Errorf("unsupported dependency type %q for %s", dep.Type(), name)
+	}
+
+	// Fail-fast on error
+	if fetchErr != nil {
+		return fmt.Errorf("failed to fetch %s: %w", name, fetchErr)
+	}
+
+	// Mark as fetched
+	if err := m.cache.markFetched(dep); err != nil {
+		return fmt.Errorf("failed to mark %s as fetched: %w", name, err)
+	}
+	if err := m.recordLock(dep); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -304,7 +321,9 @@ func (m *Manager) cacheReady(dep deps.Dependency, record bool) (bool, error) {
 	if !m.cache.has(dep) {
 		return false, nil
 	}
+	m.lockMu.Lock()
 	entry, locked := m.lock.Dependencies[dep.Name()]
+	m.lockMu.Unlock()
 	if !locked {
 		if record {
 			if err := m.recordLock(dep); err != nil {
@@ -315,7 +334,10 @@ func (m *Manager) cacheReady(dep deps.Dependency, record bool) (bool, error) {
 	}
 	switch configured := dep.(type) {
 	case *deps.GitDependency:
-		if _, err := m.lock.gitRef(configured); err != nil {
+		m.lockMu.Lock()
+		_, err := m.lock.gitRef(configured)
+		m.lockMu.Unlock()
+		if err != nil {
 			return false, err
 		}
 		commit, err := gitCommit(m.cache.path(dep))
@@ -342,6 +364,8 @@ func (m *Manager) recordLock(dep deps.Dependency) error {
 	default:
 		return nil
 	}
+	m.lockMu.Lock()
+	defer m.lockMu.Unlock()
 	if m.lock.Dependencies[dep.Name()] == entry {
 		return nil
 	}
