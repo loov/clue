@@ -107,11 +107,35 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 		}
 		return result
 	}
-	target.Command = expandAll(target.Command)
+	// An argument {git-files:pattern} becomes the files it matches.
+	expandFiles := func(values []string) []string {
+		var result []string
+		for _, value := range values {
+			pattern, ok := strings.CutPrefix(value, "{git-files:")
+			if !ok || !strings.HasSuffix(pattern, "}") {
+				if strings.Contains(value, "{git-files:") {
+					expandErr = fmt.Errorf("%s %q: {git-files:...} must be a whole argument, in %q", target.Type, target.Name, value)
+				}
+				result = append(result, expand(value))
+				continue
+			}
+			files, err := GitFiles(cfg, strings.TrimSuffix(pattern, "}"))
+			if err != nil {
+				expandErr = fmt.Errorf("%s %q: %w", target.Type, target.Name, err)
+				result = append(result, value)
+				continue
+			}
+			for _, file := range files {
+				result = append(result, absolute(file))
+			}
+		}
+		return result
+	}
+	target.Command = expandFiles(target.Command)
 	// Inputs, outputs and the directories are relative to the project.
 	commandDir := target.WorkDir
 	target.WorkDir = ""
-	target.Inputs = expandAll(target.Inputs)
+	target.Inputs = expandFiles(target.Inputs)
 	target.Outputs = expandAll(target.Outputs)
 	target.Stdout = expandAll([]string{target.Stdout})[0]
 	target.WorkDir = expandAll([]string{commandDir})[0]

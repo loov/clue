@@ -72,6 +72,7 @@ func (l *Loader) LoadForTarget(dir string, target toolchain.Platform) (*Config, 
 		return nil, err
 	}
 	cfg.Files = append(files, cfg.Files...)
+	cfg.BuildRoot = cfg.BuildDir
 	// A cross build has its own build directory, so it does not replace the
 	// host build's outputs or share its compile cache.
 	if target.IsCrossCompile() {

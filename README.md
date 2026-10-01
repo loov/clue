@@ -455,8 +455,13 @@ tools: clangFormat: {
     env:     "CLANG_FORMAT"
     install: "brew install clang-format"
 }
-targets: fmt: {type: "task", command: ["{tool:clangFormat}", "-i", "src/main.cpp"]}
+targets: fmt: {type: "task", command: ["{tool:clangFormat}", "-i", "{git-files:src/**/*.{cpp,hpp}}"]}
 ```
+
+An argument `{git-files:pattern}` becomes the project's files that git does not ignore, tracked or
+untracked, matching the pattern: a glob with `**` and `{a,b}` alternatives. Files in the build
+directory and `.deps` are left out, and a pattern that matches nothing is an error. It works in the
+`command` and `inputs` of custom targets and tasks, and in test `args`.
 
 ### Plugins and other loadable modules
 
