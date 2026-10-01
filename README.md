@@ -1,6 +1,8 @@
-# Clue - A C++ Build System
+# Clue
 
-A C++ build system written in Go using CUE for configuration. Clue provides minimal configuration for common cases, with CUE's type system catching config errors before build time.
+Clue builds C and C++ projects. It is written in Go, and projects describe their targets in CUE,
+whose schema rejects a misspelled field or a value of the wrong type before anything compiles. A
+conventional project needs no configuration at all.
 
 ## Installation
 
@@ -10,8 +12,8 @@ Install from source:
 go install github.com/loov/clue@latest
 ```
 
-Tagged versions are also available as Linux, macOS, and Windows archives with
-SHA-256 checksums on the [GitHub releases page](https://github.com/loov/clue/releases).
+Each tagged release has Linux, macOS and Windows archives with SHA-256 checksums on the
+[GitHub releases page](https://github.com/loov/clue/releases).
 
 Or build locally for development:
 
@@ -19,11 +21,16 @@ Or build locally for development:
 go build -o clue .
 ```
 
-## Quick Start
+## Quick start
 
-For a conventional project, run `clue build` without a configuration file. Clue treats each directory containing C, C++, or `.s`/`.S` assembly sources as a target; a `main.c` or `main.cpp` makes that target an executable, while other source directories become static libraries. Project headers provide include roots, and internal includes infer dependencies between those targets. Clue selects the first complete Clang, GCC, or MSVC toolchain available on the host.
+A conventional project builds without a configuration file. `clue build` makes a target of each
+directory with C, C++ or `.s`/`.S` assembly sources. A directory with a `main.c` or `main.cpp`
+becomes an executable, and the others become static libraries. Directories with project headers
+become include roots, and includes between directories become dependencies between their targets.
+Clue uses the first complete Clang, GCC or MSVC toolchain it finds on the host.
 
-Generated, dependency, and hidden directories are skipped. Add a `clue.cue` file when target boundaries or dependencies cannot be inferred from those conventions; an explicit file always takes precedence:
+Clue skips generated, dependency and hidden directories. Add a `clue.cue` when the conventions
+can't express the targets or their dependencies. Clue then uses it and infers nothing:
 
 ```cue
 name: "hello"
@@ -48,13 +55,13 @@ clue validate    # Check configuration
 clue build       # Build project
 ```
 
-`clue.cue` may use a CUE package and split configuration across other `.cue` files in the same directory.
-(Every `.cue` file next to `clue.cue` belongs to the project configuration, so keep
-dependency descriptions in a subdirectory, as a package that `clue.cue` imports.) A target's `name` defaults to its key.
-Target `sources` and `headers` accept file globs such as `src/*.cpp`, and `**` matches any
-number of directories; `exclude` leaves sources out again (`exclude: ["**/win32/*"]`).
-Configuration can branch on the selected platform through `_target.os` and `_target.arch`, and
-`_project.dir` is the absolute project directory:
+`clue.cue` may declare a CUE package and split the configuration across other `.cue` files in
+its directory. Every `.cue` file next to `clue.cue` belongs to the configuration, so keep
+dependency descriptions in a subdirectory, as a package that `clue.cue` imports. A target's
+`name` defaults to its key. `sources` and `headers` accept globs such as `src/*.cpp`, where `**`
+matches any number of directories, and `exclude` removes matches again, as in
+`exclude: ["**/win32/*"]`. `_target.os` and `_target.arch` hold the platform being built, and
+`_project.dir` the absolute project directory:
 
 ```cue
 if _target.os == "windows" {
@@ -62,7 +69,8 @@ if _target.os == "windows" {
 }
 ```
 
-To run the compiler, linker, archiver, and build commands in a container, add a pre-pulled image containing the selected toolchain:
+To run the compiler, linker, archiver and build commands in a container, name an image that has
+the toolchain installed:
 
 ```cue
 toolchain: {
@@ -76,10 +84,14 @@ toolchain: {
 }
 ```
 
-Clue starts a disposable container for each command and mounts the project directory at `workdir`. Compiler tools and `pkg-config` execute in that container, so their headers and libraries must be present in the image. When `runtime` is omitted, Clue uses the first available command from Docker, Podman, Apple container, and nerdctl. Set it to another Docker-compatible executable when needed. When `image` is used, it must already exist in that runtime. Files outside the project directory are not mounted.
+Clue starts a new container for each command, with the project directory mounted at `workdir`.
+Compilers and `pkg-config` run inside it, so the image needs the headers and libraries the build
+uses. Clue mounts nothing outside the project directory. Without `runtime`, clue uses the first of
+Docker, Podman, Apple container and nerdctl that it finds; set `runtime` to use another
+Docker-compatible command. Clue doesn't pull `image`, so it must already exist in that runtime.
 
-Instead of `image`, specify a Containerfile to let Clue build and cache the
-toolchain image. The project directory is its build context:
+Instead of `image`, a `containerfile` lets clue build and cache the image, with the project
+directory as the build context:
 
 ```cue
 toolchain: container: {
@@ -89,10 +101,10 @@ toolchain: container: {
 }
 ```
 
-Exactly one of `image` and `containerfile` is required.
+Set exactly one of `image` and `containerfile`.
 
-Cross-compilers can be selected explicitly. Clue rejects cross targets that
-would otherwise fall back to the host compiler:
+A cross build can name its tools. Clue refuses a cross target that would otherwise fall back to
+the host compiler:
 
 ```cue
 toolchain: {
@@ -105,12 +117,12 @@ toolchain: {
 }
 ```
 
-The `zig` toolchain cross-compiles without a sysroot: Zig brings libc and libc++ for
-`linux-amd64`, `linux-arm64`, `windows-amd64`, `windows-arm64` and `wasi-wasm32`
-(`clue build --target wasi-wasm32`). Each target builds into its own `<buildDir>/<os>-<arch>` and
-Ninja file `build.<os>-<arch>.ninja`. `_target` in `clue.cue`, and `clue.target` in packages that
-import `"loov.dev/clue"`, is the platform being built, and `emulator` runs cross-built programs for
-`clue test` and `clue run`:
+The `zig` toolchain cross-compiles without a sysroot, as Zig ships libc and libc++ for
+`linux-amd64`, `linux-arm64`, `windows-amd64`, `windows-arm64` and `wasi-wasm32`. Pick the
+platform with `--target`, as in `clue build --target wasi-wasm32`. Each platform gets its own build
+directory, `<buildDir>/<os>-<arch>`, and Ninja file, `build.<os>-<arch>.ninja`. `_target` in
+`clue.cue`, and `clue.target` in packages that import `"loov.dev/clue"`, is the platform being
+built. `emulator` runs cross-built programs for `clue test` and `clue run`:
 
 ```cue
 toolchain: {
@@ -123,84 +135,83 @@ toolchain: {
 }
 ```
 
-An executable with `host: true`, such as a code generator or a validator, is built for the machine
-running clue even with `--target`: with the configuration `clue.cue` gives for the host, into the
-host's build directory, together with the targets it depends on. `{output:name}` names the host
-build of it, `clue run` and `clue test` run it without the emulator, `clue install` leaves it out,
-and a cross Ninja file builds it by running `clue build`:
+Mark an executable that runs during the build, such as a code generator or a validator, with
+`host: true`. Clue builds it for the machine running clue, even with `--target`. The host build
+uses the configuration that `clue.cue` gives for the host and the host's build directory, and it
+builds the targets the executable depends on for the host too. `{output:name}` refers to that
+build. `clue run` and `clue test` run it without the emulator, `clue install` skips it, and a
+cross Ninja file builds it by running `clue build`:
 
 ```cue
 targets: gen: {type: "executable", host: true, sources: ["tools/gen.cpp"]}
 ```
 
-On WASI, executables and bundles are `.wasm` files; a bundle or shared library is a reactor module
-with the listed `exports`, and Zig's libc++ is used without exceptions (`-fno-exceptions`).
+On WASI, executables and bundles are `.wasm` files, and a bundle or shared library is a reactor
+module with the listed `exports`. Zig's libc++ for WebAssembly has no exception support, so clue
+compiles WASI code with `-fno-exceptions`.
 
 ## Commands
 
-- `clue validate` - Validate configuration and check dependencies
-- `clue format [path...]` - Format CUE files in place (defaults to the current directory)
-- `clue build` - Build all targets (use `-variant release` for optimized builds)
-- `clue clean` - Remove build artifacts (use `-all` to clean all variants)
-- `clue run <target|task> [args...]` - Build and run an executable target, or run a task
-- `clue test [name|label...]` - Build and run configured tests
-- `clue install [target...]` - Build and install artifacts and public headers (not bundles)
-- `clue deps <list|fetch|build|clean|update|tidy>` - Manage external dependencies
-- `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
-- `clue generate schema` - Write the `loov.dev/clue` schema into the CUE module for `cue` and editors
-- `clue help [command]`, `clue version`
+- `clue validate` checks the configuration and the dependencies.
+- `clue format [path...]` formats CUE files in place, in the current directory by default.
+- `clue build` builds all targets. `-variant release` gives an optimized build.
+- `clue clean` removes build artifacts, of all variants with `-all`.
+- `clue run <target|task> [args...]` builds and runs an executable target, or runs a task.
+- `clue test [name|label...]` builds and runs the configured tests.
+- `clue install [target...]` builds and installs artifacts and public headers, but not bundles.
+- `clue deps <list|fetch|build|clean|update|tidy>` manages external dependencies.
+- `clue generate <ninja|compile-commands|all>` writes build files for editors and other tools.
+- `clue generate schema` writes the `loov.dev/clue` schema into the CUE module, for `cue` and editors.
+- `clue help [command]` and `clue version`.
 
-Formatting recursively visits directories, skipping `cue.mod`, hidden directories,
-and directories starting with `_` unless explicitly named. It prints changed file
-paths; use `--quiet` to suppress them. Configuration does not need to evaluate
-successfully to be formatted.
+`clue format` walks directories recursively. It skips `cue.mod`, hidden directories and
+directories starting with `_`, unless you name them. It prints the paths of the files it changed,
+which `--quiet` hides. It formats files even when the configuration doesn't evaluate.
 
-Long GCC, Clang, and MSVC compile/link invocations automatically use response
-files, including commands emitted by the Ninja generator.
+Long GCC, Clang and MSVC compile and link commands use response files, in `clue build` and in
+generated Ninja files.
 
-Ninja files build into `<buildDir>/ninja`, apart from `clue build`, and call the `clue`
-executable that generated them to fetch dependencies. ninja generates the file again when
-the configuration's CUE files, dependency description files or patches change.
+Ninja files build into `<buildDir>/ninja`, apart from `clue build`, and run the `clue` that
+generated them to fetch dependencies. Ninja regenerates its file when the configuration's CUE
+files, dependency description files or patches change.
 
-Fetched Git commits and tarball checksums are recorded in `clue.lock`. Commit
-that file so builds use the same dependency revisions; run `clue deps update`
-to resolve configured Git refs again. Builds leave entries of other dependencies in
-`clue.lock`, as another target's configuration can declare them; `clue deps tidy`
-removes the entries that the configuration of the selected target does not declare.
+`clue.lock` records the Git commits and tarball checksums that clue fetched. Commit it, so every
+build uses the same dependency revisions, and run `clue deps update` to resolve the Git refs
+again. Builds keep the entries of dependencies they don't use, because the configuration for
+another target can declare them. `clue deps tidy` removes the entries that the configuration of
+the selected target doesn't declare.
 
 ### Watch mode and build profiles
 
-`clue watch` performs an initial build, then recursively watches the project
-for source, header, module, assembly, and CUE changes. Changes are debounced for
-300 ms; a new change cancels an in-progress build, and CUE changes reload the
-configuration. `.git`, `.deps`, and `.build` directories are ignored.
+`clue watch` builds once, then watches the project for changes to sources, headers, modules,
+assembly and CUE files. It waits for 300 ms without changes before building. A new change cancels
+a build in progress, and a CUE change reloads the configuration. It ignores `.git`, `.deps` and
+`.build`.
 
-Watch mode relies on native filesystem notifications. Use a local checkout:
-changes on NFS, SMB, or other network filesystems may not be reported, and very
-large directory trees may exceed the operating system's watcher limit.
+Watching relies on the operating system's file notifications, so use a local checkout. NFS, SMB
+and other network filesystems may not report changes, and a very large tree can exceed the
+operating system's limit on watches.
 
-To find expensive translation units, use `clue build -profile -v`. Add
-`-top N` to choose how many slow files are displayed. Running with
-`-profile -save-profile` also writes a Chrome Trace file to
-`.build/<variant>/profile.json`, which can be opened in Perfetto or a compatible
-trace viewer.
+`clue build -profile -v` lists the translation units that took longest to compile, and `-top N`
+sets how many. `-profile -save-profile` also writes a Chrome Trace file to
+`.build/<variant>/profile.json`, which Perfetto and other trace viewers open.
 
-## Common Flags
+## Common flags
 
-- `-variant debug|release` - Select build variant (default: `defaultVariant`, else debug)
-- `-j N` - Number of parallel jobs (0 = half CPU cores, -1 = all cores)
-- `-v` - Verbose output showing detailed build steps
-- `-quiet` - Suppress all non-error output
-- `-rebuild-all` - Force rebuild of all files
-- `-keep-going` - Continue building despite errors
-- `-target <platform>` - Cross-compile for target platform (e.g., linux-arm64, darwin-amd64, windows-amd64)
-- `-prefix <path>` - Set the installation prefix
-- `-destdir <path>` - Stage an installation for packaging
-- `-profile` - Record compilation timings (`-v` prints the slowest files)
-- `-save-profile` - Write recorded timings as Chrome Trace JSON
-- `-top N` - Number of slowest files printed with profiling (default: 10)
+- `-variant debug|release` selects the variant. The default is `defaultVariant`, else debug.
+- `-j N` sets the number of parallel jobs. 0 is half the CPU cores, and -1 all of them.
+- `-v` prints each build step.
+- `-quiet` prints errors only.
+- `-rebuild-all` rebuilds every file.
+- `-keep-going` continues building after errors.
+- `-target <platform>` cross-compiles, for example for linux-arm64, darwin-amd64 or windows-amd64.
+- `-prefix <path>` sets the installation prefix.
+- `-destdir <path>` stages an installation for packaging.
+- `-profile` records compile times, and `-v` then prints the slowest files.
+- `-save-profile` writes the recorded times as Chrome Trace JSON.
+- `-top N` sets how many slow files profiling prints. The default is 10.
 
-## Example Configurations
+## Example configurations
 
 ### Multi-target project with library
 
@@ -232,10 +243,9 @@ targets: {
 
 ### C++ modules and header units
 
-Clang, GCC, and MSVC builds support named modules, interface and internal
-partitions, and modules imported across target boundaries. Cross-target imports
-must name the provider in `depends`. Header units are explicit so Clue knows
-which headers require a BMI:
+Clang, GCC and MSVC builds support named modules, interface and internal partitions, and imports
+across targets. A target that imports a module of another target must list that target in
+`depends`. List header units explicitly, so clue knows which headers need a BMI:
 
 ```cue
 toolchain: {compiler: "clang", cxxStd: "c++20"}
@@ -258,11 +268,10 @@ targets: {
 }
 ```
 
-Source code imports those headers with `import <vector>;` and
-`import "project/config.hpp";`. GCC module builds use a generated module mapper;
-MSVC builds use IFC references; Clang builds use PCM references. The selected
-compiler and standard library still determine which system headers can be built
-as header units.
+Sources then import those headers with `import <vector>;` and `import "project/config.hpp";`.
+GCC builds use a generated module mapper, MSVC builds IFC references and Clang builds PCM
+references. Which system headers can become header units still depends on the compiler and its
+standard library.
 
 ### Build variants
 
@@ -282,10 +291,10 @@ variants: {
 
 ### Environment variables
 
-Variables declared under `env` are read from the environment, falling back to their `default`.
-`when_true` adds defines and flags to every target when the value is `1`, `true`, `yes` or `on`,
-and `_env` holds the values as strings for conditions in `clue.cue`. Undeclared variables are not
-in `_env`, so the environment changes the build only where `clue.cue` says so:
+Clue reads the variables declared under `env` from the environment, or uses their `default`.
+`when_true` adds defines and flags to every target when the value is `1`, `true`, `yes` or `on`.
+`_env` holds the values as strings, for conditions in `clue.cue`. Undeclared variables aren't in
+`_env`, so the environment changes the build only where `clue.cue` says so:
 
 ```cue
 env: {
@@ -297,13 +306,13 @@ if _env.VALIDATE == "1" {
 }
 ```
 
-`VALIDATE=1 clue build` builds the validator too; a plain `clue build` does not.
+`VALIDATE=1 clue build` builds the validator too, and a plain `clue build` doesn't.
 
 ### Defaults for every target
 
-Settings shared by all compiled targets (not custom targets or interface libraries) go in
-`defaults`. Its lists come before each target's own entries, and its single values apply where a
-target sets none:
+`defaults` holds settings for every compiled target, which is every target except custom targets
+and interface libraries. Its lists come before each target's own entries, and its single values
+apply where a target sets none:
 
 ```cue
 defaults: {
@@ -323,8 +332,8 @@ targets: legacy: {
 
 ### Unity builds
 
-Unity builds reduce compiler startup and repeated header-parsing work by
-combining sources in configurable batches:
+A unity build compiles sources in batches, so the compiler starts less often and parses shared
+headers once per batch:
 
 ```cue
 targets.app: {
@@ -338,15 +347,14 @@ targets.app: {
 }
 ```
 
-`batchSize` defaults to 8. C and C++ sources are kept in separate batches;
-assembly and C++ module sources remain separate automatically. Use `exclude`
-for files whose macros, anonymous namespaces, or other translation-unit-local
-state conflict when combined. Exclusions accept the same file globs as
-`sources` and must select files in that target.
+`batchSize` defaults to 8. C and C++ sources go in separate batches, and assembly and C++ module
+sources stay out of batches. `exclude` keeps out files whose macros, anonymous namespaces or other
+file-local state clash when combined. It takes the same globs as `sources` and must select
+sources of that target.
 
 ### Tests
 
-Mark executable targets as tests and optionally configure their invocation:
+A `test` block makes an executable a test and configures how it runs:
 
 ```cue
 targets: unit_tests: {
@@ -361,29 +369,23 @@ targets: unit_tests: {
 }
 ```
 
-`clue test` runs every configured test. Positional selectors match either a
-target name or label, and `-j` controls execution parallelism. Test `args` may name another
-target's artifact as `{output:name}` (an absolute path); `clue test` builds it first.
+`clue test` runs every test. Its arguments select tests by target name or label, and `-j` sets how
+many run at once. `args` may name another target's artifact as `{output:name}`, which expands to
+an absolute path, and `clue test` builds that target first.
 
 ### Installation
 
-`clue install` copies executables to `bin`, libraries to `lib`, and declared
-headers to `include` (preserving paths beneath `public.includes`). The default
-prefix is `/usr/local`; use `-prefix` to change it and `-destdir` to stage a package:
+`clue install` copies executables to `bin`, libraries to `lib`, and declared headers to
+`include`, keeping their paths below `public.includes`. The prefix defaults to `/usr/local`.
+`-prefix` changes it, and `-destdir` stages a package:
 
 ```bash
 clue install -variant release -prefix /usr -destdir ./pkg
 ```
 
-Build with a variant:
-
-```bash
-clue build -variant release
-```
-
 ### Generated sources
 
-Use a custom target when a tool must produce sources or headers before compilation:
+Use a custom target when a tool produces sources or headers that a target compiles:
 
 ```cue
 targets: {
@@ -404,9 +406,9 @@ targets: {
 }
 ```
 
-A custom target may run in a `workingDirectory` (its placeholders then expand to absolute
-paths) and write its standard output to a `stdout` file, which counts as an output, so
-generators need no shell:
+A custom target can run in a `workingDirectory`, where its placeholders expand to absolute paths.
+It can also write its standard output to a `stdout` file, which counts as an output, so a
+generator needs no shell:
 
 ```cue
 targets: version_header: {
@@ -416,12 +418,17 @@ targets: version_header: {
 }
 ```
 
-A custom target's `command`, `inputs` and `outputs` may use `{variant}`, `{buildDir}`
-(for example `.build/release`) and `{output:name}` (the artifact of target `name`); a target
-named in `command` or `inputs` is added to `depends`. The artifact of a bundle target is the
-bundle as hosts load it: the `.clap` or `.vst3` directory, or the module where the layout has
-none. `{output:name:module}` is its linked module and `{output:name:bundle}` the bundle. Such a target runs once per variant, so its outputs must also be
-per-variant. Include paths may use `{variant}` and `{buildDir}` to reach generated headers:
+A custom target's `command`, `inputs` and `outputs` may use these placeholders:
+
+- `{variant}` is the variant name.
+- `{buildDir}` is the variant's build directory, such as `.build/release`.
+- `{output:name}` is the artifact of target `name`. For a bundle target that's the bundle a host
+  loads: the `.clap` or `.vst3` directory, or the module file where the layout has no directory.
+  `{output:name:module}` is a bundle's linked module, and `{output:name:bundle}` the bundle.
+
+Clue adds a target named in `command` or `inputs` to `depends`. A custom target with placeholders
+runs once per variant, so its outputs must differ per variant too. Include paths may use
+`{variant}` and `{buildDir}` to find generated headers:
 
 ```cue
 targets: bundle: {
@@ -435,14 +442,15 @@ targets: bundle: {
 }
 ```
 
-The build fingerprint of a custom target is kept in the build directory, not beside its outputs.
+Clue keeps a custom target's build fingerprint in the build directory, not next to its outputs.
 
 ### Tasks
 
-A `task` runs a command with `clue run <task> [args...]`, every time and never as part of
-`clue build`. The arguments are appended to the command (use `--` before ones that start with
-`-`), and the command's exit status becomes clue's. Clue first builds the targets in `depends`
-and those the command names as `{output:name}`, so a task can check freshly built artifacts:
+A `task` runs its command on `clue run <task> [args...]`, every time, and never during
+`clue build`. Clue appends the arguments to the command, and the command's exit status becomes
+clue's. Put `--` before arguments that start with `-`. Before running the command, clue builds the
+targets in `depends` and those the command names with `{output:name}`, so a task always checks
+fresh artifacts:
 
 ```cue
 targets: validate: {
@@ -451,15 +459,15 @@ targets: validate: {
 }
 ```
 
-Tasks take the placeholders of custom targets and a `workingDirectory`. Other targets cannot
-depend on a task, and tasks are not part of generated Ninja files.
+Tasks take the same placeholders as custom targets, and a `workingDirectory`. No target can
+depend on a task, and generated Ninja files leave tasks out.
 
 ### Tools
 
-Programs that commands run but the project does not build are declared under `tools`, and
-commands of custom targets, tasks and test `args` refer to them as `{tool:name}`. Clue uses the
-program that `env` names when that variable is set, else the first of `find` in `PATH` (or at
-that path), and reports `install` when it finds none:
+Declare programs that commands run, but that the project doesn't build, under `tools`. Custom
+targets, tasks and test `args` refer to them as `{tool:name}`. When the variable that `env` names
+is set, clue runs the program it gives. Otherwise clue tries each entry of `find`, as a name in
+`PATH` or as a path, and uses the first it finds. When none exists, the error includes `install`:
 
 ```cue
 tools: clangFormat: {
@@ -470,19 +478,19 @@ tools: clangFormat: {
 targets: fmt: {type: "task", command: ["{tool:clangFormat}", "-i", "{git-files:src/**/*.{cpp,hpp}}"]}
 ```
 
-An argument `{git-files:pattern}` becomes the project's files that git does not ignore, tracked or
-untracked, matching the pattern: a glob with `**` and `{a,b}` alternatives. Files in the build
-directory and `.deps` are left out, and a pattern that matches nothing is an error. It works in the
-`command` and `inputs` of custom targets and tasks, and in test `args`.
+An argument `{git-files:pattern}` expands to the project's files that match the pattern and that
+git doesn't ignore, tracked or not. The pattern is a glob with `**` and `{a,b}` alternatives.
+Clue leaves out the build directory and `.deps`, and a pattern that matches nothing is an error.
+It works in the `command` and `inputs` of custom targets and tasks, and in test `args`.
 
 ### Plugins and other loadable modules
 
-A `bundle` target links a loadable module. On macOS it is linked with `-bundle` and placed in
-`<dir>/<name>.<extension>/Contents/MacOS/<name>` with `Info.plist` and `PkgInfo`, and the bundle is
-signed; elsewhere the module is `<dir>/<name>.<extension>`, or with `layout: "vst3"` the VST3 bundle
-folder `<dir>/<name>.vst3/Contents/<arch>-linux/<name>.so` (`<arch>-win/<name>.vst3` on Windows).
-`exports` keeps the listed C symbols even when only static libraries define them, and exports only
-those:
+A `bundle` target links a loadable module. On macOS clue links it with `-bundle`, puts it at
+`<dir>/<name>.<extension>/Contents/MacOS/<name>` with `Info.plist` and `PkgInfo`, and signs the
+bundle. Elsewhere the module is `<dir>/<name>.<extension>`. With `layout: "vst3"` it goes in the
+VST3 bundle folder instead, as `<dir>/<name>.vst3/Contents/<arch>-linux/<name>.so`, or
+`<arch>-win/<name>.vst3` on Windows. `exports` keeps the listed C symbols even when only static
+libraries define them, and exports only those:
 
 ```cue
 targets: plugin: {
@@ -500,13 +508,13 @@ targets: plugin: {
 }
 ```
 
-`exports` also works on shared libraries and executables. A static library with
-`linkWhole: true` is linked completely into its consumers, and a shared library or bundle may
-consist of its dependencies alone, without sources of its own.
+`exports` works on shared libraries and executables too. Consumers of a static library with
+`linkWhole: true` link all of it. A shared library or bundle may consist of its dependencies
+alone, without sources of its own.
 
-### Header-only dependency
+### Kinds of dependencies
 
-Header-only Git, tarball, and vendored dependencies need only their include directory:
+A header-only Git, tarball or vendored dependency needs only its include directory:
 
 ```cue
 dependencies: json: {
@@ -519,8 +527,8 @@ dependencies: json: {
 }
 ```
 
-Project-local header-only libraries use an `interface_library` target. Its
-public requirements are inherited transitively by consumers:
+A header-only library in the project is an `interface_library` target. Its consumers inherit its
+public requirements, transitively:
 
 ```cue
 targets: headers: {
@@ -548,7 +556,7 @@ dependencies: sdk: {
 }
 ```
 
-System packages can export their compiler and linker flags through `pkg-config`:
+A `pkg_config` dependency takes a system package's compiler and linker flags from `pkg-config`:
 
 ```cue
 dependencies: ssl: {
@@ -558,7 +566,8 @@ dependencies: ssl: {
 }
 ```
 
-Dependencies driven by CMake, Meson, or another build tool can run an argument-vector command sequence and expose its output:
+A dependency built by CMake, Meson or another tool runs a list of commands and names the library
+they produce:
 
 ```cue
 dependencies: foo: {
@@ -578,23 +587,24 @@ dependencies: foo: {
 
 ### Describing dependencies
 
-A dependency without a `clue.cue` can carry its build description itself: `defaults` and
-`targets`, written as in a `clue.cue` of the dependency, with paths relative to its checkout.
-`target` picks the library the dependency's name refers to, and `"<dependency>:<target>"` in
-`depends` uses another target of the same checkout. A dependency may also declare its own
-`dependencies`; they join the project's, recursively, and are fetched, locked in the project's
-`clue.lock` and built like the project's own.
+A dependency without a `clue.cue` can carry its build description: `defaults` and `targets`,
+written as in a `clue.cue` of the dependency, with paths relative to its checkout. `target` picks
+the library that the dependency's name refers to, and `"<dependency>:<target>"` in `depends`
+refers to another target of the same checkout. A dependency may also declare `dependencies` of
+its own. Those join the project's, recursively, and clue fetches them, locks them in the
+project's `clue.lock` and builds them like the project's own.
 
-Descriptions fit in a CUE package of the project, which `clue.cue` imports. A project belongs
-to the nearest `cue.mod` at or above it, as with the `cue` command; projects in no module are
-the module `clue.local` at clue's CUE language version, so `deps/` is imported as
-`"clue.local/deps"` with no further setup. Clue's schema is importable as `"loov.dev/clue"` (it
-needs language version v0.15.0 or later; `clue generate schema` writes it into the module's
-`cue.mod/gen`, so the `cue` command and editors find it too): `clue.#Git`, `clue.#Tarball`,
-`clue.#Vendored` and `clue.#PkgConfig` check a description in its own file and fill in its type.
-A dependency that carries its `name` can be listed without repeating it, and gets `lib`, a
-reference for each of its libraries (`lib.vst3 == "clap-wrapper:vst3"`), which CUE checks where
-it is used:
+Descriptions fit in a CUE package of the project, which `clue.cue` imports. A project belongs to
+the nearest `cue.mod` at or above it, as with the `cue` command. A project in no module becomes
+the module `clue.local` at clue's CUE language version, so it imports `deps/` as
+`"clue.local/deps"` with no setup.
+
+Clue's schema is importable as `"loov.dev/clue"`, which needs language version v0.15.0 or later.
+`clue generate schema` writes it into the module's `cue.mod/gen`, so the `cue` command and
+editors find it too. `clue.#Git`, `clue.#Tarball`, `clue.#Vendored` and `clue.#PkgConfig` check a
+description in a file of its own and fill in its type. A dependency with a `name` can be listed
+without repeating the name. It also gets `lib`, with a reference to each of its libraries, such
+as `lib.vst3 == "clap-wrapper:vst3"`, and CUE checks those references where they're used:
 
 ```cue
 // deps/vst3sdk.cue
@@ -646,10 +656,10 @@ dependencies: [deps.clapWrapper]
 targets: plugin_vst3: {type: "bundle", depends: [deps.clapWrapper.lib.vst3], bundle: extension: "vst3"}
 ```
 
-A description package can also offer templates for its consumers, as CMake modules do for CMake
-projects. With CUE's experimental functions (clue uses CUE v0.18.0-alpha.2, and projects get its
-language version), a template is a function with declared, required (`!`) and optional (`?`)
-parameters and defaults:
+A description package can also offer templates to its consumers, as CMake modules do for CMake
+projects. With CUE's experimental functions, a template is a function with declared parameters,
+required ones marked `!`, optional ones `?`, and defaults. Clue uses CUE v0.18.0-alpha.2, and
+projects get its language version:
 
 ```cue
 @experiment(functions)
@@ -673,48 +683,48 @@ import "clue.local/deps"
 targets: deps.Plugin(name: "synth", sources: ["plugin.c"]).targets
 ```
 
-Without the experiment, a definition that a project unifies with its values does the same.
+Without the experiment, a definition that the project unifies with its values does the same.
 
-Descriptions can be shared as CUE modules: clue loads the configuration with the CUE registry
-settings of the `cue` command (`$CUE_REGISTRY`, the central registry by default), so a project
-whose `cue.mod` depends on a published module of descriptions imports them like its own packages
-(`cue mod get` and `cue mod tidy` manage those). A dependency's own `clue.cue` is evaluated as
-the package of its directory, like a project's, so it can import clue's schema and packages of
-its repository and use `_target`.
+Descriptions can be shared as CUE modules. Clue loads the configuration with the registry
+settings of the `cue` command, which are `$CUE_REGISTRY` or else the central registry. A project
+whose `cue.mod` depends on a published module of descriptions imports them like its own
+packages, and `cue mod get` and `cue mod tidy` manage that dependency. Clue evaluates a
+dependency's own `clue.cue` as the package of its directory, as it does a project's, so it can
+import clue's schema and packages of its repository, and use `_target`.
 
-A description may instead be a separate file named by `file` (read on its own, not as part of
-a package), and a dependency's own `clue.cue` may declare `dependencies` too, keyed or listed; those are found
-after it is fetched, and fetching repeats until no more are declared. Paths in a fetched
-`clue.cue` are relative to its checkout.
+A description can instead be a separate file named by `file`, which clue reads on its own, not
+as part of a package. A dependency's own `clue.cue` may declare `dependencies` too, keyed or
+listed. Clue finds those after fetching the dependency, and keeps fetching until no new ones
+appear. Paths in a fetched `clue.cue` are relative to its checkout.
 
-Dependencies share one namespace. Declarations of a name must name the same source (repository,
-ref and submodules; URL and checksum; path), and a source declared by dependencies under two
-names is reported. The project decides conflicts: its own declaration of a name stands (and
-takes the description another declaration gives), and `overrides` changes the source of a
-dependency wherever it is declared:
+Dependencies share one namespace. Every declaration of a name must name the same source: the same
+repository, ref and submodules, the same URL and checksum, or the same path. Clue reports a source
+that dependencies declare under two names. The project settles conflicts. Its own declaration of
+a name wins and takes the description that another declaration gives, and `overrides` changes the
+source of a dependency wherever it's declared:
 
 ```cue
 overrides: vst3sdk: ref: "v3.8.1_build_12"
 ```
 
-Inline `build` blocks accept `flags` and `warnings` too, and pass every include directory to
+Inline `build` blocks accept `flags` and `warnings` too, and pass every include directory on to
 consumers.
 
 Project targets can compile files of a dependency checkout with `{dep:name}`, for example
-`sources: ["{dep:clap-wrapper}/src/wrapasauv2.cpp"]`; globs there are expanded once the
-dependency is fetched. Dependencies build in parallel, alongside the targets that do not need
+`sources: ["{dep:clap-wrapper}/src/wrapasauv2.cpp"]`. Clue expands globs there once the
+dependency is fetched. Dependencies build in parallel, alongside the targets that don't need
 them, and each target waits only for the dependencies it uses.
 
-Git dependencies are cloned at depth 1, including when `clue.lock` pins a commit, and their
-submodules are checked out (shallow) too. Objective-C (`.m`) and Objective-C++ (`.mm`) sources
-are compiled like C and C++ sources.
+Clue clones Git dependencies at depth 1, also when `clue.lock` pins a commit, and checks out
+their submodules shallowly too. Objective-C (`.m`) and Objective-C++ (`.mm`) sources compile like
+C and C++ sources.
 
 ### Patching dependencies
 
-Git and tarball dependencies can list unified diffs in `patches`, applied in order after fetching.
-A relative path is relative to the CUE file that lists it (`deps/visage.cue` below finds
-`deps/patches/metal.patch`), including a `file` description and a fetched dependency's own
-`clue.cue`:
+Git and tarball dependencies can list unified diffs in `patches`, which clue applies in order
+after fetching. A relative path is relative to the CUE file that lists it, so `deps/visage.cue`
+below finds `deps/patches/metal.patch`. That holds for a `file` description and a fetched
+dependency's own `clue.cue` too:
 
 ```cue
 // deps/visage.cue
@@ -726,23 +736,22 @@ visage: clue.#Git & {
 }
 ```
 
-The fetched checkout or archive stays unpatched; the patches are applied to a copy of it,
-`.deps/git/visage-v1.0.0.patched-<hash>`, which builds, Ninja files and `{dep:visage}` use. The
-hash covers the contents of the patches, so editing one makes a new copy (and rebuilds the
-dependency) without fetching the sources again. A copy is made in full or not at all: when a
-patch fails, clue reports the dependency, the patch file, the file in it and the hunk, and leaves
-no copy.
-`clue deps list` shows the patches of each dependency.
+The fetched checkout or archive stays unpatched. Clue applies the patches to a copy,
+`.deps/git/visage-v1.0.0.patched-<hash>`, and builds, Ninja files and `{dep:visage}` use the
+copy. The hash covers the contents of the patches, so editing a patch makes a new copy and
+rebuilds the dependency, without fetching the sources again. Clue makes a copy completely or not
+at all. When a patch fails, clue reports the dependency, the patch file, the file in it and the
+hunk, and leaves no copy. `clue deps list` shows the patches of each dependency.
 
-Patches are applied without `git` or `patch`. Git diffs (`git diff`, `git format-patch`) may
-create, delete and rename files; other unified diffs (`diff -u`) have the first component of their
-paths removed, as with `patch -p1`. Hunks must match the files where they say (no offset or fuzz),
-as the sources they apply to are pinned. Vendored dependencies are part of the project and are
-edited in place instead.
+Clue applies patches itself, without `git` or `patch`. Git diffs from `git diff` or
+`git format-patch` may create, delete and rename files. For other unified diffs, such as those
+from `diff -u`, clue strips the first component of their paths, like `patch -p1`. Hunks must
+match exactly where they say, with no offset or fuzz, since the sources they apply to are pinned.
+Vendored dependencies are part of the project, so edit them in place instead.
 
-Patches belong to a dependency's source: declarations of a name must list the same patches. In
-`overrides`, `patches` replaces those of the dependency wherever it is declared (`[]` removes them),
-and `extraPatches` are applied after them:
+Patches belong to a dependency's source, so every declaration of a name must list the same
+patches. In `overrides`, `patches` replaces the dependency's patches wherever it's declared, and
+`[]` removes them. `extraPatches` apply after them:
 
 ```cue
 overrides: vst3sdk: extraPatches: ["patches/vst3sdk-warnings.patch"]
