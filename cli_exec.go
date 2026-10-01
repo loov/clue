@@ -12,9 +12,13 @@ import (
 )
 
 // execCommand runs a command whose arguments are in a JSON file. Ninja files
-// generated on Windows use it for arguments with newlines, which no Windows
-// command line carries.
+// generated on Windows use it for arguments with newlines, which a Ninja
+// command line cannot carry.
 type execCommand struct{ file string }
+
+// setExecCommandLine sets how command passes argv to the program, where the
+// platform needs more than exec.Cmd does.
+var setExecCommandLine = func(*exec.Cmd, []string) {}
 
 func (c *execCommand) Setup(params clingy.Parameters) {
 	c.file = params.Arg("file", "JSON list of the command and its arguments").(string)
@@ -33,6 +37,7 @@ func (c *execCommand) Execute(ctx context.Context) error {
 		return fmt.Errorf("%s: no command", c.file)
 	}
 	command := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	setExecCommandLine(command, argv)
 	command.Stdin, command.Stdout, command.Stderr = os.Stdin, os.Stdout, os.Stderr
 	err = command.Run()
 	var exitErr *exec.ExitError
