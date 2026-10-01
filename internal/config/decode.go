@@ -164,6 +164,9 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 }
 
 func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
+	if name == "" {
+		return Target{}, fmt.Errorf("target name must not be empty")
+	}
 	t := Target{Name: name}
 	if configured := val.LookupPath(cue.ParsePath("name")); configured.Exists() {
 		configuredName, _ := configured.String()
@@ -225,6 +228,9 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 		t.CXXStd, _ = standard.String()
 	}
 	t.Depends = extractStringList(val, "depends")
+	if slices.Contains(t.Depends, "") {
+		return Target{}, fmt.Errorf("target %q: dependency name must not be empty", name)
+	}
 	if t.Type == "task" {
 		t.WorkDir = extractOptionalString(val, "workingDirectory")
 	}

@@ -77,6 +77,7 @@ func registerCommands(commands clingy.Commands, options *options) {
 	commands.New("format", "format CUE files in place", &formatCommand{options: options})
 	commands.New("build", "build project targets", &buildCommand{options: options})
 	commands.New("clean", "remove build artifacts", &cleanCommand{options: options})
+	commands.New("graph", "draw the target dependency graph", &graphCommand{options: options})
 
 	commands.Group("deps", "manage external dependencies", func() {
 		commands.New("list", "show dependency status", &depsCommand{options: options, action: "list"})
