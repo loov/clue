@@ -72,7 +72,7 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 	if len(requested) == 0 {
 		for name, target := range cfg.Targets {
 			hostTarget := target.Host && cfg.Host != nil
-			if target.Type != "custom" && target.Type != "task" && target.Test == nil && !hostTarget {
+			if target.Type != "custom" && target.Type != "task" && target.Test == nil && !hostTarget && !target.Optional {
 				requested = append(requested, name)
 			}
 		}

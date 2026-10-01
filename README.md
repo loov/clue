@@ -462,6 +462,15 @@ targets: validate: {
 Tasks take the same placeholders as custom targets, and a `workingDirectory`. No target can
 depend on a task, and generated Ninja files leave tasks out.
 
+A target that only tasks or tests use, such as a validator, can be `optional: true`. A plain
+`clue build` then builds it only when a target that it builds depends on it, `clue install` leaves
+it out, and so does the default target of generated Ninja files. `clue build <name>`, `clue run`
+and `clue test` still build it when they need it:
+
+```cue
+targets: validator: {type: "executable", optional: true, sources: ["tools/validator/*.cpp"]}
+```
+
 ### Tools
 
 Declare programs that commands run, but that the project doesn't build, under `tools`. Custom

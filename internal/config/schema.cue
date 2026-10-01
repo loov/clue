@@ -26,6 +26,8 @@ package config
 	cStd?: string
 	cxxStd?: string
 	depends?: [...string]  // Other target names
+	// Built only when named, or needed by a target, task or test being built
+	optional?: bool
 	// An executable built for the machine running clue, also when cross
 	// compiling, such as a code generator or a validator
 	host?: bool

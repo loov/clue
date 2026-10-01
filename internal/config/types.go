@@ -160,6 +160,7 @@ type Target struct {
 	Test             *Test
 	Unity            *UnityBuild
 	Host             bool // built for the machine running clue, also when cross compiling
+	Optional         bool // built only when named or needed by another target being built
 }
 
 // UnityBuild combines compatible sources into larger translation units.

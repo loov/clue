@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/plan"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func TestCLI_RunTaskBuildsOutputsAndPassesArguments(t *testing.T) {
@@ -12,7 +15,7 @@ func TestCLI_RunTaskBuildsOutputsAndPassesArguments(t *testing.T) {
 	files := map[string]string{
 		"clue.cue": `name: "tasks"
 targets: {
-	tool: {type: "executable", sources: ["tool.cpp"]}
+	tool: {type: "executable", sources: ["tool.cpp"], optional: true}
 	check: {type: "task", command: ["{output:tool}", "first"]}
 	runner: {type: "executable", sources: ["runner.cpp"], test: args: ["{output:tool}"]}
 }
@@ -55,7 +58,15 @@ int main(int argc, char** argv) {
 	if err := os.RemoveAll(filepath.Join(dir, ".build")); err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{{"test"}, {"build"}, {"generate", "all"}} {
+	// clue build leaves out the optional tool, which only the task and the test need.
+	if _, stderr, code := runClue(t, dir, "--quiet", "build"); code != 0 {
+		t.Fatalf("clue build = %d\nstderr: %s", code, stderr)
+	}
+	tool := filepath.Join(dir, ".build", "debug", "bin", plan.ExecutableName("tool", toolchain.HostPlatform()))
+	if _, err := os.Stat(tool); err == nil {
+		t.Fatal("clue build built the optional tool")
+	}
+	for _, args := range [][]string{{"test"}, {"generate", "all"}} {
 		if _, stderr, code := runClue(t, dir, append([]string{"--quiet"}, args...)...); code != 0 {
 			t.Fatalf("clue %s = %d\nstderr: %s", strings.Join(args, " "), code, stderr)
 		}

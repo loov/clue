@@ -272,14 +272,20 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 }
 
 // selectTargets returns the targets to build, those named and the targets
-// they depend on, or nil for all of them. The host targets of a cross build
-// are returned apart, as the host configuration builds them.
+// they depend on, or nil for all of them; without names, every target but
+// tasks, which clue run builds for, and optional targets. The host targets of
+// a cross build are returned apart, as the host configuration builds them.
 func selectTargets(cfg *config.Config, names []string) (selected map[string]bool, host []string) {
 	if len(names) == 0 {
-		if cfg.Host == nil {
+		for name, target := range cfg.Targets {
+			if !target.Optional && target.Type != "task" {
+				names = append(names, name)
+			}
+		}
+		if len(names) == len(cfg.Targets) && cfg.Host == nil {
 			return nil, nil
 		}
-		names = slices.Sorted(maps.Keys(cfg.Targets))
+		slices.Sort(names)
 	}
 	selected = make(map[string]bool)
 	var include func(string)

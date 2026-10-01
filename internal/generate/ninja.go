@@ -68,7 +68,11 @@ func generateVariantBuilds(ctx context.Context, file *ninja.File, opts NinjaOpti
 		if err != nil {
 			return nil, err
 		}
-		outputs = append(outputs, targetOutputs...)
+		// The variant's phony target builds what clue build builds; the
+		// edges of optional targets remain for those that need them.
+		if !target.Optional {
+			outputs = append(outputs, targetOutputs...)
+		}
 	}
 
 	return outputs, nil
