@@ -4,112 +4,92 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 )
 
-func TestResolveEnvVars_InjectsValuesIntoCUE(t *testing.T) {
-	envVars := map[string]string{
-		"USE_OPENSSL": "1",
-		"BUILD_TYPE":  "optimized",
-	}
-
-	loader := NewLoaderWithEnv(envVars)
-	if loader == nil {
-		t.Fatal("NewLoaderWithEnv returned nil")
-	}
-
-	// Verify env vars are stored
-	if loader.envVars["USE_OPENSSL"] != "1" {
-		t.Errorf("Expected USE_OPENSSL=1, got %s", loader.envVars["USE_OPENSSL"])
-	}
-	if loader.envVars["BUILD_TYPE"] != "optimized" {
-		t.Errorf("Expected BUILD_TYPE=optimized, got %s", loader.envVars["BUILD_TYPE"])
-	}
-}
-
-func TestLoaderWithEnv_AppliesPackageOverlay(t *testing.T) {
+func TestLoad_InjectsDeclaredEnvironment(t *testing.T) {
 	dir := t.TempDir()
 	contents := `package project
-name: _env.PROJECT_NAME
-targets: app: {name: "app", type: "executable", sources: ["main.cpp"]}
+name: "env"
+env: {
+	VALIDATE: {name: "VALIDATE", default: false}
+	JOBS: {name: "JOBS", default: 4}
+}
+targets: app: {type: "executable", sources: ["main.cpp"]}
+if _env.VALIDATE == "1" {
+	targets: validator: {type: "executable", sources: ["main.cpp"], defines: ["JOBS=\(_env.JOBS)"]}
+}
 `
 	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := NewLoaderWithEnv(map[string]string{"PROJECT_NAME": "from-env"}).Load(dir)
+	if err := os.WriteFile(filepath.Join(dir, "main.cpp"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VALIDATE", "")
+	cfg, err := NewLoader().Load(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Name != "from-env" {
-		t.Fatalf("name = %q", cfg.Name)
+	if _, ok := cfg.Targets["validator"]; ok {
+		t.Fatal("validator added without VALIDATE")
+	}
+
+	t.Setenv("VALIDATE", "1")
+	cfg, err = NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validator, ok := cfg.Targets["validator"]
+	if !ok {
+		t.Fatal("validator not added with VALIDATE=1")
+	}
+	if !slices.Equal(validator.Defines, []string{"JOBS=4"}) {
+		t.Fatalf("defines = %v", validator.Defines)
 	}
 }
 
-func TestBuildEnvCUE_ContainsResolvedVariables(t *testing.T) {
-	envVars := map[string]string{
-		"SIMPLE":         "value",
-		"WITH_SPECIAL":   "path/to/file",
-		"WITH_BACKSLASH": "C:\\path",
+func TestLoad_IgnoresUndeclaredEnvironment(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "env"
+targets: app: {type: "executable", sources: ["main.cpp"]}
+if _env.UNDECLARED != _|_ {
+	targets: extra: {type: "executable", sources: ["main.cpp"]}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
 	}
-
-	cue := buildEnvCUE(envVars)
-
-	// Check structure
-	if !contains(cue, "_env: {") {
-		t.Error("Generated CUE should contain _env block")
+	if err := os.WriteFile(filepath.Join(dir, "main.cpp"), nil, 0o644); err != nil {
+		t.Fatal(err)
 	}
-
-	// Check that keys are present
-	if !contains(cue, "SIMPLE:") {
-		t.Error("Generated CUE should contain SIMPLE key")
+	t.Setenv("UNDECLARED", "1")
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !contains(cue, "WITH_SPECIAL:") {
-		t.Error("Generated CUE should contain WITH_SPECIAL key")
-	}
-	if strings.Index(cue, "SIMPLE:") > strings.Index(cue, "WITH_BACKSLASH:") ||
-		strings.Index(cue, "WITH_BACKSLASH:") > strings.Index(cue, "WITH_SPECIAL:") {
-		t.Errorf("Generated CUE keys are not sorted:\n%s", cue)
+	if _, ok := cfg.Targets["extra"]; ok {
+		t.Fatal("undeclared variable reached _env")
 	}
 }
 
-func TestSanitizeKey_ReplacesInvalidCharacters(t *testing.T) {
-	cases := []struct {
-		input    string
-		expected string
-	}{
-		{"SIMPLE", "SIMPLE"},
-		{"WITH_UNDERSCORE", "WITH_UNDERSCORE"},
-		{"with-dash", "with_dash"},
-		{"123start", "_123start"},
-		{"special@chars!", "special_chars_"},
-		{"a.b.c", "a_b_c"},
-		{"", ""},
+func TestLoad_EnvironmentCanDisableInvalidDefaultBranch(t *testing.T) {
+	dir := t.TempDir()
+	contents := `name: "env"
+env: ENABLE: {name: "ENABLE", default: false}
+targets: check: {type: "interface_library"}
+if _env.ENABLE != "1" {name: "disabled"}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
 	}
-
-	for _, tc := range cases {
-		got := sanitizeKey(tc.input)
-		if got != tc.expected {
-			t.Errorf("sanitizeKey(%q) = %q, want %q", tc.input, got, tc.expected)
-		}
+	t.Setenv("ENABLE", "1")
+	if _, err := NewLoader().Load(dir); err != nil {
+		t.Fatalf("environment did not disable invalid default branch: %v", err)
 	}
-}
-
-func TestEscapeString_DoublesBackslashes(t *testing.T) {
-	cases := []struct {
-		input    string
-		expected string
-	}{
-		{"simple", "simple"},
-		{"with\\backslash", "with\\\\backslash"},
-		{"multiple\\\\slashes", "multiple\\\\\\\\slashes"},
-	}
-
-	for _, tc := range cases {
-		got := escapeString(tc.input)
-		if got != tc.expected {
-			t.Errorf("escapeString(%q) = %q, want %q", tc.input, got, tc.expected)
-		}
+	t.Setenv("ENABLE", "")
+	if _, err := NewLoader().Load(dir); err == nil {
+		t.Fatal("invalid default branch was accepted without an override")
 	}
 }
 
@@ -168,20 +148,6 @@ func TestResolveEnvVars_EnvironmentOverridesDefault(t *testing.T) {
 
 	if envVars["TEST_VAR"] != "from_env" {
 		t.Errorf("Expected TEST_VAR=from_env, got %s", envVars["TEST_VAR"])
-	}
-}
-
-func TestEnvValue_ReturnsFalseWhenMissing(t *testing.T) {
-	cfg := &Config{
-		Name:     "testproject",
-		Targets:  make(map[string]Target),
-		Variants: make(map[string]Variant),
-	}
-
-	// EnvValue should return false for non-existent env var
-	val, ok := EnvValue(cfg, "NONEXISTENT")
-	if ok {
-		t.Errorf("Expected ok=false for nonexistent env var, got ok=true, val=%s", val)
 	}
 }
 
@@ -413,19 +379,4 @@ env: {
 // helper function for string slice contains
 func containsString(slice []string, s string) bool {
 	return slices.Contains(slice, s)
-}
-
-// helper function
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

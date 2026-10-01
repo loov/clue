@@ -41,12 +41,9 @@ func (l *Loader) Load(dir string) (*Config, error) {
 }
 
 // LoadForTarget reads configuration with target platform values available as
-// _target and the absolute project directory as _project.dir.
+// _target, the absolute project directory as _project.dir and the variables
+// declared under env as _env.
 func (l *Loader) LoadForTarget(dir string, target toolchain.Platform) (*Config, error) {
-	return l.load(dir, nil, target)
-}
-
-func (l *Loader) load(dir string, overlay map[string]load.Source, target toolchain.Platform) (*Config, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("invalid directory: %w", err)
@@ -54,7 +51,19 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if target.OS == "" || target.Arch == "" {
 		target = toolchain.HostPlatform()
 	}
-	val, files, err := l.buildValue(absDir, overlay, target, true)
+	val, files, err := l.buildValue(absDir, nil, target, true, nil)
+	if err != nil && !val.Exists() {
+		return nil, err
+	}
+	// The default evaluation may contain errors in branches that an actual
+	// environment value disables. Resolve the declarations before rejecting it.
+	env, envErr := resolveEnv(val)
+	if envErr != nil {
+		return nil, envErr
+	}
+	if len(env.Used) > 0 {
+		val, files, err = l.buildValue(absDir, nil, target, true, env.Variables)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -71,10 +80,10 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	return cfg, nil
 }
 
-// buildValue evaluates the package of dir/clue.cue: with _target and
-// _project, the implicit module and package when it has none, clue's schema
+// buildValue evaluates the package of dir/clue.cue: with _target, _project
+// and _env (the declared environment variables, see envCUE), the implicit module and package when it has none, clue's schema
 // as "loov.dev/clue", and registry modules.
-func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, target toolchain.Platform, enclosingModule bool) (cue.Value, []string, error) {
+func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, target toolchain.Platform, enclosingModule bool, env map[string]string) (cue.Value, []string, error) {
 	var err error
 	// clue.cue is the project entry point; the CUE loader evaluates its package.
 	configPath := filepath.Join(absDir, "clue.cue")
@@ -103,7 +112,7 @@ func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, targe
 			packageName = "_"
 		}
 	} else {
-		data = fmt.Appendf(data, "\n_target: {os: %q, arch: %q}\n_project: dir: %q\n", target.OS, target.Arch, filepath.ToSlash(absDir))
+		data = fmt.Appendf(data, "\n_target: {os: %q, arch: %q}\n_project: dir: %q\n%s", target.OS, target.Arch, filepath.ToSlash(absDir), envCUE(env))
 		source := load.FromBytes(data)
 		if packageName == "" {
 			// Imports need a named package: clue.cue and the other files
@@ -135,7 +144,7 @@ func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, targe
 	}
 	val := l.ctx.BuildInstance(instances[0])
 	if err := val.Err(); err != nil {
-		return cue.Value{}, nil, l.convertCUEError(err, absDir)
+		return val, instanceFiles(instances[0]), l.convertCUEError(err, absDir)
 	}
 	return val, instanceFiles(instances[0]), nil
 }
@@ -545,7 +554,7 @@ func (cfg *Config) loadDescriptionFile(path string) (cue.Value, error) {
 	if target.OS == "" || target.Arch == "" {
 		target = toolchain.HostPlatform()
 	}
-	value, files, err := NewLoader().buildValue(dir, nil, target, false)
+	value, files, err := NewLoader().buildValue(dir, nil, target, false, nil)
 	if err == nil {
 		cfg.Files = append(cfg.Files, files...)
 	}

@@ -270,6 +270,25 @@ variants: {
 }
 ```
 
+### Environment variables
+
+Variables declared under `env` are read from the environment, falling back to their `default`.
+`when_true` adds defines and flags to every target when the value is `1`, `true`, `yes` or `on`,
+and `_env` holds the values as strings for conditions in `clue.cue`. Undeclared variables are not
+in `_env`, so the environment changes the build only where `clue.cue` says so:
+
+```cue
+env: {
+    TRACE: {name: "TRACE", default: false, when_true: defines: ["TRACE=1"]}
+    VALIDATE: {name: "VALIDATE", default: false}
+}
+if _env.VALIDATE == "1" {
+    targets: validator: {type: "executable", sources: ["tools/validator/*.cpp"]}
+}
+```
+
+`VALIDATE=1 clue build` builds the validator too; a plain `clue build` does not.
+
 ### Defaults for every target
 
 Settings shared by all compiled targets (not custom targets or interface libraries) go in

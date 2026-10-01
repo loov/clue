@@ -2,19 +2,16 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/load"
-	"cuelang.org/go/cue/parser"
 
 	"github.com/loov/clue/internal/diagnostic"
-	"github.com/loov/clue/internal/toolchain"
 )
 
 // EnvConfig holds environment variable configuration
@@ -29,13 +26,18 @@ type EnvConfig struct {
 // ResolveEnvVars reads environment variables specified in the config
 // and validates that all have either a value or a default
 func ResolveEnvVars(cfg *Config) (*EnvConfig, error) {
+	return resolveEnv(cfg.Raw)
+}
+
+// resolveEnv resolves the variables declared under env in a configuration.
+func resolveEnv(val cue.Value) (*EnvConfig, error) {
 	env := &EnvConfig{
 		Variables: make(map[string]string),
 		Used:      make([]string, 0),
 	}
 
 	// Look up env definitions in config
-	envDefs := cfg.Raw.LookupPath(cue.ParsePath("env"))
+	envDefs := val.LookupPath(cue.ParsePath("env"))
 	if !envDefs.Exists() {
 		return env, nil // No env vars configured
 	}
@@ -159,94 +161,19 @@ func applyConditional(cfg *Config, cond cue.Value) error {
 	return nil
 }
 
-// LoaderWithEnv creates a loader that injects environment variables
-type LoaderWithEnv struct {
-	*Loader
-	envVars map[string]string
-}
-
-// NewLoaderWithEnv creates a loader with environment injection
-func NewLoaderWithEnv(envVars map[string]string) *LoaderWithEnv {
-	return &LoaderWithEnv{
-		Loader:  NewLoader(),
-		envVars: envVars,
+// envCUE returns the _env field: the values of the variables declared under
+// env, or, when values is nil, their defaults evaluated by CUE.
+func envCUE(values map[string]string) string {
+	if values == nil {
+		return "env: {}\n_env: {for name, variable in env {(name): \"\\(variable.default)\"}}\n"
 	}
-}
-
-// Load reads and validates CUE configuration with injected env vars
-func (l *LoaderWithEnv) Load(dir string) (*Config, error) {
-	return l.LoadForTarget(dir, toolchain.HostPlatform())
-}
-
-// LoadForTarget reads configuration with injected environment and target values.
-func (l *LoaderWithEnv) LoadForTarget(dir string, target toolchain.Platform) (*Config, error) {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, fmt.Errorf("invalid directory: %w", err)
-	}
-
-	// Build CUE content with environment variables
-	envCUE := buildEnvCUE(l.envVars)
-	if entry, parseErr := parser.ParseFile(filepath.Join(absDir, "clue.cue"), nil); parseErr == nil && entry.PackageName() != "" {
-		envCUE = "package " + entry.PackageName() + "\n\n" + envCUE
-	}
-
-	// Create overlay to inject env vars
-	envFile := filepath.Join(absDir, "clue_env.cue")
-	overlay := map[string]load.Source{
-		envFile: load.FromBytes([]byte(envCUE)),
-	}
-	return l.load(absDir, overlay, target)
-}
-
-// buildEnvCUE generates CUE content to inject environment variables
-func buildEnvCUE(envVars map[string]string) string {
 	var buf bytes.Buffer
-	buf.WriteString("// Injected environment variables\n")
 	buf.WriteString("_env: {\n")
-	for _, k := range slices.Sorted(maps.Keys(envVars)) {
-		v := envVars[k]
-		// Escape special characters in value
-		escaped := escapeString(v)
-		_, _ = fmt.Fprintf(&buf, "\t%s: %q\n", sanitizeKey(k), escaped)
+	for _, name := range slices.Sorted(maps.Keys(values)) {
+		key, _ := json.Marshal(name)
+		value, _ := json.Marshal(values[name])
+		_, _ = fmt.Fprintf(&buf, "\t%s: %s\n", key, value)
 	}
 	buf.WriteString("}\n")
 	return buf.String()
-}
-
-// sanitizeKey ensures the key is a valid CUE identifier
-func sanitizeKey(key string) string {
-	// Replace non-alphanumeric chars with underscore
-	result := strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
-			return r
-		}
-		return '_'
-	}, key)
-
-	// Ensure starts with letter or underscore
-	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
-		result = "_" + result
-	}
-
-	return result
-}
-
-// escapeString handles special characters in string values
-func escapeString(s string) string {
-	return strings.ReplaceAll(s, "\\", "\\\\")
-}
-
-// EnvValue returns an environment variable value from the injected _env struct.
-func EnvValue(cfg *Config, name string) (string, bool) {
-	envPath := cue.ParsePath(fmt.Sprintf("_env.%s", sanitizeKey(name)))
-	val := cfg.Raw.LookupPath(envPath)
-	if !val.Exists() {
-		return "", false
-	}
-	s, err := val.String()
-	if err != nil {
-		return "", false
-	}
-	return s, true
 }
