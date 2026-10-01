@@ -126,7 +126,7 @@ func TestBuilderCustomTarget_WorkingDirectoryAndStdout(t *testing.T) {
 	}
 	lines := strings.Split(strings.TrimSpace(string(got)), "\n")
 	realDir, _ := filepath.EvalSymlinks(dir)
-	if len(lines) != 2 || !strings.HasSuffix(lines[0], "/work") || !strings.HasPrefix(lines[1], "/") ||
+	if len(lines) != 2 || !strings.HasSuffix(lines[0], "/work") || !filepath.IsAbs(lines[1]) ||
 		!strings.HasSuffix(lines[1], filepath.Join(".build", "debug")) || !strings.Contains(lines[0], filepath.Base(realDir)) {
 		t.Fatalf("output = %q", got)
 	}

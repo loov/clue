@@ -26,8 +26,8 @@ func TestBuild_FailureStopsWaitingTargets(t *testing.T) {
 	}
 	cfg := &config.Config{Targets: map[string]config.Target{
 		"broken": custom("broken", "sleep 0.1; exit 3"),
-		"slow":   custom("slow", "sleep 2; touch "+filepath.Join(dir, "slow")),
-		"waiter": custom("waiter", "touch "+filepath.Join(dir, "waiter"), "slow"),
+		"slow":   custom("slow", "sleep 2; touch "+filepath.ToSlash(filepath.Join(dir, "slow"))),
+		"waiter": custom("waiter", "touch "+filepath.ToSlash(filepath.Join(dir, "waiter")), "slow"),
 	}}
 	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 3, true)
 	if err != nil {
@@ -53,9 +53,10 @@ func TestBuild_FailedTargetSkipsDependentsOnly(t *testing.T) {
 		}
 	}
 	cfg := &config.Config{Targets: map[string]config.Target{
-		"broken":      custom("broken", "exit 3"),
-		"dependent":   custom("dependent", "touch "+filepath.Join(dir, "dependent"), "broken"),
-		"independent": custom("independent", "touch "+filepath.Join(dir, "independent")),
+		"broken": custom("broken", "exit 3"),
+		// sh would take the backslashes of Windows paths as escapes.
+		"dependent":   custom("dependent", "touch "+filepath.ToSlash(filepath.Join(dir, "dependent")), "broken"),
+		"independent": custom("independent", "touch "+filepath.ToSlash(filepath.Join(dir, "independent"))),
 	}}
 	builder, err := NewBuilder("clang", toolchain.HostPlatform(), VerbosityQuiet, 2, true)
 	if err != nil {
@@ -104,7 +105,7 @@ func TestBuild_LinksObjectsInSourceOrder(t *testing.T) {
 	if _, err := builder.Build(t.Context(), opts); err != nil {
 		t.Skip(err)
 	}
-	library := filepath.Join(dir, ".build", "debug", "lib", "liblib.a")
+	library := plan.ArtifactPath(filepath.Join(dir, ".build"), "debug", "lib", "static_library", toolchain.HostPlatform())
 	stamp, err := os.ReadFile(library + ".clue-link")
 	if err != nil {
 		t.Fatal(err)
@@ -149,6 +150,11 @@ func TestBuild_SharedLibraryFromArchivesWithExports(t *testing.T) {
 		Config: cfg, Variant: "debug", BuildDir: filepath.Join(dir, ".build"), Verbosity: VerbosityQuiet,
 	}); err != nil {
 		t.Fatal(err)
+	}
+	if runtime.GOOS == "windows" {
+		// A DLL that link.exe writes has no symbol table for nm; it exports
+		// only what -export names.
+		return
 	}
 	symbols := func(target string) string {
 		output := plan.ArtifactPath(filepath.Join(dir, ".build"), "debug", target, "shared_library", toolchain.HostPlatform())

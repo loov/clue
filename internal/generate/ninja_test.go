@@ -148,7 +148,7 @@ func TestNinja_CustomTargetGeneratesBeforeConsumer(t *testing.T) {
 		"build generated.cpp: custom schema.idl",
 		"build .build/debug/app/obj/generated.cpp.o: cxx generated.cpp || generated.cpp",
 		"command = $cmd",
-		"cmd = 'generator'",
+		"cmd = " + ninjaShellCommand([]string{"generator"}),
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, content)
@@ -175,7 +175,7 @@ func TestNinja_CustomTargetWithPlaceholdersIsPerVariant(t *testing.T) {
 	for _, variant := range []string{"debug", "release"} {
 		for _, want := range []string{
 			"build dist/" + variant + "/My$ Plugin: custom .build/" + variant + "/lib/liblib.so || .build/" + variant + "/lib/liblib.so",
-			`cmd = 'sh' '-c' 'cp "$$1" "$$2"' 'bundle' '.build/` + variant + `/lib/liblib.so' 'dist/` + variant + `/My Plugin'`,
+			"cmd = " + ninjaShellCommand([]string{"sh", "-c", `cp "$1" "$2"`, "bundle", filepath.Join(".build", variant, "lib", "liblib.so"), "dist/" + variant + "/My Plugin"}),
 		} {
 			if !strings.Contains(content, want) {
 				t.Errorf("Ninja output missing %q:\n%s", want, content)
@@ -444,7 +444,7 @@ func TestNinja_BuildsExternalDependencies(t *testing.T) {
 	checks := []string{
 		"rule fetch_dep",
 		"command = $clue -target $platform deps fetch $dep\n  description = FETCH $dep\n  restat = true",
-		"build .build/debug/deps/math/obj/math.cpp.o: cxx " + ninjaPathLocal(filepath.Join(depRoot, "math.cpp")),
+		"build .build/debug/deps/math/obj/math.cpp.o: cxx " + ninja.Escape(ninjaPathLocal(filepath.Join(depRoot, "math.cpp"))),
 		"-I" + NinjaPath(filepath.Join(depRoot, "include")),
 		"-DMATH_BUILD",
 		"build .build/debug/deps/math/lib/libmath.a: ar .build/debug/deps/math/obj/math.cpp.o",
@@ -507,7 +507,7 @@ func TestNinja_PrebuiltDependencyLinksExactLibrary(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(output.String(), "build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o "+ninjaPathLocal(library)) {
+	if !strings.Contains(output.String(), "build .build/debug/bin/app: link .build/debug/app/obj/main.cpp.o "+ninja.Escape(ninjaPathLocal(library))) {
 		t.Fatalf("prebuilt library is missing from link edge:\n%s", output.String())
 	}
 }
@@ -536,7 +536,7 @@ func TestNinja_ExternalDependencyUsesClueBuilder(t *testing.T) {
 	}
 	content := output.String()
 	if !strings.Contains(content, "rule external_dep") ||
-		!strings.Contains(content, "build "+ninjaPathLocal(library)+": external_dep || force_external") ||
+		!strings.Contains(content, "build "+ninja.Escape(ninjaPathLocal(library))+": external_dep || force_external") ||
 		strings.Count(content, ": external_dep ") != 1 {
 		t.Fatalf("external dependency edge is invalid:\n%s", content)
 	}
@@ -893,6 +893,7 @@ func TestNinja_NormalizesPathsToForwardSlashes(t *testing.T) {
 		BuildDir:  ".build",
 		Toolchain: "clang",
 		Platform:  toolchain.Platform{OS: "linux", Arch: "amd64"},
+		Clue:      "clue", // the default, the test binary's own path, is native
 	})
 	if err != nil {
 		t.Fatalf("WriteNinjaTo failed: %v", err)
@@ -1115,6 +1116,9 @@ func TestNinja_LinksWholeArchivesInPlace(t *testing.T) {
 }
 
 func TestNinjaShellCommand_KeepsMultilineArgumentsOnOneLine(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("cmd.exe cannot pass a newline in an argument")
+	}
 	command := []string{"sh", "-c", "set -e\necho 'a b' \"$1\"\n", "name", "x y"}
 	quoted := ninjaShellCommand(command)
 	if strings.Contains(quoted, "\n") {
@@ -1139,7 +1143,7 @@ func TestNinja_CallsTheGeneratingClueAndKeepsItsLogInTheBuildDir(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"clue = '/opt/my tools/clue'", "builddir = .build/ninja", "build .build/ninja/debug/bin/app:"} {
+	for _, want := range []string{"clue = " + ninjaShellCommand([]string{"/opt/my tools/clue"}), "builddir = .build/ninja", "build .build/ninja/debug/bin/app:"} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, output.String())
 		}
@@ -1153,6 +1157,8 @@ func TestNinja_BundleTarget(t *testing.T) {
 		Bundle: config.BundleSettings{Extension: "clap", Name: "My Plugin", Dir: "dist/{variant}", InfoPlist: "Info.plist", Sign: "-"},
 	}
 	cfg.Variants = map[string]config.Variant{"release": {}}
+	// A darwin target is a cross build on other hosts.
+	cfg.Toolchain.TargetTriple = "arm64-apple-macos11"
 	var output bytes.Buffer
 	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"release"}, BuildDir: ".build", Toolchain: "clang",
@@ -1197,6 +1203,9 @@ func TestNinja_CompilesWaitForHeadersGeneratedForTheirDependencies(t *testing.T)
 }
 
 func TestNinja_CustomTargetWorkingDirectoryAndStdout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("checks the POSIX shell command")
+	}
 	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
 	cfg.Targets["gen"] = config.Target{
 		Name: "gen", Type: "custom", Command: []string{"tool", "{buildDir}/in"},
@@ -1308,6 +1317,8 @@ func TestNinja_BundleRuntimePathUsesPackagedBinary(t *testing.T) {
 		Bundle: config.BundleSettings{Extension: "clap", InfoPlist: "Info.plist"},
 	}
 	cfg.Targets["helper"] = config.Target{Name: "helper", Type: "shared_library", Sources: []string{"helper.c"}}
+	// A darwin target is a cross build on other hosts.
+	cfg.Toolchain.TargetTriple = "arm64-apple-macos11"
 	var output bytes.Buffer
 	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
 		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",

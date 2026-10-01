@@ -542,7 +542,8 @@ targets: app: {
 	}
 	app := cfg.Targets["app"]
 	want := filepath.Join(".deps", "git", "sdk-v1.0.0")
-	if app.Sources[1] != filepath.Join(want, "src", "entry.cpp") || app.Includes[0] != filepath.Join(want, "include") {
+	// {dep:sdk} is a native path; what follows it keeps its slashes.
+	if filepath.Clean(app.Sources[1]) != filepath.Join(want, "src", "entry.cpp") || filepath.Clean(app.Includes[0]) != filepath.Join(want, "include") {
 		t.Fatalf("placeholders not expanded: %q %q", app.Sources, app.Includes)
 	}
 }
@@ -685,10 +686,11 @@ targets: {
 	}
 	sdk := filepath.Join(".deps", "git", "sdk-v1")
 	lib, gen := cfg.Targets["lib"], cfg.Targets["gen"]
-	if !slices.Equal(lib.Exclude, []string{filepath.Join(sdk, "b.cpp")}) || !slices.Equal(lib.Unity.Exclude, []string{filepath.Join(sdk, "a.cpp")}) {
+	if len(lib.Exclude) != 1 || filepath.Clean(lib.Exclude[0]) != filepath.Join(sdk, "b.cpp") ||
+		len(lib.Unity.Exclude) != 1 || filepath.Clean(lib.Unity.Exclude[0]) != filepath.Join(sdk, "a.cpp") {
 		t.Errorf("exclude = %q, unity exclude = %q", lib.Exclude, lib.Unity.Exclude)
 	}
-	if gen.WorkDir != filepath.Join(sdk, "gen") || gen.Stdout != filepath.Join(sdk, "gen", "out.h") {
+	if filepath.Clean(gen.WorkDir) != filepath.Join(sdk, "gen") || filepath.Clean(gen.Stdout) != filepath.Join(sdk, "gen", "out.h") {
 		t.Errorf("working directory = %q, stdout = %q", gen.WorkDir, gen.Stdout)
 	}
 }

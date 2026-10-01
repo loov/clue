@@ -7,6 +7,7 @@ import (
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/testclue"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -47,7 +48,7 @@ targets: {
 	if !result.Success {
 		t.Fatal("build failed")
 	}
-	if _, err := os.Stat(filepath.Join(".build", "debug", "bin", "app")); err != nil {
+	if _, err := os.Stat(filepath.Join(".build", "debug", "bin", plan.ExecutableName("app", toolchain.HostPlatform()))); err != nil {
 		t.Fatal(err)
 	}
 }

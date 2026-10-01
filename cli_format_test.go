@@ -66,7 +66,12 @@ func TestCLI_Format(t *testing.T) {
 			if !info.ModTime().Equal(stamp) {
 				t.Error("format rewrote an unchanged file")
 			}
-			if info.Mode().Perm() != 0o600 {
+			// notes.txt keeps the permissions the files were written with (Windows reports 0666).
+			untouched, err := os.Stat(filepath.Join(dir, "notes.txt"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode().Perm() != untouched.Mode().Perm() {
 				t.Errorf("format changed file permissions to %v", info.Mode().Perm())
 			}
 		})

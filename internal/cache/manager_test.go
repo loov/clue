@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -754,7 +755,12 @@ func TestManifest_StoresHeadersOnceAndDetectsChangesAfterRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count := strings.Count(string(data), header); count != 1 {
+	// The manifest is JSON, which escapes the backslashes of Windows paths.
+	encoded, err := json.Marshal(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(string(data), string(encoded)); count != 1 {
 		t.Errorf("header path stored %d times:\n%s", count, data)
 	}
 

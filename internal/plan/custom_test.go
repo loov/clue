@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -23,8 +24,10 @@ func TestExpandCustomTarget_SubstitutesVariantPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"sh", "-c", "{ cat $1; } > $2", "release", ".build/release/lib/liblib.a", ".build/release/gen.h"}
-	if !slices.Equal(got.Command, want) || got.Outputs[0] != ".build/release/out" {
+	// {buildDir} and {output:} expand to native paths; the rest is kept as written.
+	buildDir := filepath.Join(".build", "release")
+	want := []string{"sh", "-c", "{ cat $1; } > $2", "release", filepath.Join(buildDir, "lib", "liblib.a"), buildDir + "/gen.h"}
+	if !slices.Equal(got.Command, want) || got.Outputs[0] != buildDir+"/out" {
 		t.Fatalf("expanded = %q %q", got.Command, got.Outputs)
 	}
 	if !CustomTargetPerVariant(cfg.Targets["step"]) || CustomTargetPerVariant(config.Target{Command: []string{"{ x; }"}}) {
