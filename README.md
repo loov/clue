@@ -129,6 +129,7 @@ with the listed `exports`, and Zig's libc++ is used without exceptions (`-fno-ex
 ## Commands
 
 - `clue validate` - Validate configuration and check dependencies
+- `clue format [path...]` - Format CUE files in place (defaults to the current directory)
 - `clue build` - Build all targets (use `-variant release` for optimized builds)
 - `clue clean` - Remove build artifacts (use `-all` to clean all variants)
 - `clue run <target>` - Build and run an executable target
@@ -138,6 +139,11 @@ with the listed `exports`, and Zig's libc++ is used without exceptions (`-fno-ex
 - `clue generate <ninja|compile-commands|all>` - Generate build files for editors/tools
 - `clue generate schema` - Write the `loov.dev/clue` schema into the CUE module for `cue` and editors
 - `clue help [command]`, `clue version`
+
+Formatting recursively visits directories, skipping `cue.mod`, hidden directories,
+and directories starting with `_` unless explicitly named. It prints changed file
+paths; use `--quiet` to suppress them. Configuration does not need to evaluate
+successfully to be formatted.
 
 Long GCC, Clang, and MSVC compile/link invocations automatically use response
 files, including commands emitted by the Ninja generator.

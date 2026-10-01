@@ -49,7 +49,7 @@ func TestCLI_HelpListsCommandsAndGlobalFlags(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("help failed with exit code %d: %s", exitCode, stderr)
 	}
-	for _, text := range []string{"Available commands:", "build", "deps", "generate", "--variant", "--jobs"} {
+	for _, text := range []string{"Available commands:", "build", "format", "deps", "generate", "--variant", "--jobs"} {
 		if !strings.Contains(stdout, text) {
 			t.Errorf("help output does not contain %q:\n%s", text, stdout)
 		}

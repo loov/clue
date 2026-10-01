@@ -74,6 +74,7 @@ func (c *options) verbosity() build.Verbosity {
 
 func registerCommands(commands clingy.Commands, options *options) {
 	commands.New("validate", "validate the project configuration", &validateCommand{options: options})
+	commands.New("format", "format CUE files in place", &formatCommand{options: options})
 	commands.New("build", "build project targets", &buildCommand{options: options})
 	commands.New("clean", "remove build artifacts", &cleanCommand{options: options})
 
