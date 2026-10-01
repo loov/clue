@@ -325,3 +325,42 @@ func TestBuildLinksTransitiveStaticLibraries(t *testing.T) {
 		t.Fatalf("transitively linked executable failed: %v", err)
 	}
 }
+
+func TestBuildObjectlessSharedLibraryPreservesLibraryOrder(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("requires GNU ld's left-to-right archive resolution")
+	}
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not installed")
+	}
+	t.Chdir(t.TempDir())
+	files := map[string]string{
+		"clue.cue": `name: "link-order"
+toolchain: compiler: "gcc"
+targets: {
+	entry: {type: "static_library", sources: ["entry.c"], linkWhole: true, pic: true}
+	api: {type: "shared_library", sources: ["api.c"]}
+	support: {type: "static_library", sources: ["support.c"], pic: true}
+	plugin: {type: "shared_library", depends: ["entry", "api", "support"], flags: linker: ["-Wl,--no-allow-shlib-undefined"]}
+}
+`,
+		"entry.c": "int api(void); int entry(void) { return api(); }\n",
+		// The shared API expects its consumer to supply this callback.
+		"api.c":     "int support(void); int api(void) { return support(); }\n",
+		"support.c": "int support(void) { return 42; }\n",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(name, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, err := config.NewLoader().Load(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Build(t.Context(), Options{
+		Config: cfg, Variant: "debug", BuildDir: cfg.BuildDir, Targets: []string{"plugin"}, Verbosity: VerbosityQuiet, Jobs: 1,
+	}, toolchain.HostPlatform()); err != nil {
+		t.Fatalf("linking shared library before its static callback provider: %v", err)
+	}
+}

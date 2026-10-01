@@ -14,13 +14,6 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-func linkInputPath(output, targetType string, platform toolchain.Platform) string {
-	if platform.OS == "windows" && targetType == "shared_library" {
-		return strings.TrimSuffix(output, filepath.Ext(output)) + ".lib"
-	}
-	return output
-}
-
 func addImportLibraryOutput(statement *ninja.Build, importLibrary string) {
 	if importLibrary == "" {
 		return
@@ -38,7 +31,7 @@ func ninjaArtifactPaths(artifacts []plan.Artifact, platform toolchain.Platform) 
 	paths := make([]string, 0, len(artifacts))
 	for _, artifact := range artifacts {
 		output := ninjaPathLocal(artifact.Path)
-		paths = append(paths, linkInputPath(output, artifact.Type, platform))
+		paths = append(paths, plan.LinkInputPath(output, artifact.Type, platform))
 	}
 	return paths
 }

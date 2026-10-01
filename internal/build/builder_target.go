@@ -379,12 +379,22 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		buildCfg.RawLinker = append(buildCfg.RawLinker, exportFlags...)
 
 		useCXX := dependencyPlan.UsesCXX
+		objects, libraries := linkObjects(b, objectFiles, dependencyPlan), dependencyPlan.Libraries
+		if len(objectFiles) == 0 {
+			// Zig runs the system linker for a link without input files, which
+			// cannot link for other platforms. Pass all libraries as files so
+			// static and shared dependencies keep their link order.
+			libraries = nil
+			for _, artifact := range dependencyPlan.LibraryArtifacts {
+				objects = append(objects, plan.LinkInputPath(artifact.Path, artifact.Type, b.target))
+			}
+		}
 		sharedOpts := plan.SharedLibraryOptions{
-			Objects:  linkObjects(b, objectFiles, dependencyPlan),
+			Objects:  objects,
 			Output:   outputPath,
 			SysLibs:  append(append(append([]string(nil), target.SysLibs...), usage.SysLibs...), dependencyPlan.SystemLibraries...),
 			LibPaths: dependencyPlan.LibraryPaths,
-			Libs:     dependencyPlan.Libraries,
+			Libs:     libraries,
 			Flags:    buildCfg,
 			UseCXX:   useCXX,
 			Bundle:   target.Type == "bundle",

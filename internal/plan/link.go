@@ -40,6 +40,15 @@ type ArchiveOptions struct {
 	Output  string   // Output static library path (e.g., libfoo.a)
 }
 
+// LinkInputPath returns the file to link, using a shared library's import
+// library on Windows.
+func LinkInputPath(output, targetType string, platform toolchain.Platform) string {
+	if platform.OS == "windows" && targetType == "shared_library" {
+		return strings.TrimSuffix(output, filepath.Ext(output)) + ".lib"
+	}
+	return output
+}
+
 // Link returns an executable linker invocation.
 func Link(tc toolchain.Toolchain, platform toolchain.Platform, opts LinkOptions) Invocation {
 	if tc.Name() == "msvc" {

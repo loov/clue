@@ -29,6 +29,7 @@ type Dependencies struct {
 	Artifacts          []Artifact
 	LibraryPaths       []string
 	Libraries          []string
+	LibraryArtifacts   []Artifact // the artifact of each of Libraries
 	LinkFiles          []string
 	SystemLibraries    []string
 	SharedLibraryPaths []string
@@ -64,6 +65,7 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 				default:
 					result.LibraryPaths = appendUnique(result.LibraryPaths, path)
 					result.Libraries = append(result.Libraries, deps.ArtifactName(dependency.Name))
+					result.LibraryArtifacts = append(result.LibraryArtifacts, Artifact{Path: dependency.Output, Type: artifactType})
 				}
 				if artifactType == "shared_library" {
 					result.SharedLibraryPaths = appendUnique(result.SharedLibraryPaths, path)
@@ -95,6 +97,7 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 			path := filepath.Dir(output)
 			result.LibraryPaths = appendUnique(result.LibraryPaths, path)
 			result.Libraries = append(result.Libraries, name)
+			result.LibraryArtifacts = append(result.LibraryArtifacts, Artifact{Path: output, Type: dependency.Type})
 			if dependency.Type == "shared_library" {
 				result.SharedLibraryPaths = appendUnique(result.SharedLibraryPaths, path)
 			}
