@@ -3,7 +3,7 @@ module github.com/loov/clue
 go 1.27
 
 require (
-	cuelang.org/go v0.18.0-alpha.2
+	cuelang.org/go v0.18.0-alpha.2.0.20261001214517-bed21870acf5
 	github.com/Duncaen/go-ninja v0.0.0-20190726135315-8e5210064eb2
 	github.com/bluekeyes/go-gitdiff v0.9.0
 	github.com/dominikbraun/graph v0.23.0
@@ -38,7 +38,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
-	github.com/protocolbuffers/txtpbfmt v0.0.0-20260803135053-1fd8a60d1ffc // indirect
+	github.com/protocolbuffers/txtpbfmt v0.0.0-20260916144827-6e6d8ebdba95 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
