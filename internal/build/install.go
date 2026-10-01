@@ -71,7 +71,8 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 	requested = slices.Clone(requested)
 	if len(requested) == 0 {
 		for name, target := range cfg.Targets {
-			if target.Type != "custom" && target.Type != "task" && target.Test == nil {
+			hostTarget := target.Host && cfg.Host != nil
+			if target.Type != "custom" && target.Type != "task" && target.Test == nil && !hostTarget {
 				requested = append(requested, name)
 			}
 		}
@@ -86,6 +87,9 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 		}
 		if target.Type == "custom" || target.Type == "task" {
 			return nil, fmt.Errorf("%s target %q has no installable artifact", target.Type, name)
+		}
+		if target.Host && cfg.Host != nil {
+			return nil, fmt.Errorf("host target %q is built for the machine running clue, not the installation", name)
 		}
 	}
 	slices.Sort(requested)

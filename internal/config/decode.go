@@ -314,6 +314,9 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 			t.SourceFlags[fields.Selector().Unquoted()] = extractStringList(sourceFlags, fields.Selector().String())
 		}
 	}
+	if host := extractOptionalBool(val, "host"); host != nil {
+		t.Host = *host
+	}
 	if linkWhole := extractOptionalBool(val, "linkWhole"); linkWhole != nil {
 		t.LinkWhole = *linkWhole
 	}

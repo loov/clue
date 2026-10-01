@@ -139,6 +139,15 @@ func WithSourceFlags(flags toolchain.Flags, source Source) toolchain.Flags {
 	return flags
 }
 
+// HostOutput returns the artifact of a host target of a cross build, which
+// the host configuration builds for the machine running clue.
+func HostOutput(cfg *config.Config, target config.Target, variant string) (string, bool) {
+	if !target.Host || cfg.Host == nil {
+		return "", false
+	}
+	return TargetOutput(target, cfg.Host.BuildDir, variant, toolchain.HostPlatform()), true
+}
+
 // TargetOutput returns the file a target links or archives: ArtifactPath,
 // or the module inside a bundle target's layout.
 func TargetOutput(target config.Target, buildDir, variant string, platform toolchain.Platform) string {

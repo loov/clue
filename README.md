@@ -123,6 +123,16 @@ toolchain: {
 }
 ```
 
+An executable with `host: true`, such as a code generator or a validator, is built for the machine
+running clue even with `--target`: with the configuration `clue.cue` gives for the host, into the
+host's build directory, together with the targets it depends on. `{output:name}` names the host
+build of it, `clue run` and `clue test` run it without the emulator, `clue install` leaves it out,
+and a cross Ninja file builds it by running `clue build`:
+
+```cue
+targets: gen: {type: "executable", host: true, sources: ["tools/gen.cpp"]}
+```
+
 On WASI, executables and bundles are `.wasm` files; a bundle or shared library is a reactor module
 with the listed `exports`, and Zig's libc++ is used without exceptions (`-fno-exceptions`).
 

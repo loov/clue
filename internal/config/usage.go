@@ -28,7 +28,7 @@ func CompileUsage(cfg *Config, target Target) Usage {
 		}
 		seen[name] = true
 		dependency, ok := cfg.Targets[name]
-		if !ok {
+		if !ok || dependency.Host {
 			return
 		}
 		usage.Includes = appendUnique(usage.Includes, dependency.Public.Includes...)
@@ -115,7 +115,7 @@ func TargetUsesCXX(cfg *Config, target Target) bool {
 			return true
 		}
 		for _, name := range current.Depends {
-			if dependency, ok := cfg.Targets[name]; ok && visit(dependency) {
+			if dependency, ok := cfg.Targets[name]; ok && !dependency.Host && visit(dependency) {
 				return true
 			}
 			if dependency, ok := cfg.Dependencies[name]; ok {

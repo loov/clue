@@ -26,6 +26,9 @@ package config
 	cStd?: string
 	cxxStd?: string
 	depends?: [...string]  // Other target names
+	// An executable built for the machine running clue, also when cross
+	// compiling, such as a code generator or a validator
+	host?: bool
 	test?: {
 		args?: [...string]
 		env?: [string]: string
@@ -121,6 +124,7 @@ package config
 	}
 	if type != "executable" {
 		test?: _|_
+		host?: _|_
 	}
 }
 

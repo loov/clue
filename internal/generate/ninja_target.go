@@ -48,6 +48,14 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	if target.Type == "task" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
+	if output, ok := plan.HostOutput(opts.Config, target, variant); ok {
+		output = ninjaPathLocal(output)
+		*file = append(*file, ninja.Build{
+			Rule: "host_target", Out: []string{output}, InImplicit: []string{"force_external"},
+			Vars: ninja.Vars{{Key: "target", Val: target.Name}, {Key: "variant", Val: variant}},
+		})
+		return []string{output}, nil
+	}
 	if target.Type == "custom" {
 		expanded, err := plan.ExpandCustomTarget(opts.Config, target, opts.BuildDir, variant, opts.Platform)
 		if err != nil {

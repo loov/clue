@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -124,12 +125,47 @@ func (b *Builder) outputPath(buildDir, variant, target, targetType string) strin
 	return plan.ArtifactPath(buildDir, variant, target, targetType, b.target)
 }
 
+// Build creates the builders required by the selected targets and builds them.
+// A selection containing only host targets and tasks needs no cross toolchain.
+func Build(ctx context.Context, opts Options, platform toolchain.Platform) (*Result, error) {
+	selected, hostTargets := selectTargets(opts.Config, opts.Targets)
+	onlyHost := len(hostTargets) > 0
+	for name := range selected {
+		target := opts.Config.Targets[name]
+		if target.Type != "task" || len(externalDependencies(opts.Config, target)) > 0 {
+			onlyHost = false
+			break
+		}
+	}
+	if onlyHost {
+		if _, err := config.ComputeBuildOrder(opts.Config); err != nil {
+			return nil, err
+		}
+		start := time.Now()
+		targets, err := buildHostTargets(ctx, opts, hostTargets)
+		return &Result{Targets: targets, Duration: time.Since(start), Success: err == nil}, err
+	}
+	builder, err := NewConfiguredBuilder(opts.Config.Toolchain, platform, opts.Config.Dir, opts.Verbosity, opts.Jobs, opts.KeepGoing)
+	if err != nil {
+		return nil, err
+	}
+	return builder.Build(ctx, opts)
+}
+
 // Build builds all targets in dependency order
 func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err error) {
 	start := time.Now()
 	for _, target := range opts.Targets {
 		if _, ok := opts.Config.Targets[target]; !ok {
 			return nil, fmt.Errorf("target %q not found", target)
+		}
+	}
+	selected, hostTargets := selectTargets(opts.Config, opts.Targets)
+	var hostResults []TargetResult
+	if len(hostTargets) > 0 {
+		hostResults, err = buildHostTargets(ctx, opts, hostTargets)
+		if err != nil {
+			return &Result{Targets: hostResults, Duration: time.Since(start), Success: false}, err
 		}
 	}
 
@@ -178,26 +214,6 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine build order: %w", err)
 	}
-	var selected map[string]bool
-	if len(opts.Targets) > 0 {
-		selected = make(map[string]bool)
-		var include func(string)
-		include = func(name string) {
-			if selected[name] {
-				return
-			}
-			selected[name] = true
-			for _, dependency := range opts.Config.Targets[name].Depends {
-				if _, internal := opts.Config.Targets[dependency]; internal {
-					include(dependency)
-				}
-			}
-		}
-		for _, target := range opts.Targets {
-			include(target)
-		}
-	}
-
 	// Count total source files for progress
 	totalSources := 0
 	for _, targetName := range buildOrder {
@@ -213,6 +229,7 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 	progress := newProgress(totalSources, opts.Verbosity)
 
 	results, err := b.buildTargets(ctx, opts, buildOrder, selected, progress)
+	results = append(hostResults, results...)
 	if depErr := b.depBuilds.waitAll(); depErr != nil {
 		// The dependency's error explains the targets it stopped.
 		err = errors.Join(fmt.Errorf("failed to build dependencies: %w", depErr), err)
@@ -252,6 +269,58 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 		Duration: time.Since(start),
 		Success:  true,
 	}, nil
+}
+
+// selectTargets returns the targets to build, those named and the targets
+// they depend on, or nil for all of them. The host targets of a cross build
+// are returned apart, as the host configuration builds them.
+func selectTargets(cfg *config.Config, names []string) (selected map[string]bool, host []string) {
+	if len(names) == 0 {
+		if cfg.Host == nil {
+			return nil, nil
+		}
+		names = slices.Sorted(maps.Keys(cfg.Targets))
+	}
+	selected = make(map[string]bool)
+	var include func(string)
+	include = func(name string) {
+		target := cfg.Targets[name]
+		if target.Host && cfg.Host != nil {
+			if !slices.Contains(host, name) {
+				host = append(host, name)
+			}
+			return
+		}
+		if selected[name] {
+			return
+		}
+		selected[name] = true
+		for _, dependency := range target.Depends {
+			if _, internal := cfg.Targets[dependency]; internal {
+				include(dependency)
+			}
+		}
+	}
+	for _, name := range names {
+		include(name)
+	}
+	return selected, host
+}
+
+// buildHostTargets builds host targets of a cross build, with the targets
+// they depend on, for the machine running clue.
+func buildHostTargets(ctx context.Context, opts Options, names []string) ([]TargetResult, error) {
+	host := opts.Config.Host
+	builder, err := NewConfiguredBuilder(host.Toolchain, toolchain.HostPlatform(), ".", opts.Verbosity, opts.Jobs, opts.KeepGoing)
+	if err != nil {
+		return nil, fmt.Errorf("host targets: %w", err)
+	}
+	opts.Config, opts.BuildDir, opts.Targets = host, host.BuildDir, names
+	result, err := builder.Build(ctx, opts)
+	if result == nil {
+		return nil, err
+	}
+	return result.Targets, err
 }
 
 // errDependencyFailed marks targets skipped because a target they depend on failed.
@@ -634,7 +703,9 @@ func externalDependencies(cfg *config.Config, target config.Target) []string {
 			}
 			seen[name] = true
 			if dependency, ok := cfg.Targets[name]; ok {
-				visit(dependency)
+				if !dependency.Host {
+					visit(dependency)
+				}
 			} else if _, ok := cfg.Dependencies[name]; ok {
 				names = append(names, name)
 			}

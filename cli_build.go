@@ -120,13 +120,6 @@ func runBuild(ctx context.Context, dir, variant, target string, verbosity build.
 		}
 	}
 
-	// Create builder with toolchain and target platform
-	builder, err := build.NewConfiguredBuilder(cfg.Toolchain, targetPlatform, dir, verbosity, actualJobs, keepGoing)
-	if err != nil {
-		printError(err)
-		return 1
-	}
-
 	// Build options
 	opts := build.Options{
 		Config:       cfg,
@@ -142,7 +135,7 @@ func runBuild(ctx context.Context, dir, variant, target string, verbosity build.
 		TopN:         topN,
 	}
 
-	result, err := builder.Build(ctx, opts)
+	result, err := build.Build(ctx, opts, targetPlatform)
 	if ctx.Err() != nil {
 		return 1
 	}

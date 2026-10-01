@@ -95,6 +95,9 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 				}
 				return absolute(expanded.Outputs[0])
 			default:
+				if output, ok := HostOutput(cfg, dependency, variant); ok {
+					return absolute(output)
+				}
 				return absolute(TargetOutput(dependency, buildDir, variant, platform))
 			}
 			return match

@@ -64,6 +64,10 @@ type Config struct {
 	// Tools are the programs that commands refer to as {tool:name}
 	Tools map[string]Tool
 
+	// Host is the configuration for the machine running clue, which builds
+	// the host targets of a cross build; nil when there are none
+	Host *Config
+
 	target     toolchain.Platform // platform used to evaluate dependency descriptions
 	declaredBy map[string]string  // who declared each dependency, for conflict messages
 	expanded   map[string]bool    // dependencies whose own declarations were added
@@ -155,6 +159,7 @@ type Target struct {
 	Bundle           BundleSettings      // layout of a "bundle" target
 	Test             *Test
 	Unity            *UnityBuild
+	Host             bool // built for the machine running clue, also when cross compiling
 }
 
 // UnityBuild combines compatible sources into larger translation units.

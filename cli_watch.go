@@ -87,13 +87,6 @@ func runWatch(ctx context.Context, dir, variant, target string, verbosity build.
 		currentCancel = cancel
 		buildMu.Unlock()
 
-		// Create builder
-		builder, err := build.NewConfiguredBuilder(cfg.Toolchain, targetPlatform, dir, verbosity, actualJobs, keepGoing)
-		if err != nil {
-			printError(err)
-			return
-		}
-
 		// Build options
 		opts := build.Options{
 			Config:    cfg,
@@ -105,7 +98,7 @@ func runWatch(ctx context.Context, dir, variant, target string, verbosity build.
 		}
 
 		// Run build
-		_, err = builder.Build(buildCtx, opts)
+		_, err := build.Build(buildCtx, opts, targetPlatform)
 		if errors.Is(buildCtx.Err(), context.Canceled) {
 			if ctx.Err() == nil {
 				fmt.Println("Build interrupted - new changes detected")

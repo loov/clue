@@ -49,7 +49,8 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 		platform = toolchain.HostPlatform()
 	}
 	var emulator []string
-	if target.Type == "executable" {
+	// Host targets of a cross build run on the machine running clue.
+	if target.Type == "executable" && (!target.Host || opts.Config.Host == nil) {
 		var err error
 		if emulator, err = Emulator(opts.Config, platform); err != nil {
 			return nil, err
@@ -57,18 +58,15 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 	}
 	var result *Result
 	if target.Type == "executable" || len(target.Depends) > 0 {
-		builder, err := NewConfiguredBuilder(opts.Config.Toolchain, platform, ".", opts.Verbosity, opts.Jobs, false)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create builder: %w", err)
-		}
-		result, err = builder.Build(ctx, Options{
+		var err error
+		result, err = Build(ctx, Options{
 			Config:    opts.Config,
 			Variant:   opts.Variant,
 			BuildDir:  opts.BuildDir,
 			Verbosity: opts.Verbosity,
 			Targets:   []string{opts.Target},
 			Jobs:      opts.Jobs,
-		})
+		}, platform)
 		if err != nil || !result.Success {
 			return nil, fmt.Errorf("build failed: %w", err)
 		}

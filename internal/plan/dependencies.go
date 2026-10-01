@@ -81,6 +81,10 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 		if !ok {
 			return fmt.Errorf("unknown dependency or target: %q", name)
 		}
+		// Host executables are build prerequisites, not link dependencies.
+		if dependency.Host {
+			return nil
+		}
 		if dependency.Type == "static_library" && dependency.LinkWhole {
 			output := ArtifactPath(buildDir, variant, name, dependency.Type, platform)
 			result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: dependency.Type})

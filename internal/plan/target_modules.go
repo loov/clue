@@ -164,7 +164,7 @@ func DependencyModuleOutputs(cfg *config.Config, target config.Target, targets m
 		}
 		seen[name] = true
 		dependency, ok := cfg.Targets[name]
-		if !ok {
+		if !ok || dependency.Host {
 			return nil
 		}
 		for module, output := range targets[name] {

@@ -334,7 +334,7 @@ func targetCustomOutputs(cfg *config.Config, target config.Target, buildDir, var
 	visit = func(current config.Target) {
 		for _, name := range current.Depends {
 			dependency, ok := cfg.Targets[name]
-			if !ok || seen[name] {
+			if !ok || dependency.Host || seen[name] {
 				continue
 			}
 			seen[name] = true
@@ -370,6 +370,10 @@ func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir,
 			case "bundle":
 				outputs = append(outputs, bundleOutputs(dependency, buildDir, variant, platform)...)
 			default:
+				if output, ok := plan.HostOutput(cfg, dependency, variant); ok {
+					outputs = append(outputs, output)
+					continue
+				}
 				outputs = append(outputs, outputPathForTarget(buildDir, variant, dependency.Name, dependency.Type, platform))
 			}
 			continue

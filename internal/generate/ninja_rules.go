@@ -66,5 +66,8 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 		Name: "external_dep", Command: "$clue -quiet -variant $variant -target $platform deps build $dep", Description: "EXTERNAL $dep", Restat: true,
 	}, ninja.Rule{
 		Name: "custom", Command: "$cmd", Description: "CUSTOM $target",
+	}, ninja.Rule{
+		// clue builds the host targets of a cross build for the machine running it.
+		Name: "host_target", Command: "$clue -quiet -variant $variant build $target", Description: "HOST $target", Restat: true,
 	})
 }

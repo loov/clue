@@ -48,3 +48,28 @@ func TestRuntimeLibraryFlags(t *testing.T) {
 		t.Errorf("runtime flags = %q, want [%q]", got, want)
 	}
 }
+
+func TestHostGeneratorDoesNotExportItsDependencies(t *testing.T) {
+	cfg := &config.Config{Targets: map[string]config.Target{
+		"app":    {Name: "app", Type: "executable", Sources: []string{"app.c"}, Depends: []string{"header"}},
+		"header": {Name: "header", Type: "custom", Depends: []string{"gen"}},
+		"gen":    {Name: "gen", Type: "executable", Host: true, Depends: []string{"helper"}},
+		"helper": {Name: "helper", Type: "static_library", Sources: []string{"helper.cpp"}, Public: config.Usage{Defines: []string{"HOST_ONLY"}}},
+	}}
+	app := cfg.Targets["app"]
+	usage := config.CompileUsage(cfg, app)
+	if len(usage.Defines) != 0 || config.TargetUsesCXX(cfg, app) {
+		t.Fatalf("host requirements leaked into app: %+v", usage)
+	}
+	dependencies, err := ResolveDependencies(cfg, app, ".build/cross", "debug", toolchain.Platform{OS: "linux", Arch: "arm64"}, nil)
+	if err != nil || len(dependencies.Artifacts) != 0 {
+		t.Fatalf("host link dependencies leaked into app: %+v, %v", dependencies, err)
+	}
+	modules, err := DependencyModuleOutputs(cfg, app, map[string]map[string]string{"helper": {"private": "host.pcm"}})
+	if err != nil || len(modules) != 0 {
+		t.Fatalf("host modules leaked into app: %v, %v", modules, err)
+	}
+	if !config.TargetUsesCXX(cfg, cfg.Targets["gen"]) {
+		t.Fatal("host generator lost its own C++ dependency")
+	}
+}

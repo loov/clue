@@ -33,11 +33,6 @@ func runTests(ctx context.Context, dir, variant, target string, verbosity build.
 		printError(err)
 		return 1
 	}
-	emulator, err := build.Emulator(cfg, platform)
-	if err != nil {
-		printError(err)
-		return 1
-	}
 	targets, err := selectConfiguredTests(cfg, selectors)
 	if err != nil {
 		printError(err)
@@ -59,7 +54,15 @@ func runTests(ctx context.Context, dir, variant, target string, verbosity build.
 	cases := make([]build.TestCase, 0, len(targets))
 	for _, name := range targets {
 		configured := cfg.Targets[name].Test
-		executable, err := filepath.Abs(filepath.Join(cfg.BuildDir, selectedVariant, "bin", plan.ExecutableName(name, platform)))
+		executable := filepath.Join(cfg.BuildDir, selectedVariant, "bin", plan.ExecutableName(name, platform))
+		var emulator []string
+		if output, ok := plan.HostOutput(cfg, cfg.Targets[name], selectedVariant); ok {
+			executable = output
+		} else if emulator, err = build.Emulator(cfg, platform); err != nil {
+			printError(err)
+			return 1
+		}
+		executable, err = filepath.Abs(executable)
 		if err != nil {
 			printError(err)
 			return 1

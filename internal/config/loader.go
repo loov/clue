@@ -77,6 +77,14 @@ func (l *Loader) LoadForTarget(dir string, target toolchain.Platform) (*Config, 
 	// host build's outputs or share its compile cache.
 	if target.IsCrossCompile() {
 		cfg.BuildDir = filepath.Join(cfg.BuildDir, target.String())
+		for _, configured := range cfg.Targets {
+			if configured.Host {
+				if cfg.Host, err = l.LoadForTarget(dir, toolchain.HostPlatform()); err != nil {
+					return nil, fmt.Errorf("configuration for the host targets: %w", err)
+				}
+				break
+			}
+		}
 	}
 	return cfg, nil
 }

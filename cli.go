@@ -191,14 +191,27 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 		fmt.Printf("  Variants: %d\n", len(cfg.Variants))
 	}
 
-	// Select and apply variant
 	selectedVariant := config.SelectConfigVariant(cfg, variant)
+	host := cfg.Host
+	if cfg, err = prepareConfig(cfg, selectedVariant, verbosity); err != nil {
+		return nil, "", toolchain.Platform{}, err
+	}
+	if host != nil {
+		if cfg.Host, err = prepareConfig(host, selectedVariant, build.VerbosityQuiet); err != nil {
+			return nil, "", toolchain.Platform{}, fmt.Errorf("configuration for the host targets: %w", err)
+		}
+	}
+	return cfg, selectedVariant, platform, nil
+}
 
+// prepareConfig applies the variant and the environment variables to cfg.
+func prepareConfig(cfg *config.Config, selectedVariant string, verbosity build.Verbosity) (*config.Config, error) {
 	// Only apply variant if variants are defined
 	if len(cfg.Variants) > 0 {
+		var err error
 		cfg, err = config.ApplyVariant(cfg, selectedVariant)
 		if err != nil {
-			return nil, "", toolchain.Platform{}, err
+			return nil, err
 		}
 		if verbosity >= build.VerbosityNormal {
 			fmt.Printf("Applied variant: %s\n", selectedVariant)
@@ -210,14 +223,14 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 	// Resolve environment variables
 	env, err := config.ResolveEnvVars(cfg)
 	if err != nil {
-		return nil, "", toolchain.Platform{}, err
+		return nil, err
 	}
 
 	// Apply environment-based conditionals to config
 	if len(env.Variables) > 0 {
 		cfg, err = config.ApplyEnvVars(cfg, env)
 		if err != nil {
-			return nil, "", toolchain.Platform{}, err
+			return nil, err
 		}
 	}
 
@@ -229,8 +242,7 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 		names := slices.Sorted(maps.Keys(env.Variables))
 		fmt.Printf("Environment variables configured: %s\n", strings.Join(names, ", "))
 	}
-
-	return cfg, selectedVariant, platform, nil
+	return cfg, nil
 }
 
 func printError(err error) {
