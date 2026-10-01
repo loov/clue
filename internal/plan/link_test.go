@@ -55,6 +55,20 @@ func TestExportAndWholeArchiveArguments(t *testing.T) {
 	if got, want := WholeArchiveArguments(gnu, darwin, []string{"libx.a"}), []string{"-Wl,-force_load,libx.a"}; !slices.Equal(got, want) {
 		t.Errorf("darwin whole archive = %q, want %q", got, want)
 	}
+
+	// Clang for the MSVC ABI links with link.exe; MinGW GCC with GNU ld.
+	windows := toolchain.Platform{OS: "windows", Arch: "amd64"}
+	clang := gccish.New("clang", "clang", "clang++", "llvm-ar", windows)
+	if got, want := ExportArguments(clang, windows, []string{"entry"}, ""), []string{"-Wl,-include:entry", "-Wl,-export:entry"}; !slices.Equal(got, want) {
+		t.Errorf("windows clang exports = %q, want %q", got, want)
+	}
+	if got, want := WholeArchiveArguments(clang, windows, []string{"x.lib"}), []string{"-Wl,-wholearchive:x.lib"}; !slices.Equal(got, want) {
+		t.Errorf("windows clang whole archive = %q, want %q", got, want)
+	}
+	mingw := gccish.New("gcc", "x86_64-w64-mingw32-gcc", "x86_64-w64-mingw32-g++", "ar", windows)
+	if got, want := ExportArguments(mingw, windows, []string{"entry"}, ""), []string{"-Wl,-u,entry"}; !slices.Equal(got, want) {
+		t.Errorf("mingw exports = %q, want %q", got, want)
+	}
 }
 
 func TestWASIModules(t *testing.T) {

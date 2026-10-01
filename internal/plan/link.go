@@ -97,8 +97,7 @@ func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts Shared
 	args = append(args, opts.Objects...)
 	args = append(args, "-o", opts.Output)
 	if importLibrary != "" {
-		compiler := strings.ToLower(tc.CC())
-		if tc.Name() == "gcc" || tc.Name() == "zig" || strings.Contains(compiler, "mingw") || strings.Contains(compiler, "w64") {
+		if gnuWindowsLinker(tc) {
 			args = append(args, "-Wl,--out-implib,"+importLibrary)
 		} else {
 			args = append(args, "-Wl,-implib:"+importLibrary)
@@ -186,6 +185,8 @@ func WholeArchiveArguments(tc toolchain.Toolchain, platform toolchain.Platform, 
 		switch {
 		case tc.Name() == "msvc":
 			args = append(args, "/WHOLEARCHIVE:"+archive)
+		case platform.OS == "windows" && !gnuWindowsLinker(tc):
+			args = append(args, "-Wl,-wholearchive:"+archive)
 		case platform.OS == "darwin":
 			args = append(args, "-Wl,-force_load,"+archive)
 		default:
@@ -193,6 +194,14 @@ func WholeArchiveArguments(tc toolchain.Toolchain, platform toolchain.Platform, 
 		}
 	}
 	return args
+}
+
+// gnuWindowsLinker reports whether tc links Windows outputs with the options
+// of GNU ld (MinGW GCC, zig) rather than those of link.exe, which Clang uses
+// for the MSVC ABI.
+func gnuWindowsLinker(tc toolchain.Toolchain) bool {
+	compiler := strings.ToLower(tc.CC())
+	return tc.Name() == "gcc" || tc.Name() == "zig" || strings.Contains(compiler, "mingw") || strings.Contains(compiler, "w64")
 }
 
 // ExportArguments returns linker arguments that keep the given C symbols in
@@ -205,6 +214,8 @@ func ExportArguments(tc toolchain.Toolchain, platform toolchain.Platform, symbol
 		switch {
 		case tc.Name() == "msvc":
 			args = append(args, "/INCLUDE:"+symbol, "/EXPORT:"+symbol)
+		case platform.OS == "windows" && !gnuWindowsLinker(tc):
+			args = append(args, "-Wl,-include:"+symbol, "-Wl,-export:"+symbol)
 		case platform.OS == "darwin":
 			args = append(args, "-Wl,-u,_"+symbol, "-Wl,-exported_symbol,_"+symbol)
 		case platform.IsWASI():
