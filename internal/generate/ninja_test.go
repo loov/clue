@@ -1117,7 +1117,7 @@ func TestNinja_LinksWholeArchivesInPlace(t *testing.T) {
 
 func TestNinjaShellCommand_KeepsMultilineArgumentsOnOneLine(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("cmd.exe cannot pass a newline in an argument")
+		t.Skip("no Windows command line carries a newline; ninjaArgvCommand writes such commands to a file")
 	}
 	command := []string{"sh", "-c", "set -e\necho 'a b' \"$1\"\n", "name", "x y"}
 	quoted := ninjaShellCommand(command)
@@ -1341,7 +1341,7 @@ func TestNinja_CustomStdoutReplacedOnlyOnSuccess(t *testing.T) {
 	}
 	for _, exit := range []string{"1", "0"} {
 		target := config.Target{Stdout: output, Command: []string{"sh", "-c", "printf replacement; exit " + exit}}
-		command := strings.ReplaceAll(ninjaCustomCommand(target), "$$", "$")
+		command := strings.ReplaceAll(ninjaCustomCommand(target, ninjaShellCommand(target.Command)), "$$", "$")
 		err := exec.CommandContext(t.Context(), "sh", "-c", command).Run()
 		if (err != nil) != (exit == "1") {
 			t.Fatalf("exit %s: %v", exit, err)

@@ -98,6 +98,7 @@ func registerCommands(commands clingy.Commands, options *options) {
 	commands.New("test", "build and run configured tests", &testCommand{options: options})
 	commands.New("install", "build and install targets", &installCommand{options: options})
 	commands.New("watch", "rebuild when project files change", &watchCommand{options: options})
+	commands.New("exec", "run the command in a JSON argument file (used by generated Ninja files)", &execCommand{})
 }
 
 // runCLI executes Clue with args and returns its process exit code.

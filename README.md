@@ -162,6 +162,8 @@ compiles WASI code with `-fno-exceptions`.
 - `clue deps <list|fetch|build|clean|update|tidy>` manages external dependencies.
 - `clue generate <ninja|compile-commands|all>` writes build files for editors and other tools.
 - `clue generate schema` writes the `loov.dev/clue` schema into the CUE module, for `cue` and editors.
+- `clue exec <file>` runs the command in a JSON list of arguments. Ninja files generated on
+  Windows use it for arguments with newlines, which no Windows command line can hold.
 - `clue help [command]` and `clue version`.
 
 `clue format` walks directories recursively. It skips `cue.mod`, hidden directories and

@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -60,10 +61,14 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			return nil, fmt.Errorf("custom target %q uses variant placeholders, so each variant needs its own outputs: add {variant} or {buildDir} to its outputs", target.Name)
 		}
 		if emitSharedRules || perVariant {
+			command, commandFiles, err := ninjaArgvCommand(expanded.Command, filepath.Join(opts.BuildDir, variant, target.Name, "command.json"), hostWindows)
+			if err != nil {
+				return nil, err
+			}
 			*file = append(*file, ninja.Build{
-				Rule: "custom", In: ninjaPaths(expanded.Inputs), Out: ninjaPaths(expanded.Outputs),
+				Rule: "custom", In: ninjaPaths(expanded.Inputs), Out: ninjaPaths(expanded.Outputs), InImplicit: commandFiles,
 				InOrderOnly: ninjaPaths(targetDependencyOutputs(opts.Config, target, opts.BuildDir, variant, opts.Platform)),
-				Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaCustomCommand(expanded)}},
+				Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaCustomCommand(expanded, command)}},
 			})
 		}
 		return expanded.Outputs, nil
@@ -347,23 +352,27 @@ if [ -n "$5" ]; then
   out=$(codesign --force --sign "$5" "$4" 2>&1) || { echo "$out" >&2; exit 1; }
 fi
 touch "$6"`
+	command, commandFiles, err := ninjaArgvCommand([]string{
+		"sh", "-c", script, "bundle", NinjaPath(source), NinjaPath(bundle.InfoPlist), NinjaPath(bundle.PkgInfo),
+		NinjaPath(bundle.Dir), bundle.Sign, NinjaPath(stamp), NinjaPath(bundle.Binary), NinjaPath(bundle.Module),
+	}, filepath.Join(opts.BuildDir, variant, target.Name, "bundle.json"), hostWindows)
+	if err != nil {
+		return "", err
+	}
 	*file = append(*file, ninja.Build{
-		Rule: "custom", In: []string{module, ninjaPathLocal(source)}, Out: []string{stamp},
+		Rule: "custom", In: []string{module, ninjaPathLocal(source)}, Out: []string{stamp}, InImplicit: commandFiles,
 		OutImplicit: ninjaPaths([]string{bundle.Binary, bundle.InfoPlist, bundle.PkgInfo}),
-		Vars: ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: ninjaShellCommand([]string{
-			"sh", "-c", script, "bundle", NinjaPath(source), NinjaPath(bundle.InfoPlist), NinjaPath(bundle.PkgInfo),
-			NinjaPath(bundle.Dir), bundle.Sign, NinjaPath(stamp), NinjaPath(bundle.Binary), NinjaPath(bundle.Module),
-		})}},
+		Vars:        ninja.Vars{{Key: "target", Val: target.Name}, {Key: "cmd", Val: command}},
 	})
 	return stamp, nil
 }
 
 // ninjaCustomCommand returns a custom target's command line, run in its
 // working directory and with its standard output redirected when set. It is
-// for the host's shell, which runs Ninja, also when cross-compiling.
-func ninjaCustomCommand(target config.Target) string {
+// for the host's shell, which runs Ninja, also when cross-compiling; command
+// runs target.Command (see ninjaArgvCommand).
+func ninjaCustomCommand(target config.Target, command string) string {
 	platform := toolchain.HostPlatform()
-	command := ninjaShellCommand(target.Command)
 	quote := func(path string) string { return ninjaShellCommand([]string{NinjaPath(path)}) }
 	if target.Stdout != "" {
 		stdout := target.Stdout
@@ -396,6 +405,31 @@ func ninjaCustomCommand(target config.Target) string {
 		return "cmd /c " + command
 	}
 	return command
+}
+
+// hostWindows is whether Ninja runs commands on Windows.
+var hostWindows = toolchain.HostPlatform().OS == "windows"
+
+// ninjaArgvCommand returns the Ninja command that runs argv on the host, and
+// the files it reads. A Ninja command is one line, and on Windows no quoting
+// carries a newline in an argument, so there an argv with a multi-line
+// argument is written to argsFile as JSON, which "clue exec" runs.
+func ninjaArgvCommand(argv []string, argsFile string, windows bool) (string, []string, error) {
+	if !windows || !slices.ContainsFunc(argv, func(argument string) bool { return strings.Contains(argument, "\n") }) {
+		return ninjaShellCommand(argv), nil, nil
+	}
+	data, err := json.Marshal(argv)
+	if err != nil {
+		return "", nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(argsFile), 0o755); err != nil {
+		return "", nil, err
+	}
+	// An unchanged file keeps its time, so the command does not run again.
+	if err := writeIfChanged(argsFile, data); err != nil {
+		return "", nil, err
+	}
+	return "$clue exec " + ninjaShellCommand([]string{NinjaPath(argsFile)}), []string{ninjaPathLocal(argsFile)}, nil
 }
 
 // ninjaShellCommand quotes a custom target's argument vector for the ninja
