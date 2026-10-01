@@ -139,6 +139,18 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		}
 	}
 
+	if tools := val.LookupPath(cue.ParsePath("tools")); tools.Exists() {
+		cfg.Tools = make(map[string]Tool)
+		fields, _ := tools.Fields()
+		for fields.Next() {
+			value := fields.Value()
+			cfg.Tools[fields.Selector().Unquoted()] = Tool{
+				Find: extractStringList(value, "find"), Env: extractOptionalString(value, "env"),
+				Install: extractOptionalString(value, "install"),
+			}
+		}
+	}
+
 	// Extract dependencies
 	if depVal := val.LookupPath(cue.ParsePath("dependencies")); depVal.Exists() {
 		deps, err := l.extractDependencies(depVal)

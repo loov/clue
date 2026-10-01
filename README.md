@@ -442,6 +442,22 @@ targets: validate: {
 Tasks take the placeholders of custom targets and a `workingDirectory`. Other targets cannot
 depend on a task, and tasks are not part of generated Ninja files.
 
+### Tools
+
+Programs that commands run but the project does not build are declared under `tools`, and
+commands of custom targets, tasks and test `args` refer to them as `{tool:name}`. Clue uses the
+program that `env` names when that variable is set, else the first of `find` in `PATH` (or at
+that path), and reports `install` when it finds none:
+
+```cue
+tools: clangFormat: {
+    find:    ["clang-format", "/opt/homebrew/opt/llvm/bin/clang-format"]
+    env:     "CLANG_FORMAT"
+    install: "brew install clang-format"
+}
+targets: fmt: {type: "task", command: ["{tool:clangFormat}", "-i", "src/main.cpp"]}
+```
+
 ### Plugins and other loadable modules
 
 A `bundle` target links a loadable module. On macOS it is linked with `-bundle` and placed in

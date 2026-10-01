@@ -15,6 +15,9 @@ import (
 // custom target commands, inputs and outputs.
 var customPlaceholder = regexp.MustCompile(`\{(variant|buildDir|output:[a-zA-Z][a-zA-Z0-9_-]*)\}`)
 
+// toolPlaceholder matches {tool:<name>}, a program declared under tools.
+var toolPlaceholder = regexp.MustCompile(`\{tool:[a-zA-Z][a-zA-Z0-9_-]*\}`)
+
 // expandVariantPaths substitutes {variant} and {buildDir} in include paths, so
 // targets can include files that per-variant custom targets generate.
 func expandVariantPaths(paths []string, buildDir, variant string) []string {
@@ -40,8 +43,9 @@ func CustomTargetPerVariant(target config.Target) bool {
 
 // ExpandCustomTarget substitutes the placeholders of a custom target or a task
 // for one variant: {variant} is the variant name, {buildDir} the variant's
-// build directory and {output:name} the artifact of target name, which must be
-// listed in depends (the configuration adds those named in command and inputs).
+// build directory, {output:name} the artifact of target name, which must be
+// listed in depends (the configuration adds those named in command and inputs),
+// and {tool:name} the program that tool name finds.
 func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) (config.Target, error) {
 	if target.Type != "custom" && target.Type != "task" {
 		return target, nil
@@ -58,6 +62,14 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 		return path
 	}
 	expand := func(value string) string {
+		value = toolPlaceholder.ReplaceAllStringFunc(value, func(match string) string {
+			path, err := cfg.ToolPath(match[len("{tool:") : len(match)-1])
+			if err != nil {
+				expandErr = fmt.Errorf("%s %q: %w", target.Type, target.Name, err)
+				return match
+			}
+			return path
+		})
 		return customPlaceholder.ReplaceAllStringFunc(value, func(match string) string {
 			key := match[1 : len(match)-1]
 			switch key {

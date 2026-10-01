@@ -181,6 +181,16 @@ package config
 	}
 }
 
+// A program the project runs but does not build, for {tool:name} in commands
+#Tool: {
+	// Names to look up in PATH, or paths, tried in order
+	find: [...string] & [_, ...]
+	// Environment variable that gives the program instead, when set
+	env?: string
+	// How to install the program, shown when it is not found
+	install?: string
+}
+
 // Inline build configuration for dependencies without clue.cue
 #InlineBuildConfig: {
 	sources?: [...string]
@@ -371,6 +381,9 @@ package config
 
 	// Environment-based conditionals
 	env?: [string]: #EnvVar
+
+	// Programs that commands refer to as {tool:name}
+	tools?: [string]: #Tool
 
 	// External dependencies
 	dependencies?: #Dependencies

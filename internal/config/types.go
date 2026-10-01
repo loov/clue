@@ -1,7 +1,11 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"maps"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -52,6 +56,9 @@ type Config struct {
 
 	// Overrides replace source fields of dependencies wherever declared
 	Overrides map[string]Override
+
+	// Tools are the programs that commands refer to as {tool:name}
+	Tools map[string]Tool
 
 	target     toolchain.Platform // platform used to evaluate dependency descriptions
 	declaredBy map[string]string  // who declared each dependency, for conflict messages
@@ -223,6 +230,44 @@ type BundleSettings struct {
 	Identifier string // CFBundleIdentifier of a generated Info.plist (macOS)
 	Sign       string // codesign identity (macOS); "-" signs ad hoc, "" not at all
 	Layout     string // "file" (default) or "vst3": the VST3 bundle folder on Linux and Windows
+}
+
+// Tool is a program that the project runs but does not build.
+type Tool struct {
+	Find    []string // names to look up in PATH, or paths
+	Env     string   // environment variable that gives the program instead
+	Install string   // how to install the program
+}
+
+// ToolPath returns the program that tool name refers to: the value of its
+// environment variable when set, else the first of its names found.
+func (cfg *Config) ToolPath(name string) (string, error) {
+	tool, ok := cfg.Tools[name]
+	if !ok {
+		return "", fmt.Errorf("{tool:%s} names an undeclared tool; declare it under tools", name)
+	}
+	if tool.Env != "" {
+		if value := os.Getenv(tool.Env); value != "" {
+			path, err := exec.LookPath(value)
+			if err != nil {
+				return "", fmt.Errorf("tool %q from %s: %w", name, tool.Env, err)
+			}
+			return filepath.Abs(path)
+		}
+	}
+	for _, candidate := range tool.Find {
+		if path, err := exec.LookPath(candidate); err == nil {
+			return filepath.Abs(path)
+		}
+	}
+	message := fmt.Sprintf("tool %q not found; tried %s", name, strings.Join(tool.Find, ", "))
+	if tool.Install != "" {
+		message += fmt.Sprintf("; install it with %q", tool.Install)
+	}
+	if tool.Env != "" {
+		message += fmt.Sprintf(" or set %s to its path", tool.Env)
+	}
+	return "", errors.New(message)
 }
 
 // Override replaces source fields of a dependency; empty fields keep theirs.
