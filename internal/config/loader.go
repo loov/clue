@@ -10,6 +10,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
 	cueerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
@@ -53,7 +54,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if target.OS == "" || target.Arch == "" {
 		target = toolchain.HostPlatform()
 	}
-	val, err := l.buildValue(absDir, overlay, target, true)
+	val, files, err := l.buildValue(absDir, overlay, target, true)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +62,7 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 	if err != nil {
 		return nil, err
 	}
+	cfg.Files = append(files, cfg.Files...)
 	// A cross build has its own build directory, so it does not replace the
 	// host build's outputs or share its compile cache.
 	if target.IsCrossCompile() {
@@ -72,24 +74,24 @@ func (l *Loader) load(dir string, overlay map[string]load.Source, target toolcha
 // buildValue evaluates the package of dir/clue.cue: with _target and
 // _project, the implicit module and package when it has none, clue's schema
 // as "loov.dev/clue", and registry modules.
-func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, target toolchain.Platform, enclosingModule bool) (cue.Value, error) {
+func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, target toolchain.Platform, enclosingModule bool) (cue.Value, []string, error) {
 	var err error
 	// clue.cue is the project entry point; the CUE loader evaluates its package.
 	configPath := filepath.Join(absDir, "clue.cue")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return cue.Value{}, &diagnostic.RichError{
+			return cue.Value{}, nil, &diagnostic.RichError{
 				File:       configPath,
 				Message:    "no CUE configuration files found",
 				Suggestion: "create a clue.cue file in this directory",
 			}
 		}
-		return cue.Value{}, fmt.Errorf("failed to read config: %w", err)
+		return cue.Value{}, nil, fmt.Errorf("failed to read config: %w", err)
 	}
 	entry, err := parser.ParseFile(configPath, data)
 	if err != nil {
-		return cue.Value{}, l.convertCUEError(err, absDir)
+		return cue.Value{}, nil, l.convertCUEError(err, absDir)
 	}
 	packageName := entry.PackageName()
 	if overlay == nil {
@@ -108,10 +110,10 @@ func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, targe
 			// without a package clause become package "clue".
 			packageName = implicitPackage
 			if source, err = withImplicitPackage(configPath, data); err != nil {
-				return cue.Value{}, l.convertCUEError(err, absDir)
+				return cue.Value{}, nil, l.convertCUEError(err, absDir)
 			}
 			if err := addImplicitPackage(absDir, configPath, overlay); err != nil {
-				return cue.Value{}, err
+				return cue.Value{}, nil, err
 			}
 		}
 		overlay[configPath] = source
@@ -122,20 +124,44 @@ func (l *Loader) buildValue(absDir string, overlay map[string]load.Source, targe
 	// command.
 	registry, err := modconfig.NewRegistry(nil)
 	if err != nil {
-		return cue.Value{}, fmt.Errorf("CUE registry: %w", err)
+		return cue.Value{}, nil, fmt.Errorf("CUE registry: %w", err)
 	}
 	instances := load.Instances([]string{"."}, &load.Config{Dir: absDir, Package: packageName, Overlay: overlay, Registry: registry})
 	if len(instances) == 0 {
-		return cue.Value{}, fmt.Errorf("failed to load CUE package from %s", absDir)
+		return cue.Value{}, nil, fmt.Errorf("failed to load CUE package from %s", absDir)
 	}
 	if instances[0].Err != nil {
-		return cue.Value{}, l.convertCUEError(instances[0].Err, absDir)
+		return cue.Value{}, nil, l.convertCUEError(instances[0].Err, absDir)
 	}
 	val := l.ctx.BuildInstance(instances[0])
 	if err := val.Err(); err != nil {
-		return cue.Value{}, l.convertCUEError(err, absDir)
+		return cue.Value{}, nil, l.convertCUEError(err, absDir)
 	}
-	return val, nil
+	return val, instanceFiles(instances[0]), nil
+}
+
+// instanceFiles returns the files on disk that an instance and the packages
+// it imports were built from.
+func instanceFiles(instance *build.Instance) []string {
+	var files []string
+	seen := make(map[*build.Instance]bool)
+	var visit func(*build.Instance)
+	visit = func(instance *build.Instance) {
+		if seen[instance] {
+			return
+		}
+		seen[instance] = true
+		for _, file := range instance.BuildFiles {
+			if _, err := os.Stat(file.Filename); err == nil {
+				files = append(files, file.Filename)
+			}
+		}
+		for _, imported := range instance.Imports {
+			visit(imported)
+		}
+	}
+	visit(instance)
+	return files
 }
 
 // finish unifies an evaluated configuration with the schema and decodes it.
@@ -506,6 +532,9 @@ func withImplicitPackage(path string, data []byte) (load.Source, error) {
 func (cfg *Config) loadDescriptionFile(path string) (cue.Value, error) {
 	if filepath.Base(path) != "clue.cue" {
 		value, err := deps.LoadDescriptionFile(path)
+		if err == nil {
+			cfg.Files = append(cfg.Files, path)
+		}
 		return value, err
 	}
 	dir, err := filepath.Abs(filepath.Dir(path))
@@ -516,5 +545,9 @@ func (cfg *Config) loadDescriptionFile(path string) (cue.Value, error) {
 	if target.OS == "" || target.Arch == "" {
 		target = toolchain.HostPlatform()
 	}
-	return NewLoader().buildValue(dir, nil, target, false)
+	value, files, err := NewLoader().buildValue(dir, nil, target, false)
+	if err == nil {
+		cfg.Files = append(cfg.Files, files...)
+	}
+	return value, err
 }

@@ -47,6 +47,9 @@ type Config struct {
 	// Raw is the underlying CUE value for advanced access
 	Raw cue.Value
 
+	// Files are the CUE files the configuration was loaded from
+	Files []string
+
 	// Overrides replace source fields of dependencies wherever declared
 	Overrides map[string]Override
 

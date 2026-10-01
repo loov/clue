@@ -143,7 +143,8 @@ Long GCC, Clang, and MSVC compile/link invocations automatically use response
 files, including commands emitted by the Ninja generator.
 
 Ninja files build into `<buildDir>/ninja`, apart from `clue build`, and call the `clue`
-executable that generated them to fetch dependencies.
+executable that generated them to fetch dependencies. ninja generates the file again when
+the configuration's CUE files, dependency description files or patches change.
 
 Fetched Git commits and tarball checksums are recorded in `clue.lock`. Commit
 that file so builds use the same dependency revisions; run `clue deps update`
@@ -652,8 +653,9 @@ visage: clue.#Git & {
 The fetched checkout or archive stays unpatched; the patches are applied to a copy of it,
 `.deps/git/visage-v1.0.0.patched-<hash>`, which builds, Ninja files and `{dep:visage}` use. The
 hash covers the contents of the patches, so editing one makes a new copy (and rebuilds the
-dependency) without fetching the sources again; generate Ninja files again after editing one. A copy is made in full or not at all: when a patch
-fails, clue reports the dependency, the patch file, the file in it and the hunk, and leaves no copy.
+dependency) without fetching the sources again. A copy is made in full or not at all: when a
+patch fails, clue reports the dependency, the patch file, the file in it and the hunk, and leaves
+no copy.
 `clue deps list` shows the patches of each dependency.
 
 Patches are applied without `git` or `patch`. Git diffs (`git diff`, `git format-patch`) may

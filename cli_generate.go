@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps/fetch"
 	"github.com/loov/clue/internal/discovery"
 	"github.com/loov/clue/internal/generate"
 	"github.com/loov/clue/internal/toolchain"
@@ -84,6 +86,12 @@ func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
 }
 
 func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform toolchain.Platform) int {
+	// A changed patch selects a new checkout. Materialize it (and any newly
+	// declared dependencies) before the generator expands source globs.
+	if err := build.FetchDependencies(ctx, cfg, fetch.Options{Quiet: true}); err != nil {
+		printError(err)
+		return 1
+	}
 	// Collect all variant names
 	variants := slices.Sorted(maps.Keys(cfg.Variants))
 	// If no variants defined, use "debug" as default
@@ -105,6 +113,7 @@ func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform
 		OutputPath: outputPath,
 		Toolchain:  cfg.Toolchain.Compiler,
 		Platform:   platform,
+		Regenerate: []string{"-target", platform.String(), "generate", "ninja"},
 	})
 	if err != nil {
 		if ctx.Err() != nil {

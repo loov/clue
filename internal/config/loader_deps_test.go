@@ -648,7 +648,7 @@ targets: app: {type: "executable", sources: ["main.cpp"], depends: ["sdk", "sdk:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(core.Sources, []string{"core.cpp"}) || !slices.Equal(core.CompilerFlags, []string{"-fvisibility=hidden"}) ||
+	if !slices.Equal(core.Sources, []string{"core.cpp"}) || !slices.Equal(core.Flags.RawCompiler, []string{"-fvisibility=hidden"}) ||
 		!slices.Equal(core.Public.Includes, []string{filepath.Join(source, "include")}) {
 		t.Fatalf("sdk = %+v", core)
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/loov/clue/internal/deps"
+	"github.com/loov/clue/internal/toolchain"
 )
 
 func writeProject(t *testing.T, files map[string]string) string {

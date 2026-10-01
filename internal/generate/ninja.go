@@ -6,12 +6,15 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 
 	"github.com/Duncaen/go-ninja"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -25,6 +28,9 @@ type NinjaOptions struct {
 	Toolchain  string             // "clang" or "gcc"
 	Platform   toolchain.Platform // Target platform
 	Clue       string             // clue executable the build calls (default: this one)
+	// Regenerate are the clue arguments that write OutputPath again; when
+	// set, ninja reruns them once a file the configuration uses changes.
+	Regenerate []string
 }
 
 // Ninja creates a build.ninja file for the project
@@ -138,6 +144,9 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	addNinjaRules(&file, toolchain.Name() == "msvc")
 	file = append(file, ninja.Pool{Name: "fetch", Depth: 1})
 	file = append(file, ninja.Build{Rule: "phony", Out: []string{"force_external"}})
+	if len(opts.Regenerate) > 0 {
+		addRegeneration(&file, opts)
+	}
 
 	targetOrder, err := config.ComputeBuildOrder(opts.Config)
 	if err != nil {
@@ -181,6 +190,49 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	escapeBuildPaths(file)
 	_, err = file.WriteTo(w)
 	return err
+}
+
+// addRegeneration makes the Ninja file depend on the files the configuration
+// was loaded from: its CUE files, dependency description files and patches.
+// Editing a patch, for one, changes the directory of the patched sources.
+func addRegeneration(file *ninja.File, opts NinjaOptions) {
+	relative := func(path string) string {
+		if absolute, err := filepath.Abs(path); err == nil {
+			path = absolute
+		}
+		if rel, err := filepath.Rel(opts.Config.Dir, path); err == nil && filepath.IsLocal(rel) {
+			path = rel
+		}
+		return NinjaPath(path)
+	}
+	inputs := make([]string, 0, len(opts.Config.Files))
+	for _, path := range opts.Config.Files {
+		inputs = append(inputs, relative(path))
+	}
+	for _, name := range slices.Sorted(maps.Keys(opts.Config.Dependencies)) {
+		dependency := opts.Config.Dependencies[name]
+		if path := dependency.ConfigFile(); path != "" {
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(opts.Config.Dir, path)
+			}
+			inputs = append(inputs, relative(path))
+		}
+		for _, patch := range deps.Patches(dependency) {
+			inputs = append(inputs, relative(patch.Path))
+		}
+	}
+	slices.Sort(inputs)
+	inputs = slices.Compact(inputs)
+	// A removed configuration file must still allow regeneration of the old
+	// graph. Existing files retain their timestamps through these phony edges.
+	for _, input := range inputs {
+		*file = append(*file, ninja.Build{Rule: "phony", Out: []string{input}})
+	}
+	*file = append(*file, ninja.Rule{
+		Name: "regen", Command: "$clue " + ninjaShellCommand(opts.Regenerate), Description: "REGENERATE $out",
+		// Restat: clue leaves an unchanged Ninja file as it is.
+		Generator: true, Restat: true,
+	}, ninja.Build{Rule: "regen", Out: []string{relative(opts.OutputPath)}, In: inputs})
 }
 
 // escapeBuildPaths applies ninja's path escaping ("$", ":", space, newline) to

@@ -1216,6 +1216,35 @@ func TestNinja_CustomTargetWorkingDirectoryAndStdout(t *testing.T) {
 	}
 }
 
+func TestNinja_RegeneratesWhenConfigurationFilesChange(t *testing.T) {
+	dir := t.TempDir()
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Dir = dir
+	cfg.Files = []string{filepath.Join(dir, "clue.cue"), filepath.Join(dir, "deps", "sdk.cue")}
+	sdk := deps.NewGitDependency("sdk", "https://example.com/sdk", "v1", &deps.InlineConfig{Type: "header_only"})
+	sdk.Patches = []deps.Patch{{Path: filepath.Join(dir, "patches", "sdk.patch")}}
+	cfg.Dependencies = map[string]deps.Dependency{"sdk": sdk}
+
+	var buf bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &buf, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"}, OutputPath: filepath.Join(dir, "build.ninja"),
+		Regenerate: []string{"-target", "linux-amd64", "generate", "ninja"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := buf.String()
+	for _, want := range []string{
+		"build build.ninja: regen clue.cue deps/sdk.cue patches/sdk.patch",
+		"generator = true",
+		"restat = true",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("missing %q:\n%s", want, content)
+		}
+	}
+}
+
 func TestNinja_DependencyTargetsShareFetchOutputs(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "clue.cue"), []byte(`targets: {
@@ -1320,5 +1349,34 @@ func TestNinja_CustomStdoutReplacedOnlyOnSuccess(t *testing.T) {
 		if _, err := os.Stat(output + ".clue-tmp"); !os.IsNotExist(err) {
 			t.Fatalf("temporary output remains: %v", err)
 		}
+	}
+}
+
+func TestNinja_RegeneratesAfterAnInputIsDeleted(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a POSIX regeneration command")
+	}
+	if _, err := exec.LookPath("ninja"); err != nil {
+		t.Skip("ninja not installed")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "build.ninja")
+	cfg := &config.Config{Dir: dir, Files: []string{filepath.Join(dir, "removed.patch")}}
+	file := ninja.File{ninja.Var{Key: "clue", Val: "sh"}}
+	addRegeneration(&file, NinjaOptions{
+		Config: cfg, OutputPath: path,
+		Regenerate: []string{"-c", "printf 'build done: phony\ndefault done\n' > build.ninja"},
+	})
+	var buf bytes.Buffer
+	if _, err := file.WriteTo(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(t.Context(), "ninja", "-f", "build.ninja")
+	cmd.Dir = dir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("missing obsolete input blocked regeneration: %v\n%s", err, output)
 	}
 }
