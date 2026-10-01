@@ -417,8 +417,10 @@ targets: version_header: {
 ```
 
 A custom target's `command`, `inputs` and `outputs` may use `{variant}`, `{buildDir}`
-(for example `.build/release`) and `{output:name}` (the artifact of target `name`; one named in
-`command` or `inputs` is added to `depends`). Such a target runs once per variant, so its outputs must also be
+(for example `.build/release`) and `{output:name}` (the artifact of target `name`); a target
+named in `command` or `inputs` is added to `depends`. The artifact of a bundle target is the
+bundle as hosts load it: the `.clap` or `.vst3` directory, or the module where the layout has
+none. `{output:name:module}` is its linked module and `{output:name:bundle}` the bundle. Such a target runs once per variant, so its outputs must also be
 per-variant. Include paths may use `{variant}` and `{buildDir}` to reach generated headers:
 
 ```cue

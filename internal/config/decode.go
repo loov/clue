@@ -324,10 +324,10 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	return t, nil
 }
 
-var outputPlaceholder = regexp.MustCompile(`\{output:([a-zA-Z][a-zA-Z0-9_-]*)\}`)
+var outputPlaceholder = regexp.MustCompile(`\{output:([a-zA-Z][a-zA-Z0-9_-]*)(?::[a-z]+)?\}`)
 
-// OutputReferences returns the targets that {output:name} placeholders in
-// values name, in order of appearance.
+// OutputReferences returns the targets that {output:name[:part]}
+// placeholders in values name, in order of appearance.
 func OutputReferences(values []string) []string {
 	var names []string
 	for _, value := range values {

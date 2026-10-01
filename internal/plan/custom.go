@@ -11,9 +11,9 @@ import (
 	"github.com/loov/clue/internal/toolchain"
 )
 
-// customPlaceholder matches {variant}, {buildDir} and {output:<target>} in
-// custom target commands, inputs and outputs.
-var customPlaceholder = regexp.MustCompile(`\{(variant|buildDir|output:[a-zA-Z][a-zA-Z0-9_-]*)\}`)
+// customPlaceholder matches {variant}, {buildDir} and {output:<target>[:<part>]}
+// in custom target commands, inputs and outputs.
+var customPlaceholder = regexp.MustCompile(`\{(variant|buildDir|output:[a-zA-Z][a-zA-Z0-9_-]*(?::[a-z]+)?)\}`)
 
 // toolPlaceholder matches {tool:<name>}, a program declared under tools.
 var toolPlaceholder = regexp.MustCompile(`\{tool:[a-zA-Z][a-zA-Z0-9_-]*\}`)
@@ -45,7 +45,9 @@ func CustomTargetPerVariant(target config.Target) bool {
 // for one variant: {variant} is the variant name, {buildDir} the variant's
 // build directory, {output:name} the artifact of target name, which must be
 // listed in depends (the configuration adds those named in command and inputs),
-// and {tool:name} the program that tool name finds.
+// and {tool:name} the program that tool name finds. For a bundle target the
+// artifact is the bundle as hosts load it; {output:name:module} is its linked
+// module and {output:name:bundle} the bundle.
 func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) (config.Target, error) {
 	if target.Type != "custom" && target.Type != "task" {
 		return target, nil
@@ -78,13 +80,21 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 			case "buildDir":
 				return absolute(filepath.Join(buildDir, variant))
 			}
-			name := strings.TrimPrefix(key, "output:")
+			name, part, _ := strings.Cut(strings.TrimPrefix(key, "output:"), ":")
 			dependency, ok := cfg.Targets[name]
 			switch {
 			case !ok:
 				expandErr = fmt.Errorf("custom target %q: %s names an unknown target", target.Name, match)
 			case !slices.Contains(target.Depends, name):
 				expandErr = fmt.Errorf("custom target %q: %s requires %q in depends", target.Name, match, name)
+			case part != "" && dependency.Type != "bundle":
+				expandErr = fmt.Errorf("custom target %q: %s: only bundle targets have parts, %q is a %s", target.Name, match, name, strings.ReplaceAll(dependency.Type, "_", " "))
+			case dependency.Type == "bundle" && (part == "" || part == "bundle"):
+				return absolute(BundleLayout(dependency, buildDir, variant, platform).Dir)
+			case dependency.Type == "bundle" && part == "module":
+				return absolute(TargetOutput(dependency, buildDir, variant, platform))
+			case dependency.Type == "bundle":
+				expandErr = fmt.Errorf("custom target %q: %s: a bundle's parts are bundle and module", target.Name, match)
 			case dependency.Type == "interface_library" || dependency.Type == "task":
 				expandErr = fmt.Errorf("custom target %q: %s names a %s, which has no output", target.Name, match, strings.ReplaceAll(dependency.Type, "_", " "))
 			case dependency.Type == "custom":
@@ -139,6 +149,30 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 	commandDir := target.WorkDir
 	target.WorkDir = ""
 	target.Inputs = expandFiles(target.Inputs)
+	// Bundle directories are command arguments, but build inputs must be
+	// files that fingerprinting can hash and Ninja can track as outputs.
+	bundleFiles := make(map[string][]string)
+	for _, name := range target.Depends {
+		dependency := cfg.Targets[name]
+		if dependency.Type != "bundle" {
+			continue
+		}
+		bundle := BundleLayout(dependency, buildDir, variant, platform)
+		files := []string{bundle.Binary}
+		if bundle.InfoPlist != "" {
+			files = append(files, bundle.InfoPlist, bundle.PkgInfo)
+		}
+		bundleFiles[filepath.Clean(bundle.Dir)] = files
+	}
+	var inputs []string
+	for _, input := range target.Inputs {
+		if files, ok := bundleFiles[filepath.Clean(input)]; ok {
+			inputs = append(inputs, files...)
+		} else {
+			inputs = append(inputs, input)
+		}
+	}
+	target.Inputs = inputs
 	target.Outputs = expandAll(target.Outputs)
 	target.Stdout = expandAll([]string{target.Stdout})[0]
 	target.WorkDir = expandAll([]string{commandDir})[0]
