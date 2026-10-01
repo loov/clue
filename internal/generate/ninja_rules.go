@@ -61,7 +61,9 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 		)
 	}
 	*file = append(*file, ninja.Rule{
-		Name: "fetch_dep", Command: "$clue -target $platform deps fetch $dep", Description: "FETCH $dep",
+		// Restat: a fetch that finds the checkout current leaves its files as
+		// they are, so editing clue.cue does not rebuild the dependency.
+		Name: "fetch_dep", Command: "$clue -target $platform deps fetch $dep", Description: "FETCH $dep", Restat: true,
 	}, ninja.Rule{
 		Name: "external_dep", Command: "$clue -quiet -variant $variant -target $platform deps build $dep", Description: "EXTERNAL $dep", Restat: true,
 	}, ninja.Rule{
