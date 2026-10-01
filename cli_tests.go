@@ -43,7 +43,16 @@ func runTests(ctx context.Context, dir, variant, target string, verbosity build.
 		printError(err)
 		return 1
 	}
-	if code := runBuild(ctx, dir, variant, target, verbosity, false, jobs, false, false, false, 10, targets); code != 0 {
+	// Targets that the arguments name with {output:name} are built too.
+	buildTargets := slices.Clone(targets)
+	for _, name := range targets {
+		for _, output := range config.OutputReferences(cfg.Targets[name].Test.Args) {
+			if !slices.Contains(buildTargets, output) {
+				buildTargets = append(buildTargets, output)
+			}
+		}
+	}
+	if code := runBuild(ctx, dir, variant, target, verbosity, false, jobs, false, false, false, 10, buildTargets); code != 0 {
 		return code
 	}
 
@@ -64,8 +73,13 @@ func runTests(ctx context.Context, dir, variant, target string, verbosity build.
 			printError(err)
 			return 1
 		}
+		args, err := plan.ExpandArguments(cfg, name, configured.Args, cfg.BuildDir, selectedVariant, platform)
+		if err != nil {
+			printError(err)
+			return 1
+		}
 		cases = append(cases, build.TestCase{
-			Name: name, Executable: executable, Args: configured.Args,
+			Name: name, Executable: executable, Args: args,
 			Environment: configured.Environment, WorkingDirectory: workingDirectory,
 			Emulator: emulator,
 		})

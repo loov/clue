@@ -94,7 +94,7 @@ func registerCommands(commands clingy.Commands, options *options) {
 		commands.New("schema", "write the loov.dev/clue schema into the CUE module for cue and editors", &generateCommand{options: options, format: "schema"})
 	})
 
-	commands.New("run", "build and run an executable target", &runCommand{options: options})
+	commands.New("run", "build and run an executable target, or run a task", &runCommand{options: options})
 	commands.New("test", "build and run configured tests", &testCommand{options: options})
 	commands.New("install", "build and install targets", &installCommand{options: options})
 	commands.New("watch", "rebuild when project files change", &watchCommand{options: options})

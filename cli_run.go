@@ -15,8 +15,8 @@ type runCommand struct {
 }
 
 func (c *runCommand) Setup(params clingy.Parameters) {
-	c.target = params.Arg("target", "executable target to run").(string)
-	c.args = params.Arg("argument", "argument passed to the executable", clingy.Repeated).([]string)
+	c.target = params.Arg("target", "executable target or task to run").(string)
+	c.args = params.Arg("argument", "argument passed to the executable or task", clingy.Repeated).([]string)
 }
 
 func (c *runCommand) Execute(ctx context.Context) error {

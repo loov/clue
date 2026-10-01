@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -91,7 +92,7 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 			return nil, err
 		}
 		for name, target := range cfg.Targets {
-			if target.Type != "custom" && target.Type != "interface_library" {
+			if target.Type != "custom" && target.Type != "task" && target.Type != "interface_library" {
 				cfg.Targets[name] = applyTargetDefaults(target, base)
 			}
 		}
@@ -212,6 +213,17 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 		t.CXXStd, _ = standard.String()
 	}
 	t.Depends = extractStringList(val, "depends")
+	if t.Type == "task" {
+		t.WorkDir = extractOptionalString(val, "workingDirectory")
+	}
+	// {output:name} in a command needs target name built first.
+	if t.Type == "custom" || t.Type == "task" {
+		for _, name := range OutputReferences(append(slices.Clone(t.Command), t.Inputs...)) {
+			if !slices.Contains(t.Depends, name) {
+				t.Depends = append(t.Depends, name)
+			}
+		}
+	}
 	if test := val.LookupPath(cue.ParsePath("test")); test.Exists() {
 		t.Test = &Test{
 			Args: extractStringList(test, "args"), WorkingDirectory: extractOptionalString(test, "workingDirectory"),
@@ -295,6 +307,22 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	}
 
 	return t, nil
+}
+
+var outputPlaceholder = regexp.MustCompile(`\{output:([a-zA-Z][a-zA-Z0-9_-]*)\}`)
+
+// OutputReferences returns the targets that {output:name} placeholders in
+// values name, in order of appearance.
+func OutputReferences(values []string) []string {
+	var names []string
+	for _, value := range values {
+		for _, match := range outputPlaceholder.FindAllStringSubmatch(value, -1) {
+			if !slices.Contains(names, match[1]) {
+				names = append(names, match[1])
+			}
+		}
+	}
+	return names
 }
 
 func (l *Loader) extractVariant(name string, val cue.Value) (Variant, error) {

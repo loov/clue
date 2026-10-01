@@ -18,7 +18,8 @@ import (
 
 // BuildTarget builds a single target
 func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.Target, progress *progress) (*TargetResult, error) {
-	if target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
+	// A task runs only with clue run, after its dependencies are built.
+	if target.Type == "task" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return &TargetResult{Name: target.Name, Type: target.Type, Success: true}, nil
 	}
 	if target.Type == "custom" {

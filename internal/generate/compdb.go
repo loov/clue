@@ -124,7 +124,7 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 
 // buildTargetCommands creates compile commands for a target's sources
 func buildTargetCommands(workDir string, opts CompDBOptions, target config.Target, variant config.Variant, tc toolchain.Toolchain, targetModuleOutputs map[string]map[string]string, external map[string]plan.ExternalDependency) ([]CompileCommand, error) {
-	if target.Type == "custom" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
+	if target.Type == "custom" || target.Type == "task" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
 	var commands []CompileCommand

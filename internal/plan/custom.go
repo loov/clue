@@ -38,11 +38,12 @@ func CustomTargetPerVariant(target config.Target) bool {
 	return false
 }
 
-// ExpandCustomTarget substitutes the placeholders of a custom target for one variant:
-// {variant} is the variant name, {buildDir} the variant's build directory and
-// {output:name} the artifact of target name, which must be listed in depends.
+// ExpandCustomTarget substitutes the placeholders of a custom target or a task
+// for one variant: {variant} is the variant name, {buildDir} the variant's
+// build directory and {output:name} the artifact of target name, which must be
+// listed in depends (the configuration adds those named in command and inputs).
 func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) (config.Target, error) {
-	if target.Type != "custom" {
+	if target.Type != "custom" && target.Type != "task" {
 		return target, nil
 	}
 	var expandErr error
@@ -72,8 +73,8 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 				expandErr = fmt.Errorf("custom target %q: %s names an unknown target", target.Name, match)
 			case !slices.Contains(target.Depends, name):
 				expandErr = fmt.Errorf("custom target %q: %s requires %q in depends", target.Name, match, name)
-			case dependency.Type == "interface_library":
-				expandErr = fmt.Errorf("custom target %q: %s names an interface library, which has no output", target.Name, match)
+			case dependency.Type == "interface_library" || dependency.Type == "task":
+				expandErr = fmt.Errorf("custom target %q: %s names a %s, which has no output", target.Name, match, strings.ReplaceAll(dependency.Type, "_", " "))
 			case dependency.Type == "custom":
 				expanded, err := ExpandCustomTarget(cfg, dependency, buildDir, variant, platform)
 				if err != nil {
@@ -103,4 +104,13 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 	target.Stdout = expandAll([]string{target.Stdout})[0]
 	target.WorkDir = expandAll([]string{commandDir})[0]
 	return target, expandErr
+}
+
+// ExpandArguments substitutes the placeholders of a custom target in program
+// arguments, such as a test's, with absolute paths.
+func ExpandArguments(cfg *config.Config, owner string, args []string, buildDir, variant string, platform toolchain.Platform) ([]string, error) {
+	expanded, err := ExpandCustomTarget(cfg, config.Target{
+		Name: owner, Type: "task", Command: args, Depends: config.OutputReferences(args), WorkDir: ".",
+	}, buildDir, variant, platform)
+	return expanded.Command, err
 }

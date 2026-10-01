@@ -5,7 +5,7 @@ package config
 // Core target definition - base for all buildable units
 #Target: {
 	name?:   string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$" // defaults to the key in targets
-	type:    "executable" | "static_library" | "shared_library" | "bundle" | "interface_library" | "custom"
+	type:    "executable" | "static_library" | "shared_library" | "bundle" | "interface_library" | "custom" | "task"
 	// Files or globs; "**" matches any number of directories
 	sources?: [...string]
 	// Globs of sources to leave out, such as "**/win32/*"
@@ -81,6 +81,14 @@ package config
 		workingDirectory?: string
 		// File the command's standard output is written to
 		stdout?: string
+	}
+	// A command run by clue run, every time, after building the targets it
+	// depends on; arguments after the task's name are appended to it.
+	if type == "task" {
+		command: [...string] & [_, ...]
+		// Directory the command runs in (default: the project directory);
+		// placeholders then expand to absolute paths
+		workingDirectory?: string
 	}
 	// A loadable module (plugin), packaged on macOS as
 	// <dir>/<name>.<extension>/Contents/MacOS/<name> with Info.plist and PkgInfo

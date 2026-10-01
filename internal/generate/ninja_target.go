@@ -45,7 +45,7 @@ func ninjaArtifactPaths(artifacts []plan.Artifact, platform toolchain.Platform) 
 
 // generateTargetBuilds generates build statements for a single target within a variant
 func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, variantConfig config.Variant, target config.Target, tc toolchain.Toolchain, emitSharedRules bool, targetModuleOutputs map[string]map[string]string, external map[string]plan.ExternalDependency) ([]string, error) {
-	if target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
+	if target.Type == "task" || target.Type == "interface_library" && len(target.HeaderUnits) == 0 {
 		return nil, nil
 	}
 	if target.Type == "custom" {

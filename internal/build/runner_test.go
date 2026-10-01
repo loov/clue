@@ -94,7 +94,7 @@ func TestRunTarget_RejectsStaticLibrary(t *testing.T) {
 		t.Fatal("expected error for static_library target, got nil")
 	}
 
-	expectedMsg := `target "mylib" is a static_library, not an executable`
+	expectedMsg := `target "mylib" is a static_library, not an executable or a task`
 	if err.Error() != expectedMsg {
 		t.Errorf("unexpected error message:\ngot:  %s\nwant: %s", err.Error(), expectedMsg)
 	}
@@ -141,7 +141,7 @@ func TestRunTarget_RejectsSharedLibrary(t *testing.T) {
 		t.Fatal("expected error for shared_library target, got nil")
 	}
 
-	expectedMsg := `target "myshared" is a shared_library, not an executable`
+	expectedMsg := `target "myshared" is a shared_library, not an executable or a task`
 	if err.Error() != expectedMsg {
 		t.Errorf("unexpected error message:\ngot:  %s\nwant: %s", err.Error(), expectedMsg)
 	}

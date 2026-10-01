@@ -109,7 +109,7 @@ func (tc Toolchain) Standard(source string) string {
 // Target represents a buildable unit
 type Target struct {
 	Name           string
-	Type           string // "executable", "static_library", "shared_library", "custom"
+	Type           string // "executable", "static_library", "shared_library", "bundle", "interface_library", "custom", "task"
 	Sources        []string
 	Headers        []string
 	HeaderUnits    []HeaderUnit
@@ -117,7 +117,7 @@ type Target struct {
 	Inputs         []string
 	Outputs        []string
 	Exclude        []string // sources to leave out of those that sources match
-	WorkDir        string   // custom targets: directory the command runs in
+	WorkDir        string   // custom targets and tasks: directory the command runs in
 	Stdout         string   // custom targets: file for the command's standard output
 	Includes       []string
 	SystemIncludes []string

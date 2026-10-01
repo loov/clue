@@ -132,7 +132,7 @@ with the listed `exports`, and Zig's libc++ is used without exceptions (`-fno-ex
 - `clue format [path...]` - Format CUE files in place (defaults to the current directory)
 - `clue build` - Build all targets (use `-variant release` for optimized builds)
 - `clue clean` - Remove build artifacts (use `-all` to clean all variants)
-- `clue run <target>` - Build and run an executable target
+- `clue run <target|task> [args...]` - Build and run an executable target, or run a task
 - `clue test [name|label...]` - Build and run configured tests
 - `clue install [target...]` - Build and install artifacts and public headers (not bundles)
 - `clue deps <list|fetch|build|clean|update|tidy>` - Manage external dependencies
@@ -352,7 +352,8 @@ targets: unit_tests: {
 ```
 
 `clue test` runs every configured test. Positional selectors match either a
-target name or label, and `-j` controls execution parallelism.
+target name or label, and `-j` controls execution parallelism. Test `args` may name another
+target's artifact as `{output:name}` (an absolute path); `clue test` builds it first.
 
 ### Installation
 
@@ -406,8 +407,8 @@ targets: version_header: {
 ```
 
 A custom target's `command`, `inputs` and `outputs` may use `{variant}`, `{buildDir}`
-(for example `.build/release`) and `{output:name}` (the artifact of target `name`, which must
-be listed in `depends`). Such a target runs once per variant, so its outputs must also be
+(for example `.build/release`) and `{output:name}` (the artifact of target `name`; one named in
+`command` or `inputs` is added to `depends`). Such a target runs once per variant, so its outputs must also be
 per-variant. Include paths may use `{variant}` and `{buildDir}` to reach generated headers:
 
 ```cue
@@ -423,6 +424,23 @@ targets: bundle: {
 ```
 
 The build fingerprint of a custom target is kept in the build directory, not beside its outputs.
+
+### Tasks
+
+A `task` runs a command with `clue run <task> [args...]`, every time and never as part of
+`clue build`. The arguments are appended to the command (use `--` before ones that start with
+`-`), and the command's exit status becomes clue's. Clue first builds the targets in `depends`
+and those the command names as `{output:name}`, so a task can check freshly built artifacts:
+
+```cue
+targets: validate: {
+    type:    "task"
+    command: ["{output:validator}", "{output:plugin}"]
+}
+```
+
+Tasks take the placeholders of custom targets and a `workingDirectory`. Other targets cannot
+depend on a task, and tasks are not part of generated Ninja files.
 
 ### Plugins and other loadable modules
 

@@ -21,7 +21,10 @@ func ComputeBuildOrder(cfg *Config) ([]string, error) {
 
 	for _, name := range names {
 		for _, dependency := range cfg.Targets[name].Depends {
-			if _, ok := cfg.Targets[dependency]; ok {
+			if target, ok := cfg.Targets[dependency]; ok {
+				if target.Type == "task" {
+					return nil, fmt.Errorf("target %q depends on task %q; only clue run runs tasks", name, dependency)
+				}
 				if err := g.AddEdge(dependency, name); err != nil {
 					if errors.Is(err, graph.ErrEdgeCreatesCycle) {
 						return nil, fmt.Errorf("cyclic dependency detected: %s -> %s", name, dependency)

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -26,19 +27,20 @@ type RunOptions struct {
 // RunResult contains the result of running an executable
 type RunResult struct {
 	ExitCode int
-	Output   string // Path to executed binary
+	Output   string // Path to executed binary, or the task's command
 }
 
-// RunTarget builds a target and executes it
-// Returns error if target doesn't exist, isn't executable, or build fails
+// RunTarget builds an executable target and runs it, or builds the targets a
+// task depends on and runs its command, with opts.Args appended.
+// Returns error if target doesn't exist, can't be run, or build fails
 func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
-	// 1. Validate target exists and is executable type
+	// 1. Validate target exists and can be run
 	target, ok := opts.Config.Targets[opts.Target]
 	if !ok {
 		return nil, fmt.Errorf("target %q not found in configuration", opts.Target)
 	}
-	if target.Type != "executable" {
-		return nil, fmt.Errorf("target %q is a %s, not an executable", opts.Target, target.Type)
+	if target.Type != "executable" && target.Type != "task" {
+		return nil, fmt.Errorf("target %q is a %s, not an executable or a task", opts.Target, target.Type)
 	}
 
 	// 2. Build the target first
@@ -46,50 +48,63 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 	if platform.OS == "" {
 		platform = toolchain.HostPlatform()
 	}
-	emulator, err := Emulator(opts.Config, platform)
-	if err != nil {
-		return nil, err
-	}
-	builder, err := NewConfiguredBuilder(opts.Config.Toolchain, platform, ".", opts.Verbosity, opts.Jobs, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create builder: %w", err)
-	}
-
-	buildOpts := Options{
-		Config:    opts.Config,
-		Variant:   opts.Variant,
-		BuildDir:  opts.BuildDir,
-		Verbosity: opts.Verbosity,
-		Targets:   []string{opts.Target},
-		Jobs:      opts.Jobs,
-	}
-
-	result, err := builder.Build(ctx, buildOpts)
-	if err != nil || !result.Success {
-		return nil, fmt.Errorf("build failed: %w", err)
-	}
-
-	// 3. Find executable path from build result
-	var execPath string
-	for _, tr := range result.Targets {
-		if tr.Name == opts.Target {
-			execPath = tr.Output
-			break
+	var emulator []string
+	if target.Type == "executable" {
+		var err error
+		if emulator, err = Emulator(opts.Config, platform); err != nil {
+			return nil, err
 		}
 	}
-	if execPath == "" {
-		return nil, fmt.Errorf("build succeeded but no output found for target %q", opts.Target)
+	var result *Result
+	if target.Type == "executable" || len(target.Depends) > 0 {
+		builder, err := NewConfiguredBuilder(opts.Config.Toolchain, platform, ".", opts.Verbosity, opts.Jobs, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create builder: %w", err)
+		}
+		result, err = builder.Build(ctx, Options{
+			Config:    opts.Config,
+			Variant:   opts.Variant,
+			BuildDir:  opts.BuildDir,
+			Verbosity: opts.Verbosity,
+			Targets:   []string{opts.Target},
+			Jobs:      opts.Jobs,
+		})
+		if err != nil || !result.Success {
+			return nil, fmt.Errorf("build failed: %w", err)
+		}
 	}
 
-	// 4. Execute binary in current working directory
-	name, args := EmulatedCommand(emulator, execPath, opts.Args)
+	// 3. Find the command: the task's, or the built executable
+	var name, dir string
+	var args []string
+	if target.Type == "task" {
+		expanded, err := plan.ExpandCustomTarget(opts.Config, target, opts.BuildDir, opts.Variant, platform)
+		if err != nil {
+			return nil, err
+		}
+		name, args, dir = expanded.Command[0], append(expanded.Command[1:], opts.Args...), expanded.WorkDir
+	} else {
+		var execPath string
+		for _, tr := range result.Targets {
+			if tr.Name == opts.Target {
+				execPath = tr.Output
+				break
+			}
+		}
+		if execPath == "" {
+			return nil, fmt.Errorf("build succeeded but no output found for target %q", opts.Target)
+		}
+		name, args = EmulatedCommand(emulator, execPath, opts.Args)
+	}
+
+	// 4. Execute in the current working directory, or the task's
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	// cmd.Dir defaults to current directory - this is what we want
 
-	err = cmd.Run()
+	err := cmd.Run()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return nil, ctxErr
 	}
@@ -99,13 +114,13 @@ func RunTarget(ctx context.Context, opts RunOptions) (*RunResult, error) {
 		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 		} else {
-			return nil, fmt.Errorf("failed to run executable: %w", err)
+			return nil, fmt.Errorf("failed to run %s: %w", name, err)
 		}
 	}
 
 	return &RunResult{
 		ExitCode: exitCode,
-		Output:   execPath,
+		Output:   name,
 	}, nil
 }
 
