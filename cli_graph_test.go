@@ -15,6 +15,15 @@ func TestRunGraph(t *testing.T) {
 	if !strings.Contains(out.String(), "│app│") || !strings.Contains(out.String(), "│libmath│") || !strings.Contains(out.String(), "▼") {
 		t.Fatalf("graph is missing nodes or the edge:\n%s", out.String())
 	}
+	for format, want := range map[string]string{
+		"dot": "digraph {\n\t\"app\";\n\t\"libmath\" [style=dashed];\n\t\"app\" -> \"libmath\";\n}\n",
+		"tgf": "1 app\n2 libmath\n#\n1 2\n",
+	} {
+		out.Reset()
+		if code := runGraph(&out, "testdata/deps-project", "", "", format); code != 0 || out.String() != want {
+			t.Errorf("graph -format %s = %d\n%s\nwant\n%s", format, code, out.String(), want)
+		}
+	}
 	if code := runGraph(&out, "testdata/deps-project", "", "", "png"); code == 0 {
 		t.Fatal("unknown format succeeded")
 	}

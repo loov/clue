@@ -157,6 +157,7 @@ compiles WASI code with `-fno-exceptions`.
 - `clue build` builds all targets. `-variant release` gives an optimized build.
 - `clue clean` removes build artifacts, of all variants with `-all`.
 - `clue graph` draws the target dependency graph in the terminal, or as SVG with `-format svg`.
+  `-format dot` writes it for Graphviz, and `-format tgf` in the Trivial Graph Format.
 - `clue run <target|task> [args...]` builds and runs an executable target, or runs a task.
 - `clue test [name|label...]` builds and runs the configured tests.
 - `clue install [target...]` builds and installs artifacts and public headers, but not bundles.

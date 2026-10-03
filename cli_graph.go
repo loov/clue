@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
@@ -22,7 +23,7 @@ type graphCommand struct {
 }
 
 func (c *graphCommand) Setup(params clingy.Parameters) {
-	c.format = params.Flag("format", "output format (text or svg)", "text").(string)
+	c.format = params.Flag("format", "output format (text, svg, dot or tgf)", "text").(string)
 }
 
 func (c *graphCommand) Execute(context.Context) error {
@@ -34,9 +35,11 @@ func runGraph(w io.Writer, dir, variant, target, format string) int {
 	write, ok := map[string]func(io.Writer, *layout.Graph) error{
 		"text": text.Write,
 		"svg":  svg.Write,
+		"dot":  writeDOT,
+		"tgf":  writeTGF,
 	}[format]
 	if !ok {
-		printError(fmt.Errorf("unknown graph format %q (want text or svg)", format))
+		printError(fmt.Errorf("unknown graph format %q (want text, svg, dot or tgf)", format))
 		return 1
 	}
 
@@ -51,9 +54,12 @@ func runGraph(w io.Writer, dir, variant, target, format string) int {
 	if format == "text" {
 		text.Prepare(graph)
 	}
-	if err := layout.Hierarchical(graph); err != nil {
-		printError(fmt.Errorf("lay out graph: %w", err))
-		return 1
+	// DOT and TGF describe only the graph; the program reading them lays it out.
+	if format == "text" || format == "svg" {
+		if err := layout.Hierarchical(graph); err != nil {
+			printError(fmt.Errorf("lay out graph: %w", err))
+			return 1
+		}
 	}
 	if err := write(w, graph); err != nil {
 		printError(err)
@@ -76,4 +82,41 @@ func targetGraph(cfg *config.Config) *layout.Graph {
 		}
 	}
 	return graph
+}
+
+// writeDOT writes the graph for Graphviz, as in "clue graph -format dot | dot -Tpng".
+func writeDOT(w io.Writer, graph *layout.Graph) error {
+	var b strings.Builder
+	b.WriteString("digraph {\n")
+	for _, node := range graph.Nodes {
+		if node.LineStyle == layout.Dashed {
+			fmt.Fprintf(&b, "\t%q [style=dashed];\n", node.ID)
+		} else {
+			fmt.Fprintf(&b, "\t%q;\n", node.ID)
+		}
+	}
+	for _, edge := range graph.Edges {
+		fmt.Fprintf(&b, "\t%q -> %q;\n", edge.From.ID, edge.To.ID)
+	}
+	b.WriteString("}\n")
+	_, err := io.WriteString(w, b.String())
+	return err
+}
+
+// writeTGF writes the graph in the Trivial Graph Format: a line with the
+// number and name of each node, "#", and a line with the numbers of the ends
+// of each edge.
+func writeTGF(w io.Writer, graph *layout.Graph) error {
+	var b strings.Builder
+	number := make(map[*layout.Node]int, len(graph.Nodes))
+	for i, node := range graph.Nodes {
+		number[node] = i + 1
+		fmt.Fprintf(&b, "%d %s\n", i+1, node.ID)
+	}
+	b.WriteString("#\n")
+	for _, edge := range graph.Edges {
+		fmt.Fprintf(&b, "%d %d\n", number[edge.From], number[edge.To])
+	}
+	_, err := io.WriteString(w, b.String())
+	return err
 }
