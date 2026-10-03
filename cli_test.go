@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -322,5 +323,26 @@ func TestCLI_BuildCompilesModuleConsumer(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Hello from module!") {
 		t.Errorf("module executable output missing: %s", stdout)
+	}
+}
+
+func TestCLI_ShowcaseTestsPass(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang not installed")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("the showcase is not verified with clang on Windows")
+	}
+	testDir := filepath.Join("testdata", "showcase")
+	runClue(t, testDir, "--all", "clean")
+
+	stdout, stderr, exitCode := runClue(t, testDir, "test")
+	if exitCode != 0 {
+		t.Fatalf("clue test = %d\nstdout: %s\nstderr: %s", exitCode, stdout, stderr)
+	}
+	for _, name := range []string{"rle_test", "base16_test", "rot13_test", "crc32_test", "cli_test"} {
+		if !strings.Contains(stdout, "[PASS] "+name) {
+			t.Errorf("%s did not pass:\n%s", name, stdout)
+		}
 	}
 }
