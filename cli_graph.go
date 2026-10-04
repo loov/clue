@@ -32,13 +32,18 @@ func (c *graphCommand) Execute(context.Context) error {
 }
 
 func runGraph(w io.Writer, dir, variant, target, format string) int {
-	write, ok := map[string]func(io.Writer, *layout.Graph) error{
-		"text": text.Write,
-		"svg":  svg.Write,
-		"dot":  writeDOT,
-		"tgf":  writeTGF,
-	}[format]
-	if !ok {
+	var write func(io.Writer, *layout.Graph) error
+	switch format {
+	case "text":
+		write = layoutWriter(text.Write, layout.Options{ForText: true})
+	case "svg":
+		write = layoutWriter(svg.Write, layout.Options{})
+	case "dot":
+		// DOT and TGF describe only the graph; the program reading them lays it out.
+		write = writeDOT
+	case "tgf":
+		write = writeTGF
+	default:
 		printError(fmt.Errorf("unknown graph format %q (want text, svg, dot or tgf)", format))
 		return 1
 	}
@@ -50,22 +55,22 @@ func runGraph(w io.Writer, dir, variant, target, format string) int {
 		return 1
 	}
 
-	graph := targetGraph(cfg)
-	if format == "text" {
-		text.Prepare(graph)
-	}
-	// DOT and TGF describe only the graph; the program reading them lays it out.
-	if format == "text" || format == "svg" {
-		if err := layout.Hierarchical(graph); err != nil {
-			printError(fmt.Errorf("lay out graph: %w", err))
-			return 1
-		}
-	}
-	if err := write(w, graph); err != nil {
+	if err := write(w, targetGraph(cfg)); err != nil {
 		printError(err)
 		return 1
 	}
 	return 0
+}
+
+// layoutWriter lays out the graph hierarchically before writing it.
+func layoutWriter(write func(io.Writer, *layout.Layout) error, opts layout.Options) func(io.Writer, *layout.Graph) error {
+	return func(w io.Writer, graph *layout.Graph) error {
+		l, err := layout.Hierarchical(graph, opts)
+		if err != nil {
+			return fmt.Errorf("lay out graph: %w", err)
+		}
+		return write(w, l)
+	}
 }
 
 // targetGraph draws an edge from every target to each of its dependencies;

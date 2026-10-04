@@ -9,7 +9,7 @@ require (
 	github.com/dominikbraun/graph v0.23.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-git/go-git/v5 v5.19.2
-	github.com/loov/layout v0.1.0
+	github.com/loov/layout v0.2.0
 	github.com/zeebo/clingy v0.0.0-20260119143559-4d23ffb0341b
 	github.com/zeebo/xxh3 v1.1.0
 	golang.org/x/sync v0.23.0
