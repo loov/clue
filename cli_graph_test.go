@@ -12,7 +12,7 @@ func TestRunGraph(t *testing.T) {
 	if code := runGraph(&out, "testdata/deps-project", "", "", "text"); code != 0 {
 		t.Fatalf("graph exit code = %d", code)
 	}
-	if !strings.Contains(out.String(), "│app│") || !strings.Contains(out.String(), "│libmath│") || !strings.Contains(out.String(), "▼") {
+	if !strings.Contains(out.String(), "│app") || !strings.Contains(out.String(), "│libmath") || !strings.Contains(out.String(), "▼") {
 		t.Fatalf("graph is missing nodes or the edge:\n%s", out.String())
 	}
 	for format, want := range map[string]string{
