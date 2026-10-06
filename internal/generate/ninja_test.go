@@ -1391,3 +1391,63 @@ func TestNinja_RegeneratesAfterAnInputIsDeleted(t *testing.T) {
 		t.Fatalf("missing obsolete input blocked regeneration: %v\n%s", err, output)
 	}
 }
+
+func TestNinja_StdModules(t *testing.T) {
+	dir := t.TempDir()
+	for name, content := range map[string]string{
+		"std.cppm":        "module;\nexport module std;\n",
+		"std.compat.cppm": "module;\nexport module std.compat;\nexport import std;\n",
+		"lib.cpp":         "import std;\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(dir)
+	cfg := createMinimalConfig("lib", "static_library", []string{"lib.cpp"})
+	cfg.Toolchain.StdModules = []config.StdModule{
+		{Source: filepath.Join(dir, "std.cppm"), Flags: []string{"-w"}},
+		{Source: filepath.Join(dir, "std.compat.cppm"), Flags: []string{"-w"}},
+	}
+	cfg.Targets["lib"] = config.Target{
+		Name: "lib", Type: "static_library", Sources: []string{"lib.cpp"}, LinkWhole: true,
+		SourceFlags: map[string][]string{"lib.cpp": {"-fno-exceptions", "-Wno-unused"}},
+	}
+	// generated.cpp does not exist until its custom target runs.
+	cfg.Targets["app"] = config.Target{Name: "app", Type: "executable", Sources: []string{"generated.cpp"}, Depends: []string{"lib", "generate"}}
+	cfg.Targets["generate"] = config.Target{Name: "generate", Type: "custom", Command: []string{"generator"}, Outputs: []string{"generated.cpp"}}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(output.String(), "\n")
+	statement := func(prefix string) string {
+		for index, line := range lines {
+			if strings.HasPrefix(line, prefix) {
+				end := index + 1
+				for end < len(lines) && strings.HasPrefix(lines[end], "  ") {
+					end++
+				}
+				return strings.Join(lines[index:end], "\n")
+			}
+		}
+		t.Fatalf("Ninja output has no %q:\n%s", prefix, output.String())
+		return ""
+	}
+	// Linking lib whole must not bring a second copy of std into app.
+	if archive := statement("build .build/debug/lib/liblib.a: ar"); strings.Contains(archive, "std") {
+		t.Errorf("static library archives std objects:\n%s", archive)
+	}
+	if link := statement("build .build/debug/bin/app: link"); !strings.Contains(link, ".build/debug/app/obj/std.cppm.o") {
+		t.Errorf("executable does not link its std objects:\n%s", link)
+	}
+	if compile := statement("build .build/debug/lib/obj/std.cppm.o "); !strings.Contains(compile, "-fno-exceptions") || strings.Contains(compile, "-Wno-unused") {
+		t.Errorf("std compiles without the sources' language flags only:\n%s", compile)
+	}
+	if compile := statement("build .build/debug/app/obj/generated.cpp.o:"); !strings.Contains(compile, "-fmodule-file=std=") {
+		t.Errorf("generated source does not import std:\n%s", compile)
+	}
+}

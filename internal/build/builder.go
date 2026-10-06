@@ -155,6 +155,9 @@ func Build(ctx context.Context, opts Options, platform toolchain.Platform) (*Res
 // Build builds all targets in dependency order
 func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err error) {
 	start := time.Now()
+	if err := plan.ResolveStdModules(ctx, b.toolchain, opts.Config); err != nil {
+		return nil, err
+	}
 	for _, target := range opts.Targets {
 		if _, ok := opts.Config.Targets[target]; !ok {
 			return nil, fmt.Errorf("target %q not found", target)

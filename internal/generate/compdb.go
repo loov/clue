@@ -65,6 +65,9 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 	if err != nil {
 		return err
 	}
+	if err := plan.ResolveStdModules(ctx, tc, opts.Config); err != nil {
+		return err
+	}
 	external, err := resolveExternalDependencies(ctx, opts.Config, tc, opts.BuildDir, opts.Variant, opts.Platform)
 	if err != nil {
 		return err
@@ -136,7 +139,10 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		return nil, err
 	}
 
-	targetPlan := plan.ForTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
+	targetPlan, err := plan.ForTarget(opts.Config, target, variant, opts.BuildDir, opts.Variant, opts.Platform)
+	if err != nil {
+		return nil, err
+	}
 	target = targetPlan.Target
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 	dependencyPlan, err := plan.ResolveDependencies(opts.Config, target, opts.BuildDir, opts.Variant, opts.Platform, external)

@@ -3,6 +3,7 @@ package plan
 
 import (
 	"path/filepath"
+	"slices"
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
@@ -12,6 +13,9 @@ import (
 type Source struct {
 	Source, Object, Standard string
 	Flags                    []string // extra compiler flags from the target's sourceFlags
+	// Std marks a standard library module. Static libraries leave its object
+	// out: the targets linking them build their own.
+	Std bool
 }
 
 // Target contains the generator-independent portion of a target build.
@@ -25,7 +29,7 @@ type Target struct {
 }
 
 // ForTarget creates the common plan used by direct and generated builds.
-func ForTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform toolchain.Platform) Target {
+func ForTarget(cfg *config.Config, target config.Target, variant config.Variant, buildDir, variantName string, platform toolchain.Platform) (Target, error) {
 	objectDir := objectDir(buildDir, variantName, target.Name)
 	usage := config.CompileUsage(cfg, target)
 	target.Includes = expandVariantPaths(usage.Includes, buildDir, variantName)
@@ -46,6 +50,17 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 	flags := targetConfig(target, variant)
 	flags.RawCompiler = append(flags.RawCompiler, usage.CompilerFlags...)
 	flags.RawLinker = append(flags.RawLinker, usage.LinkerFlags...)
+	stdFlags := make(map[string][]string, len(cfg.Toolchain.StdModules))
+	if slices.ContainsFunc(target.Sources, isCXXModuleConsumer) && len(cfg.Toolchain.StdModules) > 0 {
+		languageFlags, err := stdModuleLanguageFlags(target)
+		if err != nil {
+			return Target{}, err
+		}
+		for _, module := range cfg.Toolchain.StdModules {
+			target.Sources = append(slices.Clip(target.Sources), module.Source)
+			stdFlags[module.Source] = slices.Concat(languageFlags, module.Flags)
+		}
+	}
 	objectNames := ObjectNames(target.Sources)
 	plan := Target{
 		Target: target, Usage: usage, Flags: flags, ObjectDir: objectDir,
@@ -53,12 +68,22 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 		Sources: make([]Source, 0, len(target.Sources)),
 	}
 	for _, source := range target.Sources {
+		sourceFlags, std := stdFlags[source]
+		if !std {
+			sourceFlags = target.FlagsForSource(source)
+		}
 		plan.Sources = append(plan.Sources, Source{
 			Source: source, Object: filepath.Join(objectDir, objectNames[source]),
-			Standard: config.CompileStandard(cfg.Toolchain, target, usage, source), Flags: target.FlagsForSource(source),
+			Standard: config.CompileStandard(cfg.Toolchain, target, usage, source), Flags: sourceFlags, Std: std,
 		})
 	}
-	return plan
+	return plan, nil
+}
+
+// InOutput reports whether the output of a target of targetType, such as its
+// archive, contains the source's object.
+func (source Source) InOutput(targetType string) bool {
+	return !source.Std || targetType != "static_library"
 }
 
 func objectDir(buildDir, variant, target string) string {

@@ -277,6 +277,21 @@ GCC builds use a generated module mapper, MSVC builds IFC references and Clang b
 references. Which system headers can become header units still depends on the compiler and its
 standard library.
 
+`stdModule: true` builds the standard library modules `std` and `std.compat` into every C++
+target, so its sources and the headers they include can `import std;`:
+
+```cue
+toolchain: {compiler: "clang", cxxStd: "c++23", stdModule: true}
+```
+
+Clue finds the module sources from the manifest the compiler reports, such as libc++'s
+`libc++.modules.json`. Where there is none, as with Apple's clang or Zig, set `stdModule` to the
+path of the manifest or of `std.cppm` from the same standard library version. Each target builds
+its own `std`, because Clang rejects one built with other language options such as
+`-fno-exceptions`. For the same reason the C++ sources of a target must agree on the language
+options in their `sourceFlags`; warnings, macros, include paths, optimization and debug flags may
+differ. Container toolchains copy the module sources from the image into the build directory.
+
 ### Build variants
 
 ```cue

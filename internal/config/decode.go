@@ -62,6 +62,13 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 			cfg.Toolchain.CXXStd, _ = std.String()
 		}
 		cfg.Toolchain.Emulator = extractStringList(tc, "emulator")
+		if stdModule := tc.LookupPath(cue.ParsePath("stdModule")); stdModule.Exists() {
+			if path, err := stdModule.String(); err == nil {
+				cfg.Toolchain.StdModule, cfg.Toolchain.StdModulePath = true, path
+			} else {
+				cfg.Toolchain.StdModule, _ = stdModule.Bool()
+			}
+		}
 		if container := tc.LookupPath(cue.ParsePath("container")); container.Exists() {
 			cfg.Toolchain.Container = &ContainerToolchain{WorkDir: "/workspace"}
 			cfg.Toolchain.Container.Runtime, _ = container.LookupPath(cue.ParsePath("runtime")).String()

@@ -27,10 +27,15 @@ func (m Modules) CompilationOrder() []string { return m.sources }
 // ModuleSourceCount returns the number of sources that declare or import modules.
 func (m Modules) ModuleSourceCount() int { return len(m.bySource) }
 
-// ProvidedModules returns the BMIs produced by this target.
+// ProvidedModules returns the BMIs produced by this target for its dependents.
+// The standard library modules are left out: each target builds its own.
 func (m Modules) ProvidedModules() map[string]string {
 	provided := make(map[string]string, len(m.provided))
-	maps.Copy(provided, m.provided)
+	for name, output := range m.provided {
+		if !isStdModule(name) {
+			provided[name] = output
+		}
+	}
 	return provided
 }
 
@@ -54,6 +59,7 @@ func ResolveModules(tc toolchain.Toolchain, sources []string, bmiDir string, ava
 	if err != nil {
 		return Modules{}, err
 	}
+	dependencies = requireStdModules(sources, dependencies)
 	ordered, err := orderModuleCompilation(dependencies, available)
 	if err != nil {
 		return Modules{}, err
@@ -186,4 +192,38 @@ func DependencyModuleOutputs(cfg *config.Config, target config.Target, targets m
 		}
 	}
 	return outputs, nil
+}
+
+// requireStdModules makes every C++ source of a target that builds the
+// standard library modules require them, as "import std;" may also appear in
+// the headers the scan does not read. Clang loads a module file only when the
+// source imports it, so the others compile as before.
+func requireStdModules(sources []string, dependencies []moduleDependency) []moduleDependency {
+	var std []string
+	scanned := make(map[string]bool, len(dependencies))
+	for _, dependency := range dependencies {
+		scanned[dependency.Source] = true
+		if isStdModule(dependency.Provides) {
+			std = append(std, dependency.Provides)
+		}
+	}
+	if len(std) == 0 {
+		return dependencies
+	}
+	for index, dependency := range dependencies {
+		if isStdModule(dependency.Provides) {
+			continue // std.compat already imports std, and std must not import std.compat
+		}
+		for _, name := range std {
+			if !slices.Contains(dependency.Requires, name) {
+				dependencies[index].Requires = append(dependencies[index].Requires, name)
+			}
+		}
+	}
+	for _, source := range sources {
+		if !scanned[source] && isCXXModuleConsumer(source) {
+			dependencies = append(dependencies, moduleDependency{Source: source, UsesModules: true, Requires: slices.Clone(std)})
+		}
+	}
+	return dependencies
 }

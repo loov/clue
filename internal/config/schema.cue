@@ -361,6 +361,11 @@ package config
 		// by the program and its arguments; for example a WASI runtime or an
 		// emulator when cross-compiling
 		emulator?: [...string]
+		// Build the standard library modules std and std.compat into every
+		// C++ target, so its sources and headers can "import std;". true
+		// finds them from the compiler; a string is the path of a
+		// libc++.modules.json style manifest or of std.cppm.
+		stdModule?: bool | (string & != "")
 		container?: {
 			runtime?: string
 			platform?: string & != ""

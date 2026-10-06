@@ -78,7 +78,10 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	if err != nil {
 		return nil, err
 	}
-	targetPlan := plan.ForTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
+	targetPlan, err := plan.ForTarget(opts.Config, target, variantConfig, opts.BuildDir, variant, opts.Platform)
+	if err != nil {
+		return nil, err
+	}
 	target = targetPlan.Target
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 	dependencyPlan, err := plan.ResolveDependencies(opts.Config, target, opts.BuildDir, variant, opts.Platform, external)
@@ -149,7 +152,9 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	for _, source := range modules.CompilationOrder() {
 		objPath := ninjaPathLocal(sourcePlans[source].Object)
 		srcPath := ninjaPathLocal(source)
-		objects = append(objects, objPath)
+		if sourcePlans[source].InOutput(target.Type) {
+			objects = append(objects, objPath)
+		}
 		compileIncludes := slices.Clone(includes)
 		if tc.Name() == "msvc" {
 			compileIncludes = append(compileIncludes, toolchainEnvironmentPaths(tc, "INCLUDE")...)

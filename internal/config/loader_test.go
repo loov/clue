@@ -779,3 +779,23 @@ targets: {
 		t.Logf("Warning: error may not mention field: %v", err)
 	}
 }
+
+func TestLoaderExtractsStdModule(t *testing.T) {
+	for contents, want := range map[string]Toolchain{
+		`toolchain: stdModule: true`:                             {StdModule: true},
+		`toolchain: stdModule: false`:                            {},
+		`toolchain: stdModule: "/llvm/share/libc++/v1/std.cppm"`: {StdModule: true, StdModulePath: "/llvm/share/libc++/v1/std.cppm"},
+	} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte("name: \"std\"\ntargets: {}\n"+contents+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := NewLoader().Load(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Toolchain.StdModule != want.StdModule || cfg.Toolchain.StdModulePath != want.StdModulePath {
+			t.Errorf("%s: toolchain = %+v", contents, cfg.Toolchain)
+		}
+	}
+}

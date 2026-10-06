@@ -119,6 +119,9 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	if err != nil {
 		return err
 	}
+	if err := plan.ResolveStdModules(ctx, toolchain, opts.Config); err != nil {
+		return err
+	}
 
 	file := ninja.File{}
 

@@ -32,7 +32,10 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 		return nil, err
 	}
 
-	targetPlan := plan.ForTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
+	targetPlan, err := plan.ForTarget(opts.Config, target, opts.Config.ActiveVariant, opts.BuildDir, opts.Variant, b.target)
+	if err != nil {
+		return nil, err
+	}
 	target = targetPlan.Target
 	objDir, outputPath := targetPlan.ObjectDir, targetPlan.Output
 	dependencyPlan, err := b.resolveDependencies(opts, target)
@@ -194,14 +197,14 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			var moduleCompile []plan.CompileOptions
 			var otherCompile []plan.CompileOptions
 			for _, opt := range toCompile {
-				if opt.ModuleAware {
+				if opt.ModuleOutput != "" {
 					moduleCompile = append(moduleCompile, opt)
 				} else {
 					otherCompile = append(otherCompile, opt)
 				}
 			}
 
-			// Compile modules SEQUENTIALLY in dependency order
+			// Compile module interfaces SEQUENTIALLY in dependency order
 			// This ensures each module interface is built before files that import it
 			for _, opt := range moduleCompile {
 				results, err := b.parallelCompiler.CompileParallel(ctx, []plan.CompileOptions{opt})
@@ -222,7 +225,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 				}
 			}
 
-			// Compile non-module sources with all module dependencies
+			// Compile the other sources, which only import modules, in parallel
 			if len(otherCompile) > 0 {
 				results, err := b.parallelCompiler.CompileParallel(ctx, otherCompile)
 				if err != nil {
@@ -276,7 +279,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	}
 	var objectFiles []string
 	for _, source := range sourcesToCompile {
-		if object := sourcePlans[source].Object; built[object] {
+		if object := sourcePlans[source].Object; built[object] && sourcePlans[source].InOutput(target.Type) {
 			objectFiles = append(objectFiles, object)
 		}
 	}

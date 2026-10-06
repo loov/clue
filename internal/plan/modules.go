@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -53,6 +54,12 @@ func isModuleSource(path string) (bool, error) {
 		return true, nil
 	}
 	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		// A generated source that does not exist yet, as when generating
+		// build files; it can still import modules the target builds for all
+		// sources, such as std.
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}

@@ -19,7 +19,10 @@ func TestForTargetResolvesSharedBuildSemantics(t *testing.T) {
 	}
 	target := config.Target{Name: "app", Type: "executable", Sources: []string{"src/main.c", "src/main.cpp"}, Depends: []string{"base"}}
 	variant := config.Variant{Name: "debug", DebugInfo: true, DebugInfoSet: true, LTO: &debug, Defines: []string{"DEBUG"}}
-	targetPlan := ForTarget(cfg, target, variant, "build", "debug", toolchain.Platform{OS: "windows", Arch: "amd64"})
+	targetPlan, err := ForTarget(cfg, target, variant, "build", "debug", toolchain.Platform{OS: "windows", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if targetPlan.Output != filepath.Join("build", "debug", "bin", "app.exe") || targetPlan.Flags.Debug != "full" || !targetPlan.Flags.LTO {
 		t.Fatalf("plan = %+v", targetPlan)
 	}
@@ -41,7 +44,10 @@ func TestForTarget_SourceFlags(t *testing.T) {
 		Flags:       config.Flags{Compiler: []string{"-fno-rtti"}},
 		SourceFlags: map[string][]string{"src/*.cpp": {"-DSRC"}, "src/b.cpp": {"-frtti"}},
 	}
-	targetPlan := ForTarget(cfg, target, config.Variant{}, ".build", "debug", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	targetPlan, err := ForTarget(cfg, target, config.Variant{}, ".build", "debug", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	got := map[string][]string{}
 	for _, source := range targetPlan.Sources {
 		got[source.Source] = WithSourceFlags(targetPlan.Flags, source).RawCompiler

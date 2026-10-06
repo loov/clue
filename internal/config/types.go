@@ -86,6 +86,20 @@ type Toolchain struct {
 	CXXStd       string
 	Container    *ContainerToolchain
 	Emulator     []string // runs built programs: emulator... program args...
+
+	// StdModule builds the standard library modules std and std.compat into
+	// every C++ target, from StdModulePath or the files the compiler reports.
+	StdModule     bool
+	StdModulePath string // a libc++.modules.json style manifest, or std.cppm
+	// StdModules are the module sources found for the toolchain in use, set
+	// by plan.ResolveStdModules.
+	StdModules []StdModule
+}
+
+// StdModule is a standard library module source and its compiler flags.
+type StdModule struct {
+	Source string
+	Flags  []string
 }
 
 // ContainerToolchain runs toolchain commands in a container image.
