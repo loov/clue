@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/loov/clue/internal/config"
 )
 
 // Helper to run clue with args and capture output
@@ -343,6 +345,22 @@ func TestCLI_ShowcaseTestsPass(t *testing.T) {
 	for _, name := range []string{"rle_test", "base16_test", "rot13_test", "crc32_test", "cli_test"} {
 		if !strings.Contains(stdout, "[PASS] "+name) {
 			t.Errorf("%s did not pass:\n%s", name, stdout)
+		}
+	}
+}
+
+func TestToolchainSummaryLeavesOutUnsetFields(t *testing.T) {
+	for _, test := range []struct {
+		toolchain config.Toolchain
+		want      string
+	}{
+		{config.Toolchain{}, ""},
+		{config.Toolchain{Compiler: "clang"}, "clang"},
+		{config.Toolchain{CXXStd: "c++20"}, "(C++: c++20)"},
+		{config.Toolchain{Compiler: "gcc", CStd: "c17", CXXStd: "c++23"}, "gcc (C: c17, C++: c++23)"},
+	} {
+		if got := toolchainSummary(test.toolchain); got != test.want {
+			t.Errorf("toolchainSummary(%+v) = %q, want %q", test.toolchain, got, test.want)
 		}
 	}
 }

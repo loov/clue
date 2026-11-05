@@ -186,9 +186,12 @@ func loadConfig(dir, variant, target string, verbosity build.Verbosity) (*config
 
 	if verbosity >= build.VerbosityNormal {
 		fmt.Printf("Loaded configuration: %s\n", cfg.Name)
-		fmt.Printf("  Version: %s\n", cfg.Version)
-		fmt.Printf("  Toolchain: %s (C: %s, C++: %s)\n", cfg.Toolchain.Compiler,
-			cfg.Toolchain.Standard("source.c"), cfg.Toolchain.Standard("source.cpp"))
+		if cfg.Version != "" {
+			fmt.Printf("  Version: %s\n", cfg.Version)
+		}
+		if summary := toolchainSummary(cfg.Toolchain); summary != "" {
+			fmt.Printf("  Toolchain: %s\n", summary)
+		}
 		fmt.Printf("  Targets: %d\n", len(cfg.Targets))
 		fmt.Printf("  Variants: %d\n", len(cfg.Variants))
 	}
@@ -260,6 +263,23 @@ func printError(err error) {
 
 // resolvedJobs turns the -j value into a job count: 0 or a negative value
 // is one job per CPU core.
+// toolchainSummary describes the configured compiler and language
+// standards, leaving out those the configuration doesn't set.
+func toolchainSummary(tc config.Toolchain) string {
+	var standards []string
+	if std := tc.Standard("source.c"); std != "" {
+		standards = append(standards, "C: "+std)
+	}
+	if std := tc.Standard("source.cpp"); std != "" {
+		standards = append(standards, "C++: "+std)
+	}
+	summary := tc.Compiler
+	if len(standards) > 0 {
+		summary = strings.TrimSpace(summary + " (" + strings.Join(standards, ", ") + ")")
+	}
+	return summary
+}
+
 func resolvedJobs(jobs int) int {
 	if jobs <= 0 {
 		return runtime.NumCPU()
