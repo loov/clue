@@ -87,16 +87,19 @@ func (e *executor) RunCommand(ctx context.Context, name string, args ...string) 
 		return nil, err
 	}
 
-	done := make(chan error, 1)
+	var waitErr error
+	done := make(chan struct{})
 	go func() {
-		done <- cmd.Wait()
+		waitErr = cmd.Wait()
+		close(done)
 	}()
 
 	select {
-	case err := <-done:
-		result := e.buildResult(err, stdout, stderr, start)
-		return result, e.checkError(err)
+	case <-done:
+		result := e.buildResult(waitErr, stdout, stderr, start)
+		return result, e.checkError(waitErr)
 	case <-ctx.Done():
+		// The process's exit error is dropped: cancellation is the result.
 		terminateProcess(cmd.Process)
 		select {
 		case <-done:
