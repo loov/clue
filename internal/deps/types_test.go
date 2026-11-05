@@ -69,3 +69,9 @@ func TestInlineConfig_ExternalBuildNeedsCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPkgConfigDependencyRejectsOptionLikePackage(t *testing.T) {
+	if err := NewPkgConfigDependency("sdk", "--with-path=/tmp", false).Validate(); err == nil {
+		t.Error("expected an error for a package that starts with -")
+	}
+}

@@ -73,6 +73,9 @@ func (p *PkgConfigDependency) Validate() error {
 	if p.Package == "" {
 		return fmt.Errorf("pkg-config dependency %q: package is required", p.name)
 	}
+	if strings.HasPrefix(p.Package, "-") {
+		return fmt.Errorf("pkg-config dependency %q: package %q would be read as a pkg-config option", p.name, p.Package)
+	}
 	return nil
 }
 
