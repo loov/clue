@@ -37,7 +37,10 @@ type Dependencies struct {
 	SystemLibraries    []string
 	SharedLibraryPaths []string
 	WholeArchives      []string // static libraries to link completely
-	UsesCXX            bool
+	// LinkReads are custom targets' outputs that are not linked, such as a
+	// version script that a linker flag names: changing one relinks.
+	LinkReads []string
+	UsesCXX   bool
 }
 
 // ResolveDependencies plans the external and project dependencies of target.
@@ -97,12 +100,13 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 		// A custom target's dependencies are its command's inputs; consumers
 		// link only its outputs, when it sets link.
 		if dependency.Type == "custom" {
-			if !dependency.Link {
-				return nil
-			}
 			expanded, err := ExpandCustomTarget(cfg, dependency, buildDir, variant, platform)
 			if err != nil {
 				return err
+			}
+			if !dependency.Link {
+				result.LinkReads = append(result.LinkReads, expanded.Outputs...)
+				return nil
 			}
 			for _, output := range expanded.Outputs {
 				result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: "static_library"})

@@ -19,8 +19,8 @@ var customPlaceholder = regexp.MustCompile(`\{(variant|buildDir|output:[a-zA-Z][
 // toolPlaceholder matches {tool:<name>}, a program declared under tools.
 var toolPlaceholder = regexp.MustCompile(`\{tool:[a-zA-Z][a-zA-Z0-9_-]*\}`)
 
-// expandVariantPaths substitutes {variant} and {buildDir} in include paths, so
-// targets can include files that per-variant custom targets generate.
+// expandVariantPaths substitutes {variant} and {buildDir} in include paths and
+// flags, so targets can use files that per-variant custom targets generate.
 func expandVariantPaths(paths []string, buildDir, variant string) []string {
 	result := make([]string, len(paths))
 	for index, path := range paths {

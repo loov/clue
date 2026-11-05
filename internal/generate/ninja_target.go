@@ -261,10 +261,11 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			rule = "link"
 		}
 		*file = append(*file, ninja.Build{
-			Rule: rule,
-			In:   linkInputs,
-			Out:  []string{outputPath},
-			Vars: ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
+			Rule:       rule,
+			In:         linkInputs,
+			InImplicit: ninjaPaths(slices.Clone(dependencyPlan.LinkReads)),
+			Out:        []string{outputPath},
+			Vars:       ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
 		})
 
 	case "static_library":
@@ -302,10 +303,11 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 			rule = "link_shared"
 		}
 		statement := ninja.Build{
-			Rule: rule,
-			In:   linkInputs,
-			Out:  []string{outputPath},
-			Vars: ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
+			Rule:       rule,
+			In:         linkInputs,
+			InImplicit: ninjaPaths(slices.Clone(dependencyPlan.LinkReads)),
+			Out:        []string{outputPath},
+			Vars:       ninja.Vars{{Key: "args", Val: ninjaResponseArguments(tc, invocation.Arguments)}},
 		}
 		addImportLibraryOutput(&statement, invocation.ImportLibrary)
 		*file = append(*file, statement)

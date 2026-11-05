@@ -61,6 +61,22 @@ func TestForTarget_SourceFlags(t *testing.T) {
 	}
 }
 
+func TestForTarget_FlagsExpandBuildDir(t *testing.T) {
+	cfg := &config.Config{Targets: map[string]config.Target{}}
+	target := config.Target{
+		Name: "plugin", Type: "shared_library", Sources: []string{"plugin.c"},
+		Flags: config.Flags{Linker: []string{"-Wl,--version-script={buildDir}/gen/exports.txt"}},
+	}
+	targetPlan, err := ForTarget(cfg, target, config.Variant{}, ".build", "release", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"-Wl,--version-script=" + filepath.Join(".build", "release") + "/gen/exports.txt"}
+	if !slices.Equal(targetPlan.Flags.RawLinker, want) {
+		t.Errorf("linker flags = %q, want %q", targetPlan.Flags.RawLinker, want)
+	}
+}
+
 func TestTargetConfig_PositionIndependentExecutable(t *testing.T) {
 	pic := true
 	for targetType, want := range map[string][2]bool{

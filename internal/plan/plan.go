@@ -50,6 +50,9 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 	flags := targetConfig(target, variant)
 	flags.RawCompiler = append(flags.RawCompiler, usage.CompilerFlags...)
 	flags.RawLinker = append(flags.RawLinker, usage.LinkerFlags...)
+	// Flags may name files that custom targets generate per variant.
+	flags.RawCompiler = expandVariantPaths(flags.RawCompiler, buildDir, variantName)
+	flags.RawLinker = expandVariantPaths(flags.RawLinker, buildDir, variantName)
 	stdFlags := make(map[string][]string, len(cfg.Toolchain.StdModules))
 	if slices.ContainsFunc(target.Sources, isCXXModuleConsumer) && len(cfg.Toolchain.StdModules) > 0 {
 		languageFlags, err := stdModuleLanguageFlags(target)

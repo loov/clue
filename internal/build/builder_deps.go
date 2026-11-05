@@ -22,5 +22,5 @@ func dependencyArtifactPaths(dependencies plan.Dependencies) []string {
 	for _, artifact := range dependencies.Artifacts {
 		paths = append(paths, artifact.Path)
 	}
-	return paths
+	return append(paths, dependencies.LinkReads...)
 }

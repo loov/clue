@@ -485,8 +485,9 @@ A custom target's `command`, `inputs` and `outputs` may use these placeholders:
   `{output:name:module}` is a bundle's linked module, and `{output:name:bundle}` the bundle.
 
 Clue adds a target named in `command` or `inputs` to `depends`. A custom target with placeholders
-runs once per variant, so its outputs must differ per variant too. Include paths may use
-`{variant}` and `{buildDir}` to find generated headers:
+runs once per variant, so its outputs must differ per variant too. Include paths and compiler and
+linker flags may use `{variant}` and `{buildDir}` to find generated files, such as headers or a
+version script:
 
 ```cue
 targets: bundle: {
@@ -519,6 +520,8 @@ targets: plugin: {type: "shared_library", sources: ["plugin.cpp"], depends: ["th
 ```
 
 The system libraries of the original aren't linked either; list those in the consumer's `sysLibs`.
+A target that depends on a custom target without `link` relinks when its outputs
+change, so a generated version script is picked up.
 
 `{clue}` is clue itself. `clue configure <template> <output> [name=value]...` writes `output` from
 `template`, replacing each `@name@` with its value. A value `name=@file` inserts the file's
