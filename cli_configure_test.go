@@ -32,7 +32,7 @@ targets: header: {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "#define VERSION \"1.2\"\nconst char* text = R\"(Copyright @VERSION@\n)\";\n@KEEP@\n"
+	want := "#define VERSION \"1.2\"\nconst char* text = R\"(Copyright @VERSION@)\";\n@KEEP@\n"
 	if string(got) != want {
 		t.Fatalf("header.h = %q, want %q", got, want)
 	}

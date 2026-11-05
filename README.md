@@ -522,8 +522,8 @@ The system libraries of the original aren't linked either; list those in the con
 
 `{clue}` is clue itself. `clue configure <template> <output> [name=value]...` writes `output` from
 `template`, replacing each `@name@` with its value. A value `name=@file` inserts the file's
-contents. Clue doesn't touch the inserted text, nor `@name@` for names it isn't given. That lets a
-custom target generate a file without a shell:
+contents without the final line ending. Clue doesn't touch the inserted text, nor `@name@` for
+names it isn't given. That lets a custom target generate a file without a shell:
 
 ```cue
 targets: license: {

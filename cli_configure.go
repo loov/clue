@@ -20,7 +20,7 @@ type configureCommand struct {
 func (c *configureCommand) Setup(params clingy.Parameters) {
 	c.template = params.Arg("template", "template file").(string)
 	c.output = params.Arg("output", "file to write").(string)
-	c.values = params.Arg("value", "name=text, or name=@file for the file's contents", clingy.Repeated).([]string)
+	c.values = params.Arg("value", "name=text, or name=@file for the file's contents without the final line ending", clingy.Repeated).([]string)
 }
 
 func (c *configureCommand) Execute(context.Context) error {
@@ -39,7 +39,8 @@ func (c *configureCommand) Execute(context.Context) error {
 			if err != nil {
 				return err
 			}
-			text = string(data)
+			// Like a line read from the file, without its line ending.
+			text = strings.TrimSuffix(strings.TrimSuffix(string(data), "\n"), "\r")
 		}
 		replacements = append(replacements, "@"+name+"@", text)
 	}
