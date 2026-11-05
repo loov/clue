@@ -417,9 +417,7 @@ func (b *Builder) buildTargets(ctx context.Context, opts Options, order []string
 // buildDependency resolves a pkg-config dependency or builds a fetched one.
 func (b *Builder) buildDependency(ctx context.Context, opts Options, depBuilder *depBuilder, dep deps.Dependency, built map[string]*depBuildResult) (*depBuildResult, error) {
 	if pkg, ok := dep.(*deps.PkgConfigDependency); ok {
-		usage, err := pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
-			return toolchain.Output(ctx, b.toolchain, ".", name, args...)
-		})
+		usage, err := plan.ResolvePkgConfig(ctx, opts.Config, b.toolchain, pkg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve dependency %q: %w", dep.Name(), err)
 		}

@@ -2,6 +2,7 @@ package deps
 
 import (
 	"context"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"testing"
@@ -26,8 +27,10 @@ func TestParsePkgConfigUsage_SeparatesCompileAndLinkFlags(t *testing.T) {
 func TestResolvePkgConfigWithRunner_QueriesFlagsAndLibraries(t *testing.T) {
 	pkg := NewPkgConfigDependency("sdk", "clue-sdk", false)
 	var calls [][]string
-	usage, err := pkg.ResolveWithRunner(t.Context(), func(_ context.Context, name string, args ...string) (string, error) {
+	var envs [][]string
+	usage, err := pkg.ResolveWithRunner(t.Context(), []string{"/vcpkg/lib/pkgconfig", "/vcpkg/share/pkgconfig"}, func(_ context.Context, env []string, name string, args ...string) (string, error) {
 		calls = append(calls, append([]string{name}, args...))
+		envs = append(envs, env)
 		if slices.Contains(args, "--cflags") {
 			return "-I/container/include -DSDK", nil
 		}
@@ -38,6 +41,12 @@ func TestResolvePkgConfigWithRunner_QueriesFlagsAndLibraries(t *testing.T) {
 	}
 	if len(calls) != 2 || !reflect.DeepEqual(usage.SystemIncludes, []string{"/container/include"}) {
 		t.Fatalf("calls=%v usage=%+v", calls, usage)
+	}
+	wantEnv := []string{"PKG_CONFIG_LIBDIR=/vcpkg/lib/pkgconfig" + string(filepath.ListSeparator) + "/vcpkg/share/pkgconfig", "PKG_CONFIG_PATH="}
+	for _, env := range envs {
+		if !reflect.DeepEqual(env, wantEnv) {
+			t.Errorf("env = %q, want %q", env, wantEnv)
+		}
 	}
 }
 

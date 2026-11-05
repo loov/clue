@@ -825,3 +825,20 @@ targets: app: {
 		t.Errorf("expected merged path with element count:\n%s", msg)
 	}
 }
+
+func TestLoader_PkgConfigPathIsRelativeToProject(t *testing.T) {
+	dir := t.TempDir()
+	config := "name: \"pc\"\ntoolchain: pkgConfigPath: [\"vcpkg/lib/pkgconfig\", \"/opt/pc\"]\ntargets: {}\n"
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absDir, _ := filepath.Abs(dir)
+	want := []string{filepath.Join(absDir, "vcpkg", "lib", "pkgconfig"), "/opt/pc"}
+	if !slices.Equal(cfg.Toolchain.PkgConfigPath, want) {
+		t.Errorf("pkgConfigPath = %q, want %q", cfg.Toolchain.PkgConfigPath, want)
+	}
+}

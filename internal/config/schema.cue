@@ -354,6 +354,10 @@ package config
 		ar?: string
 		targetTriple?: string
 		sysroot?: string
+		// Directories with the .pc files of pkg_config dependencies, relative
+		// to the project; these replace pkg-config's search path, so no
+		// package comes from elsewhere on the system
+		pkgConfigPath?: [...string]
 		std?: string     // Backward-compatible single-language standard
 		cStd?: string    // e.g., "c17"
 		cxxStd?: string  // e.g., "c++23"

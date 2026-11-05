@@ -86,6 +86,8 @@ type Toolchain struct {
 	CXXStd       string
 	Container    *ContainerToolchain
 	Emulator     []string // runs built programs: emulator... program args...
+	// PkgConfigPath replaces pkg-config's search path; absolute once loaded
+	PkgConfigPath []string
 
 	// StdModule builds the standard library modules std and std.compat into
 	// every C++ target, from StdModulePath or the files the compiler reports.

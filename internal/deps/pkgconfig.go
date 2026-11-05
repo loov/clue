@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"unicode"
@@ -83,45 +83,35 @@ func dedupeLibraries(flags []string) []string {
 	return result
 }
 
-// CommandRunner executes pkg-config and returns its standard output.
-type CommandRunner func(context.Context, string, ...string) (string, error)
+// CommandRunner executes pkg-config with env added to its environment and
+// returns its standard output.
+type CommandRunner func(ctx context.Context, env []string, name string, args ...string) (string, error)
 
-// Resolve queries pkg-config for the dependency's compile and link metadata.
-func (p *PkgConfigDependency) Resolve(ctx context.Context) (Usage, error) {
-	return p.ResolveWithRunner(ctx, directCommandRunner)
-}
-
-// ResolveWithRunner queries pkg-config through the active toolchain environment.
-func (p *PkgConfigDependency) ResolveWithRunner(ctx context.Context, runner CommandRunner) (Usage, error) {
+// ResolveWithRunner queries pkg-config for the dependency's compile and link
+// metadata. A non-empty searchPath replaces pkg-config's search path, so no
+// package comes from elsewhere on the system.
+func (p *PkgConfigDependency) ResolveWithRunner(ctx context.Context, searchPath []string, runner CommandRunner) (Usage, error) {
 	command := os.Getenv("PKG_CONFIG")
 	if command == "" {
 		command = "pkg-config"
+	}
+	var env []string
+	if len(searchPath) > 0 {
+		env = []string{"PKG_CONFIG_LIBDIR=" + strings.Join(searchPath, string(filepath.ListSeparator)), "PKG_CONFIG_PATH="}
 	}
 	args := []string{}
 	if p.Static {
 		args = append(args, "--static")
 	}
-	cflags, err := runner(ctx, command, append(args, "--cflags", p.Package)...)
+	cflags, err := runner(ctx, env, command, append(args, "--cflags", p.Package)...)
 	if err != nil {
 		return Usage{}, err
 	}
-	libs, err := runner(ctx, command, append(args, "--libs", p.Package)...)
+	libs, err := runner(ctx, env, command, append(args, "--libs", p.Package)...)
 	if err != nil {
 		return Usage{}, err
 	}
 	return parsePkgConfigUsage(cflags, libs)
-}
-
-func directCommandRunner(ctx context.Context, command string, args ...string) (string, error) {
-	output, err := exec.CommandContext(ctx, command, args...).CombinedOutput()
-	if err != nil {
-		message := strings.TrimSpace(string(output))
-		if message != "" {
-			return "", fmt.Errorf("%s %s: %w: %s", command, strings.Join(args, " "), err, message)
-		}
-		return "", fmt.Errorf("%s %s: %w", command, strings.Join(args, " "), err)
-	}
-	return string(output), nil
 }
 
 func parsePkgConfigUsage(cflags, libs string) (Usage, error) {

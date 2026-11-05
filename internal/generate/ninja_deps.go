@@ -209,7 +209,7 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 		}
 		seen[current.Name()] = true
 		if pkg, ok := current.(*deps.PkgConfigDependency); ok {
-			resolved, err := resolvePkgConfig(ctx, pkg, tc)
+			resolved, err := plan.ResolvePkgConfig(ctx, cfg, tc, pkg)
 			if err != nil {
 				return err
 			}
@@ -238,12 +238,6 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 		return deps.Usage{}, err
 	}
 	return usage, nil
-}
-
-func resolvePkgConfig(ctx context.Context, pkg *deps.PkgConfigDependency, tc toolchain.Toolchain) (deps.Usage, error) {
-	return pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
-		return toolchain.Output(ctx, tc, ".", name, args...)
-	})
 }
 
 func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc toolchain.Toolchain, buildDir, variant string, platform toolchain.Platform) (map[string]plan.ExternalDependency, error) {
@@ -301,7 +295,7 @@ func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc too
 		if !ok {
 			return nil
 		}
-		usage, err := resolvePkgConfig(ctx, pkg, tc)
+		usage, err := plan.ResolvePkgConfig(ctx, cfg, tc, pkg)
 		if err != nil {
 			return fmt.Errorf("dependency %q: %w", name, err)
 		}

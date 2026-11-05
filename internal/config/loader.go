@@ -207,6 +207,11 @@ func (l *Loader) finish(val cue.Value, absDir string, target toolchain.Platform)
 	}
 	config.Dir = absDir
 	config.target = target
+	for i, path := range config.Toolchain.PkgConfigPath {
+		if !filepath.IsAbs(path) {
+			config.Toolchain.PkgConfigPath[i] = filepath.Join(absDir, path)
+		}
+	}
 	// Dependencies declared by dependencies; those in clue.cue files of
 	// checkouts that are not fetched yet are added after fetching.
 	if _, err := ExpandDependencies(config); err != nil {

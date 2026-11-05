@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"os/exec"
 	"slices"
 )
@@ -47,10 +48,28 @@ func Command(tc Toolchain, name string, args []string) (string, []string) {
 
 // Output runs a metadata tool in the configured toolchain environment.
 func Output(ctx context.Context, tc Toolchain, workDir, name string, args ...string) (string, error) {
-	name, args = CommandIn(tc, name, args, workDir)
+	return OutputEnv(ctx, tc, workDir, nil, name, args...)
+}
+
+// OutputEnv is Output with env added to the tool's environment. A tool that
+// the toolchain runs elsewhere, such as in a container, gets env through the
+// env command, whose arguments the toolchain maps like the tool's own.
+func OutputEnv(ctx context.Context, tc Toolchain, workDir string, env []string, name string, args ...string) (string, error) {
+	wrapped, wrappedArgs := CommandIn(tc, name, args, workDir)
+	if len(env) > 0 && wrapped != name {
+		wrapped, wrappedArgs = CommandIn(tc, "env", append(slices.Clone(env), append([]string{name}, args...)...), workDir)
+		env = nil
+	}
+	name, args = wrapped, wrappedArgs
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = workDir
 	cmd.Env = Environment(tc)
+	if len(env) > 0 {
+		if cmd.Env == nil {
+			cmd.Env = os.Environ()
+		}
+		cmd.Env = append(cmd.Env, env...)
+	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	stdout, err := cmd.Output()

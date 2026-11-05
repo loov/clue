@@ -613,6 +613,14 @@ dependencies: ssl: {
 }
 ```
 
+`toolchain.pkgConfigPath` lists the directories to find `.pc` files in, such as a vcpkg
+installation's. It replaces pkg-config's search path, so a package missing from them isn't found
+elsewhere on the system:
+
+```cue
+toolchain: pkgConfigPath: ["vcpkg_installed/arm64-osx/lib/pkgconfig"]
+```
+
 Include directories from every dependency are system include directories (`-isystem`), so
 warnings in its headers don't fail the build. pkg-config's `-W` warning options are dropped, and
 include directories, defines and libraries that several dependencies list are passed once.
