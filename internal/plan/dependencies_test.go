@@ -37,6 +37,32 @@ func TestResolveDependencies(t *testing.T) {
 	}
 }
 
+func TestResolveDependencies_LinksEveryPrebuiltLibrary(t *testing.T) {
+	platform := toolchain.Platform{OS: "linux", Arch: "amd64"}
+	cfg := &config.Config{Targets: map[string]config.Target{
+		"app": {Name: "app", Sources: []string{"main.c"}, Depends: []string{"sdk"}},
+	}}
+	external := map[string]ExternalDependency{
+		"sdk": {Name: "sdk", Type: "prebuilt_static", Output: "sdk/libcore.a", MoreOutputs: []string{"sdk/libauth.a", "sdk/libs3.a"}},
+	}
+	got, err := ResolveDependencies(cfg, cfg.Targets["app"], ".build", "debug", platform, external)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"sdk/libcore.a", "sdk/libauth.a", "sdk/libs3.a"}
+	if !slices.Equal(got.LinkFiles, want) {
+		t.Errorf("link files = %v, want %v", got.LinkFiles, want)
+	}
+	var artifacts []string
+	for _, artifact := range got.Artifacts {
+		artifacts = append(artifacts, artifact.Path)
+	}
+	// Every library is a link input, so replacing one relinks.
+	if !slices.Equal(artifacts, want) {
+		t.Errorf("artifacts = %v, want %v", artifacts, want)
+	}
+}
+
 func TestRuntimeLibraryFlags(t *testing.T) {
 	output := filepath.Join(".build", "debug", "bin", "app")
 	libraryDir := filepath.Join(".build", "debug", "deps", "answer", "lib")

@@ -54,13 +54,13 @@ func TestInlineConfig_PrebuiltNeedsLibrary(t *testing.T) {
 	if err := (&InlineConfig{Type: "prebuilt_static"}).Validate(); err == nil {
 		t.Fatal("prebuilt dependency accepted a missing library")
 	}
-	if err := (&InlineConfig{Type: "prebuilt_static", Library: "lib/libfoo.a"}).Validate(); err != nil {
+	if err := (&InlineConfig{Type: "prebuilt_static", Libraries: []string{"lib/libfoo.a"}}).Validate(); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestInlineConfig_ExternalBuildNeedsCommands(t *testing.T) {
-	config := &InlineConfig{Type: "external_static", Library: "build/libfoo.a"}
+	config := &InlineConfig{Type: "external_static", Libraries: []string{"build/libfoo.a"}}
 	if err := config.Validate(); err == nil {
 		t.Fatal("external build accepted missing commands")
 	}

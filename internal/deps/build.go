@@ -18,7 +18,7 @@ type BuildConfig struct {
 	Includes       []string
 	Defines        []string
 	Depends        []string
-	Library        string
+	Libraries      []string // of a prebuilt or external dependency, the first is its library
 	Commands       [][]string
 	Flags          toolchain.Flags
 	SystemIncludes []string
@@ -82,7 +82,7 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 		}
 		config := BuildConfig{
 			Sources: sources, Includes: includes, Defines: slices.Clone(inline.Defines),
-			Depends: slices.Clone(inline.Depends), Library: inline.Library,
+			Depends: slices.Clone(inline.Depends), Libraries: slices.Clone(inline.Libraries),
 			Commands: inline.Commands, Type: targetType,
 			Flags: toolchain.Flags{RawCompiler: slices.Clone(inline.CompilerFlags), RawLinker: slices.Clone(inline.LinkerFlags), Warnings: inline.Warnings},
 		}

@@ -206,7 +206,10 @@ package config
 	includes?: [...string]
 	defines?: [...string]
 	depends?: [...string]  // Other dependency names
+	// A prebuilt or external dependency's library, relative to its checkout;
+	// libraries lists more, or all of them, such as an SDK's several archives
 	library?: string
+	libraries?: [...string]
 	commands?: [...([...string] & [_, ...])]
 	// Raw flags and warning level for compiling (and linking) the dependency
 	flags?: {
@@ -218,11 +221,7 @@ package config
 	if targetType == "static_library" || targetType == "shared_library" {
 		sources: [...string] & [_, ...]
 	}
-	if targetType == "prebuilt_static" || targetType == "prebuilt_shared" {
-		library: string
-	}
 	if targetType == "external_static" || targetType == "external_shared" {
-		library: string
 		commands: [...([...string] & [_, ...])] & [_, ...]
 	}
 }

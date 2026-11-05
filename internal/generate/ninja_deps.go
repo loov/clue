@@ -186,10 +186,23 @@ func dependencyDepends(dep deps.Dependency) []string {
 	return resolved.Depends
 }
 
-func dependencyOutputPath(buildDir, variant string, dep deps.Dependency, platform toolchain.Platform) string {
+// dependencyLibraries returns the library files of a prebuilt or external
+// dependency.
+func dependencyLibraries(dep deps.Dependency) []string {
 	buildConfig := dep.InlineBuild()
-	if buildConfig != nil && buildConfig.Library != "" {
-		return filepath.Join(dep.CachePath("."), buildConfig.Library)
+	if buildConfig == nil {
+		return nil
+	}
+	libraries := make([]string, len(buildConfig.Libraries))
+	for i, library := range buildConfig.Libraries {
+		libraries[i] = filepath.Join(dep.CachePath("."), library)
+	}
+	return libraries
+}
+
+func dependencyOutputPath(buildDir, variant string, dep deps.Dependency, platform toolchain.Platform) string {
+	if libraries := dependencyLibraries(dep); len(libraries) > 0 {
+		return libraries[0]
 	}
 	if dependencyTargetType(dep) == "header_only" {
 		return ""
@@ -255,7 +268,8 @@ func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc too
 		include, usage := deps.ConsumerUsage(dependency, dependency.CachePath("."), build)
 		resolved[name] = plan.ExternalDependency{
 			Name: name, Type: build.Type, Output: dependencyOutputPath(buildDir, variant, dependency, platform),
-			Include: include, Usage: usage, Depends: build.Depends,
+			MoreOutputs: moreLibraries(dependencyLibraries(dependency)),
+			Include:     include, Usage: usage, Depends: build.Depends,
 			RequiresCXX: sourcesUseCXX(build.Sources),
 		}
 		roots = append(roots, name)
@@ -380,7 +394,18 @@ func externalDependencyOutputs(cfg *config.Config, names []string, buildDir, var
 			if output := dependencyOutputPath(buildDir, variant, dep, platform); output != "" {
 				outputs = append(outputs, ninjaPathLocal(output))
 			}
+			for _, library := range moreLibraries(dependencyLibraries(dep)) {
+				outputs = append(outputs, ninjaPathLocal(library))
+			}
 		}
 	}
 	return outputs
+}
+
+// moreLibraries returns the libraries after the first.
+func moreLibraries(libraries []string) []string {
+	if len(libraries) < 2 {
+		return nil
+	}
+	return libraries[1:]
 }

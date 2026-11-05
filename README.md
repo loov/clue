@@ -623,6 +623,16 @@ dependencies: sdk: {
 }
 ```
 
+An SDK of several archives lists them all in `libraries`, which consumers link in that order:
+
+```cue
+build: {
+    targetType: "prebuilt_static"
+    libraries:  ["lib/libsdk-s3.a", "lib/libsdk-core.a", "lib/libsdk-crt.a"]
+    includes:   ["include"]
+}
+```
+
 A `pkg_config` dependency takes a system package's compiler and linker flags from `pkg-config`:
 
 ```cue

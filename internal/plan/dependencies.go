@@ -12,10 +12,13 @@ import (
 // ExternalDependency is the generator-independent view of a resolved dependency.
 type ExternalDependency struct {
 	Name, Type, Output string
-	Include            string
-	Depends            []string
-	Usage              deps.Usage
-	RequiresCXX        bool
+	// MoreOutputs are a prebuilt or external dependency's libraries after
+	// Output, linked after it.
+	MoreOutputs []string
+	Include     string
+	Depends     []string
+	Usage       deps.Usage
+	RequiresCXX bool
 }
 
 // Artifact is a library file produced by a dependency.
@@ -62,6 +65,10 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 				switch dependency.Type {
 				case "prebuilt_static", "prebuilt_shared", "external_static", "external_shared":
 					result.LinkFiles = append(result.LinkFiles, dependency.Output)
+					result.LinkFiles = append(result.LinkFiles, dependency.MoreOutputs...)
+					for _, library := range dependency.MoreOutputs {
+						result.Artifacts = append(result.Artifacts, Artifact{Path: library, Type: artifactType})
+					}
 				default:
 					result.LibraryPaths = appendUnique(result.LibraryPaths, path)
 					result.Libraries = append(result.Libraries, deps.ArtifactName(dependency.Name))

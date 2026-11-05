@@ -648,8 +648,10 @@ func (l *Loader) extractInlineConfig(val cue.Value) (*deps.InlineConfig, error) 
 		}
 	}
 	if library := val.LookupPath(cue.ParsePath("library")); library.Exists() {
-		config.Library, _ = library.String()
+		path, _ := library.String()
+		config.Libraries = append(config.Libraries, path)
 	}
+	config.Libraries = append(config.Libraries, extractStringList(val, "libraries")...)
 
 	config.Type = "static_library" // Default
 	if typeVal := val.LookupPath(cue.ParsePath("targetType")); typeVal.Exists() {

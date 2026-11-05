@@ -35,9 +35,11 @@ type InlineConfig struct {
 	Includes []string
 	Defines  []string
 	Depends  []string
-	Library  string
-	Commands [][]string
-	Type     string // built, header-only, or prebuilt library type
+	// Libraries are the files a prebuilt or external dependency links;
+	// the first is its library, the others are linked after it.
+	Libraries []string
+	Commands  [][]string
+	Type      string // built, header-only, or prebuilt library type
 
 	CompilerFlags []string // raw flags for compiling the dependency's sources
 	LinkerFlags   []string // raw flags for linking a shared dependency
@@ -361,7 +363,7 @@ func (ic *InlineConfig) Validate() error {
 	if len(ic.Sources) == 0 && ic.Type != "header_only" && !prebuilt && !external {
 		return fmt.Errorf("inline build config: at least one source file is required")
 	}
-	if (prebuilt || external) && ic.Library == "" {
+	if (prebuilt || external) && len(ic.Libraries) == 0 {
 		return fmt.Errorf("inline build config: library path is required")
 	}
 	if external && len(ic.Commands) == 0 {

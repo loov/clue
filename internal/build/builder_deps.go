@@ -10,7 +10,7 @@ func (b *Builder) resolveDependencies(opts Options, target config.Target) (plan.
 	external := make(map[string]plan.ExternalDependency, len(built))
 	for name, result := range built {
 		external[name] = plan.ExternalDependency{
-			Name: name, Type: result.Type, Output: result.LibPath, Include: result.IncludePath,
+			Name: name, Type: result.Type, Output: result.LibPath, MoreOutputs: result.MoreLibPaths, Include: result.IncludePath,
 			Depends: result.Depends, Usage: result.Usage, RequiresCXX: result.RequiresCXX,
 		}
 	}

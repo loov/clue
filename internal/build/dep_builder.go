@@ -32,15 +32,18 @@ type depBuildOptions struct {
 
 // DepBuildResult holds the result of building a dependency
 type depBuildResult struct {
-	Name        string        // Dependency name
-	Type        string        // Built, header-only, or prebuilt library type
-	LibPath     string        // Path to built library
-	IncludePath string        // Path to include headers
-	Depends     []string      // Other external dependencies
-	Usage       deps.Usage    // Compile and link metadata for consumers
-	SourceCount int           // Number of source files compiled
-	Duration    time.Duration // Time taken to build
-	RequiresCXX bool          // Link consumers with the C++ driver
+	Name    string // Dependency name
+	Type    string // Built, header-only, or prebuilt library type
+	LibPath string // Path to built library
+	// MoreLibPaths are a prebuilt or external dependency's libraries after
+	// LibPath.
+	MoreLibPaths []string
+	IncludePath  string        // Path to include headers
+	Depends      []string      // Other external dependencies
+	Usage        deps.Usage    // Compile and link metadata for consumers
+	SourceCount  int           // Number of source files compiled
+	Duration     time.Duration // Time taken to build
+	RequiresCXX  bool          // Link consumers with the C++ driver
 }
 
 // DepBuilder builds individual dependencies
@@ -80,17 +83,13 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 		}, nil
 	}
 	if cfg.Type == "prebuilt_static" || cfg.Type == "prebuilt_shared" {
-		library := filepath.Join(sourcePath, cfg.Library)
-		info, err := os.Stat(library)
+		libraries, err := libraryFiles(sourcePath, cfg.Libraries, "prebuilt library %q")
 		if err != nil {
-			return nil, fmt.Errorf("prebuilt library %q: %w", library, err)
-		}
-		if !info.Mode().IsRegular() {
-			return nil, fmt.Errorf("prebuilt library %q is not a regular file", library)
+			return nil, err
 		}
 		return &depBuildResult{
-			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath, Usage: usage,
-			Depends: cfg.Depends, Duration: time.Since(start),
+			Name: dep.Name(), Type: cfg.Type, LibPath: libraries[0], MoreLibPaths: libraries[1:],
+			IncludePath: includePath, Usage: usage, Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
 	}
 	if cfg.Type == "external_static" || cfg.Type == "external_shared" {
@@ -109,17 +108,13 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 				return nil, fmt.Errorf("external build command %q failed: %w", command[0], err)
 			}
 		}
-		library := filepath.Join(sourcePath, cfg.Library)
-		info, err := os.Stat(library)
+		libraries, err := libraryFiles(sourcePath, cfg.Libraries, "external build output %q")
 		if err != nil {
-			return nil, fmt.Errorf("external build did not produce library %q: %w", library, err)
-		}
-		if !info.Mode().IsRegular() {
-			return nil, fmt.Errorf("external build output %q is not a regular file", library)
+			return nil, err
 		}
 		return &depBuildResult{
-			Name: dep.Name(), Type: cfg.Type, LibPath: library, IncludePath: includePath, Usage: usage,
-			Depends: cfg.Depends, Duration: time.Since(start),
+			Name: dep.Name(), Type: cfg.Type, LibPath: libraries[0], MoreLibPaths: libraries[1:],
+			IncludePath: includePath, Usage: usage, Depends: cfg.Depends, Duration: time.Since(start),
 		}, nil
 	}
 
@@ -252,9 +247,11 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 					return
 				}
 				dependencyArtifacts = append(dependencyArtifacts, result.LibPath)
+				dependencyArtifacts = append(dependencyArtifacts, result.MoreLibPaths...)
 				if result.Type == "prebuilt_static" || result.Type == "prebuilt_shared" ||
 					result.Type == "external_static" || result.Type == "external_shared" {
 					linkFiles = append(linkFiles, result.LibPath)
+					linkFiles = append(linkFiles, result.MoreLibPaths...)
 				} else {
 					libPaths = append(libPaths, filepath.Dir(result.LibPath))
 					libs = append(libs, deps.ArtifactName(result.Name))
@@ -352,4 +349,23 @@ func (db *depBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 		addUsage(name)
 	}
 	return &cfg, nil
+}
+
+// libraryFiles returns the absolute paths of a dependency's library files,
+// failing when one is missing or not a regular file; describe names a file in
+// the error, as in "prebuilt library %q".
+func libraryFiles(sourcePath string, libraries []string, describe string) ([]string, error) {
+	paths := make([]string, len(libraries))
+	for i, library := range libraries {
+		path := filepath.Join(sourcePath, library)
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf(describe+": %w", path, err)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf(describe+" is not a regular file", path)
+		}
+		paths[i] = path
+	}
+	return paths, nil
 }

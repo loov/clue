@@ -496,7 +496,7 @@ func TestNinja_PrebuiltDependencyLinksExactLibrary(t *testing.T) {
 	}
 	cfg.Dependencies = map[string]deps.Dependency{
 		"sdk": deps.NewVendoredDependency("sdk", root, &deps.InlineConfig{
-			Type: "prebuilt_static", Library: "custom-name.a",
+			Type: "prebuilt_static", Libraries: []string{"custom-name.a"},
 		}),
 	}
 
@@ -521,7 +521,7 @@ func TestNinja_ExternalDependencyUsesClueBuilder(t *testing.T) {
 	}
 	cfg.Dependencies = map[string]deps.Dependency{
 		"custom": deps.NewVendoredDependency("custom", root, &deps.InlineConfig{
-			Type: "external_static", Library: filepath.Join("build", "custom.a"),
+			Type: "external_static", Libraries: []string{filepath.Join("build", "custom.a")},
 			Commands: [][]string{{"cmake", "--build", "build"}},
 		}),
 	}

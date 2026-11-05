@@ -141,7 +141,7 @@ func TestDepBuilder_PrebuiltDependencyNeedsNoCompiler(t *testing.T) {
 		t.Fatal(err)
 	}
 	dep := deps.NewVendoredDependency("custom", root, &deps.InlineConfig{
-		Type: "prebuilt_static", Library: "libcustom.a",
+		Type: "prebuilt_static", Libraries: []string{"libcustom.a"},
 	})
 	result, err := (&depBuilder{}).BuildDep(t.Context(), dep, root, depBuildOptions{}, nil)
 	if err != nil {
@@ -164,7 +164,7 @@ func main() {
 		t.Fatal(err)
 	}
 	dep := deps.NewVendoredDependency("custom", root, &deps.InlineConfig{
-		Type: "external_static", Library: filepath.Join("build", "custom.a"),
+		Type: "external_static", Libraries: []string{filepath.Join("build", "custom.a")},
 		Commands: [][]string{{"go", "run", "generate.go"}},
 	})
 	result, err := (&depBuilder{}).BuildDep(t.Context(), dep, root, depBuildOptions{}, nil)

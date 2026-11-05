@@ -281,6 +281,7 @@ dependencies: sdk: {
 	build: {
 		targetType: "prebuilt_static"
 		library: "lib/custom.a"
+		libraries: ["lib/auth.a", "lib/s3.a"]
 	}
 }
 `
@@ -292,7 +293,7 @@ dependencies: sdk: {
 		t.Fatal(err)
 	}
 	build := cfg.Dependencies["sdk"].InlineBuild()
-	if build == nil || build.Type != "prebuilt_static" || build.Library != "lib/custom.a" {
+	if build == nil || build.Type != "prebuilt_static" || !slices.Equal(build.Libraries, []string{"lib/custom.a", "lib/auth.a", "lib/s3.a"}) {
 		t.Fatalf("prebuilt build = %+v", build)
 	}
 }
