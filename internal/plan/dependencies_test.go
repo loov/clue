@@ -32,8 +32,8 @@ func TestResolveDependencies(t *testing.T) {
 	if !slices.Equal(got.LinkFiles, []string{prebuilt}) || !slices.Equal(got.Usage.LinkerFlags, []string{"-lssl"}) {
 		t.Errorf("link files = %v; flags = %v", got.LinkFiles, got.Usage.LinkerFlags)
 	}
-	if !slices.Equal(got.Usage.Includes, []string{"vendor/sdk/include"}) || !slices.Equal(got.SystemLibraries, []string{"dl"}) {
-		t.Errorf("includes = %v; system libraries = %v", got.Usage.Includes, got.SystemLibraries)
+	if !slices.Equal(got.Usage.SystemIncludes, []string{"vendor/sdk/include"}) || !slices.Equal(got.SystemLibraries, []string{"dl"}) {
+		t.Errorf("includes = %v; system libraries = %v", got.Usage.SystemIncludes, got.SystemLibraries)
 	}
 }
 

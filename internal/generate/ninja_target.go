@@ -92,7 +92,8 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyPlan.Usage.CompilerFlags...)
 
 	// Collect include paths
-	includes := append(target.Includes, dependencyPlan.Usage.Includes...)
+	includes := target.Includes
+	target.SystemIncludes = append(slices.Clone(target.SystemIncludes), dependencyPlan.Usage.SystemIncludes...)
 
 	var objects []string
 	externalDependencies := externalDependencyOutputs(opts.Config, target.Depends, opts.BuildDir, variant, opts.Platform)

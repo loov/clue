@@ -613,6 +613,9 @@ dependencies: ssl: {
 }
 ```
 
+Include directories from every dependency are system include directories (`-isystem`), so
+warnings in its headers don't fail the build.
+
 A dependency built by CMake, Meson or another tool runs a list of commands and names the library
 they produce:
 

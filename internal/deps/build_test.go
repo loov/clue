@@ -147,7 +147,7 @@ targets: headers: {type: "interface_library", public: includes: ["h"]}
 	}
 	include, usage := ConsumerUsage(dep, source, config)
 	wantIncludes := []string{filepath.Join(source, "include"), filepath.Join(source, "base")}
-	if include != "" || !slices.Equal(usage.Includes, wantIncludes) || !slices.Equal(usage.Defines, []string{"SDK=1"}) {
+	if include != "" || !slices.Equal(usage.SystemIncludes, wantIncludes) || !slices.Equal(usage.Defines, []string{"SDK=1"}) {
 		t.Fatalf("consumer usage = %q %+v", include, usage)
 	}
 	if got := DeclaredDepends(dep); !slices.Equal(got, []string{"other"}) {
@@ -176,8 +176,8 @@ func TestResolveBuildConfig_InlineFlagsAndIncludes(t *testing.T) {
 	}
 	include, usage := ConsumerUsage(dep, source, config)
 	want := []string{filepath.Join(source, "include"), filepath.Join(source, "extra")}
-	if include != "" || !slices.Equal(usage.Includes, want) {
-		t.Fatalf("consumers get %q %q, want %q", include, usage.Includes, want)
+	if include != "" || !slices.Equal(usage.SystemIncludes, want) {
+		t.Fatalf("consumers get %q %q, want %q", include, usage.SystemIncludes, want)
 	}
 }
 

@@ -15,7 +15,7 @@ func TestParsePkgConfigUsage_SeparatesCompileAndLinkFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(usage.Includes, []string{"/opt/sdk/include", "/path with spaces/include"}) ||
+	if !reflect.DeepEqual(usage.SystemIncludes, []string{"/opt/sdk/include", "/path with spaces/include"}) ||
 		!reflect.DeepEqual(usage.Defines, []string{"SDK=1"}) ||
 		!reflect.DeepEqual(usage.CompilerFlags, []string{"-pthread"}) ||
 		!reflect.DeepEqual(usage.LinkerFlags, []string{"-L/opt/sdk/lib", "-lsdk", "-Wl,-rpath,/opt/sdk/lib"}) {
@@ -36,7 +36,7 @@ func TestResolvePkgConfigWithRunner_QueriesFlagsAndLibraries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(calls) != 2 || !reflect.DeepEqual(usage.Includes, []string{"/container/include"}) {
+	if len(calls) != 2 || !reflect.DeepEqual(usage.SystemIncludes, []string{"/container/include"}) {
 		t.Fatalf("calls=%v usage=%+v", calls, usage)
 	}
 }

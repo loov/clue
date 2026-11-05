@@ -88,7 +88,7 @@ func ResolveBuildConfig(dep Dependency, sourcePath string) (BuildConfig, error) 
 		}
 		// Consumers get every include directory, not only the first.
 		if len(inline.Headers) == 0 && len(includes) > 1 {
-			config.Public.Includes = slices.Clone(includes)
+			config.Public.SystemIncludes = slices.Clone(includes)
 		}
 		return config, nil
 	}
@@ -206,7 +206,7 @@ func buildConfigFromValue(value cue.Value, sourcePath, dependencyName, configure
 		if publicValue := target.LookupPath(cue.ParsePath("public")); publicValue.Exists() {
 			for _, include := range cueStrings(publicValue, "includes") {
 				includes = append(includes, filepath.Join(sourcePath, include))
-				public.Includes = append(public.Includes, filepath.Join(sourcePath, include))
+				public.SystemIncludes = append(public.SystemIncludes, filepath.Join(sourcePath, include))
 			}
 			defines = append(defines, cueStrings(publicValue, "defines")...)
 			public.Defines = append(public.Defines, cueStrings(publicValue, "defines")...)
@@ -324,7 +324,7 @@ func expandSourceGlobs(patterns, excludes []string, sourcePath string) ([]string
 // consumers: its public includes and defines when its build declares them,
 // otherwise the conventional include root.
 func ConsumerUsage(dep Dependency, sourcePath string, config BuildConfig) (string, Usage) {
-	if len(config.Public.Includes) > 0 {
+	if len(config.Public.SystemIncludes) > 0 {
 		return "", config.Public
 	}
 	return IncludePath(dep, sourcePath), config.Public

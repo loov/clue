@@ -51,7 +51,8 @@ func generateDependencyBuilds(ctx context.Context, file *ninja.File, opts NinjaO
 		if err != nil {
 			return nil, fmt.Errorf("dependency %q: %w", name, err)
 		}
-		includes := append(resolved.Includes, dependencyUsage.Includes...)
+		includes := append(slices.Clone(resolved.Includes), deps.IncludePath(dep, dep.CachePath(".")))
+		resolved.SystemIncludes = append(slices.Clone(resolved.SystemIncludes), dependencyUsage.SystemIncludes...)
 		defines := append(append(resolved.Defines, dependencyUsage.Defines...), variantConfig.Defines...)
 		depTarget := config.Target{Name: name, Defines: defines}
 		buildCfg := resolved.BuildFlags(variantConfig.Optimization)
@@ -216,12 +217,11 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 			return nil
 		}
 		resolved, _ := deps.ResolveBuildConfig(current, current.CachePath("."))
-		if current == dep {
-			usage.Includes = append(usage.Includes, deps.IncludePath(current, current.CachePath(".")))
-		} else {
+		// The dependency's own include root is added by the caller as -I.
+		if current != dep {
 			include, public := deps.ConsumerUsage(current, current.CachePath("."), resolved)
 			if include != "" {
-				usage.Includes = append(usage.Includes, include)
+				usage.SystemIncludes = append(usage.SystemIncludes, include)
 			}
 			mergeDependencyUsage(&usage, public)
 		}
@@ -247,7 +247,7 @@ func resolvePkgConfig(ctx context.Context, pkg *deps.PkgConfigDependency, tc too
 }
 
 func mergeDependencyUsage(dst *deps.Usage, src deps.Usage) {
-	dst.Includes = append(dst.Includes, src.Includes...)
+	dst.SystemIncludes = append(dst.SystemIncludes, src.SystemIncludes...)
 	dst.Defines = append(dst.Defines, src.Defines...)
 	dst.CompilerFlags = append(dst.CompilerFlags, src.CompilerFlags...)
 	dst.LinkerFlags = append(dst.LinkerFlags, src.LinkerFlags...)

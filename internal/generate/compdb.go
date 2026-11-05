@@ -150,7 +150,7 @@ func buildTargetCommands(workDir string, opts CompDBOptions, target config.Targe
 		return nil, err
 	}
 	target.Defines = append(target.Defines, dependencyPlan.Usage.Defines...)
-	target.Includes = append(target.Includes, dependencyPlan.Usage.Includes...)
+	target.SystemIncludes = append(slices.Clone(target.SystemIncludes), dependencyPlan.Usage.SystemIncludes...)
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyPlan.Usage.CompilerFlags...)
 	bmiDir := filepath.Join(opts.BuildDir, opts.Variant, target.Name, "modules")
 	availableModules, err := plan.DependencyModuleOutputs(opts.Config, target, targetModuleOutputs)

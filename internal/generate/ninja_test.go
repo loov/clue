@@ -479,7 +479,7 @@ func TestNinja_HeaderOnlyDependencyAddsIncludesWithoutLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := output.String()
-	if !strings.Contains(content, "-I"+NinjaPath(filepath.Join(root, "include"))) {
+	if !strings.Contains(content, `"-isystem" "`+NinjaPath(filepath.Join(root, "include"))+`"`) {
 		t.Fatalf("header include is missing:\n%s", content)
 	}
 	if strings.Contains(content, "libheaders") {
@@ -576,7 +576,7 @@ Libs: -L${libdir} -lclue-sdk
 	}); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"-I/opt/clue-sdk/include", "-DCLUE_SDK=1", "-pthread", "-L/opt/clue-sdk/lib", "-lclue-sdk"} {
+	for _, want := range []string{`"-isystem" "/opt/clue-sdk/include"`, "-DCLUE_SDK=1", "-pthread", "-L/opt/clue-sdk/lib", "-lclue-sdk"} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, output.String())
 		}

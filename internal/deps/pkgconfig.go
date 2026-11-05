@@ -9,13 +9,15 @@ import (
 	"unicode"
 )
 
-// Usage is compile and link metadata exported by a dependency.
+// Usage is compile and link metadata exported by a dependency. Its include
+// directories are system include directories for consumers, so warnings in
+// a dependency's headers don't fail a consumer's build.
 type Usage struct {
-	Includes      []string
-	Defines       []string
-	CompilerFlags []string
-	LinkerFlags   []string
-	SysLibs       []string
+	SystemIncludes []string
+	Defines        []string
+	CompilerFlags  []string
+	LinkerFlags    []string
+	SysLibs        []string
 }
 
 // CommandRunner executes pkg-config and returns its standard output.
@@ -72,11 +74,11 @@ func parsePkgConfigUsage(cflags, libs string) (Usage, error) {
 	for i := 0; i < len(compile); i++ {
 		flag := compile[i]
 		switch {
-		case flag == "-I" && i+1 < len(compile):
+		case (flag == "-I" || flag == "-isystem") && i+1 < len(compile):
 			i++
-			usage.Includes = append(usage.Includes, compile[i])
+			usage.SystemIncludes = append(usage.SystemIncludes, compile[i])
 		case strings.HasPrefix(flag, "-I") && len(flag) > 2:
-			usage.Includes = append(usage.Includes, flag[2:])
+			usage.SystemIncludes = append(usage.SystemIncludes, flag[2:])
 		case flag == "-D" && i+1 < len(compile):
 			i++
 			usage.Defines = append(usage.Defines, compile[i])

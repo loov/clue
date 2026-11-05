@@ -338,9 +338,9 @@ func (db *depBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 			return
 		}
 		if builtDep.IncludePath != "" {
-			cfg.Includes = append(cfg.Includes, builtDep.IncludePath)
+			cfg.SystemIncludes = append(cfg.SystemIncludes, builtDep.IncludePath)
 		}
-		cfg.Includes = append(cfg.Includes, builtDep.Usage.Includes...)
+		cfg.SystemIncludes = append(cfg.SystemIncludes, builtDep.Usage.SystemIncludes...)
 		cfg.Defines = append(cfg.Defines, builtDep.Usage.Defines...)
 		cfg.Flags.RawCompiler = append(cfg.Flags.RawCompiler, builtDep.Usage.CompilerFlags...)
 		cfg.Flags.RawLinker = append(cfg.Flags.RawLinker, builtDep.Usage.LinkerFlags...)

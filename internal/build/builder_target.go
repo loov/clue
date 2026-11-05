@@ -51,7 +51,8 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 	// Build configuration from the shared plan.
 	buildCfg, usage := targetPlan.Flags, targetPlan.Usage
 
-	includes := append(target.Includes, dependencyPlan.Usage.Includes...)
+	includes := target.Includes
+	target.SystemIncludes = append(slices.Clone(target.SystemIncludes), dependencyPlan.Usage.SystemIncludes...)
 	defines := append(append([]string(nil), target.Defines...), dependencyPlan.Usage.Defines...)
 	buildCfg.RawCompiler = append(buildCfg.RawCompiler, dependencyPlan.Usage.CompilerFlags...)
 
