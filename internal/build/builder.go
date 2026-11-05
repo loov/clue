@@ -380,8 +380,7 @@ func (b *Builder) buildTargets(ctx context.Context, opts Options, order []string
 			}
 			result, err := b.buildTarget(ctx, opts, target, progress)
 			if err != nil {
-				errs[index] = err
-				progress.Error(name, err)
+				errs[index] = fmt.Errorf("target %q: %w", name, err)
 				if !opts.KeepGoing {
 					cancel()
 				}
@@ -393,25 +392,32 @@ func (b *Builder) buildTargets(ctx context.Context, opts Options, order []string
 	workers.Wait()
 
 	var built []TargetResult
-	var failures []error
 	for index := range order {
 		if results[index] != nil {
 			built = append(built, *results[index])
 		}
-		// Report the targets that failed, not the ones skipped because of them.
-		if errs[index] != nil && !errors.Is(errs[index], errDependencyFailed) && !errors.Is(errs[index], context.Canceled) {
-			failures = append(failures, errs[index])
+	}
+	return built, buildFailures(errs)
+}
+
+// buildFailures joins the errors of the targets or dependencies that failed,
+// leaving out those skipped or cancelled because of them. When everything
+// was cancelled, as by an interrupt, it returns the first error.
+func buildFailures(errs []error) error {
+	var failures []error
+	for _, err := range errs {
+		if err != nil && !errors.Is(err, errDependencyFailed) && !errors.Is(err, context.Canceled) {
+			failures = append(failures, err)
 		}
 	}
 	if len(failures) == 0 {
 		for _, err := range errs {
 			if err != nil {
-				failures = append(failures, err)
-				break
+				return err
 			}
 		}
 	}
-	return built, errors.Join(failures...)
+	return errors.Join(failures...)
 }
 
 // buildDependency resolves a pkg-config dependency or builds a fetched one.
@@ -642,15 +648,10 @@ func (d *dependencyBuilds) snapshot() map[string]*depBuildResult {
 	return maps.Clone(d.results)
 }
 
-// err returns the failures, not the dependencies skipped because of them.
+// err returns the failures, not the dependencies skipped or cancelled
+// because of them.
 func (d *dependencyBuilds) err() error {
-	var failures []error
-	for _, err := range d.errs {
-		if !errors.Is(err, errDependencyFailed) {
-			failures = append(failures, err)
-		}
-	}
-	return errors.Join(failures...)
+	return buildFailures(d.errs)
 }
 
 // built reports whether the named dependency was built.

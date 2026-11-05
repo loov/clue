@@ -141,6 +141,11 @@ func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts plan.C
 	tempCompiler := newCompiler(captureExecutor, p.toolchain)
 
 	result, err := tempCompiler.CompileSource(ctx, opts)
+	if err != nil && ctx.Err() != nil {
+		// Another file's failure or an interrupt stopped this one; its output
+		// would only bury the error that stopped it.
+		return parallelResult{Source: opts.Source, Object: opts.Output, Error: err, Duration: time.Since(start)}
+	}
 
 	duration := time.Since(start)
 

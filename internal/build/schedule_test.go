@@ -1,7 +1,9 @@
 package build
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -244,5 +246,25 @@ func TestBuild_FailedDependencyStopsTargets(t *testing.T) {
 	}
 	if _, err := os.Stat(slow); err == nil {
 		t.Error("slow target finished after a dependency failed without --keep-going")
+	}
+}
+
+func TestBuildFailuresLeavesOutSkippedAndCancelled(t *testing.T) {
+	failed := errors.New("failed to compile bad.cpp")
+	errs := []error{
+		nil,
+		fmt.Errorf("target %q: %w", "lib1", context.Canceled),
+		fmt.Errorf("target %q: %w", "storage", failed),
+		fmt.Errorf("target %q not built: %w", "app", errDependencyFailed),
+	}
+	if err := buildFailures(errs); err == nil || err.Error() != `target "storage": failed to compile bad.cpp` {
+		t.Errorf("buildFailures = %v, want only the storage failure", err)
+	}
+	interrupted := fmt.Errorf("target %q: %w", "lib1", context.Canceled)
+	if err := buildFailures([]error{nil, interrupted}); !errors.Is(err, context.Canceled) {
+		t.Errorf("buildFailures after an interrupt = %v, want the cancellation", err)
+	}
+	if err := buildFailures([]error{nil}); err != nil {
+		t.Errorf("buildFailures without errors = %v", err)
 	}
 }

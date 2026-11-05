@@ -155,15 +155,6 @@ func (p *progress) Stats() (built, cached int) {
 	return int(p.built.Load()), int(p.cached.Load())
 }
 
-// Error reports a build error with target context
-func (p *progress) Error(target string, err error) {
-	p.mu.Lock()
-	_, _ = fmt.Fprintf(p.out, "%s %s\n",
-		diagnostic.Error("[%s] error:", target),
-		err.Error())
-	p.mu.Unlock()
-}
-
 // StartCompiling marks a file as actively being compiled (for parallel display)
 func (p *progress) StartCompiling(filename string) {
 	p.mu.Lock()
