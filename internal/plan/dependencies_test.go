@@ -63,6 +63,30 @@ func TestResolveDependencies_LinksEveryPrebuiltLibrary(t *testing.T) {
 	}
 }
 
+func TestResolveDependencies_CustomTargetLinksOnlyItsOutputs(t *testing.T) {
+	platform := toolchain.Platform{OS: "linux", Arch: "amd64"}
+	cfg := &config.Config{Targets: map[string]config.Target{
+		"app":   {Name: "app", Sources: []string{"main.c"}, Depends: []string{"renamed", "order"}},
+		"lib":   {Name: "lib", Type: "static_library", Sources: []string{"lib.c"}, SysLibs: []string{"dl"}},
+		"order": {Name: "order", Type: "custom", Depends: []string{"lib"}, Outputs: []string{"gen/order.h"}},
+		"renamed": {
+			Name: "renamed", Type: "custom", Link: true, Depends: []string{"lib"},
+			Command: []string{"objcopy", "{output:lib}", "{buildDir}/librenamed.a"}, Outputs: []string{"{buildDir}/librenamed.a"},
+		},
+	}}
+	got, err := ResolveDependencies(cfg, cfg.Targets["app"], ".build", "debug", platform, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{filepath.Join(".build", "debug", "librenamed.a")}
+	if !slices.Equal(got.LinkFiles, want) || len(got.Libraries) != 0 || len(got.SystemLibraries) != 0 {
+		t.Errorf("link files = %v, want %v; libraries = %v; system libraries = %v", got.LinkFiles, want, got.Libraries, got.SystemLibraries)
+	}
+	if len(got.Artifacts) != 1 || got.Artifacts[0].Path != want[0] {
+		t.Errorf("artifacts = %v, want %v", got.Artifacts, want)
+	}
+}
+
 func TestRuntimeLibraryFlags(t *testing.T) {
 	output := filepath.Join(".build", "debug", "bin", "app")
 	libraryDir := filepath.Join(".build", "debug", "deps", "answer", "lib")

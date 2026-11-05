@@ -502,6 +502,24 @@ targets: bundle: {
 
 Clue keeps a custom target's build fingerprint in the build directory, not next to its outputs.
 
+A target that depends on a custom target builds after it but doesn't link what the command
+reads: the custom target's own `depends` are inputs to its command. With `link: true`, dependents
+link the custom target's outputs instead, in `depends` order, so a renamed copy of a library
+replaces the original:
+
+```cue
+targets: thirdRenamed: {
+    type:    "custom"
+    link:    true
+    command: ["objcopy", "--redefine-syms=redef.txt", "{output:third}", "{buildDir}/redef/libthird.a"]
+    inputs:  ["redef.txt"]
+    outputs: ["{buildDir}/redef/libthird.a"]
+}
+targets: plugin: {type: "shared_library", sources: ["plugin.cpp"], depends: ["thirdRenamed"]}
+```
+
+The system libraries of the original aren't linked either; list those in the consumer's `sysLibs`.
+
 `{clue}` is clue itself. `clue configure <template> <output> [name=value]...` writes `output` from
 `template`, replacing each `@name@` with its value. A value `name=@file` inserts the file's
 contents. Clue doesn't touch the inserted text, nor `@name@` for names it isn't given. That lets a

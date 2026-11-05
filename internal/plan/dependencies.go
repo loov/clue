@@ -94,6 +94,22 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 		if dependency.Host {
 			return nil
 		}
+		// A custom target's dependencies are its command's inputs; consumers
+		// link only its outputs, when it sets link.
+		if dependency.Type == "custom" {
+			if !dependency.Link {
+				return nil
+			}
+			expanded, err := ExpandCustomTarget(cfg, dependency, buildDir, variant, platform)
+			if err != nil {
+				return err
+			}
+			for _, output := range expanded.Outputs {
+				result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: "static_library"})
+				result.LinkFiles = append(result.LinkFiles, output)
+			}
+			return nil
+		}
 		if dependency.Type == "static_library" && dependency.LinkWhole {
 			output := ArtifactPath(buildDir, variant, name, dependency.Type, platform)
 			result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: dependency.Type})

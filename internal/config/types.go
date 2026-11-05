@@ -175,6 +175,7 @@ type Target struct {
 	Visibility       string              // "default" or "hidden"; empty leaves the compiler default
 	Exports          []string            // C symbols to keep and export (only these) from a linked output
 	LinkWhole        bool                // consumers link every member of this static library
+	Link             bool                // custom targets: consumers link the outputs
 	SourceFlags      map[string][]string // extra compiler flags per source path or glob
 	Bundle           BundleSettings      // layout of a "bundle" target
 	Test             *Test

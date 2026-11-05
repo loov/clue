@@ -221,6 +221,9 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	if t.Type == "custom" {
 		t.WorkDir = extractOptionalString(val, "workingDirectory")
 		t.Stdout = extractOptionalString(val, "stdout")
+		if link := extractOptionalBool(val, "link"); link != nil {
+			t.Link = *link
+		}
 		if t.Stdout != "" && !slices.Contains(t.Outputs, t.Stdout) {
 			t.Outputs = append([]string{t.Stdout}, t.Outputs...)
 		}

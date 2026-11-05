@@ -87,6 +87,9 @@ package config
 		workingDirectory?: string
 		// File the command's standard output is written to
 		stdout?: string
+		// Targets that depend on this one link its outputs, such as libraries
+		// or objects the command makes. They never link what the command reads.
+		link?: bool
 	}
 	// A command run by clue run, every time, after building the targets it
 	// depends on; arguments after the task's name are appended to it.
