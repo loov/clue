@@ -635,7 +635,8 @@ toolchain: pkgConfigPath: ["vcpkg_installed/arm64-osx/lib/pkgconfig"]
 
 Include directories from every dependency are system include directories (`-isystem`), so
 warnings in its headers don't fail the build. pkg-config's `-W` warning options are dropped, and
-include directories, defines and libraries that several dependencies list are passed once.
+include directories and defines that several dependencies list are passed once. A link passes
+each library once, however many dependencies and target settings name it.
 `clue validate` runs pkg-config for each `pkg_config` dependency, unless the toolchain is a
 container.
 

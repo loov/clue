@@ -33,6 +33,28 @@ func TestLink_PlansExecutableSharedLibraryAndArchive(t *testing.T) {
 	}
 }
 
+func TestLink_PassesEachLibraryOnce(t *testing.T) {
+	platform := toolchain.Platform{OS: "darwin", Arch: "arm64"}
+	tc := gccish.New("clang", "clang", "clang++", "ar", platform)
+	// The target's own system libraries and flags, then two dependencies'
+	// pkg-config flags that list some of the same libraries again.
+	invocation := Link(tc, platform, LinkOptions{
+		Objects: []string{"main.o"}, Output: "app", SysLibs: []string{"z"},
+		Flags: toolchain.Flags{RawLinker: []string{
+			"-lsdk",
+			"-L/v/lib", "-lgtest_main", "-lgtest", "-framework", "CoreFoundation", "-lz",
+			"-L/v/lib", "-lgmock", "-lgtest", "-lsdk", "-framework", "CoreFoundation",
+		}},
+	})
+	want := []string{
+		"main.o", "-o", "app",
+		"-L/v/lib", "-lgtest_main", "-lz", "-lgmock", "-lgtest", "-lsdk", "-framework", "CoreFoundation",
+	}
+	if !slices.Equal(invocation.Arguments, want) {
+		t.Errorf("arguments = %q,\nwant %q", invocation.Arguments, want)
+	}
+}
+
 func TestExportAndWholeArchiveArguments(t *testing.T) {
 	linux := toolchain.Platform{OS: "linux", Arch: "amd64"}
 	darwin := toolchain.Platform{OS: "darwin", Arch: "arm64"}

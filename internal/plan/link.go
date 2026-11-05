@@ -62,7 +62,7 @@ func Link(tc toolchain.Toolchain, platform toolchain.Platform, opts LinkOptions)
 	args = append(args, "-o", opts.Output)
 	args = append(args, gnuLibraries(tc, platform, opts.LibPaths, opts.Libs, opts.SysLibs)...)
 	args = append(args, tc.LinkerFlags(opts.Flags, nil)...)
-	return Invocation{Tool: linkDriver(tc, opts.UseCXX), Arguments: args}
+	return Invocation{Tool: linkDriver(tc, opts.UseCXX), Arguments: dedupeLibraries(args)}
 }
 
 // LinkShared returns a shared-library linker invocation.
@@ -114,7 +114,7 @@ func LinkShared(tc toolchain.Toolchain, platform toolchain.Platform, opts Shared
 	}
 	args = append(args, gnuLibraries(tc, platform, opts.LibPaths, opts.Libs, opts.SysLibs)...)
 	args = append(args, tc.LinkerFlags(opts.Flags, nil)...)
-	return Invocation{Tool: linkDriver(tc, opts.UseCXX), Arguments: args, ImportLibrary: importLibrary}
+	return Invocation{Tool: linkDriver(tc, opts.UseCXX), Arguments: dedupeLibraries(args), ImportLibrary: importLibrary}
 }
 
 // Archive returns a static-library archiver invocation.
@@ -125,6 +125,48 @@ func Archive(tc toolchain.Toolchain, opts ArchiveOptions) Invocation {
 	}
 	args := []string{"crs", opts.Output}
 	return Invocation{Tool: tc.AR(), Arguments: append(args, opts.Objects...)}
+}
+
+// dedupeLibraries keeps the last -l<name> and -framework <name> of each
+// library, so it still follows everything that links against it, and the
+// first -L<dir> of each directory; other arguments stay as they are. A
+// library repeated after -Wl,--start-group ... --end-group moves out of the
+// group.
+func dedupeLibraries(flags []string) []string {
+	type unit struct {
+		tokens   []string
+		key      string
+		keepLast bool
+	}
+	units := make([]unit, 0, len(flags))
+	for i := 0; i < len(flags); i++ {
+		flag := flags[i]
+		switch {
+		case flag == "-framework" && i+1 < len(flags):
+			units = append(units, unit{flags[i : i+2], flag + " " + flags[i+1], true})
+			i++
+		case strings.HasPrefix(flag, "-l") && len(flag) > 2:
+			units = append(units, unit{flags[i : i+1], flag, true})
+		case strings.HasPrefix(flag, "-L") && len(flag) > 2:
+			units = append(units, unit{flags[i : i+1], flag, false})
+		default:
+			units = append(units, unit{tokens: flags[i : i+1]})
+		}
+	}
+	last := make(map[string]int)
+	for i, u := range units {
+		last[u.key] = i
+	}
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(flags))
+	for i, u := range units {
+		if u.key != "" && (u.keepLast && last[u.key] != i || !u.keepLast && seen[u.key]) {
+			continue
+		}
+		seen[u.key] = true
+		result = append(result, u.tokens...)
+	}
+	return result
 }
 
 func gnuLibraries(tc toolchain.Toolchain, platform toolchain.Platform, paths, libraries, system []string) []string {

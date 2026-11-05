@@ -21,15 +21,14 @@ type Usage struct {
 	SysLibs        []string
 }
 
-// Merge appends src to u, skipping include directories, defines, library
-// directories and system libraries that u already has. A library or framework
-// listed again moves to its later position, so it still follows everything
-// that links against it.
+// Merge appends src to u, skipping include directories, defines and system
+// libraries that u already has. Repeated libraries in linker flags are
+// removed from the whole link line, by plan.Link.
 func (u *Usage) Merge(src Usage) {
 	u.SystemIncludes = appendNew(u.SystemIncludes, src.SystemIncludes...)
 	u.Defines = appendNew(u.Defines, src.Defines...)
 	u.CompilerFlags = append(u.CompilerFlags, src.CompilerFlags...)
-	u.LinkerFlags = dedupeLibraries(append(slices.Clone(u.LinkerFlags), src.LinkerFlags...))
+	u.LinkerFlags = append(u.LinkerFlags, src.LinkerFlags...)
 	u.SysLibs = appendNew(u.SysLibs, src.SysLibs...)
 }
 
@@ -40,47 +39,6 @@ func appendNew(values []string, additions ...string) []string {
 		}
 	}
 	return values
-}
-
-// dedupeLibraries keeps the last -l<name> and -framework <name> of each
-// library and the first -L<dir> of each directory; other flags stay as they
-// are. Libraries are moved out of -Wl,--start-group ... --end-group if they
-// are repeated after it, which pkg-config output doesn't do.
-func dedupeLibraries(flags []string) []string {
-	type unit struct {
-		tokens   []string
-		key      string
-		keepLast bool
-	}
-	units := make([]unit, 0, len(flags))
-	for i := 0; i < len(flags); i++ {
-		flag := flags[i]
-		switch {
-		case flag == "-framework" && i+1 < len(flags):
-			units = append(units, unit{flags[i : i+2], flag + " " + flags[i+1], true})
-			i++
-		case strings.HasPrefix(flag, "-l") && len(flag) > 2:
-			units = append(units, unit{flags[i : i+1], flag, true})
-		case strings.HasPrefix(flag, "-L") && len(flag) > 2:
-			units = append(units, unit{flags[i : i+1], flag, false})
-		default:
-			units = append(units, unit{tokens: flags[i : i+1]})
-		}
-	}
-	last := make(map[string]int)
-	for i, u := range units {
-		last[u.key] = i
-	}
-	seen := make(map[string]bool)
-	result := make([]string, 0, len(flags))
-	for i, u := range units {
-		if u.key != "" && (u.keepLast && last[u.key] != i || !u.keepLast && seen[u.key]) {
-			continue
-		}
-		seen[u.key] = true
-		result = append(result, u.tokens...)
-	}
-	return result
 }
 
 // CommandRunner executes pkg-config with env added to its environment and
@@ -123,7 +81,7 @@ func parsePkgConfigUsage(cflags, libs string) (Usage, error) {
 	if err != nil {
 		return Usage{}, fmt.Errorf("parse pkg-config libs: %w", err)
 	}
-	usage := Usage{LinkerFlags: dedupeLibraries(link)}
+	usage := Usage{LinkerFlags: link}
 	for i := 0; i < len(compile); i++ {
 		flag := compile[i]
 		switch {

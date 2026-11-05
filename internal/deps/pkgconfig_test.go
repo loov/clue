@@ -63,7 +63,7 @@ func TestParsePkgConfigUsage_DropsWarningOptions(t *testing.T) {
 func TestParsePkgConfigUsage_DropsDuplicates(t *testing.T) {
 	usage, err := parsePkgConfigUsage(
 		`-I/v/include -isystem /v/other -I/v/include -DNOMINMAX -DNOMINMAX`,
-		`-L/v/lib -lgtest_main -lgtest -L/v/lib -lgmock -lgtest -framework CoreFoundation -lz -framework CoreFoundation`,
+		``,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -74,22 +74,16 @@ func TestParsePkgConfigUsage_DropsDuplicates(t *testing.T) {
 	if want := []string{"NOMINMAX"}; !reflect.DeepEqual(usage.Defines, want) {
 		t.Errorf("defines = %q, want %q", usage.Defines, want)
 	}
-	if want := []string{"-L/v/lib", "-lgtest_main", "-lgmock", "-lgtest", "-lz", "-framework", "CoreFoundation"}; !reflect.DeepEqual(usage.LinkerFlags, want) {
-		t.Errorf("linker flags = %q, want %q", usage.LinkerFlags, want)
-	}
 }
 
 func TestUsageMerge_SkipsRepeatsAcrossDependencies(t *testing.T) {
 	var usage Usage
-	usage.Merge(Usage{SystemIncludes: []string{"/v/include"}, Defines: []string{"NOMINMAX"}, LinkerFlags: []string{"-lcloud", "-lz"}})
-	usage.Merge(Usage{SystemIncludes: []string{"/v/include"}, Defines: []string{"NOMINMAX"}, LinkerFlags: []string{"-labsl", "-lz"}})
+	usage.Merge(Usage{SystemIncludes: []string{"/v/include"}, Defines: []string{"NOMINMAX"}})
+	usage.Merge(Usage{SystemIncludes: []string{"/v/include"}, Defines: []string{"NOMINMAX"}})
 	if want := []string{"/v/include"}; !reflect.DeepEqual(usage.SystemIncludes, want) {
 		t.Errorf("system includes = %q, want %q", usage.SystemIncludes, want)
 	}
 	if want := []string{"NOMINMAX"}; !reflect.DeepEqual(usage.Defines, want) {
 		t.Errorf("defines = %q, want %q", usage.Defines, want)
-	}
-	if want := []string{"-lcloud", "-labsl", "-lz"}; !reflect.DeepEqual(usage.LinkerFlags, want) {
-		t.Errorf("linker flags = %q, want %q", usage.LinkerFlags, want)
 	}
 }
