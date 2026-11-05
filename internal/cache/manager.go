@@ -58,6 +58,20 @@ type Manager struct {
 	// dir is the working directory, looked up once: filepath.Abs looks it up
 	// for every path, and on macOS that dominated no-op builds.
 	dir string
+
+	// stats remembers os.Stat of the sources and headers checked during the
+	// build, as every source includes mostly the same headers; ForgetStats
+	// drops them when a command may have written files.
+	statMu sync.Mutex
+	stats  map[string]statResult
+	// statGeneration counts ForgetStats calls, so a stat that began before
+	// one isn't remembered after it.
+	statGeneration int
+}
+
+type statResult struct {
+	info os.FileInfo
+	err  error
 }
 
 // fileHash is a content hash together with the file state it was computed from.
@@ -80,6 +94,7 @@ func NewManager(buildDir string) (*Manager, error) {
 	}
 	cm := &Manager{
 		dir:          dir,
+		stats:        make(map[string]statResult),
 		cacheDir:     cacheDir,
 		manifestPath: filepath.Join(cacheDir, "manifest.json"),
 		manifest:     make(map[string]Entry),
@@ -162,10 +177,45 @@ func (cm *Manager) Flush() error {
 // headers, so a hash is reused while the file's size and modification time
 // are unchanged.
 func (cm *Manager) hash(path string) (string, error) {
-	info, err := os.Stat(path)
+	info, err := cm.stat(path)
 	if err != nil {
 		return "", err
 	}
+	return cm.hashFile(path, info)
+}
+
+// stat is os.Stat, remembered for the rest of the build.
+func (cm *Manager) stat(path string) (os.FileInfo, error) {
+	cm.statMu.Lock()
+	result, ok := cm.stats[path]
+	generation := cm.statGeneration
+	cm.statMu.Unlock()
+	if ok {
+		return result.info, result.err
+	}
+	info, err := os.Stat(path)
+	cm.statMu.Lock()
+	if generation == cm.statGeneration {
+		cm.stats[path] = statResult{info, err}
+	}
+	cm.statMu.Unlock()
+	return info, err
+}
+
+// ForgetStats drops the remembered file states, for after a command that may
+// have written sources or headers, such as a custom target's.
+func (cm *Manager) ForgetStats() {
+	if cm == nil {
+		return
+	}
+	cm.statMu.Lock()
+	clear(cm.stats)
+	cm.statGeneration++
+	cm.statMu.Unlock()
+}
+
+// hashFile returns the content hash of path, whose state is info.
+func (cm *Manager) hashFile(path string, info os.FileInfo) (string, error) {
 	cm.hashMu.Lock()
 	cached, ok := cm.hashes[path]
 	cm.hashMu.Unlock()
@@ -187,13 +237,18 @@ func (cm *Manager) hash(path string) (string, error) {
 }
 
 // Hash returns a file's content hash, reusing the hash recorded for it
-// while its size and modification time are unchanged. A nil manager hashes
-// the file.
+// while its size and modification time are unchanged. It checks the file
+// afresh, as for link inputs that the build has just written. A nil manager
+// hashes the file.
 func (cm *Manager) Hash(path string) (string, error) {
 	if cm == nil {
 		return ComputeFileHash(path)
 	}
-	return cm.hash(path)
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	return cm.hashFile(path, info)
 }
 
 // manifestVersion identifies the manifest layout; other versions are ignored.
@@ -373,7 +428,7 @@ func (cm *Manager) NeedsRebuild(
 	}
 
 	for candidate, existed := range entry.Key.ConditionalIncludes {
-		if _, err := os.Stat(candidate); (err == nil) != existed {
+		if _, err := cm.stat(candidate); (err == nil) != existed {
 			return true, ReasonConditionalInclude, candidate
 		}
 	}

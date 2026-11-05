@@ -278,6 +278,7 @@ func TestNeedsRebuild_ReturnsTrueWhenSourceChanges(t *testing.T) {
 	if err := os.WriteFile(srcPath, []byte("int main() { return 1; }"), 0o644); err != nil {
 		t.Fatalf("failed to write modified source file: %v", err)
 	}
+	cm.ForgetStats() // the next build
 
 	// Check if needs rebuild
 	needsRebuild, reason, _ := cm.NeedsRebuild(
@@ -365,6 +366,7 @@ func TestNeedsRebuild_ReturnsTrueWhenHeaderChanges(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("#define VERSION 2"), 0o644); err != nil {
 		t.Fatalf("failed to write modified header file: %v", err)
 	}
+	cm.ForgetStats() // the next build
 
 	// Check if needs rebuild
 	needsRebuild, reason, changedHeader := cm.NeedsRebuild(
@@ -420,6 +422,7 @@ func TestNeedsRebuild_TracksConditionalIncludes(t *testing.T) {
 	if err := os.WriteFile(optional, []byte("#pragma once\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	manager.ForgetStats() // the next build
 	rebuild, reason, changed = manager.NeedsRebuild(source, object, nil, nil, compiler, false)
 	if !rebuild || reason != ReasonConditionalInclude || changed != optional {
 		t.Fatalf("NeedsRebuild() = %v, %q, %q", rebuild, reason, changed)
@@ -779,8 +782,36 @@ func TestManifest_StoresHeadersOnceAndDetectsChangesAfterRestart(t *testing.T) {
 	if err := os.Chtimes(header, later, later); err != nil {
 		t.Fatal(err)
 	}
+	restarted.ForgetStats() // the next build
 	rebuild, reason, changed := restarted.NeedsRebuild(a, a+".o", nil, nil, compiler, false)
 	if !rebuild || reason != ReasonHeaderChanged || changed != header {
 		t.Fatalf("after header change: %v %s %q", rebuild, reason, changed)
+	}
+}
+
+func TestManagerRemembersStatsUntilForgotten(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	cm, err := NewManager(filepath.Join(dir, ".build"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	header := filepath.Join(dir, "generated.h")
+	if _, err := cm.stat(header); err == nil {
+		t.Fatal("stat of a missing header succeeded")
+	}
+	if err := os.WriteFile(header, []byte("int x;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Within a build the remembered state stands, as nothing clue runs
+	// wrote the file.
+	if _, err := cm.stat(header); err == nil {
+		t.Fatal("stat was not remembered")
+	}
+	// A custom target's command may write headers; after it, they're
+	// checked afresh.
+	cm.ForgetStats()
+	if _, err := cm.stat(header); err != nil {
+		t.Fatalf("stat after ForgetStats = %v, want the new header", err)
 	}
 }

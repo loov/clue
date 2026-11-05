@@ -99,6 +99,8 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			executorConfig.WorkDir = sourcePath
 		}
 		executor := newExecutor(executorConfig)
+		// The commands may write headers that were checked before they ran.
+		defer db.cache.ForgetStats()
 		for _, command := range cfg.Commands {
 			result, err := executor.RunCommand(ctx, command[0], command[1:]...)
 			if err != nil {

@@ -47,7 +47,10 @@ func (b *Builder) buildCustomTarget(ctx context.Context, opts Options, target co
 			return nil, fmt.Errorf("creating output directory for custom target %q: %w", target.Name, err)
 		}
 	}
-	if err := b.runCustomCommand(ctx, target); err != nil {
+	err = b.runCustomCommand(ctx, target)
+	// The command may have written headers that were checked before it ran.
+	b.cacheManager.ForgetStats()
+	if err != nil {
 		return nil, fmt.Errorf("running custom target %q: %w", target.Name, err)
 	}
 	for _, output := range target.Outputs {
