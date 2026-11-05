@@ -203,7 +203,7 @@ sets how many. `-profile -save-profile` also writes a Chrome Trace file to
 ## Common flags
 
 - `-variant debug|release` selects the variant. The default is `defaultVariant`, else debug.
-- `-j N` sets the number of parallel jobs. 0 is half the CPU cores, and -1 all of them.
+- `-j N` sets the number of parallel jobs. The default, 0, runs one job per CPU core.
 - `-v` prints each build step.
 - `-quiet` prints errors only.
 - `-rebuild-all` rebuilds every file.

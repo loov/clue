@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
@@ -32,13 +31,7 @@ func runWatch(ctx context.Context, dir, variant, target string, verbosity build.
 		return 1
 	}
 
-	// Compute jobs (same as runBuild)
-	actualJobs := jobs
-	if actualJobs == 0 {
-		actualJobs = max(runtime.NumCPU()/2, 1)
-	} else if actualJobs < 0 {
-		actualJobs = runtime.NumCPU()
-	}
+	actualJobs := resolvedJobs(jobs)
 
 	buildCuePath := filepath.Join(dir, "clue.cue")
 	_, configErr := os.Stat(buildCuePath)

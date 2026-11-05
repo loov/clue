@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/loov/clue/internal/build"
@@ -101,15 +100,7 @@ func runBuild(ctx context.Context, dir, variant, target string, verbosity build.
 		return 1
 	}
 
-	// Compute actual job count
-	actualJobs := jobs
-	if actualJobs == 0 {
-		// Default: half of CPU cores (minimum 1)
-		actualJobs = max(runtime.NumCPU()/2, 1)
-	} else if actualJobs < 0 {
-		// Unlimited: use all cores
-		actualJobs = runtime.NumCPU()
-	}
+	actualJobs := resolvedJobs(jobs)
 
 	// Show platform info before build (skip in quiet mode)
 	if verbosity >= build.VerbosityNormal {

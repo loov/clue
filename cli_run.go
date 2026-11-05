@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"runtime"
 
 	"github.com/loov/clue/internal/build"
 	"github.com/zeebo/clingy"
@@ -32,13 +31,7 @@ func runRun(ctx context.Context, dir, variant, target string, verbosity build.Ve
 		return 1
 	}
 
-	// Compute actual job count (same as runBuild)
-	actualJobs := jobs
-	if actualJobs == 0 {
-		actualJobs = max(runtime.NumCPU()/2, 1)
-	} else if actualJobs < 0 {
-		actualJobs = runtime.NumCPU()
-	}
+	actualJobs := resolvedJobs(jobs)
 
 	result, err := build.RunTarget(ctx, build.RunOptions{
 		Config:    cfg,

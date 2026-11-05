@@ -52,7 +52,7 @@ func (o *options) setup(flags clingy.Flags) {
 	o.version = flags.Flag("version", "print version and exit", false, clingy.Boolean, parseBool).(bool)
 	o.all = flags.Flag("all", "clean all build variants", false, clingy.Boolean, parseBool).(bool)
 	o.rebuildAll = flags.Flag("rebuild-all", "force rebuild of all files", false, clingy.Boolean, parseBool).(bool)
-	o.jobs = flags.Flag("jobs", "number of parallel jobs (0 = half of CPU cores, -1 = unlimited)", 0, clingy.Short('j'), parseInt).(int)
+	o.jobs = flags.Flag("jobs", "number of parallel jobs (0 = one per CPU core)", 0, clingy.Short('j'), parseInt).(int)
 	o.keepGoing = flags.Flag("keep-going", "continue building despite errors", false, clingy.Boolean, parseBool).(bool)
 	o.target = flags.Flag("target", "cross-compilation target (for example linux-arm64)", "").(string)
 	o.prefix = flags.Flag("prefix", "installation prefix", "").(string)
@@ -258,11 +258,10 @@ func printError(err error) {
 	}
 }
 
+// resolvedJobs turns the -j value into a job count: 0 or a negative value
+// is one job per CPU core.
 func resolvedJobs(jobs int) int {
-	if jobs == 0 {
-		return max(runtime.NumCPU()/2, 1)
-	}
-	if jobs < 0 {
+	if jobs <= 0 {
 		return runtime.NumCPU()
 	}
 	return jobs
