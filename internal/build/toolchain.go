@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/loov/clue/internal/toolchain"
 )
@@ -18,11 +19,21 @@ func toolIdentityPath(tc toolchain.Toolchain, command string) string {
 	if provider, ok := tc.(interface{ HostTool() string }); ok {
 		return provider.HostTool()
 	}
-	if path, err := exec.LookPath(command); err == nil {
-		return path
+	key := os.Getenv("PATH") + "\x00" + command
+	if path, ok := toolPaths.Load(key); ok {
+		return path.(string)
 	}
-	return command
+	path := command
+	if found, err := exec.LookPath(command); err == nil {
+		path = found
+	}
+	toolPaths.Store(key, path)
+	return path
 }
+
+// toolPaths caches toolIdentityPath by PATH and command: every target looks
+// up the same few tools, and each search stats every PATH directory.
+var toolPaths sync.Map
 
 func toolchainCacheKey(tc toolchain.Toolchain) string {
 	if provider, ok := tc.(interface{ CacheKey() string }); ok {
