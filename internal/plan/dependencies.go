@@ -110,7 +110,11 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 			}
 			for _, output := range expanded.Outputs {
 				result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: "static_library"})
-				result.LinkFiles = append(result.LinkFiles, output)
+				if dependency.LinkWhole {
+					result.WholeArchives = appendUnique(result.WholeArchives, output)
+				} else {
+					result.LinkFiles = append(result.LinkFiles, output)
+				}
 			}
 			return nil
 		}

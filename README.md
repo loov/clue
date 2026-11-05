@@ -520,7 +520,8 @@ targets: plugin: {type: "shared_library", sources: ["plugin.cpp"], depends: ["th
 ```
 
 The system libraries of the original aren't linked either; list those in the consumer's `sysLibs`.
-A target that depends on a custom target without `link` relinks when its outputs
+With `linkWhole: true` as well, dependents link every member of the output archives, as they would
+object files. A target that depends on a custom target without `link` relinks when its outputs
 change, so a generated version script is picked up.
 
 `{clue}` is clue itself. `clue configure <template> <output> [name=value]...` writes `output` from

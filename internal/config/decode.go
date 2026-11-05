@@ -342,6 +342,9 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	if linkWhole := extractOptionalBool(val, "linkWhole"); linkWhole != nil {
 		t.LinkWhole = *linkWhole
 	}
+	if t.Type == "custom" && t.LinkWhole && !t.Link {
+		return Target{}, fmt.Errorf("custom target %q: linkWhole requires link", name)
+	}
 
 	return t, nil
 }

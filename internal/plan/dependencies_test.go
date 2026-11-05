@@ -89,6 +89,16 @@ func TestResolveDependencies_CustomTargetLinksOnlyItsOutputs(t *testing.T) {
 		t.Errorf("link reads = %v, want [gen/order.h]", got.LinkReads)
 	}
 
+	renamed := cfg.Targets["renamed"]
+	renamed.LinkWhole = true
+	cfg.Targets["renamed"] = renamed
+	got, err = ResolveDependencies(cfg, cfg.Targets["app"], ".build", "debug", platform, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.LinkFiles) != 0 || !slices.Equal(got.WholeArchives, want) {
+		t.Errorf("link files = %v; whole archives = %v, want %v", got.LinkFiles, got.WholeArchives, want)
+	}
 }
 
 func TestRuntimeLibraryFlags(t *testing.T) {

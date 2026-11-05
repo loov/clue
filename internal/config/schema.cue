@@ -90,6 +90,7 @@ package config
 		// Targets that depend on this one link its outputs, such as libraries
 		// or objects the command makes. They never link what the command reads.
 		link?: bool
+		// With link, dependents link every member of the output archives
 	}
 	// A command run by clue run, every time, after building the targets it
 	// depends on; arguments after the task's name are appended to it.
@@ -122,7 +123,7 @@ package config
 	if type == "static_library" || type == "executable" {
 		sources: [...string] & [_, ...]
 	}
-	if type != "static_library" {
+	if type != "static_library" && type != "custom" {
 		linkWhole?: _|_
 	}
 	if type != "executable" && type != "shared_library" && type != "bundle" {
