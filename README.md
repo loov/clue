@@ -349,6 +349,25 @@ targets: legacy: {
 }
 ```
 
+### Building flag lists
+
+Every flag is a separate string, so `-framework Security` is two entries. CUE has no `+` on lists;
+join lists with `list.Concat`, and flatten lists that a comprehension builds with `list.FlattenN`:
+
+```cue
+import "list"
+
+_frameworks: ["Security", "CoreFoundation", "Network"]
+targets: app: {
+    type:    "executable"
+    sources: ["main.c"]
+    flags: linker: list.Concat([
+        ["-lz"],
+        list.FlattenN([for f in _frameworks {["-framework", f]}], 1),
+    ])
+}
+```
+
 ### Unity builds
 
 A unity build compiles sources in batches, so the compiler starts less often and parses shared
