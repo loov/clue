@@ -60,3 +60,17 @@ func TestForTarget_SourceFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestTargetConfig_PositionIndependentExecutable(t *testing.T) {
+	pic := true
+	for targetType, want := range map[string][2]bool{
+		"executable":     {false, true},
+		"static_library": {true, false},
+		"shared_library": {true, false},
+	} {
+		flags := targetConfig(config.Target{Type: targetType, PIC: &pic}, config.Variant{})
+		if got := [2]bool{flags.PIC, flags.PIE}; got != want {
+			t.Errorf("%s: PIC, PIE = %v, want %v", targetType, got, want)
+		}
+	}
+}

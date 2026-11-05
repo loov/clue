@@ -58,6 +58,7 @@ package config
 	// Extended semantic flags (Phase 5)
 	sanitizers?: [...("address" | "thread" | "undefined" | "memory")]
 	lto?: bool
+	// Position-independent code: -fPIE for executables, -fPIC for libraries
 	pic?: bool
 	coverage?: bool
 	// Symbol visibility of the target's code (-fvisibility); "hidden" exports

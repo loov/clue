@@ -14,6 +14,7 @@ type Flags struct {
 	Sanitizers []string // "address", "thread", "undefined", "memory"
 	LTO        bool     // Link-time optimization
 	PIC        bool     // Position-independent code
+	PIE        bool     // Position-independent code for an executable
 	Coverage   bool     // Code coverage instrumentation
 	Visibility string   // symbol visibility: "" (compiler default), "default" or "hidden"
 }

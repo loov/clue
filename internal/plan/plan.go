@@ -151,6 +151,11 @@ func targetConfig(target config.Target, variant config.Variant) toolchain.Flags 
 	if variant.Coverage != nil {
 		cfg.Coverage = *variant.Coverage
 	}
+	// An executable's position-independent code needs no symbol
+	// interposition, as CMake's POSITION_INDEPENDENT_CODE does it.
+	if cfg.PIC && target.Type == "executable" {
+		cfg.PIC, cfg.PIE = false, true
+	}
 	cfg.RawCompiler = append(cfg.RawCompiler, variant.Flags.Compiler...)
 	cfg.RawLinker = append(cfg.RawLinker, variant.Flags.Linker...)
 	return cfg

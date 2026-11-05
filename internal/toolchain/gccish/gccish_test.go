@@ -242,6 +242,14 @@ func TestToolchain_CompilerFlagsEnablePIC(t *testing.T) {
 	}
 }
 
+func TestToolchain_CompilerFlagsEnablePIE(t *testing.T) {
+	tc := New("gcc", "gcc", "g++", "ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	flags := tc.CompilerFlags(toolchain.Flags{PIE: true})
+	if !slices.Contains(flags, "-fPIE") || slices.Contains(flags, "-fPIC") {
+		t.Errorf("CompilerFlags() = %v, want -fPIE and no -fPIC", flags)
+	}
+}
+
 func TestToolchain_CompilerFlagsOmitPICOnWindows(t *testing.T) {
 	tc := New("clang", "clang", "clang++", "llvm-ar", toolchain.Platform{OS: "windows", Arch: "amd64"})
 	if flags := tc.CompilerFlags(toolchain.Flags{PIC: true}); slices.Contains(flags, "-fPIC") {

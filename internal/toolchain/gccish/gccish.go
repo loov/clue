@@ -169,8 +169,13 @@ func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 	}
 
 	// Add PIC flag
-	if config.PIC && t.target.OS != "windows" && !t.target.IsWASI() {
-		flags = append(flags, "-fPIC")
+	if t.target.OS != "windows" && !t.target.IsWASI() {
+		switch {
+		case config.PIC:
+			flags = append(flags, "-fPIC")
+		case config.PIE:
+			flags = append(flags, "-fPIE")
+		}
 	}
 
 	// Symbols of shared objects are exported unless hidden
