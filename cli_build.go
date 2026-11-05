@@ -2,14 +2,20 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/loov/clue/internal/build"
 	"github.com/loov/clue/internal/config"
+	"github.com/loov/clue/internal/deps"
 	"github.com/loov/clue/internal/diagnostic"
+	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/all"
 	"github.com/zeebo/clingy"
 )
 
@@ -17,8 +23,8 @@ type validateCommand struct{ options *options }
 
 func (*validateCommand) Setup(clingy.Parameters) {}
 
-func (c *validateCommand) Execute(context.Context) error {
-	return result(runValidate(c.options.dir, c.options.variant, c.options.target, c.options.verbosity()))
+func (c *validateCommand) Execute(ctx context.Context) error {
+	return result(runValidate(ctx, c.options.dir, c.options.variant, c.options.target, c.options.verbosity()))
 }
 
 type buildCommand struct {
@@ -55,8 +61,8 @@ func isProfilingEnabled(flagValue bool) bool {
 	return false
 }
 
-func runValidate(dir, variant, target string, verbosity build.Verbosity) int {
-	cfg, selectedVariant, _, err := loadConfig(dir, variant, target, verbosity)
+func runValidate(ctx context.Context, dir, variant, target string, verbosity build.Verbosity) int {
+	cfg, selectedVariant, targetPlatform, err := loadConfig(dir, variant, target, verbosity)
 	if err != nil {
 		printError(err)
 		return 1
@@ -75,6 +81,11 @@ func runValidate(dir, variant, target string, verbosity build.Verbosity) int {
 		fmt.Printf("Build order: %s\n", strings.Join(order, " -> "))
 	}
 
+	if err := validatePkgConfig(ctx, cfg, targetPlatform); err != nil {
+		printError(err)
+		return 1
+	}
+
 	// Print summary (skip in quiet mode)
 	if verbosity == build.VerbosityQuiet {
 		return 0
@@ -91,6 +102,31 @@ func runValidate(dir, variant, target string, verbosity build.Verbosity) int {
 	}
 
 	return 0
+}
+
+// validatePkgConfig resolves every pkg_config dependency, so a missing
+// package fails validation instead of a build that has started compiling.
+func validatePkgConfig(ctx context.Context, cfg *config.Config, platform toolchain.Platform) error {
+	var packages []*deps.PkgConfigDependency
+	for _, name := range slices.Sorted(maps.Keys(cfg.Dependencies)) {
+		if pkg, ok := cfg.Dependencies[name].(*deps.PkgConfigDependency); ok {
+			packages = append(packages, pkg)
+		}
+	}
+	if len(packages) == 0 {
+		return nil
+	}
+	tc, err := all.NewProjectToolchain(cfg.Toolchain, platform, cfg.Dir)
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for _, pkg := range packages {
+		if _, err := plan.ResolvePkgConfig(ctx, cfg, tc, pkg); err != nil {
+			failures = append(failures, fmt.Errorf("dependency %q: %w", pkg.Name(), err))
+		}
+	}
+	return errors.Join(failures...)
 }
 
 func runBuild(ctx context.Context, dir, variant, target string, verbosity build.Verbosity, rebuildAll bool, jobs int, keepGoing bool, profile, saveProfile bool, topN int, targets []string) int {
