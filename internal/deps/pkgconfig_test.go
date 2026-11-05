@@ -40,3 +40,13 @@ func TestResolvePkgConfigWithRunner_QueriesFlagsAndLibraries(t *testing.T) {
 		t.Fatalf("calls=%v usage=%+v", calls, usage)
 	}
 }
+
+func TestParsePkgConfigUsage_DropsWarningOptions(t *testing.T) {
+	usage, err := parsePkgConfigUsage(`-Wno-float-conversion -Werror -Wp,-D_FORTIFY_SOURCE=2 -Wa,--noexecstack -pthread`, ``)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"-Wp,-D_FORTIFY_SOURCE=2", "-Wa,--noexecstack", "-pthread"}; !reflect.DeepEqual(usage.CompilerFlags, want) {
+		t.Errorf("compiler flags = %q, want %q", usage.CompilerFlags, want)
+	}
+}

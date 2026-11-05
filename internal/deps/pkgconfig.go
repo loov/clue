@@ -79,6 +79,9 @@ func parsePkgConfigUsage(cflags, libs string) (Usage, error) {
 			usage.SystemIncludes = append(usage.SystemIncludes, compile[i])
 		case strings.HasPrefix(flag, "-I") && len(flag) > 2:
 			usage.SystemIncludes = append(usage.SystemIncludes, flag[2:])
+		case isWarningFlag(flag):
+			// Warnings are the consumer's choice, and the dependency's
+			// headers are system headers, where they don't apply anyway.
 		case flag == "-D" && i+1 < len(compile):
 			i++
 			usage.Defines = append(usage.Defines, compile[i])
@@ -89,6 +92,20 @@ func parsePkgConfigUsage(cflags, libs string) (Usage, error) {
 		}
 	}
 	return usage, nil
+}
+
+// isWarningFlag reports whether flag is a -W warning option, not -Wl, -Wa or
+// -Wp, which pass options to the linker, assembler and preprocessor.
+func isWarningFlag(flag string) bool {
+	if !strings.HasPrefix(flag, "-W") {
+		return false
+	}
+	for _, prefix := range []string{"-Wl,", "-Wa,", "-Wp,"} {
+		if strings.HasPrefix(flag, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 // pkg-config emits shell-escaped flag lists, including quoted paths with spaces.
