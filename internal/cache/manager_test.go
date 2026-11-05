@@ -181,7 +181,7 @@ func TestStoreResult_PersistsCompileInputs(t *testing.T) {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
 
-	if _, ok := cm.manifest[cacheEntryID(srcPath, objPath)]; !ok {
+	if _, ok := cm.manifest[cm.cacheEntryID(srcPath, objPath)]; !ok {
 		t.Error("stored result is missing from the manifest")
 	}
 

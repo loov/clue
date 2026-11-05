@@ -54,6 +54,10 @@ type Manager struct {
 	hashes   map[string]fileHash     // content hashes, loaded and computed during this run
 	recorded map[string]string       // hashes as entries last recorded them; names changed headers
 	includes map[string][]hasInclude // __has_include uses per file, parsed once per run
+
+	// dir is the working directory, looked up once: filepath.Abs looks it up
+	// for every path, and on macOS that dominated no-op builds.
+	dir string
 }
 
 // fileHash is a content hash together with the file state it was computed from.
@@ -70,7 +74,12 @@ func NewManager(buildDir string) (*Manager, error) {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
 	cm := &Manager{
+		dir:          dir,
 		cacheDir:     cacheDir,
 		manifestPath: filepath.Join(cacheDir, "manifest.json"),
 		manifest:     make(map[string]Entry),
@@ -303,7 +312,7 @@ func (cm *Manager) NeedsRebuild(
 
 	// Check if we have a cache entry
 	cm.mu.Lock()
-	entry, exists := cm.manifest[cacheEntryID(source, objectPath)]
+	entry, exists := cm.manifest[cm.cacheEntryID(source, objectPath)]
 	cm.mu.Unlock()
 	if !exists {
 		return true, ReasonNotCached, ""
@@ -344,7 +353,7 @@ func (cm *Manager) NeedsRebuild(
 	}
 
 	// Compare include paths
-	normalizedIncludes := normalizeIncludePaths(includes)
+	normalizedIncludes := cm.normalizeIncludePaths(includes)
 	if !stringSlicesEqual(normalizedIncludes, entry.Key.IncludePaths) {
 		return true, ReasonFlagsChanged, ""
 	}
@@ -381,16 +390,19 @@ func stringSlicesEqual(a, b []string) bool {
 	return true
 }
 
+// abs is filepath.Abs against the manager's working directory.
+func (cm *Manager) abs(path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(cm.dir, path)
+}
+
 // normalizeIncludePaths converts include paths to absolute paths
-func normalizeIncludePaths(paths []string) []string {
+func (cm *Manager) normalizeIncludePaths(paths []string) []string {
 	result := make([]string, 0, len(paths))
 	for _, p := range paths {
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			result = append(result, p)
-		} else {
-			result = append(result, abs)
-		}
+		result = append(result, cm.abs(p))
 	}
 	return result
 }
@@ -424,17 +436,10 @@ func (cm *Manager) StoreResult(
 
 	// Collect the headers that can be hashed; system headers may be missing
 	// from -MMD output or unreadable.
-	absSource, err := filepath.Abs(source)
-	if err != nil {
-		absSource = source
-	}
+	absSource := cm.abs(source)
 	var headers []string
 	for _, dep := range depInfo.Sources {
-		absDep, err := filepath.Abs(dep)
-		if err != nil {
-			absDep = dep
-		}
-		if absDep == absSource {
+		if cm.abs(dep) == absSource {
 			continue // the source file itself
 		}
 		if _, err := cm.hash(dep); err == nil {
@@ -459,7 +464,7 @@ func (cm *Manager) StoreResult(
 		ConditionalIncludes: cm.conditionalIncludeStates(depInfo.Sources, includes),
 		CompilerID:          compilerID,
 		Flags:               append([]string(nil), compilerFlags...),
-		IncludePaths:        normalizeIncludePaths(includes),
+		IncludePaths:        cm.normalizeIncludePaths(includes),
 	}
 
 	// Create cache entry
@@ -472,7 +477,7 @@ func (cm *Manager) StoreResult(
 
 	// Store in manifest; Flush writes it
 	cm.mu.Lock()
-	cm.manifest[cacheEntryID(source, objectPath)] = entry
+	cm.manifest[cm.cacheEntryID(source, objectPath)] = entry
 	cm.dirty = true
 	cm.mu.Unlock()
 	return nil
@@ -507,7 +512,7 @@ func (cm *Manager) hasIncludes(file string) []hasInclude {
 }
 
 func (cm *Manager) conditionalIncludeStates(files, includePaths []string) map[string]bool {
-	searchDirs := normalizeIncludePaths(includePaths)
+	searchDirs := cm.normalizeIncludePaths(includePaths)
 	for _, file := range files {
 		searchDirs = append(searchDirs, filepath.Dir(file))
 	}
@@ -547,12 +552,6 @@ func uniqueStrings(values []string) []string {
 	return result
 }
 
-func cacheEntryID(source, objectPath string) string {
-	if absolute, err := filepath.Abs(source); err == nil {
-		source = absolute
-	}
-	if absolute, err := filepath.Abs(objectPath); err == nil {
-		objectPath = absolute
-	}
-	return source + "\x00" + objectPath
+func (cm *Manager) cacheEntryID(source, objectPath string) string {
+	return cm.abs(source) + "\x00" + cm.abs(objectPath)
 }
