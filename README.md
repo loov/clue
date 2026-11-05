@@ -209,6 +209,9 @@ operating system's limit on watches.
 sets how many. `-profile -save-profile` also writes a Chrome Trace file to
 `.build/<variant>/profile.json`, which Perfetto and other trace viewers open.
 
+To profile clue itself, `CLUE_CPUPROFILE=cpu.prof clue build` writes a CPU profile of the run for
+`go tool pprof`. It works with every command.
+
 ## Common flags
 
 - `-variant debug|release` selects the variant. The default is `defaultVariant`, else debug.
