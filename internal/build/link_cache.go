@@ -15,12 +15,12 @@ type linkInput struct {
 	Hash string `json:"hash"`
 }
 
-func linkFingerprint(tc toolchain.Toolchain, tool string, options any, inputs []string) ([]byte, error) {
+func linkFingerprint(hashes *cache.Manager, tc toolchain.Toolchain, tool string, options any, inputs []string) ([]byte, error) {
 	toolPath := toolIdentityPath(tc, tool)
 	toolID, _ := toolchain.ComputeCompilerIdentity(toolPath)
 	files := make([]linkInput, 0, len(inputs))
 	for _, path := range inputs {
-		hash, err := cache.ComputeFileHash(path)
+		hash, err := hashes.Hash(path)
 		if err != nil {
 			return nil, err
 		}

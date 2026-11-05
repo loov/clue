@@ -179,7 +179,21 @@ func (cm *Manager) hash(path string) (string, error) {
 	cm.hashMu.Lock()
 	cm.hashes[path] = fileHash{size: info.Size(), modTime: info.ModTime(), hash: hash}
 	cm.hashMu.Unlock()
+	// Save the new hash, so the next run need not read the file again.
+	cm.mu.Lock()
+	cm.dirty = true
+	cm.mu.Unlock()
 	return hash, nil
+}
+
+// Hash returns a file's content hash, reusing the hash recorded for it
+// while its size and modification time are unchanged. A nil manager hashes
+// the file.
+func (cm *Manager) Hash(path string) (string, error) {
+	if cm == nil {
+		return ComputeFileHash(path)
+	}
+	return cm.hash(path)
 }
 
 // manifestVersion identifies the manifest layout; other versions are ignored.

@@ -311,7 +311,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			UseCXX:   useCXX,
 		}
 		linkInvocation := plan.Link(b.toolchain, b.target, linkOpts)
-		fingerprint, err := linkFingerprint(b.toolchain, linkInvocation.Tool, linkOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
+		fingerprint, err := linkFingerprint(b.cacheManager, b.toolchain, linkInvocation.Tool, linkOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +341,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			Output:  outputPath,
 		}
 		archiveInvocation := plan.Archive(b.toolchain, archiveOpts)
-		fingerprint, err := linkFingerprint(b.toolchain, archiveInvocation.Tool, archiveOpts, objectFiles)
+		fingerprint, err := linkFingerprint(b.cacheManager, b.toolchain, archiveInvocation.Tool, archiveOpts, objectFiles)
 		if err != nil {
 			return nil, err
 		}
@@ -408,7 +408,7 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 			sharedOpts.ImportLibrary = filepath.Join(objDir, target.Name+".lib")
 		}
 		linkInvocation := plan.LinkShared(b.toolchain, b.target, sharedOpts)
-		fingerprint, err := linkFingerprint(b.toolchain, linkInvocation.Tool, sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
+		fingerprint, err := linkFingerprint(b.cacheManager, b.toolchain, linkInvocation.Tool, sharedOpts, append(objectFiles, dependencyArtifactPaths(dependencyPlan)...))
 		if err != nil {
 			return nil, err
 		}

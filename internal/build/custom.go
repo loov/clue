@@ -21,7 +21,7 @@ func (b *Builder) buildCustomTarget(ctx context.Context, opts Options, target co
 		}
 		target = expanded
 	}
-	fingerprint, err := linkFingerprint(b.toolchain, target.Command[0],
+	fingerprint, err := linkFingerprint(b.cacheManager, b.toolchain, target.Command[0],
 		struct {
 			Command         []string
 			WorkDir, Stdout string

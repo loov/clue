@@ -275,7 +275,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 			Flags: buildFlags, SysLibs: cfg.SysLibs, UseCXX: requiresCXX,
 		}
 		linkInvocation := plan.LinkShared(db.toolchain, opts.Platform, linkOpts)
-		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, linkInvocation.Tool, linkOpts, append(objectFiles, dependencyArtifacts...))
+		fingerprint, fingerprintErr := linkFingerprint(db.cache, db.toolchain, linkInvocation.Tool, linkOpts, append(objectFiles, dependencyArtifacts...))
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
 		}
@@ -290,7 +290,7 @@ func (db *depBuilder) BuildDep(ctx context.Context, dep deps.Dependency, sourceP
 	} else {
 		archiveOpts := plan.ArchiveOptions{Objects: objectFiles, Output: libPath}
 		archiveInvocation := plan.Archive(db.toolchain, archiveOpts)
-		fingerprint, fingerprintErr := linkFingerprint(db.toolchain, archiveInvocation.Tool, archiveOpts, objectFiles)
+		fingerprint, fingerprintErr := linkFingerprint(db.cache, db.toolchain, archiveInvocation.Tool, archiveOpts, objectFiles)
 		if fingerprintErr != nil {
 			return nil, fingerprintErr
 		}
