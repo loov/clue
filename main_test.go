@@ -529,7 +529,7 @@ func TestTargetFlag_AcceptsSupportedPlatform(t *testing.T) {
 
 	outputStr := string(output)
 	// Should show cross-compilation message (even if build fails due to missing cross-compiler)
-	if !strings.Contains(outputStr, "Cross-compiling for "+target) &&
+	if !strings.Contains(outputStr, "Building for "+target) &&
 		!strings.Contains(outputStr, "compiler not found:") {
 		t.Errorf("Expected cross-compilation message or toolchain error, got:\n%s", outputStr)
 	}

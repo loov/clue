@@ -143,15 +143,6 @@ func runBuild(ctx context.Context, dir, variant, target string, verbosity build.
 
 	actualJobs := resolvedJobs(jobs)
 
-	// Show platform info before build (skip in quiet mode)
-	if verbosity >= build.VerbosityNormal {
-		if target == "" || targetPlatform == toolchain.HostPlatform() {
-			fmt.Printf("Building for %s\n", targetPlatform)
-		} else {
-			fmt.Printf("Cross-compiling for %s\n", targetPlatform)
-		}
-	}
-
 	// Build options
 	opts := build.Options{
 		Config:       cfg,
