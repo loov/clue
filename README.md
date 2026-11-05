@@ -502,6 +502,24 @@ targets: bundle: {
 
 Clue keeps a custom target's build fingerprint in the build directory, not next to its outputs.
 
+`{clue}` is clue itself. `clue configure <template> <output> [name=value]...` writes `output` from
+`template`, replacing each `@name@` with its value. A value `name=@file` inserts the file's
+contents. Clue doesn't touch the inserted text, nor `@name@` for names it isn't given. That lets a
+custom target generate a file without a shell:
+
+```cue
+targets: license: {
+    type:    "custom"
+    command: ["{clue}", "configure", "src/license.h.in", "{buildDir}/gen/license.h",
+              "VERSION=1.2", "LICENSE=@LICENSE.txt"]
+    inputs:  ["src/license.h.in", "LICENSE.txt"]
+    outputs: ["{buildDir}/gen/license.h"]
+}
+```
+
+With `const char* license = R"(@LICENSE@)";` in the template, the header holds the license text
+without any escaping.
+
 ### Tasks
 
 A `task` runs its command on `clue run <task> [args...]`, every time, and never during

@@ -99,6 +99,7 @@ func registerCommands(commands clingy.Commands, options *options) {
 	commands.New("test", "build and run configured tests", &testCommand{options: options})
 	commands.New("install", "build and install targets", &installCommand{options: options})
 	commands.New("watch", "rebuild when project files change", &watchCommand{options: options})
+	commands.New("configure", "write a file from a template, replacing @name@ with values", &configureCommand{})
 	commands.New("exec", "run the command in a JSON argument file (used by generated Ninja files)", &execCommand{})
 }
 

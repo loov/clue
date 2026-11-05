@@ -2,6 +2,7 @@ package plan
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -41,13 +42,21 @@ func CustomTargetPerVariant(target config.Target) bool {
 	return false
 }
 
+// clueExecutable is the running clue program, for {clue}.
+func clueExecutable() string {
+	if executable, err := os.Executable(); err == nil {
+		return executable
+	}
+	return "clue"
+}
+
 // ExpandCustomTarget substitutes the placeholders of a custom target or a task
 // for one variant: {variant} is the variant name, {buildDir} the variant's
 // build directory, {output:name} the artifact of target name, which must be
 // listed in depends (the configuration adds those named in command and inputs),
-// and {tool:name} the program that tool name finds. For a bundle target the
-// artifact is the bundle as hosts load it; {output:name:module} is its linked
-// module and {output:name:bundle} the bundle.
+// {tool:name} the program that tool name finds, and {clue} clue itself. For a
+// bundle target the artifact is the bundle as hosts load it;
+// {output:name:module} is its linked module and {output:name:bundle} the bundle.
 func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, variant string, platform toolchain.Platform) (config.Target, error) {
 	if target.Type != "custom" && target.Type != "task" {
 		return target, nil
@@ -64,6 +73,9 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 		return path
 	}
 	expand := func(value string) string {
+		if strings.Contains(value, "{clue}") {
+			value = strings.ReplaceAll(value, "{clue}", clueExecutable())
+		}
 		value = toolPlaceholder.ReplaceAllStringFunc(value, func(match string) string {
 			path, err := cfg.ToolPath(match[len("{tool:") : len(match)-1])
 			if err != nil {
