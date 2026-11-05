@@ -799,3 +799,29 @@ func TestLoaderExtractsStdModule(t *testing.T) {
 		}
 	}
 }
+
+func TestLoader_MergesErrorsPerListElement(t *testing.T) {
+	dir := t.TempDir()
+	config := `name: "repro"
+targets: app: {
+	type:    "executable"
+	sources: ["main.c"]
+	flags: linker: [for n in ["Security", "CoreFoundation", "Network"] {["-framework", n]}]
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	_, err := NewLoader().Load(dir)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	msg := err.Error()
+	if got := strings.Count(msg, "conflicting values"); got != 1 {
+		t.Errorf("expected one merged error, got %d:\n%s", got, msg)
+	}
+	if !strings.Contains(msg, "targets.app.flags.linker.* (3 elements)") {
+		t.Errorf("expected merged path with element count:\n%s", msg)
+	}
+}

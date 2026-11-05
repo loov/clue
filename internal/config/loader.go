@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -381,11 +382,53 @@ func (l *Loader) convertCUEError(err error, baseDir string) error {
 		return l.singleCUEError(errs[0], baseDir)
 	}
 
-	list := diagnostic.NewErrorList()
+	// Errors that differ only in a trailing list index, such as one per element
+	// of a list that fails the same constraint, are reported once.
+	type group struct {
+		first cueerrors.Error
+		count int
+	}
+	var groups []*group
+	byKey := map[string]*group{}
 	for _, e := range errs {
-		list.Add(l.singleCUEError(e, baseDir))
+		path := e.Path()
+		if n := len(path); n > 0 && isListIndex(path[n-1]) {
+			path = path[:n-1]
+		}
+		format, args := e.Msg()
+		key := strings.Join(path, ".") + "\x00" + fmt.Sprintf(format, args...) + "\x00" + fmt.Sprint(cueerrors.Positions(e))
+		if g, ok := byKey[key]; ok {
+			g.count++
+			continue
+		}
+		g := &group{first: e, count: 1}
+		byKey[key] = g
+		groups = append(groups, g)
+	}
+	if len(groups) == 1 && groups[0].count == 1 {
+		return l.singleCUEError(groups[0].first, baseDir)
+	}
+
+	list := diagnostic.NewErrorList()
+	for _, g := range groups {
+		rich := l.singleCUEError(g.first, baseDir)
+		if g.count > 1 {
+			path := g.first.Path()
+			full := strings.Join(path, ".")
+			parent := strings.Join(path[:len(path)-1], ".")
+			rich.Message = strings.Replace(rich.Message, full+":", fmt.Sprintf("%s.* (%d elements):", parent, g.count), 1)
+		}
+		list.Add(rich)
+	}
+	if len(list.Errors) == 1 {
+		return list.Errors[0]
 	}
 	return list
+}
+
+func isListIndex(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
 }
 
 // singleCUEError converts one CUE error to a RichError
