@@ -240,7 +240,11 @@ func (b *Builder) Build(ctx context.Context, opts Options) (result *Result, err 
 	results, err := b.buildTargets(ctx, opts, buildOrder, selected, progress)
 	results = append(hostResults, results...)
 	if depErr := b.depBuilds.waitAll(); depErr != nil {
-		// The dependency's error explains the targets it stopped.
+		// The dependency's error explains the targets it stopped, and the
+		// targets cancelled because of it have nothing to add.
+		if errors.Is(err, context.Canceled) {
+			err = nil
+		}
 		err = errors.Join(fmt.Errorf("failed to build dependencies: %w", depErr), err)
 	}
 	if err != nil {
