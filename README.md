@@ -117,7 +117,9 @@ toolchain: {
 }
 ```
 
-Programs built for macOS run on the build machine's macOS version and later, unless
+On a Mac, Clang builds for macOS against the SDK that `xcrun --show-sdk-path` reports (set
+`SDKROOT` or `sysroot` to use another), and `--target darwin-amd64` or `darwin-arm64` builds for the
+other architecture. Programs run on the build machine's macOS version and later, unless
 `macos.deploymentTarget` names an older one:
 
 ```cue

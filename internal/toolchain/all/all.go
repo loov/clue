@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
@@ -65,6 +66,9 @@ func NewConfiguredToolchain(name string, target toolchain.Platform, config Confi
 	if name == "zig" {
 		// Zig cross-compiles by itself; toolchain.cc may name the zig executable.
 		return zig.New(configuredCommand(config.CC, "ZIG", "zig"), target)
+	}
+	if name == "clang" && target.OS == "darwin" && toolchain.HostPlatform().OS == "darwin" {
+		config = macOSDefaults(target, config)
 	}
 	prefix := crossPrefix(target)
 	if target.IsCrossCompile() && prefix == "" && config.TargetTriple == "" && config.CC == "" && config.CXX == "" {
@@ -154,6 +158,24 @@ func TryToolchainsForLanguages(names []string, target toolchain.Platform, requir
 
 // crossPrefix returns the GNU triplet prefix for cross-compilation.
 // Returns empty string if target matches host (native compilation).
+// macOSDefaults fills in what clang needs to build for macOS on a Mac, as
+// CMake does: the SDK that xcrun reports, which honours SDKROOT, and a target
+// triple when building for the other architecture. A plain upstream clang
+// finds neither by itself.
+func macOSDefaults(target toolchain.Platform, config Config) Config {
+	if config.TargetTriple == "" && target.Arch != toolchain.HostPlatform().Arch && config.CC == "" && config.CXX == "" {
+		if arch, ok := map[string]string{"amd64": "x86_64", "arm64": "arm64"}[target.Arch]; ok {
+			config.TargetTriple = arch + "-apple-macos"
+		}
+	}
+	if config.Sysroot == "" {
+		if output, err := exec.Command("xcrun", "--show-sdk-path").Output(); err == nil {
+			config.Sysroot = strings.TrimSpace(string(output))
+		}
+	}
+	return config
+}
+
 func crossPrefix(target toolchain.Platform) string {
 	host := toolchain.HostPlatform()
 	if target.OS == host.OS && target.Arch == host.Arch {

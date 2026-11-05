@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/loov/clue/internal/toolchain"
@@ -169,12 +171,9 @@ func TestCrossPrefix(t *testing.T) {
 }
 
 func TestNewToolchainRejectsUnconfiguredCrossTarget(t *testing.T) {
-	target := toolchain.Platform{OS: "darwin", Arch: "arm64"}
-	if target == toolchain.HostPlatform() {
-		target.Arch = "amd64"
-	}
-	if target == toolchain.HostPlatform() {
-		target = toolchain.Platform{OS: "windows", Arch: "amd64"}
+	target := toolchain.Platform{OS: "windows", Arch: "amd64"}
+	if target.OS == toolchain.HostPlatform().OS {
+		target = toolchain.Platform{OS: "darwin", Arch: "arm64"}
 	}
 
 	if _, err := NewToolchain("clang", target); err == nil {
@@ -186,6 +185,29 @@ func TestNewToolchainRejectsUnconfiguredCrossTarget(t *testing.T) {
 	}
 	if tc.CC() != "clang" {
 		t.Fatalf("CC() = %q", tc.CC())
+	}
+}
+
+func TestNewConfiguredToolchain_MacOSDefaults(t *testing.T) {
+	host := toolchain.HostPlatform()
+	if host.OS != "darwin" {
+		t.Skip("macOS defaults apply on a Mac")
+	}
+	sdk, err := exec.Command("xcrun", "--show-sdk-path").Output()
+	if err != nil {
+		t.Skipf("no macOS SDK: %v", err)
+	}
+	other := map[string]string{"arm64": "amd64", "amd64": "arm64"}[host.Arch]
+	tc, err := NewConfiguredToolchain("clang", toolchain.Platform{OS: "darwin", Arch: other}, Config{MacOSDeploymentTarget: "13.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	triple := map[string]string{"amd64": "x86_64", "arm64": "arm64"}[other] + "-apple-macos"
+	want := []string{"--target=" + triple, "--sysroot=" + strings.TrimSpace(string(sdk)), "-mmacosx-version-min=13.0"}
+	for _, flags := range [][]string{tc.CompilerFlags(toolchain.Flags{}), tc.LinkerFlags(toolchain.Flags{}, nil)} {
+		if !slices.Equal(flags[:len(want)], want) {
+			t.Errorf("flags = %q, want them to start with %q", flags, want)
+		}
 	}
 }
 
