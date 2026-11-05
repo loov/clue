@@ -86,7 +86,13 @@ func NewConfiguredBuilder(settings config.Toolchain, target toolchain.Platform, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create toolchain: %w", err)
 	}
-	return newBuilder(toolchain, target, verbosity, jobs, keepGoing)
+	builder, err := newBuilder(toolchain, target, verbosity, jobs, keepGoing)
+	if err != nil {
+		return nil, err
+	}
+	builder.compiler.launcher = settings.Launcher
+	builder.parallelCompiler.launcher = settings.Launcher
+	return builder, nil
 }
 
 func newBuilder(tc toolchain.Toolchain, target toolchain.Platform, verbosity Verbosity, jobs int, keepGoing bool) (*Builder, error) {

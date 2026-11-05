@@ -126,6 +126,14 @@ other architecture. Programs run on the build machine's macOS version and later,
 toolchain: macos: deploymentTarget: "13.0" // -mmacosx-version-min=13.0
 ```
 
+`launcher` runs each compile through a compiler cache such as ccache or sccache, which serves a
+file again from its cache after an edit is reverted. Links run without it, and
+`compile_commands.json` names the compiler itself:
+
+```cue
+toolchain: launcher: ["ccache"]
+```
+
 The `zig` toolchain cross-compiles without a sysroot, as Zig ships libc and libc++ for
 `linux-amd64`, `linux-arm64`, `windows-amd64`, `windows-arm64` and `wasi-wasm32`. Pick the
 platform with `--target`, as in `clue build --target wasi-wasm32`. Each platform gets its own build

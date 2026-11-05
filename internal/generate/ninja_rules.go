@@ -22,15 +22,22 @@ func (d defaultTarget) RequiredVersion() ninja.Version {
 	return ninja.Version(0)
 }
 
-func addNinjaRules(file *ninja.File, msvc bool) {
+func addNinjaRules(file *ninja.File, msvc, launcher bool) {
+	cc, cxx := "$cc", "$cxx"
+	if msvc {
+		cc, cxx = `"$cc"`, `"$cxx"`
+	}
+	if launcher {
+		cc, cxx = "$cc_compile", "$cxx_compile"
+	}
 	if msvc {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: `set "VSLANG=1033"&& "$cc" @$object.rsp`, Rspfile: "$object.rsp", RspfileContent: "$args", Deps: ninja.DepsMSVC,
+				Name: "cc", Command: `set "VSLANG=1033"&& ` + cc + ` @$object.rsp`, Rspfile: "$object.rsp", RspfileContent: "$args", Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: `set "VSLANG=1033"&& "$cxx" @$object.rsp`, Rspfile: "$object.rsp", RspfileContent: "$args", Deps: ninja.DepsMSVC,
+				Name: "cxx", Command: `set "VSLANG=1033"&& ` + cxx + ` @$object.rsp`, Rspfile: "$object.rsp", RspfileContent: "$args", Deps: ninja.DepsMSVC,
 				MSVCDepsPrefix: "Note: including file:", Description: "CXX $out",
 			},
 			ninja.Rule{Name: "link", Command: `"$link" @$out.rsp`, Rspfile: "$out.rsp", RspfileContent: "$args", Description: "LINK $out"},
@@ -41,11 +48,11 @@ func addNinjaRules(file *ninja.File, msvc bool) {
 	} else {
 		*file = append(*file,
 			ninja.Rule{
-				Name: "cc", Command: "$cc @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "$args",
+				Name: "cc", Command: cc + " @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "$args",
 				Depfile: "$depfile", Deps: ninja.DepsGCC, Description: "CC $out",
 			},
 			ninja.Rule{
-				Name: "cxx", Command: "$cxx @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "$args",
+				Name: "cxx", Command: cxx + " @$object.rsp", Rspfile: "$object.rsp", RspfileContent: "$args",
 				Depfile: "$depfile", Deps: ninja.DepsGCC, Description: "CXX $out",
 			},
 			ninja.Rule{

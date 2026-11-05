@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/loov/clue/internal/config"
 	"github.com/loov/clue/internal/toolchain"
 )
 
@@ -271,5 +272,12 @@ func TestTryToolchainsForLanguagesSkipsMissingCXX(t *testing.T) {
 	}
 	if tc.Name() != "gcc" {
 		t.Fatalf("selected %q, want gcc with an available C++ driver", tc.Name())
+	}
+}
+
+func TestNewProjectToolchainRejectsLauncherWithZig(t *testing.T) {
+	_, err := NewProjectToolchain(config.Toolchain{Compiler: "zig", Launcher: []string{"ccache"}}, toolchain.HostPlatform(), ".")
+	if err == nil || !strings.Contains(err.Error(), "launcher") {
+		t.Errorf("err = %v, want a launcher error", err)
 	}
 }

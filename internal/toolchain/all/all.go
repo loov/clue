@@ -41,6 +41,9 @@ func NewProjectToolchain(settings config.Toolchain, target toolchain.Platform, p
 	if name == "" {
 		name = "clang"
 	}
+	if len(settings.Launcher) > 0 && name == "zig" {
+		return nil, fmt.Errorf("toolchain.launcher is not supported with the zig toolchain, whose compiler is \"zig cc\"")
+	}
 	if settings.Container != nil && name != "clang" && name != "gcc" {
 		return nil, fmt.Errorf("container toolchains support clang and gcc, got %q", name)
 	}

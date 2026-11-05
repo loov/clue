@@ -134,6 +134,11 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 	file = append(file, ninja.Var{Key: "cc", Val: ninjaToolCommand(toolchain, toolchain.CC())})
 	file = append(file, ninja.Var{Key: "cxx", Val: ninjaToolCommand(toolchain, toolchain.CXX())})
 	file = append(file, ninja.Var{Key: "ar", Val: ninjaToolCommand(toolchain, toolchain.AR())})
+	// Compiles run through the launcher, links don't.
+	if launcher := opts.Config.Toolchain.Launcher; len(launcher) > 0 {
+		file = append(file, ninja.Var{Key: "cc_compile", Val: ninjaToolCommandArgs(toolchain, launcher[0], append(slices.Clone(launcher[1:]), toolchain.CC()))})
+		file = append(file, ninja.Var{Key: "cxx_compile", Val: ninjaToolCommandArgs(toolchain, launcher[0], append(slices.Clone(launcher[1:]), toolchain.CXX()))})
+	}
 	if opts.Clue == "" {
 		opts.Clue = "clue"
 		if executable, err := os.Executable(); err == nil {
@@ -148,7 +153,7 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 
 	// Rules
 	file = append(file, ninja.Comment{Lines: []string{"Compilation rules"}})
-	addNinjaRules(&file, toolchain.Name() == "msvc")
+	addNinjaRules(&file, toolchain.Name() == "msvc", len(opts.Config.Toolchain.Launcher) > 0)
 	file = append(file, ninja.Pool{Name: "fetch", Depth: 1})
 	file = append(file, ninja.Build{Rule: "phony", Out: []string{"force_external"}})
 	if len(opts.Regenerate) > 0 {

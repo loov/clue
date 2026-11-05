@@ -359,6 +359,9 @@ package config
 		// to the project; these replace pkg-config's search path, so no
 		// package comes from elsewhere on the system
 		pkgConfigPath?: [...string]
+		// Command that runs each compile, followed by the compiler and its
+		// arguments, such as ["ccache"] or ["sccache"]; not used for links
+		launcher?: [string, ...string]
 		macos?: {
 			// The oldest macOS version that programs built for macOS run on,
 			// such as "13.0"; the default is the build machine's version

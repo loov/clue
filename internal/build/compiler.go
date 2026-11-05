@@ -47,6 +47,7 @@ type compileResult struct {
 type compiler struct {
 	executor  *executor
 	toolchain toolchain.Toolchain
+	launcher  []string // runs each compile: launcher... compiler args...
 }
 
 // NewCompiler creates a new Compiler instance
@@ -93,7 +94,11 @@ func (c *compiler) CompileSource(ctx context.Context, opts plan.CompileOptions) 
 		defer func() { resultErr = errors.Join(resultErr, os.Remove(cleanupPath)) }()
 	}
 
-	commandResult, err := c.executor.RunCommand(ctx, invocation.Tool, finalArgs...)
+	tool := invocation.Tool
+	if len(c.launcher) > 0 {
+		tool, finalArgs = c.launcher[0], append(append(slices.Clone(c.launcher[1:]), invocation.Tool), finalArgs...)
+	}
+	commandResult, err := c.executor.RunCommand(ctx, tool, finalArgs...)
 
 	result := &compileResult{
 		Source:   opts.Source,

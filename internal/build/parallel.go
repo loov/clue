@@ -30,6 +30,7 @@ type parallelResult struct {
 // ParallelCompiler handles parallel compilation of multiple source files
 type parallelCompiler struct {
 	toolchain toolchain.Toolchain
+	launcher  []string
 	jobs      int
 	keepGoing bool
 	verbosity Verbosity
@@ -139,6 +140,7 @@ func (p *parallelCompiler) compileWithBuffering(ctx context.Context, opts plan.C
 
 	// Create temporary compiler with capturing executor
 	tempCompiler := newCompiler(captureExecutor, p.toolchain)
+	tempCompiler.launcher = p.launcher
 
 	result, err := tempCompiler.CompileSource(ctx, opts)
 	if err != nil && ctx.Err() != nil {

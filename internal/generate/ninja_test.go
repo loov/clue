@@ -783,7 +783,7 @@ func TestNinja_MSVCUsesNativeSyntax(t *testing.T) {
 	opts := NinjaOptions{Config: cfg, BuildDir: ".build", Toolchain: "msvc", Platform: platform}
 
 	file := ninja.File{}
-	addNinjaRules(&file, true)
+	addNinjaRules(&file, true, false)
 	if _, err := generateTargetBuilds(&file, opts, "debug", cfg.Variants["debug"], cfg.Targets["mylib"], tc, true, make(map[string]map[string]string), nil); err != nil {
 		t.Fatal(err)
 	}
@@ -1449,5 +1449,23 @@ func TestNinja_StdModules(t *testing.T) {
 	}
 	if compile := statement("build .build/debug/app/obj/generated.cpp.o:"); !strings.Contains(compile, "-fmodule-file=std=") {
 		t.Errorf("generated source does not import std:\n%s", compile)
+	}
+}
+
+func TestNinja_LauncherWrapsCompilesOnly(t *testing.T) {
+	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
+	cfg.Toolchain.Launcher = []string{"ccache"}
+	var output bytes.Buffer
+	if err := WriteNinjaTo(t.Context(), &output, NinjaOptions{
+		Config: cfg, Variants: []string{"debug"}, BuildDir: ".build", Toolchain: "clang",
+		Platform: toolchain.Platform{OS: "linux", Arch: "amd64"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := output.String()
+	for _, want := range []string{"cxx_compile = ccache x86_64-linux-gnu-clang++", "command = $cxx_compile @$object.rsp", "command = $cxx @$out.rsp"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Ninja output missing %q:\n%s", want, content)
+		}
 	}
 }

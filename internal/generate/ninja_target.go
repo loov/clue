@@ -482,7 +482,12 @@ func sourcesUseCXX(sources []string) bool {
 }
 
 func ninjaToolCommand(tc toolchain.Toolchain, tool string) string {
-	command, args := toolchain.Command(tc, tool, nil)
+	return ninjaToolCommandArgs(tc, tool, nil)
+}
+
+// ninjaToolCommandArgs is ninjaToolCommand for a tool with leading arguments.
+func ninjaToolCommandArgs(tc toolchain.Toolchain, tool string, leading []string) string {
+	command, args := toolchain.Command(tc, tool, leading)
 	parts := append([]string{command}, args...)
 	for i, part := range parts {
 		part = strings.ReplaceAll(part, "$", "$$")
