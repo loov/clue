@@ -25,12 +25,36 @@ type Toolchain struct {
 	name         string // "gcc" or "clang"
 	targetTriple string
 	sysroot      string
+	// macOSVersionMin is the oldest macOS that built programs run on.
+	macOSVersionMin string
 }
 
 // ConfigureTarget sets explicit target and SDK information.
 func (t *Toolchain) ConfigureTarget(targetTriple, sysroot string) {
 	t.targetTriple = targetTriple
 	t.sysroot = sysroot
+}
+
+// ConfigureMacOS sets the oldest macOS version that programs built for
+// macOS run on; empty leaves the compiler's default, the build machine's.
+func (t *Toolchain) ConfigureMacOS(deploymentTarget string) {
+	t.macOSVersionMin = deploymentTarget
+}
+
+// targetFlags selects the target, SDK and OS version, for compiling and
+// linking alike.
+func (t *Toolchain) targetFlags() []string {
+	var flags []string
+	if t.name == "clang" && t.targetTriple != "" {
+		flags = append(flags, "--target="+t.targetTriple)
+	}
+	if t.sysroot != "" {
+		flags = append(flags, "--sysroot="+t.sysroot)
+	}
+	if t.target.OS == "darwin" && t.macOSVersionMin != "" {
+		flags = append(flags, "-mmacosx-version-min="+t.macOSVersionMin)
+	}
+	return flags
 }
 
 // New creates a new gccish Toolchain with the specified configuration.
@@ -119,13 +143,7 @@ func (t *Toolchain) Identity() (toolchain.CompilerIdentity, error) {
 // NOTE: Sanitizers and coverage flags differ between GCC/Clang and
 // should be added by the embedding type's CompilerFlags method.
 func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
-	var flags []string
-	if t.name == "clang" && t.targetTriple != "" {
-		flags = append(flags, "--target="+t.targetTriple)
-	}
-	if t.sysroot != "" {
-		flags = append(flags, "--sysroot="+t.sysroot)
-	}
+	flags := t.targetFlags()
 
 	// Add optimization flag
 	if opt := toolchain.OptimizationFlag(config.Optimize); opt != "" {
@@ -171,13 +189,7 @@ func (t *Toolchain) CompilerFlags(config toolchain.Flags) []string {
 // NOTE: Sanitizer and coverage flags differ between GCC/Clang and
 // should be added by the embedding type's LinkerFlags method.
 func (t *Toolchain) LinkerFlags(config toolchain.Flags, sysLibs []string) []string {
-	var flags []string
-	if t.name == "clang" && t.targetTriple != "" {
-		flags = append(flags, "--target="+t.targetTriple)
-	}
-	if t.sysroot != "" {
-		flags = append(flags, "--sysroot="+t.sysroot)
-	}
+	flags := t.targetFlags()
 
 	// Add system library flags
 	for _, lib := range sysLibs {

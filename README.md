@@ -117,6 +117,13 @@ toolchain: {
 }
 ```
 
+Programs built for macOS run on the build machine's macOS version and later, unless
+`macos.deploymentTarget` names an older one:
+
+```cue
+toolchain: macos: deploymentTarget: "13.0" // -mmacosx-version-min=13.0
+```
+
 The `zig` toolchain cross-compiles without a sysroot, as Zig ships libc and libc++ for
 `linux-amd64`, `linux-arm64`, `windows-amd64`, `windows-arm64` and `wasi-wasm32`. Pick the
 platform with `--target`, as in `clue build --target wasi-wasm32`. Each platform gets its own build

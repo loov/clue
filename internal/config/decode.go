@@ -63,6 +63,7 @@ func (l *Loader) extractConfig(val cue.Value) (*Config, error) {
 		}
 		cfg.Toolchain.Emulator = extractStringList(tc, "emulator")
 		cfg.Toolchain.PkgConfigPath = extractStringList(tc, "pkgConfigPath")
+		cfg.Toolchain.MacOSDeploymentTarget = extractOptionalString(tc, "macos.deploymentTarget")
 		if stdModule := tc.LookupPath(cue.ParsePath("stdModule")); stdModule.Exists() {
 			if path, err := stdModule.String(); err == nil {
 				cfg.Toolchain.StdModule, cfg.Toolchain.StdModulePath = true, path

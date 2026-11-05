@@ -86,6 +86,8 @@ type Toolchain struct {
 	CXXStd       string
 	Container    *ContainerToolchain
 	Emulator     []string // runs built programs: emulator... program args...
+	// MacOSDeploymentTarget is the oldest macOS that built programs run on
+	MacOSDeploymentTarget string
 	// PkgConfigPath replaces pkg-config's search path; absolute once loaded
 	PkgConfigPath []string
 

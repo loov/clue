@@ -29,6 +29,9 @@ func NewToolchain(name string, target toolchain.Platform) (toolchain.Toolchain, 
 type Config struct {
 	CC, CXX, AR           string
 	TargetTriple, Sysroot string
+	// MacOSDeploymentTarget is the oldest macOS that programs built for
+	// macOS run on.
+	MacOSDeploymentTarget string
 }
 
 // NewProjectToolchain creates a local or container-backed project toolchain.
@@ -43,6 +46,7 @@ func NewProjectToolchain(settings config.Toolchain, target toolchain.Platform, p
 	base, err := NewConfiguredToolchain(name, target, Config{
 		CC: settings.CC, CXX: settings.CXX, AR: settings.AR,
 		TargetTriple: settings.TargetTriple, Sysroot: settings.Sysroot,
+		MacOSDeploymentTarget: settings.MacOSDeploymentTarget,
 	})
 	if err != nil {
 		return nil, err
@@ -74,6 +78,7 @@ func NewConfiguredToolchain(name string, target toolchain.Platform, config Confi
 		}
 		tc := gcc.New(configuredCommand(config.CC, "CC", prefix+"gcc"), configuredCommand(config.CXX, "CXX", prefix+"g++"), configuredArchive(config.AR, prefix+"ar"), target)
 		tc.ConfigureTarget(config.TargetTriple, config.Sysroot)
+		tc.ConfigureMacOS(config.MacOSDeploymentTarget)
 		return tc, nil
 
 	case "clang":
@@ -83,6 +88,7 @@ func NewConfiguredToolchain(name string, target toolchain.Platform, config Confi
 		}
 		tc := clang.New(configuredCommand(config.CC, "CC", prefix+"clang"), configuredCommand(config.CXX, "CXX", prefix+"clang++"), configuredArchive(config.AR, archiver), target)
 		tc.ConfigureTarget(config.TargetTriple, config.Sysroot)
+		tc.ConfigureMacOS(config.MacOSDeploymentTarget)
 		return tc, nil
 
 	case "msvc":
