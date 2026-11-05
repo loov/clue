@@ -213,7 +213,7 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 			if err != nil {
 				return err
 			}
-			mergeDependencyUsage(&usage, resolved)
+			usage.Merge(resolved)
 			return nil
 		}
 		resolved, _ := deps.ResolveBuildConfig(current, current.CachePath("."))
@@ -221,9 +221,9 @@ func dependencyCompileUsage(ctx context.Context, dep deps.Dependency, cfg *confi
 		if current != dep {
 			include, public := deps.ConsumerUsage(current, current.CachePath("."), resolved)
 			if include != "" {
-				usage.SystemIncludes = append(usage.SystemIncludes, include)
+				usage.Merge(deps.Usage{SystemIncludes: []string{include}})
 			}
-			mergeDependencyUsage(&usage, public)
+			usage.Merge(public)
 		}
 		for _, name := range dependencyDepends(current) {
 			if child, ok := cfg.Dependencies[name]; ok {
@@ -244,14 +244,6 @@ func resolvePkgConfig(ctx context.Context, pkg *deps.PkgConfigDependency, tc too
 	return pkg.ResolveWithRunner(ctx, func(ctx context.Context, name string, args ...string) (string, error) {
 		return toolchain.Output(ctx, tc, ".", name, args...)
 	})
-}
-
-func mergeDependencyUsage(dst *deps.Usage, src deps.Usage) {
-	dst.SystemIncludes = append(dst.SystemIncludes, src.SystemIncludes...)
-	dst.Defines = append(dst.Defines, src.Defines...)
-	dst.CompilerFlags = append(dst.CompilerFlags, src.CompilerFlags...)
-	dst.LinkerFlags = append(dst.LinkerFlags, src.LinkerFlags...)
-	dst.SysLibs = append(dst.SysLibs, src.SysLibs...)
 }
 
 func resolveExternalDependencies(ctx context.Context, cfg *config.Config, tc toolchain.Toolchain, buildDir, variant string, platform toolchain.Platform) (map[string]plan.ExternalDependency, error) {

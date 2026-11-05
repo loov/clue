@@ -50,9 +50,9 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 
 		if dependency, ok := external[name]; ok {
 			if dependency.Include != "" {
-				result.Usage.SystemIncludes = append(result.Usage.SystemIncludes, dependency.Include)
+				result.Usage.Merge(deps.Usage{SystemIncludes: []string{dependency.Include}})
 			}
-			mergeUsage(&result.Usage, dependency.Usage)
+			result.Usage.Merge(dependency.Usage)
 			result.SystemLibraries = appendUnique(result.SystemLibraries, dependency.Usage.SysLibs...)
 			result.UsesCXX = result.UsesCXX || dependency.RequiresCXX
 			if dependency.Output != "" {
@@ -145,14 +145,6 @@ func normalizedLibraryType(value string) string {
 	default:
 		return value
 	}
-}
-
-func mergeUsage(dst *deps.Usage, src deps.Usage) {
-	dst.SystemIncludes = append(dst.SystemIncludes, src.SystemIncludes...)
-	dst.Defines = append(dst.Defines, src.Defines...)
-	dst.CompilerFlags = append(dst.CompilerFlags, src.CompilerFlags...)
-	dst.LinkerFlags = append(dst.LinkerFlags, src.LinkerFlags...)
-	dst.SysLibs = append(dst.SysLibs, src.SysLibs...)
 }
 
 func appendUnique(values []string, additions ...string) []string {

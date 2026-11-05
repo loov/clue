@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -18,6 +19,68 @@ type Usage struct {
 	CompilerFlags  []string
 	LinkerFlags    []string
 	SysLibs        []string
+}
+
+// Merge appends src to u, skipping include directories, defines, library
+// directories and system libraries that u already has. A library or framework
+// listed again moves to its later position, so it still follows everything
+// that links against it.
+func (u *Usage) Merge(src Usage) {
+	u.SystemIncludes = appendNew(u.SystemIncludes, src.SystemIncludes...)
+	u.Defines = appendNew(u.Defines, src.Defines...)
+	u.CompilerFlags = append(u.CompilerFlags, src.CompilerFlags...)
+	u.LinkerFlags = dedupeLibraries(append(slices.Clone(u.LinkerFlags), src.LinkerFlags...))
+	u.SysLibs = appendNew(u.SysLibs, src.SysLibs...)
+}
+
+func appendNew(values []string, additions ...string) []string {
+	for _, value := range additions {
+		if !slices.Contains(values, value) {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+
+// dedupeLibraries keeps the last -l<name> and -framework <name> of each
+// library and the first -L<dir> of each directory; other flags stay as they
+// are. Libraries are moved out of -Wl,--start-group ... --end-group if they
+// are repeated after it, which pkg-config output doesn't do.
+func dedupeLibraries(flags []string) []string {
+	type unit struct {
+		tokens   []string
+		key      string
+		keepLast bool
+	}
+	units := make([]unit, 0, len(flags))
+	for i := 0; i < len(flags); i++ {
+		flag := flags[i]
+		switch {
+		case flag == "-framework" && i+1 < len(flags):
+			units = append(units, unit{flags[i : i+2], flag + " " + flags[i+1], true})
+			i++
+		case strings.HasPrefix(flag, "-l") && len(flag) > 2:
+			units = append(units, unit{flags[i : i+1], flag, true})
+		case strings.HasPrefix(flag, "-L") && len(flag) > 2:
+			units = append(units, unit{flags[i : i+1], flag, false})
+		default:
+			units = append(units, unit{tokens: flags[i : i+1]})
+		}
+	}
+	last := make(map[string]int)
+	for i, u := range units {
+		last[u.key] = i
+	}
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(flags))
+	for i, u := range units {
+		if u.key != "" && (u.keepLast && last[u.key] != i || !u.keepLast && seen[u.key]) {
+			continue
+		}
+		seen[u.key] = true
+		result = append(result, u.tokens...)
+	}
+	return result
 }
 
 // CommandRunner executes pkg-config and returns its standard output.
@@ -70,23 +133,23 @@ func parsePkgConfigUsage(cflags, libs string) (Usage, error) {
 	if err != nil {
 		return Usage{}, fmt.Errorf("parse pkg-config libs: %w", err)
 	}
-	usage := Usage{LinkerFlags: link}
+	usage := Usage{LinkerFlags: dedupeLibraries(link)}
 	for i := 0; i < len(compile); i++ {
 		flag := compile[i]
 		switch {
 		case (flag == "-I" || flag == "-isystem") && i+1 < len(compile):
 			i++
-			usage.SystemIncludes = append(usage.SystemIncludes, compile[i])
+			usage.SystemIncludes = appendNew(usage.SystemIncludes, compile[i])
 		case strings.HasPrefix(flag, "-I") && len(flag) > 2:
-			usage.SystemIncludes = append(usage.SystemIncludes, flag[2:])
+			usage.SystemIncludes = appendNew(usage.SystemIncludes, flag[2:])
 		case isWarningFlag(flag):
 			// Warnings are the consumer's choice, and the dependency's
 			// headers are system headers, where they don't apply anyway.
 		case flag == "-D" && i+1 < len(compile):
 			i++
-			usage.Defines = append(usage.Defines, compile[i])
+			usage.Defines = appendNew(usage.Defines, compile[i])
 		case strings.HasPrefix(flag, "-D") && len(flag) > 2:
-			usage.Defines = append(usage.Defines, flag[2:])
+			usage.Defines = appendNew(usage.Defines, flag[2:])
 		default:
 			usage.CompilerFlags = append(usage.CompilerFlags, flag)
 		}

@@ -337,14 +337,13 @@ func (db *depBuilder) determineConfig(dep deps.Dependency, sourcePath string, bu
 		if builtDep == nil {
 			return
 		}
+		usage := deps.Usage{SystemIncludes: cfg.SystemIncludes, Defines: cfg.Defines, CompilerFlags: cfg.Flags.RawCompiler, LinkerFlags: cfg.Flags.RawLinker, SysLibs: cfg.SysLibs}
 		if builtDep.IncludePath != "" {
-			cfg.SystemIncludes = append(cfg.SystemIncludes, builtDep.IncludePath)
+			usage.Merge(deps.Usage{SystemIncludes: []string{builtDep.IncludePath}})
 		}
-		cfg.SystemIncludes = append(cfg.SystemIncludes, builtDep.Usage.SystemIncludes...)
-		cfg.Defines = append(cfg.Defines, builtDep.Usage.Defines...)
-		cfg.Flags.RawCompiler = append(cfg.Flags.RawCompiler, builtDep.Usage.CompilerFlags...)
-		cfg.Flags.RawLinker = append(cfg.Flags.RawLinker, builtDep.Usage.LinkerFlags...)
-		cfg.SysLibs = append(cfg.SysLibs, builtDep.Usage.SysLibs...)
+		usage.Merge(builtDep.Usage)
+		cfg.SystemIncludes, cfg.Defines, cfg.SysLibs = usage.SystemIncludes, usage.Defines, usage.SysLibs
+		cfg.Flags.RawCompiler, cfg.Flags.RawLinker = usage.CompilerFlags, usage.LinkerFlags
 		for _, child := range builtDep.Depends {
 			addUsage(child)
 		}
