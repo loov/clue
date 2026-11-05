@@ -106,7 +106,12 @@ func runValidate(ctx context.Context, dir, variant, target string, verbosity bui
 
 // validatePkgConfig resolves every pkg_config dependency, so a missing
 // package fails validation instead of a build that has started compiling.
+// A container toolchain's packages are in its image, which clue build
+// builds or pulls first, so they are checked by the build.
 func validatePkgConfig(ctx context.Context, cfg *config.Config, platform toolchain.Platform) error {
+	if cfg.Toolchain.Container != nil {
+		return nil
+	}
 	var packages []*deps.PkgConfigDependency
 	for _, name := range slices.Sorted(maps.Keys(cfg.Dependencies)) {
 		if pkg, ok := cfg.Dependencies[name].(*deps.PkgConfigDependency); ok {
