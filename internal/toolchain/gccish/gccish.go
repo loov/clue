@@ -97,7 +97,7 @@ func (t *Toolchain) Name() string {
 // Cross-compilers are detected by looking for GNU triplet prefixes in the
 // compiler path (e.g., "aarch64-linux-gnu-gcc", "x86_64-darwin-clang").
 func (t *Toolchain) IsCrossCompiler() bool {
-	return isCrossCompiler(t.cc)
+	return t.target.IsCrossCompile() || isCrossCompiler(t.cc)
 }
 
 // isCrossCompiler checks if a compiler path contains GNU triplet prefix.

@@ -114,7 +114,7 @@ func TestClangToolchain_LinkerFlagsIncludeSanitizerRuntime(t *testing.T) {
 }
 
 func TestClangToolchain_InheritsGCCStyleFlags(t *testing.T) {
-	tc := New("clang", "clang++", "llvm-ar", toolchain.Platform{})
+	tc := New("clang", "clang++", "llvm-ar", toolchain.HostPlatform())
 
 	// Verify accessors work via embedding
 	if got := tc.CC(); got != "clang" {

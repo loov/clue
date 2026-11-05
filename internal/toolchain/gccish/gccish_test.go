@@ -75,7 +75,7 @@ func TestToolchain_IsCrossCompilerRecognizesTargetPrefixes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc := New("gcc", tt.cc, "g++", "ar", toolchain.Platform{})
+			tc := New("gcc", tt.cc, "g++", "ar", toolchain.HostPlatform())
 			if got := tc.IsCrossCompiler(); got != tt.want {
 				t.Errorf("IsCrossCompiler() = %v, want %v", got, tt.want)
 			}
@@ -88,6 +88,7 @@ func TestToolchain_StringDescribesCompilerAndTarget(t *testing.T) {
 		name     string
 		toolName string
 		cc       string
+		target   toolchain.Platform
 		want     string
 	}{
 		{
@@ -108,11 +109,22 @@ func TestToolchain_StringDescribesCompilerAndTarget(t *testing.T) {
 			cc:       "aarch64-linux-gnu-gcc",
 			want:     "aarch64-linux-gnu-gcc (cross)",
 		},
+		{
+			name:     "clang for another platform",
+			toolName: "clang",
+			cc:       "clang",
+			target:   toolchain.Platform{OS: "wasi", Arch: "wasm32"},
+			want:     "clang (cross)",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc := New(tt.toolName, tt.cc, "g++", "ar", toolchain.Platform{})
+			target := tt.target
+			if target == (toolchain.Platform{}) {
+				target = toolchain.HostPlatform()
+			}
+			tc := New(tt.toolName, tt.cc, "g++", "ar", target)
 			if got := tc.String(); got != tt.want {
 				t.Errorf("String() = %q, want %q", got, tt.want)
 			}

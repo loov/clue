@@ -126,7 +126,7 @@ func TestGCCToolchain_LinkerFlagsIncludeSanitizerRuntime(t *testing.T) {
 }
 
 func TestGCCToolchain_InheritsGCCStyleFlags(t *testing.T) {
-	tc := New("gcc", "g++", "ar", toolchain.Platform{})
+	tc := New("gcc", "g++", "ar", toolchain.HostPlatform())
 
 	// Verify accessors work via embedding
 	if got := tc.CC(); got != "gcc" {
