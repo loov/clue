@@ -471,10 +471,12 @@ func (b *Builder) buildTarget(ctx context.Context, opts Options, target config.T
 }
 
 // linkObjects returns the object and library arguments of a link: the
-// target's objects, prebuilt libraries and completely linked archives.
+// target's objects, completely linked archives and prebuilt libraries.
+// Whole archives act as objects, so they go first: GNU ld resolves their
+// references only from the libraries that follow them.
 func linkObjects(b *Builder, objects []string, dependencies plan.Dependencies) []string {
-	result := append(append([]string(nil), objects...), dependencies.LinkFiles...)
-	return append(result, plan.WholeArchiveArguments(b.toolchain, b.target, dependencies.WholeArchives)...)
+	result := append(slices.Clone(objects), plan.WholeArchiveArguments(b.toolchain, b.target, dependencies.WholeArchives)...)
+	return append(result, dependencies.LinkFiles...)
 }
 
 // exportFlags returns the linker flags for the target's exports, writing the

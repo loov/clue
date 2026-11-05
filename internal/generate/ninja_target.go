@@ -211,21 +211,23 @@ func generateTargetBuilds(file *ninja.File, opts NinjaOptions, variant string, v
 	linkInputs := append(append([]string(nil), objects...), dependencyInputs...)
 	argumentInputs := ninjaArgumentPaths(linkInputs)
 	if len(dependencyPlan.WholeArchives) > 0 {
-		// Link each whole archive in its place: GNU ld resolves its
-		// references only from the libraries that follow it.
+		// Whole archives act as objects, so they follow the objects: GNU ld
+		// resolves their references only from the libraries after them.
 		whole := make(map[string]bool, len(dependencyPlan.WholeArchives))
 		for _, archive := range ninjaArgumentPaths(ninjaPaths(slices.Clone(dependencyPlan.WholeArchives))) {
 			whole[archive] = true
 		}
-		var arguments []string
-		for _, input := range argumentInputs {
+		var archives, libraries []string
+		for _, input := range argumentInputs[len(objects):] {
 			if whole[input] {
-				arguments = append(arguments, plan.WholeArchiveArguments(tc, opts.Platform, []string{input})...)
+				archives = append(archives, input)
 			} else {
-				arguments = append(arguments, input)
+				libraries = append(libraries, input)
 			}
 		}
-		argumentInputs = arguments
+		arguments := slices.Clone(argumentInputs[:len(objects)])
+		arguments = append(arguments, plan.WholeArchiveArguments(tc, opts.Platform, archives)...)
+		argumentInputs = append(arguments, libraries...)
 	}
 	argumentOutput := NinjaPath(targetPlan.Output)
 	if len(target.Exports) > 0 {

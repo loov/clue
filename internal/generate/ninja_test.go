@@ -1091,10 +1091,10 @@ func TestNinjaUsesResponseFilesForGCCStyleCommands(t *testing.T) {
 	}
 }
 
-func TestNinja_LinksWholeArchivesInPlace(t *testing.T) {
+func TestNinja_LinksWholeArchivesFirst(t *testing.T) {
 	cfg := createMinimalConfig("app", "executable", []string{"main.cpp"})
 	cfg.Targets["app"] = config.Target{
-		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"whole"},
+		Name: "app", Type: "executable", Sources: []string{"main.cpp"}, Depends: []string{"impl", "whole"},
 	}
 	cfg.Targets["whole"] = config.Target{
 		Name: "whole", Type: "static_library", Sources: []string{"whole.cpp"}, Depends: []string{"impl"}, LinkWhole: true,
@@ -1108,10 +1108,10 @@ func TestNinja_LinksWholeArchivesInPlace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// impl follows whole, which refers to it.
-	want := `"-Wl,--whole-archive" ".build/debug/lib/libwhole.a" "-Wl,--no-whole-archive" ".build/debug/lib/libimpl.a"`
+	// impl follows whole, which refers to it, though depends lists it first.
+	want := `".build/debug/app/obj/main.cpp.o" "-Wl,--whole-archive" ".build/debug/lib/libwhole.a" "-Wl,--no-whole-archive" ".build/debug/lib/libimpl.a"`
 	if content := buf.String(); !strings.Contains(content, want) {
-		t.Errorf("whole archive is not linked in place:\n%s", content)
+		t.Errorf("whole archive does not follow the objects:\n%s", content)
 	}
 }
 

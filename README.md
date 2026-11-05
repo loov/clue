@@ -521,7 +521,7 @@ targets: plugin: {type: "shared_library", sources: ["plugin.cpp"], depends: ["th
 
 The system libraries of the original aren't linked either; list those in the consumer's `sysLibs`.
 With `linkWhole: true` as well, dependents link every member of the output archives, as they would
-object files. A target that depends on a custom target without `link` relinks when its outputs
+object files, and put them right after their own objects, before other libraries. A target that depends on a custom target without `link` relinks when its outputs
 change, so a generated version script is picked up.
 
 `{clue}` is clue itself. `clue configure <template> <output> [name=value]...` writes `output` from
@@ -616,7 +616,7 @@ targets: plugin: {
 ```
 
 `exports` works on shared libraries and executables too. Consumers of a static library with
-`linkWhole: true` link all of it. A shared library or bundle may consist of its dependencies
+`linkWhole: true` link all of it, right after their own objects. A shared library or bundle may consist of its dependencies
 alone, without sources of its own.
 
 ### Kinds of dependencies

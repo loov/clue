@@ -5,11 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/loov/clue/internal/plan"
 	"github.com/loov/clue/internal/toolchain"
+	"github.com/loov/clue/internal/toolchain/gccish"
 )
 
 // TestLinker_LinkExecutableProducesRunnableBinary tests linking an executable from object files
@@ -830,5 +832,15 @@ int main() { return lib_func() - 42; }` // Returns 0 on success
 
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("executable failed to run: %v", err)
+	}
+}
+
+func TestLinkObjects_WholeArchivesFollowObjects(t *testing.T) {
+	linux := toolchain.Platform{OS: "linux", Arch: "amd64"}
+	b := &Builder{toolchain: gccish.New("gcc", "gcc", "g++", "ar", linux), target: linux}
+	got := linkObjects(b, []string{"main.o"}, plan.Dependencies{LinkFiles: []string{"libthird.a"}, WholeArchives: []string{"libcore.a"}})
+	want := []string{"main.o", "-Wl,--whole-archive", "libcore.a", "-Wl,--no-whole-archive", "libthird.a"}
+	if !slices.Equal(got, want) {
+		t.Errorf("link objects = %q, want %q", got, want)
 	}
 }
