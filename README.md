@@ -495,7 +495,8 @@ A custom target's `command`, `inputs` and `outputs` may use these placeholders:
   loads: the `.clap` or `.vst3` directory, or the module file where the layout has no directory.
   `{output:name:module}` is a bundle's linked module, and `{output:name:bundle}` the bundle.
 
-Clue adds a target named in `command` or `inputs` to `depends`. A custom target with placeholders
+Clue adds a target named in `command` or `inputs` to `depends`, and reruns the command when a
+target in `depends` is rebuilt. A custom target with placeholders
 runs once per variant, so its outputs must differ per variant too. Include paths and compiler and
 linker flags may use `{variant}` and `{buildDir}` to find generated files, such as headers or a
 version script:

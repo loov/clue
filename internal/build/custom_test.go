@@ -91,6 +91,46 @@ func TestBuilderCustomTarget_BundleInputsTrackBinaryAndMetadata(t *testing.T) {
 	}
 }
 
+func TestBuilderCustomTarget_RerunsWhenDependencyChanges(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("CLUE_CUSTOM_HELPER", "1")
+	platform := toolchain.Platform{OS: "linux", Arch: "amd64"}
+	objs := config.Target{Name: "objs", Type: "object_library"}
+	archive := plan.TargetOutput(objs, ".build", "debug", platform)
+	if err := os.MkdirAll(filepath.Dir(archive), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(archive, []byte("original"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	const output = "copy"
+	// objs is only in depends, not in inputs.
+	target := config.Target{
+		Name: "copy", Type: "custom", Depends: []string{"objs"}, Outputs: []string{output},
+		Command: []string{os.Args[0], "-test.run=TestBuilderCustomTargetHelper_CreatesDeclaredOutputs", "--", output},
+	}
+	cfg := &config.Config{Targets: map[string]config.Target{"objs": objs, "copy": target}}
+	b := &Builder{executor: newExecutor(executorConfig{}), target: platform}
+	opts := Options{Config: cfg, BuildDir: ".build", Variant: "debug"}
+	for range 2 {
+		if _, err := b.buildCustomTarget(t.Context(), opts, target); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if data, err := os.ReadFile(output); err != nil || string(data) != "generated" {
+		t.Fatalf("unchanged dependency was not cached: %q, %v", data, err)
+	}
+	if err := os.WriteFile(archive, []byte("changed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.buildCustomTarget(t.Context(), opts, target); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(output); err != nil || string(data) != "rerun" {
+		t.Fatalf("changed dependency did not rerun: %q, %v", data, err)
+	}
+}
+
 func TestBuilderCustomTargetHelper_CreatesDeclaredOutputs(t *testing.T) {
 	if os.Getenv("CLUE_CUSTOM_HELPER") != "1" {
 		return

@@ -184,6 +184,34 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 			inputs = append(inputs, input)
 		}
 	}
+	// The dependencies are inputs too: rebuilding one reruns the command.
+	for _, name := range target.Depends {
+		dependency, ok := cfg.Targets[name]
+		var files []string
+		switch {
+		case !ok || dependency.Type == "interface_library" || dependency.Type == "task":
+			// ponytail: no file to hash; external dependencies and interface libraries' own depends aren't tracked.
+		case dependency.Type == "bundle":
+			files = bundleFiles[filepath.Clean(BundleLayout(dependency, buildDir, variant, platform).Dir)]
+		case dependency.Type == "custom":
+			expanded, err := ExpandCustomTarget(cfg, dependency, buildDir, variant, platform)
+			if err != nil {
+				expandErr = err
+			}
+			files = expanded.Outputs
+		default:
+			output, ok := HostOutput(cfg, dependency, variant)
+			if !ok {
+				output = TargetOutput(dependency, buildDir, variant, platform)
+			}
+			files = []string{output}
+		}
+		for _, file := range files {
+			if !slices.Contains(inputs, file) {
+				inputs = append(inputs, file)
+			}
+		}
+	}
 	target.Inputs = inputs
 	// Outputs are files, spelled alike however the placeholders joined them,
 	// such as "{buildDir}/lib.a" on Windows.
