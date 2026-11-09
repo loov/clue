@@ -185,8 +185,15 @@ func ExpandCustomTarget(cfg *config.Config, target config.Target, buildDir, vari
 		}
 	}
 	target.Inputs = inputs
+	// Outputs are files, spelled alike however the placeholders joined them,
+	// such as "{buildDir}/lib.a" on Windows.
 	target.Outputs = expandAll(target.Outputs)
-	target.Stdout = expandAll([]string{target.Stdout})[0]
+	for index, output := range target.Outputs {
+		target.Outputs[index] = filepath.Clean(output)
+	}
+	if target.Stdout != "" {
+		target.Stdout = filepath.Clean(expand(target.Stdout))
+	}
 	target.WorkDir = expandAll([]string{commandDir})[0]
 	return target, expandErr
 }
