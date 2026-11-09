@@ -13,7 +13,7 @@ func TestLoad_InjectsDeclaredEnvironment(t *testing.T) {
 name: "env"
 env: {
 	VALIDATE: {name: "VALIDATE", default: false}
-	JOBS: {name: "JOBS", default: 4}
+	JOBS: {default: 4}
 }
 targets: app: {type: "executable", sources: ["main.cpp"]}
 if _env.VALIDATE == "1" {
@@ -379,4 +379,19 @@ env: {
 // helper function for string slice contains
 func containsString(slice []string, s string) bool {
 	return slices.Contains(slice, s)
+}
+
+func TestLoad_RejectsEnvNameOtherThanKey(t *testing.T) {
+	dir := t.TempDir()
+	contents := `package project
+name: "env"
+env: TRACE: {name: "OTHER", default: false}
+targets: app: {type: "executable", sources: ["main.cpp"]}
+`
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewLoader().Load(dir); err == nil {
+		t.Fatal("env name other than its key was accepted")
+	}
 }

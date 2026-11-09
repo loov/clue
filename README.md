@@ -337,8 +337,8 @@ Clue reads the variables declared under `env` from the environment, or uses thei
 
 ```cue
 env: {
-    TRACE: {name: "TRACE", default: false, when_true: defines: ["TRACE=1"]}
-    VALIDATE: {name: "VALIDATE", default: false}
+    TRACE: {default: false, when_true: defines: ["TRACE=1"]}
+    VALIDATE: {default: false}
 }
 if _env.VALIDATE == "1" {
     targets: validator: {type: "executable", sources: ["tools/validator/*.cpp"]}

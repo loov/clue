@@ -176,7 +176,7 @@ package config
 
 // Environment variable reference with conditional configuration
 #EnvVar: {
-	name: string
+	name?: string // the key in env
 	default: string | bool | number
 
 	// Conditional configuration applied when env var is truthy (1, true, yes)
@@ -407,7 +407,7 @@ package config
 	variants?: [string]: #Variant
 
 	// Environment-based conditionals
-	env?: [string]: #EnvVar
+	env?: [string]~(Name,_): #EnvVar & {name?: Name}
 
 	// Programs that commands refer to as {tool:name}
 	tools?: [string]: #Tool
