@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -63,12 +64,38 @@ func isModuleSource(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	// Every module declaration and import has one of these as a whole word,
+	// so most sources skip the slower comment-aware line scan.
+	if !containsWord(data, "module") && !containsWord(data, "import") {
+		return false, nil
+	}
 	for _, line := range moduleLines(string(data)) {
 		if exportModulePattern.MatchString(line) || modulePattern.MatchString(line) || importModulePattern.MatchString(line) {
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+// containsWord reports whether data contains word delimited by non-identifier
+// bytes, so "import" does not match "important".
+func containsWord(data []byte, word string) bool {
+	for offset := 0; ; {
+		index := bytes.Index(data[offset:], []byte(word))
+		if index < 0 {
+			return false
+		}
+		start := offset + index
+		end := start + len(word)
+		if (start == 0 || !isIdentByte(data[start-1])) && (end == len(data) || !isIdentByte(data[end])) {
+			return true
+		}
+		offset = start + 1
+	}
+}
+
+func isIdentByte(b byte) bool {
+	return b == '_' || '0' <= b && b <= '9' || 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
 }
 
 // isModuleExtension reports whether path uses a conventional C++ module extension.

@@ -273,3 +273,21 @@ func TestIsModuleExtension_RecognizesSupportedSuffixes(t *testing.T) {
 		}
 	}
 }
+
+func TestContainsWord_MatchesWholeWordsOnly(t *testing.T) {
+	for _, test := range []struct {
+		data string
+		want bool
+	}{
+		{"import std;", true},
+		{"  export import :part;", true},
+		{"/**/import x;", true},
+		{"// important imported reimport", false},
+		{"import_x", false},
+		{"", false},
+	} {
+		if got := containsWord([]byte(test.data), "import"); got != test.want {
+			t.Errorf("containsWord(%q) = %v, want %v", test.data, got, test.want)
+		}
+	}
+}

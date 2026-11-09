@@ -14,6 +14,11 @@ import (
 var version = "0.1.0-dev"
 
 func main() {
+	// clue is short-lived and allocates mostly during config evaluation and
+	// planning; collecting less often cuts GC to a small share of a no-op build.
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(400)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	stopProfile := startCPUProfile(os.Getenv("CLUE_CPUPROFILE"))
 	code := runCLI(ctx, os.Args[1:], buildVersion(version))
