@@ -46,6 +46,16 @@ func TestModuleCompileFlags_MapEachToolchain(t *testing.T) {
 	}
 }
 
+func TestModuleCompileFlags_ClangCompilesOtherExtensionsAsInterfaces(t *testing.T) {
+	tc := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	for source, want := range map[string]bool{"std.cc": true, "math.cppm": false} {
+		flags := moduleCompileFlags(tc, moduleDependency{Source: source, IsModule: true, Provides: "m"}, "m.pcm", nil, "")
+		if got := slices.Contains(flags, "c++-module"); got != want {
+			t.Errorf("%s: flags %q, want -x c++-module = %v", source, flags, want)
+		}
+	}
+}
+
 func TestModuleCompileFlags_ClangOmitsCXXModulesSwitchOnWindows(t *testing.T) {
 	tc := clang.New("clang", "clang++", "llvm-ar", toolchain.Platform{OS: "windows", Arch: "amd64"})
 	flags := moduleCompileFlags(tc, moduleDependency{UsesModules: true}, "math.pcm", nil, "")

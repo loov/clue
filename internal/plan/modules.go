@@ -289,6 +289,12 @@ func moduleCompileFlags(tc toolchain.Toolchain, dependency moduleDependency, out
 			flags = append(flags, "-fcxx-modules")
 		}
 		if output != "" && !dependency.InternalPartition {
+			// Clang writes the BMI only of an input it compiles as a module
+			// interface, which it tells from .cppm-style extensions alone; the
+			// libstdc++ std module, for one, is std.cc.
+			if !isModuleExtension(dependency.Source) {
+				flags = append(flags, "-x", "c++-module")
+			}
 			flags = append(flags, "-fmodule-output="+output)
 		}
 		for _, name := range sortedModuleNames(moduleFiles) {
