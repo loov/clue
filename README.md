@@ -225,6 +225,7 @@ To profile clue itself, `CLUE_CPUPROFILE=cpu.prof clue build` writes a CPU profi
 ## Common flags
 
 - `-variant debug|release` selects the variant. The default is `defaultVariant`, else debug.
+  A configuration without variants builds into `<buildDir>/default`.
 - `-j N` sets the number of parallel jobs. The default, 0, runs one job per CPU core.
 - `-v` prints each build step.
 - `-quiet` prints errors only.

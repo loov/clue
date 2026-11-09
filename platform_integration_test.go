@@ -70,7 +70,7 @@ targets: app: {
 		t.Fatalf("build with %s in %q: %v\n%s", toolchainName, project, err, output)
 	}
 
-	executable := filepath.Join(project, ".build", "debug", "bin", "app")
+	executable := filepath.Join(project, ".build", "default", "bin", "app")
 	if runtime.GOOS == "windows" {
 		executable += ".exe"
 	}

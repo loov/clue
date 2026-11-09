@@ -273,12 +273,12 @@ func TestBuild_BuildsMultipleTargets(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		libName = "mathlib.lib"
 	}
-	libPath := filepath.Join(testdataDir, ".build", "debug", "lib", libName)
+	libPath := filepath.Join(testdataDir, ".build", "default", "lib", libName)
 	if _, err := os.Stat(libPath); os.IsNotExist(err) {
 		t.Errorf("Expected library at %s, but it doesn't exist", libPath)
 	}
 
-	exePath := testExecutablePath(filepath.Join(testdataDir, ".build", "debug", "bin"), "calculator")
+	exePath := testExecutablePath(filepath.Join(testdataDir, ".build", "default", "bin"), "calculator")
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Errorf("Expected executable at %s, but it doesn't exist", exePath)
 	}
@@ -437,7 +437,7 @@ func TestBuild_LinksSystemLibraries(t *testing.T) {
 	}
 
 	// Verify executable was created and runs
-	exePath := testExecutablePath(filepath.Join(testdataDir, ".build", "debug", "bin"), "mathtest")
+	exePath := testExecutablePath(filepath.Join(testdataDir, ".build", "default", "bin"), "mathtest")
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
 		t.Fatalf("executable not found at %s", exePath)
 	}

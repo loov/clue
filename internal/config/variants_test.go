@@ -194,3 +194,14 @@ targets: {
 		t.Fatalf("custom target got defaults: %+v", gen)
 	}
 }
+
+func TestSelectConfigVariant_NamesBuildWithoutVariantsDefault(t *testing.T) {
+	t.Setenv(VariantEnvVar, "")
+	if got := SelectConfigVariant(&Config{}, ""); got != UnnamedVariant {
+		t.Errorf("variant = %q, want %q", got, UnnamedVariant)
+	}
+	withVariants := &Config{Variants: map[string]Variant{"debug": {}, "release": {}}}
+	if got := SelectConfigVariant(withVariants, ""); got != "debug" {
+		t.Errorf("variant = %q, want debug", got)
+	}
+}

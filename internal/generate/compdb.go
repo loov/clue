@@ -56,7 +56,7 @@ func CompileCommands(ctx context.Context, opts CompDBOptions) error {
 		opts.Toolchain = opts.Config.Toolchain.Compiler
 	}
 	if opts.Variant == "" {
-		opts.Variant = "debug"
+		opts.Variant = config.SelectConfigVariant(opts.Config, "")
 	}
 	if opts.Platform.OS == "" {
 		opts.Platform = toolchain.HostPlatform()

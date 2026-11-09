@@ -11,6 +11,10 @@ const (
 	// DefaultVariant is used when no variant is specified
 	DefaultVariant = "debug"
 
+	// UnnamedVariant names the build of a configuration without variants,
+	// whose flags come from its targets and defaults alone
+	UnnamedVariant = "default"
+
 	// VariantEnvVar is the environment variable for variant selection
 	VariantEnvVar = "CLUE_VARIANT"
 )
@@ -52,9 +56,13 @@ func (vs *VariantSelector) SetCLIFlag(variant string) {
 }
 
 // SelectConfigVariant returns the variant to build: the CLI flag, then
-// CLUE_VARIANT, then the configuration's defaultVariant, then "debug".
+// CLUE_VARIANT, then the configuration's defaultVariant, then "debug", or
+// UnnamedVariant for a configuration without variants.
 func SelectConfigVariant(cfg *Config, cliFlag string) string {
 	vs := NewVariantSelector()
+	if cfg != nil && len(cfg.Variants) == 0 {
+		vs.Default = UnnamedVariant
+	}
 	if cfg != nil && cfg.DefaultVariant != "" {
 		vs.Default = cfg.DefaultVariant
 	}

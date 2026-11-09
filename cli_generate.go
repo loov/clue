@@ -107,9 +107,8 @@ func generateNinja(ctx context.Context, out string, cfg *config.Config, platform
 	}
 	// Collect all variant names
 	variants := slices.Sorted(maps.Keys(cfg.Variants))
-	// If no variants defined, use "debug" as default
 	if len(variants) == 0 {
-		variants = []string{"debug"}
+		variants = []string{config.UnnamedVariant}
 	}
 
 	// A cross build gets its own Ninja file: build.<os-arch>.ninja.

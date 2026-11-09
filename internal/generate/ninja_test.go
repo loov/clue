@@ -240,9 +240,9 @@ func TestNinja_DefaultVariantWithoutConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := buf.String()
-	if !strings.Contains(content, "build .build/debug/bin/myapp") ||
-		!strings.Contains(content, "build debug: phony") ||
-		!strings.Contains(content, "default debug") {
+	if !strings.Contains(content, "build .build/default/bin/myapp") ||
+		!strings.Contains(content, "build default: phony") ||
+		!strings.Contains(content, "default default") {
 		t.Errorf("default variant has incomplete Ninja output:\n%s", content)
 	}
 }

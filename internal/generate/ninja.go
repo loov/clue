@@ -105,7 +105,7 @@ func WriteNinjaTo(ctx context.Context, w io.Writer, opts NinjaOptions) error {
 			opts.Variants = append(opts.Variants, name)
 		}
 		if len(opts.Variants) == 0 {
-			opts.Variants = []string{"debug"}
+			opts.Variants = []string{config.UnnamedVariant}
 		}
 		slices.Sort(opts.Variants)
 	}

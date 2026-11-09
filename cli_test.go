@@ -164,7 +164,7 @@ targets: app: {
 	if exitCode != 0 {
 		t.Fatalf("build failed with exit code %d: %s", exitCode, stderr)
 	}
-	artifact := testExecutablePath(filepath.Join(projectDir, "output", "debug", "bin"), "app")
+	artifact := testExecutablePath(filepath.Join(projectDir, "output", "default", "bin"), "app")
 	if _, err := os.Stat(artifact); err != nil {
 		t.Errorf("artifact was not written below the project directory: %v", err)
 	}
