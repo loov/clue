@@ -175,7 +175,7 @@ defaults: {
 	flags: {compiler: ["-fno-rtti"], cxx: ["-Wall"], asm: ["-Wa,--noexecstack"]}
 }
 targets: {
-	lib: {type: "static_library", sources: ["lib.cpp"], defines: ["LIB=1"], warnings: "off", flags: cxx: ["-Wextra"]}
+	lib: {type: "static_library", sources: ["lib.cpp"], defines: ["LIB=1"], warnings: "off", flags: {compiler: ["-Wno-all"], cxx: ["-Wextra"]}}
 	gen: {type: "custom", command: ["gen"], outputs: ["gen.h"]}
 }`
 	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(content), 0o644); err != nil {
@@ -188,7 +188,7 @@ targets: {
 	lib := cfg.Targets["lib"]
 	if lib.Name != "lib" || lib.Warnings != "off" || lib.WarningsAsErrors == nil || *lib.WarningsAsErrors ||
 		!slices.Equal(lib.Defines, []string{"PROJECT=1", "LIB=1"}) || !slices.Equal(lib.Flags.Compiler, []string{"-fno-rtti"}) ||
-		!slices.Equal(lib.Flags.CXX, []string{"-Wall", "-Wextra"}) || !slices.Equal(lib.Flags.ASM, []string{"-Wa,--noexecstack"}) {
+		!slices.Equal(lib.Flags.CXX, []string{"-Wall", "-Wno-all", "-Wextra"}) || !slices.Equal(lib.Flags.ASM, []string{"-Wa,--noexecstack", "-Wno-all"}) {
 		t.Fatalf("lib = %+v", lib)
 	}
 	if gen := cfg.Targets["gen"]; gen.Name != "gen" || len(gen.Defines) != 0 || len(gen.Flags.Compiler) != 0 {

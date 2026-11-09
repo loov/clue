@@ -376,7 +376,9 @@ targets: legacy: {
 ```
 
 `flags.c`, `flags.cxx` and `flags.asm` come after `flags.compiler`, for the C (and Objective-C),
-C++ (and Objective-C++) or assembler (`.s`, `.S`) sources only. Raw warning flags such as `-Wall`
+C++ (and Objective-C++) or assembler (`.s`, `.S`) sources only. All of the defaults' flags come
+before a target's own, so a target's `flags.compiler` can turn off a warning from the defaults'
+`flags.cxx`. Raw warning flags such as `-Wall`
 belong in `c` and `cxx`, so assembler sources get none, as with CMake. Assembler sources don't get
 the `warnings` level or `warningsAsErrors` either.
 

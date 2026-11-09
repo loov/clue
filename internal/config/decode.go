@@ -713,11 +713,19 @@ func applyTargetDefaults(target, defaults Target) Target {
 	target.SystemIncludes = prepend(defaults.SystemIncludes, target.SystemIncludes)
 	target.Defines = prepend(defaults.Defines, target.Defines)
 	target.SysLibs = prepend(defaults.SysLibs, target.SysLibs)
-	target.Flags.Compiler = prepend(defaults.Flags.Compiler, target.Flags.Compiler)
 	target.Flags.Linker = prepend(defaults.Flags.Linker, target.Flags.Linker)
-	target.Flags.C = prepend(defaults.Flags.C, target.Flags.C)
-	target.Flags.CXX = prepend(defaults.Flags.CXX, target.Flags.CXX)
-	target.Flags.ASM = prepend(defaults.Flags.ASM, target.Flags.ASM)
+	// The defaults' flags all come before the target's, so a target can turn
+	// off a default warning: its compiler flags follow the defaults' language
+	// flags, which come after compiler flags.
+	if len(defaults.Flags.C) > 0 || len(defaults.Flags.CXX) > 0 || len(defaults.Flags.ASM) > 0 {
+		own := target.Flags.Compiler
+		target.Flags.C = slices.Concat(defaults.Flags.C, own, target.Flags.C)
+		target.Flags.CXX = slices.Concat(defaults.Flags.CXX, own, target.Flags.CXX)
+		target.Flags.ASM = slices.Concat(defaults.Flags.ASM, own, target.Flags.ASM)
+		target.Flags.Compiler = slices.Clone(defaults.Flags.Compiler)
+	} else {
+		target.Flags.Compiler = prepend(defaults.Flags.Compiler, target.Flags.Compiler)
+	}
 	for _, field := range []struct{ own, base *string }{
 		{&target.CStd, &defaults.CStd},
 		{&target.CXXStd, &defaults.CXXStd},
