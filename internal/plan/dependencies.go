@@ -119,16 +119,21 @@ func ResolveDependencies(cfg *config.Config, target config.Target, buildDir, var
 			return nil
 		}
 		if dependency.Type == "static_library" && dependency.LinkWhole {
-			output := ArtifactPath(buildDir, variant, name, dependency.Type, platform)
+			output := TargetOutput(dependency, buildDir, variant, platform)
 			result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: dependency.Type})
 			result.WholeArchives = appendUnique(result.WholeArchives, output)
 		} else if dependency.Type == "static_library" || dependency.Type == "shared_library" {
-			output := ArtifactPath(buildDir, variant, name, dependency.Type, platform)
+			output := TargetOutput(dependency, buildDir, variant, platform)
 			result.Artifacts = append(result.Artifacts, Artifact{Path: output, Type: dependency.Type})
 			path := filepath.Dir(output)
-			result.LibraryPaths = appendUnique(result.LibraryPaths, path)
-			result.Libraries = append(result.Libraries, name)
-			result.LibraryArtifacts = append(result.LibraryArtifacts, Artifact{Path: output, Type: dependency.Type})
+			if dependency.FileName != "" {
+				// -l finds only the platform's file names.
+				result.LinkFiles = append(result.LinkFiles, LinkInputPath(output, dependency.Type, platform))
+			} else {
+				result.LibraryPaths = appendUnique(result.LibraryPaths, path)
+				result.Libraries = append(result.Libraries, name)
+				result.LibraryArtifacts = append(result.LibraryArtifacts, Artifact{Path: output, Type: dependency.Type})
+			}
 			if dependency.Type == "shared_library" {
 				result.SharedLibraryPaths = appendUnique(result.SharedLibraryPaths, path)
 			}

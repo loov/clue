@@ -303,3 +303,27 @@ func TestSchemaValidation_Bundle(t *testing.T) {
 		})
 	}
 }
+
+func TestSchemaValidation_FileName(t *testing.T) {
+	for _, test := range []struct {
+		target string
+		valid  bool
+	}{
+		{`{type: "shared_library", sources: ["a.cpp"], fileName: "preload.so"}`, true},
+		{`{type: "shared_library", sources: ["a.cpp"], fileName: "lib/preload.so"}`, false},
+		{`{type: "interface_library", fileName: "x"}`, false},
+	} {
+		dir := t.TempDir()
+		contents := "package config\nname: \"test\"\ntargets: preload: " + test.target + "\n"
+		if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := NewLoader().Load(dir)
+		if (err == nil) != test.valid {
+			t.Errorf("%s: err = %v", test.target, err)
+		}
+		if test.valid && err == nil && cfg.Targets["preload"].FileName != "preload.so" {
+			t.Errorf("file name = %q", cfg.Targets["preload"].FileName)
+		}
+	}
+}

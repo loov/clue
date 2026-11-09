@@ -98,15 +98,13 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 
 func installArtifacts(opts InstallOptions, target config.Target, root string) [][2]string {
 	buildRoot := filepath.Join(opts.Config.BuildDir, opts.Variant)
+	name := filepath.Base(plan.TargetOutput(target, opts.Config.BuildDir, opts.Variant, opts.Platform))
 	switch target.Type {
 	case "executable":
-		name := plan.ExecutableName(target.Name, opts.Platform)
 		return [][2]string{{filepath.Join(buildRoot, "bin", name), filepath.Join(root, "bin", name)}}
 	case "static_library":
-		name := plan.StaticLibraryName(target.Name, opts.Platform)
 		return [][2]string{{filepath.Join(buildRoot, "lib", name), filepath.Join(root, "lib", name)}}
 	case "shared_library":
-		name := plan.SharedLibraryName(target.Name, opts.Platform)
 		if opts.Platform.OS == "windows" {
 			importLibrary := strings.TrimSuffix(name, filepath.Ext(name)) + ".lib"
 			return [][2]string{

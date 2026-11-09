@@ -580,11 +580,6 @@ func ninjaCompileOptions(opts plan.CompileOptions) plan.CompileOptions {
 	return opts
 }
 
-// outputPathForTarget returns the output path for a target
-func outputPathForTarget(buildDir, variant, target, targetType string, platform toolchain.Platform) string {
-	return plan.ArtifactPath(buildDir, variant, target, targetType, platform)
-}
-
 // bundleOutputs returns what depending on a bundle target waits for: the
 // module and, on macOS, the stamp of the finished bundle.
 func bundleOutputs(target config.Target, buildDir, variant string, platform toolchain.Platform) []string {

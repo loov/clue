@@ -187,5 +187,9 @@ func TargetOutput(target config.Target, buildDir, variant string, platform toolc
 	if target.Type == "bundle" {
 		return BundleLayout(target, buildDir, variant, platform).Module
 	}
-	return ArtifactPath(buildDir, variant, target.Name, target.Type, platform)
+	path := ArtifactPath(buildDir, variant, target.Name, target.Type, platform)
+	if target.FileName != "" {
+		return filepath.Join(filepath.Dir(path), target.FileName)
+	}
+	return path
 }

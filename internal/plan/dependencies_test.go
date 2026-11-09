@@ -137,3 +137,22 @@ func TestHostGeneratorDoesNotExportItsDependencies(t *testing.T) {
 		t.Fatal("host generator lost its own C++ dependency")
 	}
 }
+
+func TestResolveDependencies_LinksRenamedLibraryByPath(t *testing.T) {
+	platform := toolchain.Platform{OS: "linux", Arch: "amd64"}
+	cfg := &config.Config{Targets: map[string]config.Target{
+		"app":     {Name: "app", Sources: []string{"main.c"}, Depends: []string{"preload"}},
+		"preload": {Name: "preload", Type: "shared_library", FileName: "preload.so"},
+	}}
+	got, err := ResolveDependencies(cfg, cfg.Targets["app"], ".build", "debug", platform, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(".build", "debug", "lib", "preload.so")
+	if !slices.Equal(got.LinkFiles, []string{output}) || len(got.Libraries) != 0 {
+		t.Errorf("link files = %v; libraries = %v", got.LinkFiles, got.Libraries)
+	}
+	if !slices.Equal(got.SharedLibraryPaths, []string{filepath.Dir(output)}) {
+		t.Errorf("shared library paths = %v", got.SharedLibraryPaths)
+	}
+}

@@ -309,6 +309,7 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	t.Coverage = extractOptionalBool(val, "coverage")
 	t.Visibility = extractOptionalString(val, "visibility")
 	t.Exports = extractStringList(val, "exports")
+	t.FileName = extractOptionalString(val, "fileName")
 	if bundle := val.LookupPath(cue.ParsePath("bundle")); bundle.Exists() {
 		t.Bundle = BundleSettings{
 			Extension: extractOptionalString(bundle, "extension"), Name: extractOptionalString(bundle, "name"),

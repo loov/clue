@@ -69,6 +69,10 @@ package config
 	exports?: [...string]
 	// Link every member of this static library into its consumers
 	linkWhole?: bool
+	// File name of an executable or library in its bin or lib folder, instead
+	// of the platform's (such as libname.so); a shared library's soname or
+	// install name follows it
+	fileName?: string & =~"^[^/\\\\]+$"
 	// Extra compiler flags for the sources matching a path or glob, after the
 	// target's own; such sources stay out of unity batches
 	sourceFlags?: [string]: [...string]
@@ -122,6 +126,9 @@ package config
 	// A shared library may consist of its dependencies alone.
 	if type == "static_library" || type == "executable" {
 		sources: [...string] & [_, ...]
+	}
+	if type != "executable" && type != "static_library" && type != "shared_library" {
+		fileName?: _|_
 	}
 	if type != "static_library" && type != "custom" {
 		linkWhole?: _|_

@@ -374,7 +374,7 @@ func targetDependencyOutputs(cfg *config.Config, target config.Target, buildDir,
 					outputs = append(outputs, output)
 					continue
 				}
-				outputs = append(outputs, outputPathForTarget(buildDir, variant, dependency.Name, dependency.Type, platform))
+				outputs = append(outputs, plan.TargetOutput(dependency, buildDir, variant, platform))
 			}
 			continue
 		}
