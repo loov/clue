@@ -85,7 +85,7 @@ func TestResolveDependencies_CustomTargetLinksOnlyItsOutputs(t *testing.T) {
 	if len(got.Artifacts) != 1 || got.Artifacts[0].Path != want[0] {
 		t.Errorf("artifacts = %v, want %v", got.Artifacts, want)
 	}
-	if !slices.Equal(got.LinkReads, []string{"gen/order.h"}) {
+	if !slices.Equal(got.LinkReads, []string{filepath.FromSlash("gen/order.h")}) {
 		t.Errorf("link reads = %v, want [gen/order.h]", got.LinkReads)
 	}
 

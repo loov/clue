@@ -24,10 +24,11 @@ func TestExpandCustomTarget_SubstitutesVariantPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// {buildDir} and {output:} expand to native paths; the rest is kept as written.
+	// {buildDir} and {output:} expand to native paths, and outputs are cleaned;
+	// the rest of the command is kept as written.
 	buildDir := filepath.Join(".build", "release")
-	want := []string{"sh", "-c", "{ cat $1; } > $2", "release", filepath.Join(buildDir, "lib", "liblib.a"), buildDir + "/gen.h"}
-	if !slices.Equal(got.Command, want) || got.Outputs[0] != buildDir+"/out" {
+	want := []string{"sh", "-c", "{ cat $1; } > $2", "release", filepath.Join(buildDir, "lib", "liblib.a"), filepath.Join(buildDir, "gen.h")}
+	if !slices.Equal(got.Command, want) || got.Outputs[0] != filepath.Join(buildDir, "out") {
 		t.Fatalf("expanded = %q %q", got.Command, got.Outputs)
 	}
 	if !CustomTargetPerVariant(cfg.Targets["step"]) || CustomTargetPerVariant(config.Target{Command: []string{"{ x; }"}}) {
