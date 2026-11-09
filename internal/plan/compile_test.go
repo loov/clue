@@ -45,3 +45,18 @@ func TestCompile_SharedLibraryWithPICPassesFPICOnce(t *testing.T) {
 		t.Fatalf("arguments = %q, want -fPIC once", invocation.Arguments)
 	}
 }
+
+func TestCompile_AssemblerGetsNoWarningLevel(t *testing.T) {
+	platform := toolchain.Platform{OS: "linux", Arch: "amd64"}
+	tc := gccish.New("clang", "clang", "clang++", "ar", platform)
+	flags := toolchain.Flags{Warnings: "strict", WarningsAsErrors: true}
+	for source, wantWarnings := range map[string]bool{"helpers.S": false, "main.c": true} {
+		invocation, err := Compile(tc, CompileOptions{Source: source, Output: "a.o", Platform: platform, Flags: flags})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slices.Contains(invocation.Arguments, "-Werror"); got != wantWarnings {
+			t.Errorf("%s: -Werror passed = %v in %q", source, got, invocation.Arguments)
+		}
+	}
+}

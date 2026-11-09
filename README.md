@@ -361,7 +361,10 @@ defaults: {
     warnings:         "strict"
     warningsAsErrors: false
     visibility:       "hidden" // -fvisibility=hidden
-    flags: compiler: ["-fno-exceptions", "-fno-rtti"]
+    flags: {
+        compiler: ["-march=x86-64-v2"]               // every source, assembler too
+        cxx:      ["-fno-exceptions", "-fno-rtti"]    // C++ and Objective-C++ only
+    }
 }
 targets: legacy: {
     type:    "static_library"
@@ -371,6 +374,11 @@ targets: legacy: {
     sourceFlags: "legacy/rtti.cpp": ["-frtti"]
 }
 ```
+
+`flags.c`, `flags.cxx` and `flags.asm` come after `flags.compiler`, for the C (and Objective-C),
+C++ (and Objective-C++) or assembler (`.s`, `.S`) sources only. Raw warning flags such as `-Wall`
+belong in `c` and `cxx`, so assembler sources get none, as with CMake. Assembler sources don't get
+the `warnings` level or `warningsAsErrors` either.
 
 ### Building flag lists
 

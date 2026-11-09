@@ -222,6 +222,21 @@ type Usage struct {
 type Flags struct {
 	Compiler []string
 	Linker   []string
+	// Compiler flags for the sources of one language, after Compiler
+	C, CXX, ASM []string
+}
+
+// ForSource returns the flags for the language of source: ASM for
+// assembler, CXX for C++ and Objective-C++, C for the others.
+func (f Flags) ForSource(source string) []string {
+	switch {
+	case toolchain.IsAssemblySource(source):
+		return f.ASM
+	case toolchain.IsCXXSource(source):
+		return f.CXX
+	default:
+		return f.C
+	}
 }
 
 // Variant represents a build variant (debug, release, etc.)

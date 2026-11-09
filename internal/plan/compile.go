@@ -107,7 +107,12 @@ func compileGNU(tc toolchain.Toolchain, opts CompileOptions) Invocation {
 	if standard := compileStandard(opts); standard != "" && !toolchain.IsAssemblySource(opts.Source) {
 		args = append(args, "-std="+standard)
 	}
-	args = append(args, tc.CompilerFlags(opts.Flags)...)
+	flags := opts.Flags
+	if toolchain.IsAssemblySource(opts.Source) {
+		// As with CMake, the warning level is for C and C++ sources.
+		flags.Warnings, flags.WarningsAsErrors = "", false
+	}
+	args = append(args, tc.CompilerFlags(flags)...)
 	return Invocation{Tool: compileTool(tc, opts.Source), Arguments: args, DependencyFile: dependencyFile}
 }
 

@@ -61,6 +61,35 @@ func TestForTarget_SourceFlags(t *testing.T) {
 	}
 }
 
+func TestForTarget_LanguageFlags(t *testing.T) {
+	cfg := &config.Config{Targets: map[string]config.Target{}}
+	target := config.Target{
+		Name: "lib", Type: "static_library", Sources: []string{"a.c", "b.cpp", "c.S", "d.mm"},
+		Flags: config.Flags{
+			Compiler: []string{"-march=x86-64-v2"}, C: []string{"-Wall"}, CXX: []string{"-Wall", "-Wextra"}, ASM: []string{"-Wa,--noexecstack"},
+		},
+		SourceFlags: map[string][]string{"b.cpp": {"-DB"}},
+	}
+	targetPlan, err := ForTarget(cfg, target, config.Variant{}, ".build", "debug", toolchain.Platform{OS: "linux", Arch: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string][]string{}
+	for _, source := range targetPlan.Sources {
+		got[source.Source] = WithSourceFlags(targetPlan.Flags, source).RawCompiler
+	}
+	for source, want := range map[string][]string{
+		"a.c":   {"-march=x86-64-v2", "-Wall"},
+		"b.cpp": {"-march=x86-64-v2", "-Wall", "-Wextra", "-DB"},
+		"c.S":   {"-march=x86-64-v2", "-Wa,--noexecstack"},
+		"d.mm":  {"-march=x86-64-v2", "-Wall", "-Wextra"},
+	} {
+		if !slices.Equal(got[source], want) {
+			t.Errorf("%s flags = %q, want %q", source, got[source], want)
+		}
+	}
+}
+
 func TestForTarget_FlagsExpandBuildDir(t *testing.T) {
 	cfg := &config.Config{Targets: map[string]config.Target{}}
 	target := config.Target{

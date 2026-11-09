@@ -61,7 +61,8 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 		}
 		for _, module := range cfg.Toolchain.StdModules {
 			target.Sources = append(slices.Clip(target.Sources), module.Source)
-			stdFlags[module.Source] = slices.Concat(languageFlags, module.Flags)
+			cxxFlags := expandVariantPaths(target.Flags.CXX, buildDir, variantName)
+			stdFlags[module.Source] = slices.Concat(cxxFlags, languageFlags, module.Flags)
 		}
 	}
 	objectNames := ObjectNames(target.Sources)
@@ -73,7 +74,8 @@ func ForTarget(cfg *config.Config, target config.Target, variant config.Variant,
 	for _, source := range target.Sources {
 		sourceFlags, std := stdFlags[source]
 		if !std {
-			sourceFlags = target.FlagsForSource(source)
+			languageFlags := expandVariantPaths(target.Flags.ForSource(source), buildDir, variantName)
+			sourceFlags = slices.Concat(languageFlags, target.FlagsForSource(source))
 		}
 		plan.Sources = append(plan.Sources, Source{
 			Source: source, Object: filepath.Join(objectDir, objectNames[source]),

@@ -77,7 +77,13 @@ package config
 	// target's own; such sources stay out of unity batches
 	sourceFlags?: [string]: [...string]
 	flags?: {
+		// For every source, including assembler
 		compiler?: [...string]
+		// After compiler, for the sources of one language: C (and
+		// Objective-C), C++ (and Objective-C++) or assembler (.s, .S)
+		c?: [...string]
+		cxx?: [...string]
+		asm?: [...string]
 		linker?: [...string]
 	}
 
@@ -158,6 +164,11 @@ package config
 	visibility?: "default" | "hidden"
 	flags?: {
 		compiler?: [...string]
+		// After compiler, for the sources of one language: C (and
+		// Objective-C), C++ (and Objective-C++) or assembler (.s, .S)
+		c?: [...string]
+		cxx?: [...string]
+		asm?: [...string]
 		linker?: [...string]
 	}
 }

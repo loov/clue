@@ -286,6 +286,9 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	if flags := val.LookupPath(cue.ParsePath("flags")); flags.Exists() {
 		t.Flags.Compiler = extractStringList(flags, "compiler")
 		t.Flags.Linker = extractStringList(flags, "linker")
+		t.Flags.C = extractStringList(flags, "c")
+		t.Flags.CXX = extractStringList(flags, "cxx")
+		t.Flags.ASM = extractStringList(flags, "asm")
 	}
 
 	// Extract semantic flags
@@ -708,6 +711,9 @@ func applyTargetDefaults(target, defaults Target) Target {
 	target.SysLibs = prepend(defaults.SysLibs, target.SysLibs)
 	target.Flags.Compiler = prepend(defaults.Flags.Compiler, target.Flags.Compiler)
 	target.Flags.Linker = prepend(defaults.Flags.Linker, target.Flags.Linker)
+	target.Flags.C = prepend(defaults.Flags.C, target.Flags.C)
+	target.Flags.CXX = prepend(defaults.Flags.CXX, target.Flags.CXX)
+	target.Flags.ASM = prepend(defaults.Flags.ASM, target.Flags.ASM)
 	for _, field := range []struct{ own, base *string }{
 		{&target.CStd, &defaults.CStd},
 		{&target.CXXStd, &defaults.CXXStd},
