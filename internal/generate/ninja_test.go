@@ -1463,7 +1463,12 @@ func TestNinja_LauncherWrapsCompilesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := output.String()
-	for _, want := range []string{"cxx_compile = ccache x86_64-linux-gnu-clang++", "command = $cxx_compile @$object.rsp", "command = $cxx @$out.rsp"} {
+	// The compiler has a target prefix only when linux-amd64 is not the host.
+	cxx := "clang++"
+	if toolchain.HostPlatform() != (toolchain.Platform{OS: "linux", Arch: "amd64"}) {
+		cxx = "x86_64-linux-gnu-clang++"
+	}
+	for _, want := range []string{"cxx_compile = ccache " + cxx, "command = $cxx_compile @$object.rsp", "command = $cxx @$out.rsp"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("Ninja output missing %q:\n%s", want, content)
 		}
