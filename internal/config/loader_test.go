@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -828,7 +829,9 @@ targets: app: {
 
 func TestLoader_PkgConfigPathIsRelativeToProject(t *testing.T) {
 	dir := t.TempDir()
-	config := "name: \"pc\"\ntoolchain: pkgConfigPath: [\"vcpkg/lib/pkgconfig\", \"/opt/pc\"]\ntargets: {}\n"
+	// An absolute path on every platform; "/opt/pc" is relative on Windows.
+	absolute := filepath.ToSlash(filepath.Join(t.TempDir(), "pc"))
+	config := fmt.Sprintf("name: \"pc\"\ntoolchain: pkgConfigPath: [\"vcpkg/lib/pkgconfig\", %q]\ntargets: {}\n", absolute)
 	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -837,7 +840,7 @@ func TestLoader_PkgConfigPathIsRelativeToProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	absDir, _ := filepath.Abs(dir)
-	want := []string{filepath.Join(absDir, "vcpkg", "lib", "pkgconfig"), "/opt/pc"}
+	want := []string{filepath.Join(absDir, "vcpkg", "lib", "pkgconfig"), absolute}
 	if !slices.Equal(cfg.Toolchain.PkgConfigPath, want) {
 		t.Errorf("pkgConfigPath = %q, want %q", cfg.Toolchain.PkgConfigPath, want)
 	}
