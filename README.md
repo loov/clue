@@ -179,7 +179,9 @@ compiles WASI code with `-fno-exceptions`.
 - `clue test [name|label...]` builds and runs the configured tests.
 - `clue install [target...]` builds and installs artifacts and public headers, but not bundles.
 - `clue deps <list|fetch|build|clean|update|tidy>` manages external dependencies.
-- `clue generate <ninja|compile-commands|all>` writes build files for editors and other tools.
+- `clue generate <ninja|compile-commands|all>` writes build files for editors and other tools,
+  into the project directory or the directory `-out` names. Run Ninja from the project directory,
+  as `ninja -f <out>/build.ninja`.
 - `clue generate schema` writes the `loov.dev/clue` schema into the CUE module, for `cue` and editors.
 - `clue exec <file>` runs the command in a JSON list of arguments. Ninja files generated on
   Windows use it for arguments with newlines, which no Windows command line can hold.

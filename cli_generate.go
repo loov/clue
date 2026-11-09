@@ -20,15 +20,22 @@ import (
 type generateCommand struct {
 	options *options
 	format  string
+	out     string
 }
 
-func (*generateCommand) Setup(clingy.Parameters) {}
+func (c *generateCommand) Setup(params clingy.Parameters) {
+	if c.format != "schema" {
+		c.out = params.Flag("out", "directory to write the files to (default: the project directory)", "").(string)
+	}
+}
 
 func (c *generateCommand) Execute(ctx context.Context) error {
-	return result(runGenerate(ctx, c.options.dir, c.options.variant, c.options.target, c.format))
+	return result(runGenerate(ctx, c.options.dir, c.out, c.options.variant, c.options.target, c.format))
 }
 
-func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
+// runGenerate writes the files subCmd names into out, or into the project
+// directory dir when out is empty.
+func runGenerate(ctx context.Context, dir, out, variant, target, subCmd string) int {
 	if subCmd == "schema" {
 		path, err := config.WriteSchemaPackage(dir)
 		if err != nil {
@@ -68,16 +75,22 @@ func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
 	// Determine selected variant for compile-commands
 	selectedVariant := config.SelectConfigVariant(cfg, variant)
 
+	if out == "" {
+		out = dir
+	} else if err := os.MkdirAll(out, 0o755); err != nil {
+		printError(err)
+		return 1
+	}
 	switch subCmd {
 	case "ninja":
-		return generateNinja(ctx, dir, cfg, targetPlatform)
+		return generateNinja(ctx, out, cfg, targetPlatform)
 	case "compile-commands":
-		return generateCompileCommands(ctx, dir, cfg, selectedVariant, targetPlatform)
+		return generateCompileCommands(ctx, out, cfg, selectedVariant, targetPlatform)
 	case "all":
-		if ret := generateNinja(ctx, dir, cfg, targetPlatform); ret != 0 {
+		if ret := generateNinja(ctx, out, cfg, targetPlatform); ret != 0 {
 			return ret
 		}
-		return generateCompileCommands(ctx, dir, cfg, selectedVariant, targetPlatform)
+		return generateCompileCommands(ctx, out, cfg, selectedVariant, targetPlatform)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown generate subcommand: %s\n", subCmd)
 		fmt.Fprintln(os.Stderr, "Available subcommands: ninja, compile-commands, all")
@@ -85,7 +98,7 @@ func runGenerate(ctx context.Context, dir, variant, target, subCmd string) int {
 	}
 }
 
-func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform toolchain.Platform) int {
+func generateNinja(ctx context.Context, out string, cfg *config.Config, platform toolchain.Platform) int {
 	// A changed patch selects a new checkout. Materialize it (and any newly
 	// declared dependencies) before the generator expands source globs.
 	if err := build.FetchDependencies(ctx, cfg, fetch.Options{Quiet: true}); err != nil {
@@ -100,9 +113,13 @@ func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform
 	}
 
 	// A cross build gets its own Ninja file: build.<os-arch>.ninja.
-	outputPath := filepath.Join(dir, "build.ninja")
+	outputPath := filepath.Join(out, "build.ninja")
 	if platform.IsCrossCompile() {
-		outputPath = filepath.Join(dir, "build."+platform.String()+".ninja")
+		outputPath = filepath.Join(out, "build."+platform.String()+".ninja")
+	}
+	regenerate := []string{"-target", platform.String(), "generate", "ninja"}
+	if out != "." {
+		regenerate = append(regenerate, "-out", out)
 	}
 	err := generate.Ninja(ctx, generate.NinjaOptions{
 		Config:   cfg,
@@ -113,7 +130,7 @@ func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform
 		OutputPath: outputPath,
 		Toolchain:  cfg.Toolchain.Compiler,
 		Platform:   platform,
-		Regenerate: []string{"-target", platform.String(), "generate", "ninja"},
+		Regenerate: regenerate,
 	})
 	if err != nil {
 		if ctx.Err() != nil {
@@ -127,8 +144,8 @@ func generateNinja(ctx context.Context, dir string, cfg *config.Config, platform
 	return 0
 }
 
-func generateCompileCommands(ctx context.Context, dir string, cfg *config.Config, variant string, platform toolchain.Platform) int {
-	outputPath := filepath.Join(dir, "compile_commands.json")
+func generateCompileCommands(ctx context.Context, out string, cfg *config.Config, variant string, platform toolchain.Platform) int {
+	outputPath := filepath.Join(out, "compile_commands.json")
 	err := generate.CompileCommands(ctx, generate.CompDBOptions{
 		Config:     cfg,
 		Variant:    variant,

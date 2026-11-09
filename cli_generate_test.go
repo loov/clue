@@ -38,7 +38,7 @@ targets: app: {type: "executable", sources: ["main.c"], depends: ["sdk"]}
 		if err := os.WriteFile("sdk.patch", []byte(patch), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if code := runGenerate(t.Context(), ".", "", "", "ninja"); code != 0 {
+		if code := runGenerate(t.Context(), ".", "", "", "", "ninja"); code != 0 {
 			t.Fatalf("generation after patch edit exited %d", code)
 		}
 		loaded, err := deps.NewPatch("sdk.patch")
@@ -55,5 +55,33 @@ targets: app: {type: "executable", sources: ["main.c"], depends: ["sdk"]}
 		if err != nil || !strings.Contains(string(graph), filepath.ToSlash(path)) {
 			t.Fatalf("graph does not use patched source %q: %v", path, err)
 		}
+	}
+}
+
+func TestGenerate_WritesIntoOutDirectory(t *testing.T) {
+	t.Chdir(t.TempDir())
+	files := map[string]string{
+		"main.c":   "int main(void) { return 0; }\n",
+		"clue.cue": "name: \"app\"\ntargets: app: {type: \"executable\", sources: [\"main.c\"]}\n",
+	}
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if code := runGenerate(t.Context(), ".", filepath.Join("build", "gen"), "", "", "all"); code != 0 {
+		t.Fatalf("generate exited %d", code)
+	}
+	for _, name := range []string{"build.ninja", "compile_commands.json"} {
+		if _, err := os.Stat(filepath.Join("build", "gen", name)); err != nil {
+			t.Error(err)
+		}
+		if _, err := os.Stat(name); err == nil {
+			t.Errorf("%s written into the project directory", name)
+		}
+	}
+	graph, err := os.ReadFile(filepath.Join("build", "gen", "build.ninja"))
+	if err != nil || !strings.Contains(string(graph), "-out") {
+		t.Errorf("regeneration does not write into the out directory: %v", err)
 	}
 }
