@@ -72,7 +72,7 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 	if len(requested) == 0 {
 		for name, target := range cfg.Targets {
 			hostTarget := target.Host && cfg.Host != nil
-			if target.Type != "custom" && target.Type != "task" && target.Test == nil && !hostTarget && !target.Optional {
+			if target.Type != "custom" && target.Type != "task" && target.Test == nil && !hostTarget && !target.Optional && !target.ObjectLibrary {
 				requested = append(requested, name)
 			}
 		}
@@ -87,6 +87,9 @@ func InstallTargets(cfg *config.Config, requested []string) ([]string, error) {
 		}
 		if target.Type == "custom" || target.Type == "task" {
 			return nil, fmt.Errorf("%s target %q has no installable artifact", target.Type, name)
+		}
+		if target.ObjectLibrary {
+			return nil, fmt.Errorf("object library %q has no installable artifact; it is part of the targets that depend on it", name)
 		}
 		if target.Host && cfg.Host != nil {
 			return nil, fmt.Errorf("host target %q is built for the machine running clue, not the installation", name)

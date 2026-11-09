@@ -5,7 +5,9 @@ package config
 // Core target definition - base for all buildable units
 #Target: {
 	name?:   string & =~"^[a-zA-Z][a-zA-Z0-9_-]*$" // defaults to the key in targets
-	type:    "executable" | "static_library" | "shared_library" | "bundle" | "interface_library" | "custom" | "task"
+	// An object_library's objects become part of every target that depends
+	// on it, as a static library that its dependents link whole
+	type:    "executable" | "static_library" | "object_library" | "shared_library" | "bundle" | "interface_library" | "custom" | "task"
 	// Files or globs; "**" matches any number of directories
 	sources?: [...string]
 	// Globs of sources to leave out, such as "**/win32/*"
@@ -130,7 +132,7 @@ package config
 		bundle?: _|_
 	}
 	// A shared library may consist of its dependencies alone.
-	if type == "static_library" || type == "executable" {
+	if type == "static_library" || type == "object_library" || type == "executable" {
 		sources: [...string] & [_, ...]
 	}
 	if type != "executable" && type != "static_library" && type != "shared_library" {

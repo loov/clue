@@ -630,6 +630,10 @@ targets: plugin: {
 `linkWhole: true` link all of it, right after their own objects. A shared library or bundle may consist of its dependencies
 alone, without sources of its own.
 
+An `object_library` is a group of sources whose objects become part of every target that depends
+on it, like CMake's object libraries: clue archives them and its dependents link the archive
+whole. `clue install` leaves object libraries out.
+
 `fileName` replaces the platform's file name of an executable or library, such as
 `fileName: "preload.so"` for a target that would be `libpreload.so`. A shared library's soname
 (install name on macOS) follows it, and dependents link the file by its path.

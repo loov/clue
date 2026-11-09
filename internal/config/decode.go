@@ -188,6 +188,10 @@ func (l *Loader) extractTarget(name string, val cue.Value) (Target, error) {
 	if v := val.LookupPath(cue.ParsePath("type")); v.Exists() {
 		t.Type, _ = v.String()
 	}
+	if t.Type == "object_library" {
+		// Linking every member of an archive links its objects.
+		t.Type, t.LinkWhole, t.ObjectLibrary = "static_library", true, true
+	}
 
 	t.Sources = extractStringList(val, "sources")
 	t.Exclude = extractStringList(val, "exclude")

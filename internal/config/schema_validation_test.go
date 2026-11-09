@@ -327,3 +327,18 @@ func TestSchemaValidation_FileName(t *testing.T) {
 		}
 	}
 }
+
+func TestLoad_ObjectLibraryIsLinkedWhole(t *testing.T) {
+	dir := t.TempDir()
+	contents := "package config\nname: \"test\"\ntargets: objs: {type: \"object_library\", sources: [\"a.cpp\"]}\n"
+	if err := os.WriteFile(filepath.Join(dir, "clue.cue"), []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := NewLoader().Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if objs := cfg.Targets["objs"]; objs.Type != "static_library" || !objs.LinkWhole || !objs.ObjectLibrary {
+		t.Errorf("objs = %+v", objs)
+	}
+}
